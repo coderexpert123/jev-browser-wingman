@@ -95,6 +95,7 @@ type ChoiceAnswers = {
   action?: [string, Record<string, number>];
   target?: [string, Record<string, number>];
   value?: [string, Record<string, number>];
+  option?: [string, Record<string, number>];
 };
 type SeqEntry = (NoulAnswers & ChoiceAnswers) | { fail: string };
 
@@ -128,7 +129,7 @@ function scriptedAsk(seq: SeqEntry[]): { ask: JevAsk; requests: JevRequest[] } {
     for (const key of ['done', 'blocked', 'login', 'error', 'irreversible'] as const) {
       if (step[key] !== undefined) answers[key] = { type: 'noul', noul: step[key] as number };
     }
-    for (const key of ['action', 'target', 'value'] as const) {
+    for (const key of ['action', 'target', 'value', 'option'] as const) {
       const spec = step[key];
       if (spec) answers[key] = choice(spec[0], spec[1]);
     }
@@ -435,6 +436,103 @@ test('result labels are redacted and at most 80 chars', async () => {
   const candidate = r2.candidates?.[0]?.label ?? '';
   assert.equal(candidate.includes('SecretValue'), false);
   assert.ok(candidate.length <= 80);
+});
+
+test('an option request redacts option labels and carries the chosen binding name', async () => {
+  // No local match (the echoed value sits inside a longer label), so the loop
+  // must go through § 3.6 option requests: their criteria are page text and
+  // obey the same egress rule as the state, and they carry the binding name.
+  const values = { email: 'SECRETVALUE@mail.com' };
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [
+            el({
+              id: 'e1',
+              tag: 'select',
+              role: 'combobox',
+              path: '#plan',
+              name: 'Plan',
+              editable: false,
+              options: [
+                { value: 'v1', label: `Plan SECRETVALUE@mail.com` },
+                { value: 'v2', label: 'Other' },
+              ],
+              state: { disabled: false, selected: 'Choose' },
+              fingerprint: { tag: 'select', role: 'combobox', name: 'Plan', x: 0, y: 0 },
+            }),
+          ],
+        }),
+      ],
+    },
+    script: [
+      S({ action: ['select', { select: 0.9, click: 0.05 }], target: ['e1', { e1: 0.9 }], value: ['email', { email: 0.9, none: 0.05 }] }),
+      { option: ['o1', { o1: 0.9, none: 0.05 }] },
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'Pick the plan', values });
+  assert.equal(r.status, 'done');
+  const optionRequests = h.requests.filter((q) => 'option' in (q.questions as object));
+  assert.ok(optionRequests.length >= 1, 'no option request was issued');
+  for (const q of optionRequests) {
+    assertNoValues(JSON.stringify(q), values);
+  }
+  const optionQ = (optionRequests[0].questions as Record<string, { instructions: string }>).option;
+  assert.ok(
+    optionQ.instructions.includes(`The supplied value's name is "email"`),
+    `the binding name is not carried: ${optionQ.instructions}`,
+  );
+});
+
+test('an out-of-set option choice is no-value, never an act with an undefined value', async () => {
+  const selectElement = () =>
+    el({
+      id: 'e1',
+      tag: 'select',
+      role: 'combobox',
+      path: '#plan',
+      name: 'Plan',
+      editable: false,
+      options: [
+        { value: 'v1', label: 'Plan A' },
+        { value: 'v2', label: 'Plan B' },
+      ],
+      state: { disabled: false, selected: 'Choose' },
+      fingerprint: { tag: 'select', role: 'combobox', name: 'Plan', x: 0, y: 0 },
+    });
+  const h = harness({
+    observations: { p1: [observation({ elements: [selectElement()] })] },
+    script: [
+      S({ action: ['select', { select: 0.9, click: 0.05 }], target: ['e1', { e1: 0.9 }], value: ['email', { email: 0.9, none: 0.05 }] }),
+      { option: ['o99', { o99: 0.9, none: 0.05 }] },
+    ],
+  });
+  const r = await h.call({ goal: 'Pick the plan', values: { email: 'nomatch' } });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'no-value');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+test('last_action label is redacted and at most 80 chars', async () => {
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [
+            el({ name: `Email SECRETVALUE@mail.com ${'y'.repeat(100)}` }),
+          ],
+        }),
+      ],
+    },
+    script: [S(), { done: 0.9 }],
+  });
+  const r = await h.call({ goal: 'g', values: { q: 'SECRETVALUE@mail.com' } });
+  assert.equal(r.status, 'done');
+  assert.ok(r.last_action, 'no last_action on an acted call');
+  assert.equal(r.last_action.label.includes('SECRETVALUE@mail.com'), false, 'last_action leaked a binding value');
+  assert.ok(r.last_action.label.length <= 80, 'last_action label exceeds 80 chars');
 });
 
 test('detach runs even when the loop throws', async () => {

@@ -33,6 +33,7 @@ import type {
   WingmanLogRecord,
   WingmanResult,
 } from '../contract/types.js';
+import { OPS } from '../contract/types.js';
 import {
   ActFailedError,
   AttachError,
@@ -352,35 +353,50 @@ async function runTool(
     return null;
   }
 
-  /** § 3.7 rules 6–8 plus value resolution for fill/select. */
+  /** § 3.7 rules 6–8 plus value resolution for fill/select. `actionAnswers` is
+   * the request that carried the `action` question (request 1 in both shapes;
+   * request 2 never repeats it). */
   async function decideTarget(
     answers: AnswerMap,
+    actionAnswers: AnswerMap,
     obs: Observation,
     values: Record<string, string>,
     state: object,
     remaining: () => number,
   ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
-    const action = answers['action'] as JevChoiceAnswer | undefined;
-    const verb: Op = (action?.choice as Op | undefined) ?? 'click';
+    const action = actionAnswers['action'] as JevChoiceAnswer | undefined;
+    // Answers are untrusted: an out-of-set action choice, a target id that is
+    // not in the observation, or a value choice naming no real binding must
+    // resolve to an ambiguous decision — never to an act on some other element.
+    const uncertain = (): {
+      result: WingmanResult;
+      el: ElementRecord;
+      verb: Op;
+    } => ({
+      result: mk('ambiguous', 'target-uncertain', { candidates: topTargetCandidates(answers, obs, values) }),
+      el: obs.elements[0],
+      verb: 'click',
+    });
+    const rawVerb = action?.choice;
+    const verb: Op | null =
+      typeof rawVerb === 'string' && (OPS as readonly string[]).includes(rawVerb) ? (rawVerb as Op) : null;
+    if (verb === null) {
+      return uncertain();
+    }
     const target = answers['target'] as JevChoiceAnswer | undefined;
     const targetId = target?.choice ?? 'none';
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
     // 6. target uncertainty (action ≠ scroll)
     if (verb !== 'scroll' && (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target)) {
-      return {
-        result: mk('ambiguous', 'target-uncertain', { candidates: topTargetCandidates(answers, obs, values) }),
-        el: obs.elements[0],
-        verb,
-      };
+      return uncertain();
     }
-    const el = obs.elements.find((e) => e.id === targetId) ?? obs.elements[0];
+    const el = obs.elements.find((e) => e.id === targetId);
+    if (!el) {
+      return uncertain();
+    }
     // 7. op fit
     if (!opFits(verb, el)) {
-      return {
-        result: mk('ambiguous', 'target-uncertain', { candidates: topTargetCandidates(answers, obs, values) }),
-        el,
-        verb,
-      };
+      return uncertain();
     }
     // 8. value
     let binding: string | undefined;
@@ -395,11 +411,15 @@ async function runTool(
         return { result: mk('ambiguous', 'no-value'), el, verb };
       }
       binding = valueAnswer.choice;
+      if (!(binding in values)) {
+        return { result: mk('ambiguous', 'no-value'), el, verb };
+      }
     } else if (verb === 'select') {
       const valueAnswer = answers['value'] as JevChoiceAnswer | undefined;
       if (
         valueAnswer &&
         valueAnswer.choice !== 'none' &&
+        valueAnswer.choice in values &&
         (valueAnswer.probabilities[valueAnswer.choice] ?? 0) >= THRESHOLDS.value
       ) {
         binding = valueAnswer.choice;
@@ -412,7 +432,7 @@ async function runTool(
         }
       }
       if (optionValue === undefined) {
-        const outcome = await resolveOption(obs, el, binding, state, remaining);
+        const outcome = await resolveOption(obs, el, binding, values, state, remaining);
         if (outcome.kind === 'value') {
           optionValue = outcome.value;
         } else if (outcome.kind === 'no-value') {
@@ -437,10 +457,13 @@ async function runTool(
     obs: Observation,
     el: ElementRecord,
     bindingName: string | undefined,
+    values: Record<string, string>,
     state: object,
     remaining: () => number,
   ): Promise<OptionOutcome> {
-    const chunks = buildOptionRequests({ state, select: el, bindingName });
+    // Option labels are page text and can echo a typed value, so they leave
+    // redacted against the call's bindings, like every other egress surface.
+    const chunks = buildOptionRequests({ state, select: el, bindingName, bindings: values });
     if (chunks.length === 0) return { kind: 'no-value' };
     const winners: Array<{ value: string; label: string; prob: number }> = [];
     for (const { request, ids } of chunks) {
@@ -450,6 +473,7 @@ async function runTool(
       const ans = r.answers['option'] as JevChoiceAnswer | undefined;
       if (!ans || ans.choice === 'none') continue;
       const value = ids[ans.choice];
+      if (value === undefined) continue; // an out-of-set choice names no real option
       const label = (el.options ?? []).find((o) => o.value === value)?.label ?? ans.choice;
       winners.push({ value, label, prob: ans.probabilities[ans.choice] ?? 0 });
     }
@@ -459,7 +483,7 @@ async function runTool(
       return w && w.prob >= THRESHOLDS.value ? { kind: 'value', value: w.value } : { kind: 'no-value' };
     }
     if (winners.length === 0) return { kind: 'no-value' };
-    const final = buildOptionFinalRequest({ state, winners });
+    const final = buildOptionFinalRequest({ state, winners, bindings: values });
     if (remaining() < TIME_FLOOR_MS) return { kind: 'budget-time' };
     const r = await askWithCost(final.request, 'wingman_do', remaining);
     if (!r.ok) return { kind: 'ask-failed', error: r.error };
@@ -467,7 +491,8 @@ async function runTool(
     if (!ans || ans.choice === 'none' || (ans.probabilities[ans.choice] ?? 0) < THRESHOLDS.value) {
       return { kind: 'no-value' };
     }
-    return { kind: 'value', value: final.ids[ans.choice] };
+    const finalValue = final.ids[ans.choice];
+    return finalValue !== undefined ? { kind: 'value', value: finalValue } : { kind: 'no-value' };
   }
 
   /** The one fixed confirm-token point (§ WP-C7 item 3). */
@@ -512,7 +537,8 @@ async function runTool(
     }
     await driver.act(pageId, el.id, action.verb, actValue);
     steps += 1;
-    lastAction = { verb: action.verb, label: el.name };
+    // Result labels are redacted against the call's bindings and capped (§ WP-C7 item 5).
+    lastAction = { verb: action.verb, label: capLabel(redactValues(el.name, values)) };
     // § 3.7 rule 11.
     if (dialogEvents.some((e) => e.pageId === pageId)) {
       return { result: mk('blocked', 'dialog-open'), history };
@@ -757,9 +783,10 @@ async function runTool(
         }
       }
 
-      // § 3.7 rules 6–9 from the answers that carry target/value/irreversible.
+      // § 3.7 rules 6–9 from the answers that carry target/value/irreversible;
+      // the verb comes from the answers that carried `action` (request 1).
       const decisionAnswers = (secondary ?? primary) as AnswerMap;
-      const decide = await decideTarget(decisionAnswers, obs, values, state, remaining);
+      const decide = await decideTarget(decisionAnswers, primary, obs, values, state, remaining);
 
       if (mode === 'shadow') {
         // Rule 10: shadow overrides steps 1–9 — after the first round's
@@ -825,7 +852,7 @@ async function runTool(
             : undefined;
       await driver.act(pageId, el.id, verb, actValue);
       steps += 1;
-      lastAction = { verb, label: el.name };
+      lastAction = { verb, label: capLabel(redactValues(el.name, values)) };
       if (dialogEvents.some((e) => e.pageId === pageId)) {
         return mk('blocked', 'dialog-open');
       }

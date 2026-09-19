@@ -491,3 +491,22 @@ test('wingman_check returns done answered with the rounded answer', async () => 
   assert.ok(r.cost.jev_calls >= 1);
   assert.equal(h.driver.actCalls().length, 0);
 });
+
+// Answers are untrusted (§ 3.7 consumes a Jev response): an id that is not in
+// the observation or an out-of-set action choice resolves to ambiguous, never
+// to an act on some other element.
+test('an unresolvable target id is target-uncertain, never an act on another element', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S({ target: ['e99', { e99: 0.9, none: 0.05 }] })] });
+  const r = await h.call({ goal: 'g' });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'target-uncertain');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+test('an out-of-set action choice is target-uncertain', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S({ action: ['delete', { delete: 0.9, click: 0.05 }] })] });
+  const r = await h.call({ goal: 'g' });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'target-uncertain');
+  assert.equal(h.driver.actCalls().length, 0);
+});
