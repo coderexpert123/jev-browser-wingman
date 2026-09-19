@@ -1,0 +1,1 @@
+{"adapter":"playwright","knownBad":"auto-dismiss-dialog","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":false,"P4":true,"P5":true,"P6":true,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":[]}

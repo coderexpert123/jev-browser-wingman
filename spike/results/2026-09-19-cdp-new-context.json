@@ -1,0 +1,1 @@
+{"adapter":"cdp","knownBad":"new-context","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":true,"P4":true,"P5":true,"P6":false,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":["P6: C0=[] C1=[\"AAA2B49A26F1D6176BFC4B6912257B8A\"] pageCtx=268BCA0EC94E57A14989C261C19229C0"]}
