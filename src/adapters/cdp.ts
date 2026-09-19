@@ -103,10 +103,21 @@ class CdpDriver implements Driver {
     }
 
     let conn: CdpConnection;
-    try {
-      conn = await CdpConnection.connect(endpoint, { timeoutMs: 5_000 });
-    } catch (err) {
-      throw new AttachError(err instanceof Error ? err.message : String(err));
+    // Cold start: a Chrome that is still coming up can need well over one 5 s
+    // connect attempt (measured 6-19 s, 2026-09-19). The 5 s per-attempt pin
+    // stays; the driver retries within a 20 s budget so a slow start fails
+    // late, never early.
+    const connectDeadline = Date.now() + 20_000;
+    for (;;) {
+      try {
+        conn = await CdpConnection.connect(endpoint, { timeoutMs: 5_000 });
+        break;
+      } catch (err) {
+        if (Date.now() >= connectDeadline) {
+          throw new AttachError(err instanceof Error ? err.message : String(err));
+        }
+        await sleep(250);
+      }
     }
     this.conn = conn;
 
@@ -184,6 +195,11 @@ class CdpDriver implements Driver {
     return sessionId;
   }
 
+  // The WHOLE chain — getFrameTree, createIsolatedWorld, Runtime.evaluate — is
+  // bounded by the caller's timeout (same as the playwright adapter): a renderer
+  // blocked by a modal dialog never answers the world-creation commands either,
+  // and only the tracked dialog state distinguishes that timeout as a
+  // DialogOpenError; any other timeout is ActFailedError('evaluation timed out').
   private async evalOnSession(
     pageId: string,
     sessionId: string,
@@ -191,30 +207,47 @@ class CdpDriver implements Driver {
     timeoutMs: number,
   ): Promise<any> {
     const conn = this.requireConn();
-    const tree = await conn.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree', {}, sessionId);
-    const frameId = tree.frameTree.frame.id;
-    const world = await conn.send<{ executionContextId: number }>('Page.createIsolatedWorld', {
-      frameId,
-      worldName: 'wingman',
-    }, sessionId);
-    try {
-      const result = await conn.send<{ result?: { value?: unknown } }>(
+    const evalTimeout = (): ActFailedError | DialogOpenError => {
+      if (this.dialogOpenOn(pageId)) {
+        return new DialogOpenError('evaluation blocked by an open dialog');
+      }
+      return new ActFailedError('evaluation timed out');
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const work = (async () => {
+      const tree = await conn.send<{ frameTree: { frame: { id: string } } }>('Page.getFrameTree', {}, sessionId);
+      const world = await conn.send<{ executionContextId: number }>('Page.createIsolatedWorld', {
+        frameId: tree.frameTree.frame.id,
+        worldName: 'wingman',
+      }, sessionId);
+      return await conn.send<{ result?: { value?: unknown } }>(
         'Runtime.evaluate',
         { expression, contextId: world.executionContextId, returnByValue: true, awaitPromise: true },
         sessionId,
         timeoutMs,
       );
-      return result.result?.value;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message.startsWith('cdp timeout')) {
-        if (this.dialogOpenOn(pageId)) {
-          throw new DialogOpenError('evaluation blocked by an open dialog');
-        }
-        throw new ActFailedError('evaluation timed out');
-      }
-      throw err;
+    })().then(
+      (r) => ({ kind: 'result' as const, r }),
+      (err) => ({ kind: 'error' as const, err }),
+    );
+    const raced = await Promise.race([
+      work,
+      new Promise<{ kind: 'timeout' }>((resolve) => {
+        timer = setTimeout(() => resolve({ kind: 'timeout' }), timeoutMs);
+      }),
+    ]);
+    clearTimeout(timer);
+    if (raced.kind === 'timeout') {
+      throw evalTimeout();
     }
+    if (raced.kind === 'error') {
+      const message = raced.err instanceof Error ? raced.err.message : String(raced.err);
+      if (message.startsWith('cdp timeout')) {
+        throw evalTimeout();
+      }
+      throw raced.err;
+    }
+    return raced.r.result?.value;
   }
 
   private async evalIsolated(pageId: string, expression: string, timeoutMs = EVAL_TIMEOUT_MS): Promise<any> {
@@ -394,11 +427,17 @@ class CdpDriver implements Driver {
     // Dialog rule: an Input.* sequence or evaluation whose page handler opens a
     // dialog does not answer until the dialog closes. Race the operation against
     // the page's next javascriptDialogOpening; when the dialog wins, resolve
-    // normally and discard the orphaned command's later reply or timeout.
+    // normally and discard the orphaned command's later reply or timeout. When
+    // the operation itself fails, the error surfaces — an act that did nothing
+    // must never resolve as success.
     const dialogPromise = this.dialogWait(pageId);
+    let opError: unknown = null;
     const opPromise = this.performOp(pageId, el, op, value, point).then(
       () => 'op' as const,
-      () => 'op' as const,
+      (err) => {
+        opError = err;
+        return 'op' as const;
+      },
     );
     const winner = await Promise.race([
       opPromise,
@@ -408,6 +447,9 @@ class CdpDriver implements Driver {
       // The op's eventual reply or `cdp timeout` rejection is discarded.
       await opPromise.catch(() => {});
       return;
+    }
+    if (opError !== null) {
+      throw opError instanceof Error ? opError : new Error(String(opError));
     }
   }
 

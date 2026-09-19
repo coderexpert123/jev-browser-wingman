@@ -8,6 +8,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { AddressInfo } from 'node:net';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startFixtureServer, type FixtureServer } from '../src/fixture-server.js';
 import { createCdpDriver } from '../src/adapters/cdp.js';
@@ -190,6 +192,49 @@ test('detach leaves the browser answering', async () => {
   );
   assert.ok(targetInfos.some((t) => t.targetId === rig.pageId), 'page target vanished');
   await closeRig(rig);
+});
+
+test('act surfaces an operation failure', async () => {
+  const rig = await openRig('form.html', 'Fixture form');
+  try {
+    const el = await elementByName(rig, 'Continue');
+    // fill without a value makes performOp fail; act must reject, never
+    // resolve as if the operation had run.
+    await assert.rejects(rig.driver.act(rig.pageId, el.id, 'fill'));
+  } finally {
+    await closeRig(rig);
+  }
+});
+
+test('attach retries a cold endpoint within its budget', async () => {
+  const browser = await launchTestChrome();
+  const version = (await (await fetch(`${browser.endpoint}/json/version`)).json()) as unknown;
+  // A stub debug endpoint that answers 503 for the first 300 ms, then serves
+  // the real /json/version body. Without the bounded retry the attach fails.
+  let ready = false;
+  setTimeout(() => {
+    ready = true;
+  }, 300);
+  const server = createServer((req, res) => {
+    if (!ready) {
+      res.statusCode = 503;
+      res.end();
+      return;
+    }
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify(version));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const driver = createCdpDriver();
+  try {
+    const port = (server.address() as AddressInfo).port;
+    await driver.attach({ cdpEndpoint: `http://127.0.0.1:${port}` });
+    assert.equal(driver.name, 'cdp');
+  } finally {
+    await driver.detach().catch(() => {});
+    server.close();
+    await browser.close();
+  }
 });
 
 // Pinned from the actual enumeration of fixtures/pages/form.html at WP-D2
