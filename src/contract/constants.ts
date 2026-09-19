@@ -1,0 +1,34 @@
+export const PACKAGE_NAME = 'jev-browser-wingman';
+export const PACKAGE_VERSION = '0.1.0';
+export const ENV = {
+  HOME: 'WINGMAN_HOME', CDP_ENDPOINT: 'WINGMAN_CDP_ENDPOINT', PLAYWRIGHT_CDP: 'PLAYWRIGHT_MCP_CDP_ENDPOINT',
+  KEY: 'TYPESAFE_API_KEY', BASE_URL: 'TYPESAFE_BASE_URL',
+} as const;
+export const DEFAULT_PORT = 9222;
+export const DEFAULT_PROFILE_DIR = '~/.jev-browser-wingman/profile';
+export const LABEL_MAX = 80;
+export const CRITERION_MAX = 120;
+export const MAX_ENUMERATED = 1000;
+export const TOKEN_TTL_MS = 600_000;
+export const TOKEN_MAX_LIVE = 32;
+export const REDACT_MIN_LEN = 4;
+export const DEFAULT_BUDGETS = {
+  max_steps: 8, max_ms: 45_000, jev_timeout_ms: 10_000, max_elements: 240, max_text_chars: 3_000, max_state_chars: 24_000,
+} as const;
+export const BUDGET_LIMITS = {
+  max_steps: [1, 8], max_ms: [5_000, 50_000], jev_timeout_ms: [1_000, 10_000],
+  max_elements: [20, 240], max_text_chars: [0, 3_000], max_state_chars: [2_000, 24_000],
+} as const;
+export const THRESHOLDS = {
+  done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
+} as const;
+export const TWO_STAGE = { groupSize: 30, topGroups: 3 } as const;
+export const SELECT_CHUNK = 250;
+export const ACT_TIMEOUT_MS = 3_000;
+export const EVAL_TIMEOUT_MS = 5_000;    // bound on every adapter Runtime.evaluate; a modal dialog blocks evaluation
+export const SETTLE_MAX_MS = 3_000;
+export const TIME_FLOOR_MS = 1_500;      // stop before any step when less than this remains
+export const TYPESAFE_DEFAULT_BASE_URL = 'https://api.typesafe.ai';
+export const TYPESAFE_PATH = '/v1/systemone';
+export const TYPESAFE_MODEL = 'jev-latest';
+export const POLICY_SELF_TEST_HOST = 'accounts.google.com';
