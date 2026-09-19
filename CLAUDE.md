@@ -47,3 +47,24 @@ withheld — this file rides a public-bound repository). Gates:
   permanently-false oracle. Keep at least one assert-true expression in any oracle test.
 - **`run-tests.mjs` env scrub removes `TYPESAFE_API_KEY`** — bench-cap tests must inject the
   key through `BenchDeps.env`, never the process env.
+
+## Gotchas learned while building WP-X (2026-09-20)
+
+- **`pa run commit` refuses paths under your OWN active reservation** — claims are matched
+  against the caller's session, so a builder cannot commit what it claimed. `pa release <id>`
+  first, then commit; the release-then-commit pair is the pattern, not a tool bug.
+- **A minimized Chrome window rejects a position-only `Browser.setWindowBounds`** — the
+  left/top change errors until the window is restored (`windowState: 'normal'`) first.
+  `chrome hide` therefore restores before moving off-screen; `chrome show` restores by
+  definition (and the restore takes the foreground — that is show's purpose, RO-7).
+- **`Browser.getWindowForTarget` is per-page**: collect distinct `windowId`s over the page
+  targets or you will move one window N times and miss the others (same shape as § 3.15's
+  minimise loop, which is the model for show/hide).
+- **The spike's result JSON is deterministic** — a re-run that reproduces the wave-0 verdicts
+  rewrites the `spike/results/*.json` files byte-identically and leaves git clean; no
+  re-commit of evidence is needed (or possible) after a P4-semantics-only change.
+- **A live headed Chrome in a unit test works off-screen**: direct-spawn with the anti-
+  throttling flags plus `--window-position=-32000,-32000` on a `wingman-ephemeral-` temp
+  profile, then measure via the PowerShell EnumWindows/GetWindowRect pattern from
+  `scripts/gates/window-mode.mjs`. Assert the off-screen PRECONDITION before the show, or
+  the both-ways assertion cannot discriminate.
