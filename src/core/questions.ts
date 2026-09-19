@@ -204,7 +204,9 @@ export function buildOptionRequests(a: {
   state: object;
   select: ElementRecord;
   bindingName?: string;
+  bindings?: Record<string, string>;
 }): Array<{ request: JevRequest; ids: Record<string, string> }> {
+  const bindings = a.bindings ?? {};
   const options = a.select.options ?? [];
   const chunks = chunk(options, SELECT_CHUNK);
   return chunks.map((optionChunk) => {
@@ -212,12 +214,12 @@ export function buildOptionRequests(a: {
     const ids: Record<string, string> = {};
     optionChunk.forEach((opt, i) => {
       const key = `o${i + 1}`;
-      criteria[key] = opt.label;
+      criteria[key] = redactValues(opt.label, bindings);
       ids[key] = opt.value;
     });
     criteria.none = OPTION_EXTRA.none;
     const questions: Record<string, JevChoiceQuestion> = {
-      option: { type: 'choice', instructions: INSTRUCTIONS.option, criteria },
+      option: { type: 'choice', instructions: redactValues(INSTRUCTIONS.option, bindings), criteria },
     };
     return { request: { state: a.state, questions }, ids };
   });
@@ -227,17 +229,19 @@ export function buildOptionRequests(a: {
 export function buildOptionFinalRequest(a: {
   state: object;
   winners: Array<{ value: string; label: string }>;
+  bindings?: Record<string, string>;
 }): { request: JevRequest; ids: Record<string, string> } {
+  const bindings = a.bindings ?? {};
   const criteria: Record<string, string> = {};
   const ids: Record<string, string> = {};
   a.winners.forEach((w, i) => {
     const key = `o${i + 1}`;
-    criteria[key] = w.label;
+    criteria[key] = redactValues(w.label, bindings);
     ids[key] = w.value;
   });
   criteria.none = OPTION_EXTRA.none;
   const questions: Record<string, JevChoiceQuestion> = {
-    option: { type: 'choice', instructions: INSTRUCTIONS.option, criteria },
+    option: { type: 'choice', instructions: redactValues(INSTRUCTIONS.option, bindings), criteria },
   };
   return { request: { state: a.state, questions }, ids };
 }

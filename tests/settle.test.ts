@@ -39,3 +39,15 @@ test('returns settled false when the budget runs out', async () => {
   assert.strictEqual(result.settled, false);
   assert.ok(elapsed >= 380 && elapsed < 2000, `elapsed=${elapsed}`);
 });
+
+test('a rejecting probe is treated as not answering, never an unhandled rejection', async () => {
+  let calls = 0;
+  const probe = async () => {
+    calls += 1;
+    if (calls > 2) throw new Error('context gone');
+    return { readyState: 'complete', sig: 'sig' };
+  };
+  const result = await settleByProbe(probe, 400);
+  assert.strictEqual(result.settled, false);
+  assert.ok(calls >= 3);
+});

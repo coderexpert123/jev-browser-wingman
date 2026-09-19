@@ -36,7 +36,8 @@ export class ConfirmTokenStore {
 
   mint(p: PendingAction): string {
     const token = mintToken();
-    this.tokens.set(token, { action: p, expiresAt: this.now() + this.ttlMs, used: false });
+    const action: PendingAction = { ...p, url: p.url.split('#')[0] };
+    this.tokens.set(token, { action, expiresAt: this.now() + this.ttlMs, used: false });
     while (this.tokens.size > this.maxLive) {
       const oldest = this.tokens.keys().next().value;
       if (oldest === undefined) break;

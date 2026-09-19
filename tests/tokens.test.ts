@@ -49,7 +49,7 @@ test('the 33rd token evicts the oldest', () => {
 
 test('url stored without fragment', () => {
   const store = new ConfirmTokenStore();
-  const a = action({ url: 'https://example.com/checkout?x=1' });
+  const a = action({ url: 'https://example.com/checkout?x=1#step2' });
   const token = store.mint(a);
   const consumed = store.consume(token);
   assert.equal(consumed?.url, 'https://example.com/checkout?x=1');

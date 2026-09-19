@@ -35,8 +35,14 @@ export async function settleByProbe(
     }
 
     type Raced = { kind: 'probe'; value: { readyState: string; sig: string } | null } | { kind: 'timeout' };
+    // A rejected probe counts as not answering (like a context gone
+    // mid-navigation): mapped to `null` here so a late rejection after the
+    // race resolved can never surface as an unhandled rejection.
     const raced: Raced = await Promise.race([
-      probe().then((value): Raced => ({ kind: 'probe', value })),
+      probe().then(
+        (value): Raced => ({ kind: 'probe', value }),
+        (): Raced => ({ kind: 'probe', value: null }),
+      ),
       clock.sleep(remaining).then((): Raced => ({ kind: 'timeout' })),
     ]);
 

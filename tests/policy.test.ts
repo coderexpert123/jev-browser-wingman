@@ -121,3 +121,26 @@ test('policySelfTest fails on an emptied identity list', () => {
 test('registrableDomain reduces a.b.example.co.uk to example.co.uk', () => {
   assert.equal(registrableDomain('a.b.example.co.uk'), 'example.co.uk');
 });
+
+test('trailing dots, ports and case never hide a listed host', () => {
+  const a = classifyUrl('https://chase.com./');
+  assert.equal(a.sensitive, true);
+  assert.equal(a.reason, 'sensitive-banking');
+
+  const b = classifyUrl('https://CHASE.COM:8443/login');
+  assert.equal(b.sensitive, true);
+  assert.equal(b.reason, 'sensitive-banking');
+
+  const c = classifyUrl('https://secure.Chase.COM/Login');
+  assert.equal(c.sensitive, true);
+  assert.equal(c.reason, 'sensitive-banking');
+});
+
+test('userinfo in the URL never changes the classified host', () => {
+  const v = classifyUrl('https://example.com@chase.com/');
+  assert.equal(v.sensitive, true);
+  assert.equal(v.reason, 'sensitive-banking');
+
+  const notBank = classifyUrl('https://chase.com@example.com/');
+  assert.equal(notBank.sensitive, false);
+});

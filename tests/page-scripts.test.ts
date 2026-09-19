@@ -226,3 +226,22 @@ test('hit test reports covered on overlay.html', async () => {
     await close();
   }
 });
+
+test('a button without a type attribute reports the defaulted submit type', async () => {
+  const { page, close } = await withPage('/form.html');
+  try {
+    await page.evaluate(() => {
+      const form = document.querySelector('form');
+      if (!form) return;
+      const b = document.createElement('button');
+      b.textContent = 'Bare submit';
+      form.appendChild(b);
+    });
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const bare = obs.elements.find((e) => e.name === 'Bare submit');
+    assert.ok(bare);
+    assert.strictEqual(bare!.type, 'submit');
+  } finally {
+    await close();
+  }
+});

@@ -202,7 +202,12 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
 
   function buildRecord(el: Element): Record<string, unknown> | null {
     var tag = el.tagName.toLowerCase();
-    var type = (el.getAttribute('type') || '').toLowerCase();
+    // `button.type` is the IDL default ('submit' when the attribute is
+    // absent); inputs keep the raw attribute (absent means text).
+    var type =
+      tag === 'button'
+        ? ((el as HTMLButtonElement).type || '').toLowerCase()
+        : (el.getAttribute('type') || '').toLowerCase();
     var isProxy = false;
     var labelEl: HTMLElement | null = null;
     var controlPath: string | undefined;

@@ -8,6 +8,7 @@ import {
   buildGroupRequest,
   buildTargetRequest,
   buildOptionRequests,
+  buildOptionFinalRequest,
   buildCheckRequest,
 } from '../src/core/questions.js';
 import { assertNoValues } from '../src/core/withhold.js';
@@ -159,6 +160,27 @@ test('binding values never appear in any request', () => {
 
   const checkReq = buildCheckRequest({ state: {}, question: `Is ${bindings.email} shown?`, values: bindings });
   assertNoValues(JSON.stringify(checkReq), bindings);
+
+  const select = mkEl({
+    id: 'e2',
+    tag: 'select',
+    role: 'combobox',
+    name: 'Choose',
+    state: { disabled: false, selected: '' },
+    options: [
+      { value: 'v1', label: `Mail to ${bindings.email}` },
+      { value: 'v2', label: 'Nothing here' },
+    ],
+  });
+  for (const { request } of buildOptionRequests({ state: {}, select, bindings })) {
+    assertNoValues(JSON.stringify(request), bindings);
+  }
+  const finalReq = buildOptionFinalRequest({
+    state: {},
+    winners: [{ value: 'v1', label: `Mail to ${bindings.email}` }],
+    bindings,
+  });
+  assertNoValues(JSON.stringify(finalReq.request), bindings);
 });
 
 test('check request carries only the answer question', () => {
