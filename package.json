@@ -1,0 +1,36 @@
+{
+  "name": "jev-browser-wingman",
+  "version": "0.1.0",
+  "description": "Step tool for browser agents: attaches to a running Chrome beside Playwright MCP, lets TypeSafe Jev pick the next element, keeps typed values local and gates irreversible actions.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "jev-browser-wingman": "dist/src/cli/main.js"
+  },
+  "main": "dist/src/lib.js",
+  "types": "dist/src/lib.d.ts",
+  "files": [
+    "dist/src",
+    "fixtures/pages",
+    "INSTALL-FOR-AGENTS.md",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/run-tests.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "playwright-core": "^1.63.0",
+    "tldts": "^7.4.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

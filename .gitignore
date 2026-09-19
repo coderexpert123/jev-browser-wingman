@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.build/
+bench/.home/
+bench/prices.json.bak
+spike/.tmp/

@@ -1,0 +1,3 @@
+Third-party notices for jev-browser-wingman
+
+No third-party source code is copied into this package. Design references are credited in README.md. Each future copy carries a "ported from <repo>@<sha> <path>" comment and a "## <repo>@<sha>" section here with its copyright line and license text.
