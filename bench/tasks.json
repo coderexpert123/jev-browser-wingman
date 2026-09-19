@@ -1,0 +1,58 @@
+[
+  {
+    "id": "t1-checkboxes",
+    "path": "/checkboxes",
+    "goal": "Tick the first checkbox so that both checkboxes are ticked.",
+    "values": {},
+    "oracle": "[...document.querySelectorAll('#checkboxes input')].every(i => i.checked)"
+  },
+  {
+    "id": "t2-dropdown",
+    "path": "/dropdown",
+    "goal": "Choose Option 2 in the dropdown list.",
+    "values": {},
+    "oracle": "document.querySelector('#dropdown').value === '2'"
+  },
+  {
+    "id": "t3-dynamic-controls",
+    "path": "/dynamic_controls",
+    "goal": "Enable the text field, then type the value named note into it.",
+    "values": { "note": "wingman bench" },
+    "oracle": "(() => { const i = document.querySelector('#input-example input'); return !!i && !i.disabled && i.value === 'wingman bench'; })()"
+  },
+  {
+    "id": "t4-add-elements",
+    "path": "/add_remove_elements/",
+    "goal": "Click Add Element three times so that three new buttons appear.",
+    "values": {},
+    "oracle": "document.querySelectorAll('#elements .added-manually').length === 3"
+  },
+  {
+    "id": "t5-inputs",
+    "path": "/inputs",
+    "goal": "Type the number named amount into the number field.",
+    "values": { "amount": "42" },
+    "oracle": "document.querySelector('input[type=number]').value === '42'"
+  },
+  {
+    "id": "t6-dynamic-loading",
+    "path": "/dynamic_loading/1",
+    "goal": "Start the loading and wait until the hidden text appears.",
+    "values": {},
+    "oracle": "(() => { const f = document.querySelector('#finish'); return !!f && getComputedStyle(f).display !== 'none' && f.innerText.includes('Hello World!'); })()"
+  },
+  {
+    "id": "t7-sort-table",
+    "path": "/tables",
+    "goal": "Sort the first table by Last Name in ascending order.",
+    "values": {},
+    "oracle": "document.querySelector('#table1 tbody tr td').innerText.trim() === 'Bach'"
+  },
+  {
+    "id": "t8-status-404",
+    "path": "/status_codes",
+    "goal": "Open the page for the 404 status code.",
+    "values": {},
+    "oracle": "location.pathname === '/status_codes/404'"
+  }
+]

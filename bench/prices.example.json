@@ -1,0 +1,15 @@
+{
+  "llm": {
+    "sonnet": {
+      "input_per_mtok": null,
+      "output_per_mtok": null,
+      "cache_read_per_mtok": null,
+      "cache_write_per_mtok": null
+    }
+  },
+  "typesafe": {
+    "input_per_mtok": null,
+    "output_per_mtok": null
+  },
+  "killed_run_charge_usd": null
+}
