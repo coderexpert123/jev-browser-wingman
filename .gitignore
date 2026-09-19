@@ -4,3 +4,4 @@ dist/
 bench/.home/
 bench/prices.json.bak
 spike/.tmp/
+.playwright-mcp/
