@@ -1,1 +1,1 @@
-{"adapter":"playwright","knownBad":"new-context","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":true,"P4":true,"P5":true,"P6":false,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":["P6: C0=[] C1=[\"8FC74139526DF89D000D51C5B3DD48D7\"] pageCtx=F95A4E8029DE9334C660D3208277C722"]}
+{"adapter":"playwright","knownBad":"new-context","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":true,"P4":true,"P5":true,"P6":false,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":["P6: C0=[] C1=[\"D93039DD20753600889A3ABCD112A6ED\"] pageCtx=B4C7C147E98076F8FFD4FAEC66328F9E"]}

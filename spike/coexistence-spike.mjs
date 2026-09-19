@@ -288,6 +288,32 @@ async function getPageTargets(cdp) {
   return (r.targetInfos ?? []).filter((t) => t.type === 'page');
 }
 
+// Reads document.visibilityState for one page target through a short-lived
+// CDP attach, independent of either actor's own bookkeeping (used by P8,
+// which needs per-page visibility that the Driver-shaped actor abstraction
+// does not expose).
+async function pageVisibility(cdp, targetId) {
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+  try {
+    await cdp.send('Page.enable', {}, sessionId).catch(() => {});
+    const { frameTree } = await cdp.send('Page.getFrameTree', {}, sessionId);
+    const worldName = 'wingman-spike-vis-' + Math.random().toString(16).slice(2);
+    const { executionContextId } = await cdp.send(
+      'Page.createIsolatedWorld',
+      { frameId: frameTree.frame.id, worldName },
+      sessionId,
+    );
+    const { result } = await cdp.send(
+      'Runtime.evaluate',
+      { expression: 'document.visibilityState', contextId: executionContextId, returnByValue: true },
+      sessionId,
+    );
+    return result.value;
+  } finally {
+    await cdp.send('Target.detachFromTarget', { sessionId }).catch(() => {});
+  }
+}
+
 function arraysEqual(a, b) {
   if (a.length !== b.length) return false;
   const sa = [...a].sort();
@@ -596,7 +622,14 @@ async function makeActor(adapter, port, knownBadId) {
 
 async function runSpike({ adapter, knownBad, port }) {
   const profileDir = path.join(P, 'spike', '.tmp', `profile-${adapter}`);
-  fs.rmSync(profileDir, { recursive: true, force: true });
+  const notes = [];
+  // Same Windows post-kill file-handle race removeDirWithRetry exists for
+  // (end-of-run cleanup, below): a prior run's Chrome process tree can still
+  // hold a brief lock on this profile dir when the next run starts, since the
+  // required run order reuses one profile dir across a plain run and five
+  // known-bad runs for the same adapter. A bare fs.rmSync here throws EBUSY
+  // and crashes before the try block starts, skipping cleanup entirely.
+  await removeDirWithRetry(profileDir, notes);
   fs.mkdirSync(profileDir, { recursive: true });
 
   const { startFixtureServer } = await import('../dist/src/fixture-server.js');
@@ -606,7 +639,6 @@ async function runSpike({ adapter, knownBad, port }) {
   let observer = null;
   let actor = null;
   let chromeSpawnPid = null;
-  const notes = [];
   let phaseR = 'FAIL';
   let verdict = null;
   const checks = { P1: false, P2: false, P3: false, P4: false, P5: false, P6: false, P7: false, P8: false };
@@ -827,20 +859,38 @@ async function runSpike({ adapter, knownBad, port }) {
       }
       checks.P7 = p7;
 
-      // (j) tab check P8
+      // (j) tab check P8: exactly one page reports document.visibilityState
+      // === 'visible', and it is the first tab's target (spec §4 WP-A1 item 6).
+      // "First tab" means whichever single tab exists right before this step
+      // opens a second one (by step (i) that is no longer the (a) form page:
+      // P7 fully relaunches Chrome and MCP re-navigates to /cookie.html).
       let p8 = false;
       try {
+        const obs = observer ?? (await connectObserver(port));
+        const beforeTargets = await getPageTargets(obs);
+        const firstTabTargetId = beforeTargets[0]?.targetId ?? null;
+
         await mcpCall(mcpClient, 'browser_tabs', { action: 'new' });
         await mcpCall(mcpClient, 'browser_tabs', { action: 'select', index: 0 });
         actor = await makeActor(adapter, port, knownBad);
         const pages = await actor.pages();
-        // Re-check via the raw observer, since our high-level actor abstraction
-        // does not expose per-page visibilityState directly.
-        const visiblePages = [];
-        for (const t of await getPageTargets(observer ?? (await connectObserver(port)))) {
-          visiblePages.push(t);
+        // Our high-level actor abstraction does not expose per-page
+        // visibilityState, so read it directly through the observer.
+        const targets = await getPageTargets(obs);
+        const visibilities = [];
+        for (const t of targets) {
+          const v = await pageVisibility(obs, t.targetId).catch(() => null);
+          visibilities.push({ targetId: t.targetId, visible: v === 'visible' });
         }
-        p8 = pages.length >= 1;
+        const visibleOnes = visibilities.filter((v) => v.visible);
+        p8 =
+          pages.length >= 1 &&
+          firstTabTargetId !== null &&
+          visibleOnes.length === 1 &&
+          visibleOnes[0].targetId === firstTabTargetId;
+        if (!p8) {
+          notes.push(`P8: visibilities=${JSON.stringify(visibilities)} expected=${firstTabTargetId}`);
+        }
         await actor.detach();
         actor = null;
       } catch (e) {
