@@ -1,0 +1,19 @@
+{
+  // opencode config (fixture)
+  "$schema": "https://example.invalid/opencode.jsonc",
+  "mcp": {
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "-y", "@playwright/mcp@0.0.80", "--browser", "chrome", "--user-data-dir", "C:/Users/example/.pa/browser-profile"],
+      "enabled": true
+    },
+    "pa-mcp": {
+      "type": "local",
+      "command": ["node", "D:/repos/pa/mcp/server.mjs"],
+      "environment": {
+        "PA_HOME": "C:/Users/example/.pa"
+      },
+      "enabled": true
+    }
+  }
+}

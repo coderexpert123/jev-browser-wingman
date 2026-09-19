@@ -1,0 +1,18 @@
+# codex config (fixture)
+model = "gpt-5"
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@0.0.80", "--browser", "chrome", "--user-data-dir=C:/Users/example/.pa/browser-profile"]
+
+[mcp_servers.pa-mcp]
+command = "node"
+args = ["D:/repos/pa/mcp/server.mjs"]
+
+[mcp_servers.x]
+command = "npx"
+args = ["-y", "@scope/tool"]
+
+[mcp_servers.x.env]
+API_TOKEN = "fixture-value"
+HOME_DIR = "C:/Users/example/.pa"

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.80", "--browser", "chrome"],
+      "env": {}
+    },
+    "pa-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["D:/repos/pa/mcp/server.mjs"],
+      "env": {}
+    }
+  }
+}
