@@ -84,6 +84,25 @@ test('run rejects values on argv', () => {
   assert.match(r.stderr as string, /values/);
 });
 
+test('chrome show dispatches into chrome-cmd (no-browser JSON, not the usage exit)', () => {
+  // Dispatch-level: chrome-cmd tolerates a missing config.json (defaults
+  // apply), so wired `chrome show` proceeds to its port probe and prints its
+  // own `no-browser` JSON line (exit 1) without launching anything. Unwired,
+  // `chrome show` never reaches chrome-cmd: the CLI prints usage on stderr
+  // and exits 2.
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-cli-show-'));
+  try {
+    const r = runCli(['chrome', 'show'], { WINGMAN_HOME: home });
+    assert.equal(r.status, 1);
+    const result = JSON.parse((r.stdout as string).trim()) as { ok: boolean; code: string; error: string };
+    assert.equal(result.ok, false);
+    assert.equal(result.code, 'no-browser');
+    assert.match(result.error, /run jev-browser-wingman chrome ensure first\.$/);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('guide exits 1 when the contract file is missing', () => {
   // A temp package root: copy the whole compiled build into tmp/dist beside a
   // package.json carrying the package's name (and a node_modules junction, so

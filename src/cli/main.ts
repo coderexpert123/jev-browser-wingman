@@ -29,7 +29,7 @@ const USAGE = [
   USAGE_RUN,
   USAGE_CHECK,
   'usage: jev-browser-wingman mcp',
-  'usage: jev-browser-wingman chrome ensure|status|stop',
+  'usage: jev-browser-wingman chrome ensure|status|stop|show|hide',
   'usage: jev-browser-wingman with-chrome -- <command> [args...]',
   'usage: jev-browser-wingman doctor [--json] [--detect] [--client <claude|codex|opencode|agy|devin|cursor>]',
   'usage: jev-browser-wingman guide',
@@ -63,8 +63,8 @@ async function main(argv: string[]): Promise<number | null> {
       return guideCommand();
     case 'chrome': {
       const sub = rest[0];
-      if (sub !== 'ensure' && sub !== 'status' && sub !== 'stop') {
-        process.stderr.write('usage: jev-browser-wingman chrome ensure|status|stop\n');
+      if (sub !== 'ensure' && sub !== 'status' && sub !== 'stop' && sub !== 'show' && sub !== 'hide') {
+        process.stderr.write('usage: jev-browser-wingman chrome ensure|status|stop|show|hide\n');
         return 2;
       }
       return chromeCommand(sub);
