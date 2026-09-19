@@ -48,6 +48,29 @@ function cap(text: string, max: number): string {
   return text.slice(0, max);
 }
 
+// Cold start: `connectOverCDP` measured 6–19 s against a Chrome that is still
+// coming up (WP-D1, 2026-09-19) — far over the 5 s per-attempt pin, so a plain
+// single attempt fails every cold attach. The pin stays per attempt; the driver
+// retries within this budget so a slow start fails late, never early.
+const CONNECT_RETRY_BUDGET_MS = 20_000;
+
+async function connectBounded(
+  chromium: typeof import('playwright-core').chromium,
+  endpoint: string,
+): Promise<Browser> {
+  const deadline = Date.now() + CONNECT_RETRY_BUDGET_MS;
+  for (;;) {
+    try {
+      return await chromium.connectOverCDP(endpoint, { timeout: 5_000, noDefaults: true });
+    } catch (e) {
+      if (Date.now() >= deadline) {
+        throw e;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+}
+
 export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwright-core').chromium }): Driver {
   const chromium = opts?.chromium ?? defaultChromium;
 
@@ -216,9 +239,15 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
         endpoint = result.endpoint;
         launchedPid = result.startedByUs && result.pid !== null ? result.pid : null;
       }
-      browser = await chromium.connectOverCDP(endpoint, { timeout: 5_000, noDefaults: true });
+      browser = await connectBounded(chromium, endpoint);
       const ctx = browser.contexts()[0];
-      if (!ctx) throw new AttachError('no default browser context on the CDP endpoint');
+      if (!ctx) {
+        // Leave no connection behind when attach fails (a CDP-attached browser
+        // only disconnects on close, C12).
+        await browser.close().catch(() => {});
+        browser = null;
+        throw new AttachError('no default browser context on the CDP endpoint');
+      }
       context = ctx;
       // Registered before anything else. The listener only reports; it never
       // calls accept or dismiss, so Playwright never auto-dismisses either.

@@ -8,6 +8,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { chromium } from 'playwright-core';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import { createPlaywrightDriver } from '../src/adapters/playwright.js';
@@ -288,5 +289,32 @@ test('detach leaves the browser answering', async () => {
     assert.equal(res.ok, true, 'the browser still answers /json/version after detach');
   } finally {
     await fx.close();
+  }
+});
+
+test('attach retries a cold endpoint within its budget', async () => {
+  const chrome = await launchTestChrome();
+  try {
+    // First attempt fails the way a cold Chrome does; the retry must reach the
+    // real browser. Without the bounded retry this test fails at attach.
+    let attempts = 0;
+    const realConnect = chromium.connectOverCDP.bind(chromium);
+    const flaky = {
+      connectOverCDP: async (endpoint: string) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error('cdp connect timeout: cold start');
+        return realConnect(endpoint, { timeout: 5_000, noDefaults: true });
+      },
+    } as unknown as typeof chromium;
+    const driver = createPlaywrightDriver({ chromium: flaky });
+    try {
+      await driver.attach({ cdpEndpoint: chrome.endpoint });
+      assert.ok(attempts >= 2, 'the failed first attempt was not retried');
+      assert.equal(driver.name, 'playwright');
+    } finally {
+      await driver.detach().catch(() => {});
+    }
+  } finally {
+    await chrome.close();
   }
 });
