@@ -449,6 +449,23 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
     }
     return null;
   }
+  // Mirrors enumerate's isVisible so the proxy rule below agrees with the
+  // enumeration side of the contract.
+  function isVisible(elm: Element): boolean {
+    var anyEl = elm as unknown as { checkVisibility?: (opts: unknown) => boolean };
+    if (typeof anyEl.checkVisibility === 'function') {
+      if (!anyEl.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+    }
+    var r = elm.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return false;
+    var anc: Element | null = elm.parentElement;
+    while (anc) {
+      if (anc.getAttribute('aria-hidden') === 'true') return false;
+      anc = anc.parentElement;
+    }
+    return true;
+  }
+
   function accessibleName(el: Element): string {
     var labelledBy = el.getAttribute('aria-labelledby');
     if (labelledBy) {
@@ -487,6 +504,30 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
   var tag = el.tagName.toLowerCase();
   var role = roleOf(el);
   var name = accessibleName(el);
+  // Proxy rule, mirroring buildRecord: a record for a visually hidden
+  // checkbox/radio stores the visible LABEL's path, so when the node found at
+  // `path` is such a label, tag/role/name come from the paired input. The
+  // position fingerprint was taken at the label, so the rect check stays on el.
+  if (el.tagName === 'LABEL') {
+    var labelEl = el as HTMLLabelElement;
+    var ctrl: HTMLInputElement | null = null;
+    var forId = labelEl.htmlFor;
+    if (forId) {
+      var target = document.getElementById(forId);
+      if (target && target.tagName === 'INPUT') ctrl = target as HTMLInputElement;
+    }
+    if (!ctrl) {
+      var inner = labelEl.querySelectorAll('input[type="checkbox"],input[type="radio"]');
+      if (inner.length > 0) ctrl = inner[0] as HTMLInputElement;
+    }
+    var ctrlType = ctrl ? (ctrl.getAttribute('type') || '').toLowerCase() : '';
+    if (ctrl && (ctrlType === 'checkbox' || ctrlType === 'radio') && !isVisible(ctrl) && isVisible(labelEl)) {
+      tag = ctrl.tagName.toLowerCase();
+      role = roleOf(ctrl);
+      // Enumerate derives a proxy record's name from the label's text.
+      name = collapse(labelEl.textContent || '').slice(0, 80);
+    }
+  }
   var rect = el.getBoundingClientRect();
   var x = Math.round(rect.left + window.scrollX);
   var y = Math.round(rect.top + window.scrollY);

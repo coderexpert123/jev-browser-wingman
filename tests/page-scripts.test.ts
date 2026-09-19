@@ -101,6 +101,23 @@ test('styled-controls.html proxies hidden inputs through their labels', async ()
   }
 });
 
+test('verify resolves proxied styled controls through the label path', async () => {
+  const { page, close } = await withPage('/styled-controls.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    for (const expectedName of ['Send me the newsletter', 'Basic plan', 'Pro plan']) {
+      const el = obs.elements.find((e) => e.name === expectedName);
+      assert.ok(el, `expected a proxied element named ${expectedName}`);
+      assert.ok(el!.controlPath, 'expected the element to be a proxy (controlPath set)');
+      const fp = el!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+      const result = await page.evaluate(buildVerifyExpression(el!.path as string, fp));
+      assert.deepStrictEqual(result, { ok: true });
+    }
+  } finally {
+    await close();
+  }
+});
+
 test('text excerpt never contains the prefilled textarea text', async () => {
   const { page, close } = await withPage('/form.html');
   try {
