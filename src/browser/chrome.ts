@@ -26,6 +26,13 @@ export const HEADED_ARGS = [
   '--disable-background-timer-throttling',
 ];
 export const OFFSCREEN_ARGS = ['--window-position=-32000,-32000'];
+// WP-X (spec § 0 RO-7): every launch passes an explicit --window-position, so
+// no launch inherits the profile's saved off-screen placement. The on-screen
+// position is the primary-display origin area; the same values drive
+// `chrome show|hide` (Browser.setWindowBounds) in chrome-cmd.ts.
+export const ONSCREEN_ARGS = ['--window-position=40,40'];
+export const OFFSCREEN_WINDOW_BOUNDS = { left: -32000, top: -32000 };
+export const ONSCREEN_WINDOW_BOUNDS = { left: 40, top: 40 };
 
 function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): string[] {
   if (platform === 'win32') {
@@ -225,8 +232,10 @@ export function quoteCmdLine(argv: string[]): string {
 
 function modeArgs(window: WindowMode): string[] {
   if (window === 'offscreen') return [...HEADED_ARGS, ...OFFSCREEN_ARGS];
-  if (window === 'normal' || window === 'minimized') return [...HEADED_ARGS];
-  return ['--headless=new'];
+  if (window === 'normal' || window === 'minimized') return [...HEADED_ARGS, ...ONSCREEN_ARGS];
+  // Headless has no placed window, but the explicit position keeps the
+  // every-launch-passes-a-position invariant (WP-X) and is harmless there.
+  return ['--headless=new', ...ONSCREEN_ARGS];
 }
 
 async function defaultSocketOwnerPid(port: number): Promise<number | null> {

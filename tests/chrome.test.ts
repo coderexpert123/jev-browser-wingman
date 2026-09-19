@@ -205,6 +205,32 @@ test('win32 offscreen, normal and minimized launches go through start /min and n
   }
 });
 
+test('every launch mode passes an explicit --window-position (WP-X)', async () => {
+  // linux: every mode goes through the direct spawn, so one capture point
+  // covers all four.
+  for (const [window, expectedPos] of [
+    ['offscreen', '--window-position=-32000,-32000'],
+    ['normal', '--window-position=40,40'],
+    ['minimized', '--window-position=40,40'],
+    ['headless', '--window-position=40,40'],
+  ] as const) {
+    let capturedArgs: string[] | null = null;
+    const deps = baseDeps({
+      platform: 'linux',
+      probeVersion: probeAnswersAfterSpawn(),
+      directSpawnFn: (_p: string, args: string[]) => {
+        capturedArgs = args;
+        return { pid: 111, unref: () => {} } as never;
+      },
+    });
+    const result = await ensureChrome({ port: 9333, profileDir: PROFILE, chromePath: null, home: HOME, window }, deps as never);
+    assert.equal(result.ok, true, `expected ok for ${window}`);
+    const pos = capturedArgs!.find((a) => a.startsWith('--window-position='));
+    assert.ok(pos, `expected an explicit --window-position in the ${window} launch argv`);
+    assert.equal(pos, expectedPos, `unexpected position for ${window}`);
+  }
+});
+
 test('minimized mode minimises every window of a Chrome it started through Browser.setWindowBounds', async () => {
   let minimiseCalled = 0;
   const deps = baseDeps({

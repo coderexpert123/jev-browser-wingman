@@ -413,6 +413,10 @@ async function globalsHash(client) {
   const list = await mcpEvaluate(client, '() => Object.getOwnPropertyNames(globalThis).sort()');
   return crypto.createHash('sha256').update(JSON.stringify(list)).digest('hex');
 }
+async function globalsNames(client) {
+  const list = await mcpEvaluate(client, '() => Object.getOwnPropertyNames(globalThis).sort()');
+  return Array.isArray(list) ? list : [];
+}
 async function viewportRecord(client) {
   return mcpEvaluate(
     client,
@@ -685,12 +689,21 @@ async function runSpike({ adapter, knownBad, port }) {
     mcpClient = await startMcp(port);
 
     // ---- Phase R (read-only) ----
-    let R0 = null;
+    // WP-X: two clean /residue.html baselines. Chrome adds a global lazily
+    // about 1 run in 6, so a single hash baseline spuriously failed P4; the
+    // residue check is now "names present after, minus the union of two
+    // clean baselines" (spec § 0 RO-7).
+    let R0a = null;
+    let R0b = null;
     let R0attrs = null;
     try {
       await mcpNavigate(mcpClient, `${fixture.url}/residue.html`);
-      R0 = await globalsHash(mcpClient);
+      R0a = await globalsNames(mcpClient);
       R0attrs = await mcpEvaluate(mcpClient, '() => document.documentElement.attributes.length');
+      // Second clean load: the union of the two baselines absorbs any global
+      // Chrome adds lazily after a load.
+      await mcpNavigate(mcpClient, `${fixture.url}/residue.html`);
+      R0b = await globalsNames(mcpClient);
 
       await mcpNavigate(mcpClient, `${fixture.url}/form.html`);
       actor = await makeActor(adapter, port, null);
@@ -774,13 +787,22 @@ async function runSpike({ adapter, knownBad, port }) {
 
       // (g)
       await mcpNavigate(mcpClient, `${fixture.url}/residue.html`);
-      const R1 = await globalsHash(mcpClient);
+      const R1names = await globalsNames(mcpClient);
       const R1attrs = await mcpEvaluate(mcpClient, '() => document.documentElement.attributes.length');
+
+      // WP-X residue: names present after, minus the union of the two clean
+      // baselines. Empty means no leftover init script or main-world global.
+      const baselineUnion = new Set([...(R0a ?? []), ...(R0b ?? [])]);
+      const residue = R1names.filter((n) => !baselineUnion.has(n));
 
       if (G1 === null || G1 !== G0) p4 = false;
       if (!arraysEqual(L0.map((t) => t.url), L1.map((t) => t.url)) || !tabsEqual(L0, L1)) p4 = false;
       if (!arraysEqual(T0, T1)) p4 = false;
-      if (R1 !== R0 || R1attrs !== R0attrs) p4 = false;
+      if (residue.length > 0) {
+        p4 = false;
+        notes.push(`P4 residue: ${JSON.stringify(residue)}`);
+      }
+      if (R1attrs !== R0attrs) p4 = false;
       checks.P4 = p4;
 
       // hasFocus is recorded but excluded from the identity comparison: a real
