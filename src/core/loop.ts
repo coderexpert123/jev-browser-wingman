@@ -43,7 +43,7 @@ import {
 } from '../contract/errors.js';
 import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
-import { gateModeOf, policyModeOf } from './config.js';
+import { gateModeOf, policyModeOf, takeoverOf } from './config.js';
 import { ConfirmTokenStore, type PendingAction } from './tokens.js';
 import { redactDeep, redactValues } from './withhold.js';
 import {
@@ -51,6 +51,7 @@ import {
   buildGroupRequest,
   buildOptionFinalRequest,
   buildOptionRequests,
+  buildRoutingRequest,
   buildRoundRequest,
   buildTargetRequest,
   elementCriterion,
@@ -81,6 +82,15 @@ const BINDING_RE = /^[a-z][a-z0-9_]{0,39}$/;
 // no page content, so the egress rules are unaffected.
 export const CONTINUE_LINE =
   'Goal not finished — call wingman_do again with the same goal (and the same values) to continue from here. Do not switch to raw browser tools.';
+
+// § 3.17 browse_step static result notes, appended by finish() per tool.
+// Static text only — never page content, so the egress rules are unaffected.
+export const BROWSE_STEP_CALLER_LINE =
+  'Step returned to you — do this step with your browser tools, then call browse_step again with the same goal and your next proposed step.';
+export const BROWSE_STEP_OFFER_LINE =
+  'Takeover available — call browse_step again with the same arguments and takeover: true to accept, or do the step with your browser tools.';
+export const BROWSE_STEP_RESUME_LINE =
+  'Takeover paused — call browse_step again with the same goal (and the same values) to continue from here.';
 
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -138,6 +148,75 @@ export function validateCheckInput(x: unknown): { ok: true; input: CheckInput } 
     return { ok: false };
   }
   return { ok: true, input: o as unknown as CheckInput };
+}
+
+/** § 3.17 browse_step schema plus the binding-name pattern. */
+export interface StepInput {
+  goal: string;
+  step?: string;
+  steps?: string[];
+  values?: Record<string, string>;
+  url_match?: string;
+  confirm_token?: string;
+  takeover?: boolean;
+  max_steps?: number;
+  max_ms?: number;
+}
+
+/** § 3.17 browse_step validation: the validateDoInput rules where they
+ * overlap, plus goal required, exactly one of step/steps, steps 2–3 non-empty
+ * strings ≤ 300, takeover boolean, max_steps 1–24 (the C27 config ceiling,
+ * not wingman_do's 8), max_ms 1000–50000. */
+export function validateStepInput(x: unknown): { ok: true; input: StepInput } | { ok: false } {
+  if (!isPlainObject(x)) return { ok: false };
+  const o = x as Record<string, unknown>;
+  const allowed = new Set([
+    'goal', 'step', 'steps', 'values', 'url_match', 'confirm_token', 'takeover', 'max_steps', 'max_ms',
+  ]);
+  for (const key of Object.keys(o)) {
+    if (!allowed.has(key)) return { ok: false };
+  }
+  if (typeof o.goal !== 'string' || o.goal.length > 500) return { ok: false };
+  const hasStep = o.step !== undefined;
+  const hasSteps = o.steps !== undefined;
+  if (hasStep === hasSteps) return { ok: false };
+  if (hasStep) {
+    if (typeof o.step !== 'string' || o.step.length < 1 || o.step.length > 300) return { ok: false };
+  } else {
+    if (!Array.isArray(o.steps) || o.steps.length < 2 || o.steps.length > 3) return { ok: false };
+    for (const s of o.steps) {
+      if (typeof s !== 'string' || s.length < 1 || s.length > 300) return { ok: false };
+    }
+  }
+  if (o.values !== undefined) {
+    if (!isPlainObject(o.values)) return { ok: false };
+    const entries = Object.entries(o.values);
+    if (entries.length > 20) return { ok: false };
+    for (const [name, value] of entries) {
+      if (!BINDING_RE.test(name)) return { ok: false };
+      if (typeof value !== 'string' || value.length > 2000) return { ok: false };
+    }
+  }
+  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
+    return { ok: false };
+  }
+  if (o.confirm_token !== undefined && (typeof o.confirm_token !== 'string' || o.confirm_token.length > 64)) {
+    return { ok: false };
+  }
+  if (o.takeover !== undefined && typeof o.takeover !== 'boolean') return { ok: false };
+  if (o.max_steps !== undefined) {
+    const maxStepsRaw = o.max_steps;
+    if (typeof maxStepsRaw !== 'number' || !Number.isInteger(maxStepsRaw) || maxStepsRaw < 1 || maxStepsRaw > 24) {
+      return { ok: false };
+    }
+  }
+  if (o.max_ms !== undefined) {
+    const maxMsRaw = o.max_ms;
+    if (typeof maxMsRaw !== 'number' || !Number.isInteger(maxMsRaw) || maxMsRaw < 1000 || maxMsRaw > 50000) {
+      return { ok: false };
+    }
+  }
+  return { ok: true, input: o as unknown as StepInput };
 }
 
 function capLabel(s: string): string {
@@ -210,7 +289,7 @@ type OptionOutcome =
   | { kind: 'ask-failed'; error: string };
 
 async function runTool(
-  tool: 'wingman_do' | 'wingman_check',
+  tool: 'wingman_do' | 'wingman_check' | 'browse_step',
   input: unknown,
   deps: LoopDeps,
 ): Promise<WingmanResult> {
@@ -276,6 +355,16 @@ async function runTool(
   const finish = async (r: WingmanResult): Promise<WingmanResult> => {
     if (tool === 'wingman_do' && r.status !== 'done') {
       r.note = CONTINUE_LINE;
+    } else if (tool === 'browse_step' && r.status !== 'done') {
+      // § 3.17 note table: done carries no note; route-caller and
+      // route-unclear the caller line; takeover-offered the offer line;
+      // every other non-done status the resume line.
+      r.note =
+        r.reason === 'route-caller' || r.reason === 'route-unclear'
+          ? BROWSE_STEP_CALLER_LINE
+          : r.reason === 'takeover-offered'
+            ? BROWSE_STEP_OFFER_LINE
+            : BROWSE_STEP_RESUME_LINE;
     }
     try {
       await deps.writeLog(buildLogRecord(r));
@@ -310,7 +399,11 @@ async function runTool(
   }
 
   /** One ask that counts toward cost; enforces the timeout pin. Time-floor checks sit at the call sites. */
-  async function askWithCost(request: JevRequest, purpose: 'wingman_do' | 'wingman_check', remaining: () => number): Promise<JevResult> {
+  async function askWithCost(
+    request: JevRequest,
+    purpose: 'wingman_do' | 'wingman_check' | 'browse_step',
+    remaining: () => number,
+  ): Promise<JevResult> {
     acc.jevCalls += 1;
     const tAsk = now();
     const r = await (deps.ask as JevAsk)(request, {
@@ -330,6 +423,7 @@ async function runTool(
     history: Array<{ verb: Op; label: string }>,
     goal: string | null,
     values: Record<string, string>,
+    step?: string,
   ): object {
     const raw: Record<string, unknown> = {
       url: scrubUrl(obs.url),
@@ -340,6 +434,12 @@ async function runTool(
     if (goal !== null) {
       raw.goal = goal;
       raw.history = history.map((h) => ({ verb: h.verb, label: h.label }));
+    }
+    // § 3.19 flow item 4: round 1 of a takeover entry carries the proposed
+    // step text (already redacted and cut to 300 by the caller); rounds ≥ 2
+    // never do.
+    if (step !== undefined) {
+      raw.step = step;
     }
     return redactDeep(raw, values);
   }
@@ -603,7 +703,12 @@ async function runTool(
     return { result: null, history: [...history, { verb: action.verb, label: el.name }] };
   }
 
-  const validated = tool === 'wingman_do' ? validateDoInput(input) : validateCheckInput(input);
+  const validated =
+    tool === 'wingman_do'
+      ? validateDoInput(input)
+      : tool === 'browse_step'
+        ? validateStepInput(input)
+        : validateCheckInput(input);
   if (!validated.ok) {
     return finish(mk('error', 'invalid-input'));
   }
@@ -651,13 +756,15 @@ async function runTool(
     const allPages = await driver.pages();
     let visiblePages = allPages.filter((p) => p.visible);
     const urlMatch =
-      tool === 'wingman_do' ? (validated.input as DoInput).url_match : (validated.input as CheckInput).url_match;
+      tool === 'wingman_check'
+        ? (validated.input as CheckInput).url_match
+        : (validated.input as DoInput | StepInput).url_match;
     if (urlMatch !== undefined) {
       visiblePages = visiblePages.filter((p) => p.url.includes(urlMatch));
     }
     if (visiblePages.length !== 1) {
       const values: Record<string, string> =
-        tool === 'wingman_do' ? ((validated.input as DoInput).values ?? {}) : {};
+        tool === 'wingman_check' ? {} : ((validated.input as DoInput | StepInput).values ?? {});
       const candidates = visiblePages
         .slice(0, 3)
         .map((p) => ({ label: capLabel(redactValues(p.title, values)) }));
@@ -667,6 +774,9 @@ async function runTool(
 
     if (tool === 'wingman_check') {
       return await finish(await runCheck(pageId, driver, validated.input as CheckInput));
+    }
+    if (tool === 'browse_step') {
+      return await finish(await runBrowse(pageId, driver, validated.input as StepInput));
     }
     return await finish(await runDoRounds(pageId, driver, validated.input as DoInput));
   } catch (e) {
@@ -726,8 +836,143 @@ async function runTool(
     return mk('done', 'answered', { answer: round2(noul) });
   }
 
+  // ---- browse_step: routing pre-pass, then takeover entry (§ 3.18, § 3.19) ----
+  // No fork: the entry rides runDoRounds' existing gated rounds; this stage
+  // only grades and decides entry. The one new policy call site below is the
+  // routing pre-pass's own round-1 prelude check, which must precede the
+  // routing ask and therefore cannot reuse the round prelude's line.
+  async function runBrowse(pageId: string, driver: Driver, stepInput: StepInput): Promise<WingmanResult> {
+    const values = stepInput.values ?? {};
+    const proposals = stepInput.steps ?? [stepInput.step as string];
+    const maxMs = Math.min(stepInput.max_ms ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_ms);
+    const remaining = () => maxMs - (now() - startedAt);
+
+    // Token continuation (§ 3.19 flow item 2): no routing ask and no routing
+    // pre-pass — the token is handled at the existing fixed point inside
+    // runDoRounds, which runs the full round-1 prelude itself. `routing` is
+    // absent on this path.
+    if (stepInput.confirm_token !== undefined) {
+      return runDoRounds(pageId, driver, {
+        goal: stepInput.goal,
+        values,
+        confirm_token: stepInput.confirm_token,
+        ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
+        ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
+      });
+    }
+
+    // Round-1 prelude exactly as wingman_do round 1 (§ 3.19 flow item 1):
+    // observe (timed), dialog check, captcha check, policy — a hit returns
+    // before any ask. The routing ask records one phase bucket.
+    if (remaining() < TIME_FLOOR_MS) {
+      return mk('fallback', 'budget-time');
+    }
+    beginRound();
+    const obs = await observeTimed(pageId);
+    pageUrl = obs.url;
+    if (dialogEvents.some((e) => e.pageId === pageId)) {
+      return mk('blocked', 'dialog-open');
+    }
+    if (obs.signals.captcha) {
+      return mk('blocked', 'captcha');
+    }
+    const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
+    if (policy.sensitive) {
+      return mk('fallback', policy.reason as Reason);
+    }
+
+    // § 3.18 routing state: the buildState output with the goal, plus the
+    // element table as redacted criteria strings and the redacted step texts
+    // cut to 300. No element paths, queries or fragments leave in it.
+    const state = buildState(obs, [], stepInput.goal, values) as Record<string, unknown>;
+    state.elements = obs.elements.map((e) => redactValues(elementCriterion(e), values));
+    state.steps = proposals.map((s) => redactValues(s, values).slice(0, 300));
+    const request = buildRoutingRequest({ state, steps: proposals, elements: obs.elements, bindings: values });
+
+    if (remaining() < TIME_FLOOR_MS) {
+      return mk('fallback', 'budget-time');
+    }
+    const r = await askWithCost(request, 'browse_step', remaining);
+    if (!r.ok) {
+      return mk('fallback', askFailReason(r));
+    }
+
+    // § 3.18 executor decision, per step, in order. The comparison uses the
+    // same 2-decimal value `routing` reports — one rounding, one decision —
+    // and it is >=: a handle exactly at the threshold takes over.
+    const threshold = takeoverOf(deps.config).threshold;
+    const routing = proposals.map((s, i) => {
+      const handleAnswer = r.answers[`handle${i + 1}`];
+      const execAnswer = r.answers[`exec${i + 1}`];
+      const handleNoul =
+        handleAnswer !== undefined && handleAnswer.type === 'noul' ? handleAnswer.noul : null;
+      const execChoice =
+        execAnswer !== undefined &&
+        execAnswer.type === 'choice' &&
+        (execAnswer.choice === 'wingman' || execAnswer.choice === 'caller')
+          ? execAnswer.choice
+          : null;
+      if (handleNoul === null || execChoice === null) {
+        // The grader misbehaved — the route-unclear material, not a low grade.
+        return { step: capLabel(redactValues(s, values)), handle: null, executor: 'caller' as const };
+      }
+      const handle = round2(handleNoul);
+      const executor = handle >= threshold && execChoice === 'wingman' ? ('wingman' as const) : ('caller' as const);
+      return { step: capLabel(redactValues(s, values)), handle, executor };
+    });
+
+    // Shadow grades only (§ 3.19): the routing ask runs, nothing acts, and
+    // acc.would stays unset (routing already carries the decision).
+    if (mode === 'shadow') {
+      return mk('fallback', 'shadow', { shadow: true, routing });
+    }
+
+    // Call-level outcome (§ 3.18), in order. Only step 1's grade decides
+    // entry: the element table the grades were computed against is stale the
+    // moment anything acts, so a mixed batch returns whole, never partially
+    // executes.
+    const first = routing[0];
+    if (first.handle === null) {
+      return mk('ambiguous', 'route-unclear', { routing });
+    }
+    if (first.executor === 'caller') {
+      return mk('fallback', 'route-caller', { routing });
+    }
+    // Step 1 routes to the wingman. Participation: the call's `takeover`
+    // field overrides the config mode. The threshold is never waived by
+    // `takeover: true` — the grade above already had to clear it.
+    const participation =
+      stepInput.takeover === true
+        ? 'execute'
+        : stepInput.takeover === false
+          ? 'offer'
+          : takeoverOf(deps.config).mode;
+    if (participation === 'offer') {
+      return mk('fallback', 'takeover-offered', { routing });
+    }
+    // Entry (§ 3.19 flow item 4): round 1 re-observes and runs the standard
+    // § 3.7 rules against a state that carries the step text. One envelope:
+    // the routing ask and every round share this call's max_ms/max_steps,
+    // clamped by the config budgets inside runDoRounds. `routing` rides the
+    // takeover's own end status too (§ 3.17: every result that completed the
+    // routing ask carries it).
+    const entryResult = await runDoRounds(
+      pageId,
+      driver,
+      {
+        goal: stepInput.goal,
+        values,
+        ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
+        ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
+      },
+      proposals[0],
+    );
+    entryResult.routing = routing;
+    return entryResult;
+  }
+
   // ---- wingman_do rounds (§ 3.7, in order) ----
-  async function runDoRounds(pageId: string, driver: Driver, doInput: DoInput): Promise<WingmanResult> {
+  async function runDoRounds(pageId: string, driver: Driver, doInput: DoInput, entryStep?: string): Promise<WingmanResult> {
     const values = doInput.values ?? {};
     const maxSteps = Math.min(doInput.max_steps ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_steps);
     const maxMs = Math.min(doInput.max_ms ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_ms);
@@ -775,7 +1020,13 @@ async function runTool(
         }
       }
 
-      const state = buildState(obs, history, doInput.goal, values);
+      const state = buildState(
+        obs,
+        history,
+        doInput.goal,
+        values,
+        entryStep !== undefined && round === 1 ? redactValues(entryStep, values).slice(0, 300) : undefined,
+      );
       // Time rule: before every ask.
       if (remaining() < TIME_FLOOR_MS) {
         return mk('fallback', 'budget-time');
@@ -938,4 +1189,8 @@ export async function runDo(input: unknown, deps: LoopDeps): Promise<WingmanResu
 
 export async function runCheck(input: unknown, deps: LoopDeps): Promise<WingmanResult> {
   return runTool('wingman_check', input, deps);
+}
+
+export async function runStep(input: unknown, deps: LoopDeps): Promise<WingmanResult> {
+  return runTool('browse_step', input, deps);
 }
