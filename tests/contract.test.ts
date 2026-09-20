@@ -38,12 +38,20 @@ test('every sensitive host category has a sensitive-<category> fallback reason',
   }
 });
 
-test('DEFAULT_BUDGETS sit inside BUDGET_LIMITS', () => {
+test('DEFAULT_BUDGETS other than max_steps sit inside BUDGET_LIMITS', () => {
   for (const key of Object.keys(DEFAULT_BUDGETS) as Array<keyof typeof DEFAULT_BUDGETS>) {
+    if (key === 'max_steps') continue; // default 24 deliberately exceeds the [1, 8] override cap
     const [min, max] = BUDGET_LIMITS[key];
     const value = DEFAULT_BUDGETS[key];
     assert.ok(value >= min && value <= max, `${key}=${value} outside [${min}, ${max}]`);
   }
+});
+
+test('default max_steps budget is 24 (whole-goal delegation)', () => {
+  // 24 must fit a long-chain goal (t9 is 19 steps) in one wingman_do call;
+  // the [1, 8] BUDGET_LIMITS cap bounds caller overrides only, not the default.
+  assert.equal(DEFAULT_BUDGETS.max_steps, 24);
+  assert.equal(DEFAULT_BUDGETS.max_ms, 45_000);
 });
 
 test('max_ms ceiling is below the codex 60 s tool timeout', () => {

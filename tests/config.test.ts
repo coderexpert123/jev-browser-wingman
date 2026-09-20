@@ -27,6 +27,8 @@ test('missing file loads defaults', async () => {
     assert.equal(result.config.mode, 'off');
     assert.equal(result.config.adapter, 'playwright');
     assert.equal(result.config.window, 'offscreen');
+    assert.equal(result.config.budgets.max_steps, 24); // whole-goal delegation default
+    assert.equal(result.config.budgets.max_ms, 45_000);
   }
 });
 

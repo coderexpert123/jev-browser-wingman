@@ -13,7 +13,7 @@ export const TOKEN_TTL_MS = 600_000;
 export const TOKEN_MAX_LIVE = 32;
 export const REDACT_MIN_LEN = 4;
 export const DEFAULT_BUDGETS = {
-  max_steps: 8, max_ms: 45_000, jev_timeout_ms: 10_000, max_elements: 240, max_text_chars: 3_000, max_state_chars: 24_000,
+  max_steps: 24, max_ms: 45_000, jev_timeout_ms: 10_000, max_elements: 240, max_text_chars: 3_000, max_state_chars: 24_000,
 } as const;
 export const BUDGET_LIMITS = {
   max_steps: [1, 8], max_ms: [5_000, 50_000], jev_timeout_ms: [1_000, 10_000],
