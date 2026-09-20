@@ -156,10 +156,6 @@ export function buildPrompt(task: BenchTask, route: 'playwright' | 'wingman'): s
     prompt += ` Use these values: ${entries.map(([name, value]) => `${name} = "${value}"`).join('; ')}.`;
   }
   prompt += ' Reply DONE when finished.';
-  if (route === 'wingman') {
-    prompt +=
-      ' Prefer the wingman_do tool: call it with the goal and the values. Delegate the ENTIRE goal in a single wingman_do call. Do not interleave raw browser tool calls unless wingman_do returns needs_confirmation/blocked/fallback.';
-  }
   return prompt;
 }
 
