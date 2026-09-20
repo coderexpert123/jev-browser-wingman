@@ -125,7 +125,29 @@ withheld — this file rides a public-bound repository). Gates:
   interpreting any wingman-route row.
 
 
-## Gotchas from the wave-5 final verification (2026-09-20)
+## Gotchas from the tool-routing fix (2026-09-20)
+
+- **A tool description that leads with WHAT and then lists prohibitions gets skipped.**
+  The t3 wingman cell bypassed `wingman_do` because the old `WINGMAN_DO_DESCRIPTION`'s
+  second sentence was almost all "never …" clauses, it gave no benefit statement, and its
+  three example verbs (row/form/wizard) excluded t3's enable-then-type shape — the agent
+  read it as narrow and risky and picked the familiar Playwright tools, outweighing the
+  bench prompt's "prefer wingman_do". Fix shape (203cf67): first sentence = WHEN (one
+  bounded goal, public non-sensitive page), then a prefer-over-driving line with the
+  benefit (loop runs internally, one compact result, saves a snapshot per step), then a
+  do-NOT-use line. Schema friction was ruled out: only `goal` is required.
+- **The "exact-string test" in mcp-server.test.ts compared code to code** — both sides
+  imported the same constants, so spec drift was invisible. The pin must inline the SPEC's
+  text as the expected value (now does); when adding a pinned-text export, add the
+  spec-inline comparison, not a same-constant mirror.
+- **Two concurrent bench phases on the shared port-9344 Chrome poison each other's
+  results**: the second phase's `resetPages`/navigation collides with the first's, its
+  claude run times out, and the killed_run_charge_usd (1.5) trips any per-run cap under
+  1.5 before the wingman cell executes. Serialize bench phases; a phase-abort also burns
+  the aborted phase's cap authority. Historical `phaseSpentFrom` sums ALL results files,
+  so a "cap USD X for this check" translates to `--phase-cap-usd` = history + X.
+
+
 
 - **The full suite cannot complete as ONE `node --test` invocation on a loaded
   16 GB machine.** The runner fans every file out in parallel; browser files
@@ -158,3 +180,23 @@ withheld — this file rides a public-bound repository). Gates:
   page), and `count(selector)` becomes an observation filter — the Driver exposes
   no evaluate-by-selector, so the phase-R element-count read can only be expressed
   as `observe()` output (its value is never asserted).
+
+## Gotchas from the max_steps/delegation pass (2026-09-20)
+
+- **Raising the step budget does NOT stop call fragmentation.** With
+  `DEFAULT_BUDGETS.max_steps = 24` (fits t9's 19 steps) AND an explicit
+  single-call instruction in the bench wingman prompt, the calling model still
+  split t9 into 2 `wingman_do` calls plus ~20 raw Playwright calls in both
+  passes (results 2026-09-20-1709/1716: wingman.calls=2, rounds=3,
+  wingman wall 138 s / 174 s vs playwright 151 s / 167 s). The long-chain
+  bottleneck is the calling model's planning, not the budget; wingman
+  machinery remains ~1 s/round (observe+jev+act+settle) and is noise at this
+  wall scale.
+- **`BUDGET_LIMITS` caps caller overrides only**: `loadConfig` seeds
+  `DEFAULT_BUDGETS` without validating against the limits (it validates keys
+  present in the user's config), so default `max_steps: 24` with cap `[1, 8]`
+  is coherent. The contract invariant test now exempts max_steps and pins 24
+  explicitly (both pins proven to fail against 8). A user config value of
+  `max_steps > 8` is still REJECTED — raising that cap is a separate decision.
+- **The bench wingman-route prompt lives in `bench/run.ts` `buildPrompt`**,
+  not `bench/claude-run.ts` (spawn layer only, passes `prompt` through).
