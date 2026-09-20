@@ -214,3 +214,20 @@ test('the phase cap counts earlier results files', async () => {
   assert.match(out, /BENCH-ABORTED: cap reached after 1 runs/);
   assert.equal(runner.calls(), 1);
 });
+
+test('BENCH_MODEL overrides the configured caller model', async () => {
+  const resDir = tmpDir('jevw-cap-model-');
+  const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
+  const runner = fakeRunner(0.02);
+  const deps = baseDeps(resDir, pricesPath, runner.runOne) as BenchDeps;
+  deps.env = { TYPESAFE_API_KEY: 'bench-test-key', BENCH_MODEL: 'glm-5.3' };
+  const { exit } = await capture(() =>
+    runBench(['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain'], deps),
+  );
+  assert.equal(exit, 0);
+  assert.equal(runner.calls(), 2);
+  const files = resultsFiles(resDir);
+  assert.equal(files.length, 1);
+  const parsed = JSON.parse(fs.readFileSync(path.join(resDir, files[0]), 'utf8')) as { model: string };
+  assert.equal(parsed.model, 'glm-5.3');
+});

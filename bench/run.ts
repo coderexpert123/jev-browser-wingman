@@ -450,6 +450,12 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   }
 
   const app = readAppConfig();
+  // BENCH_MODEL overrides the caller model from config.json for one pass;
+  // config.json itself stays the default (sonnet).
+  const modelOverride = env.BENCH_MODEL;
+  if (typeof modelOverride === 'string' && modelOverride.trim() !== '') {
+    app.model = modelOverride.trim();
+  }
 
   let prices: BenchPrices | null = null;
   try {
