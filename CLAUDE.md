@@ -218,3 +218,20 @@ withheld — this file rides a public-bound repository). Gates:
   authorization Y" pairing must be checked against `phaseSpentFrom` over
   `bench/results/*.json` first; aborted-after-N-runs still burns the whole
   phase's authority and both completed cells stay in the results file.
+
+## Gotchas from the delegation-wall pass (2026-09-21)
+
+- **`wingman_phases.jev_ms` is a rounds-median, and per-round jev is bimodal**
+  (cold ~926 ms first round of each `wingman_do` delegation vs ~404 ms warm
+  continuation rounds, stable across days). So the run-level median tracks the
+  delegation mix, not machine load: the 360 s run's 880 ms was 4-of-5
+  delegations returning `ambiguous` after one round (5 cold / 4 warm rounds),
+  while the 395 ms run had 12 mostly-warm rounds. An 880 vs 395 comparison says
+  "different delegation shape", never "Jev got slower". Round phases carry no
+  state-size fields, so state-size effects are unmeasurable from results alone.
+- **The t9 wingman delegation falls back on the sensitive-auth path and the
+  wall is then lost to raw tools.** Even with the prioritizing prompt and a
+  600 s ceiling (results 2026-09-21-0329): 1 `wingman_do` call, `fallback`
+  reason `sensitive-auth-path` after 3 jev rounds, then the calling model
+  ground 5 raw calls until the 600 s kill. A mostly-delegated t9 run does not
+  complete by delegation; the fallback lane IS the run.
