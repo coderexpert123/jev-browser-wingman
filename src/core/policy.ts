@@ -1,6 +1,7 @@
 import type { PageSignals, Reason, SensitiveHostCategory } from '../contract/types.js';
 import { SENSITIVE_HOST_CATEGORIES } from '../contract/types.js';
-import { POLICY_SELF_TEST_HOST } from '../contract/constants.js';
+import { DEFAULT_POLICY_MODE, POLICY_SELF_TEST_HOST } from '../contract/constants.js';
+import type { PolicyMode } from '../contract/constants.js';
 import { AUTH_PATH_RE, BUILTIN_HOSTS } from './policy-data.js';
 
 export interface PolicyVerdict {
@@ -39,7 +40,17 @@ function matchCategory(
 
 const NEVER_SENSITIVE_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 
-export function classifyUrl(url: string, extra?: Partial<Record<SensitiveHostCategory, string[]>>): PolicyVerdict {
+export function classifyUrl(
+  url: string,
+  extra?: Partial<Record<SensitiveHostCategory, string[]>>,
+  policyMode: PolicyMode = DEFAULT_POLICY_MODE,
+): PolicyVerdict {
+  if (policyMode === 'off') {
+    // § 3.7 policy.mode 'off': no host is sensitive — every URL, including
+    // non-http protocols, is treated as ordinary. Only the sensitive-surface
+    // fallback is disabled; the irreversible gate is unaffected.
+    return { sensitive: false };
+  }
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -63,7 +74,10 @@ export function classifyUrl(url: string, extra?: Partial<Record<SensitiveHostCat
   return { sensitive: false };
 }
 
-export function classifySignals(s: PageSignals): PolicyVerdict {
+export function classifySignals(s: PageSignals, policyMode: PolicyMode = DEFAULT_POLICY_MODE): PolicyVerdict {
+  if (policyMode === 'off') {
+    return { sensitive: false };
+  }
   if (s.password || s.currentPassword || s.newPassword) {
     return { sensitive: true, reason: 'sensitive-password' };
   }
@@ -80,12 +94,13 @@ export function evaluatePolicy(
   url: string,
   signals: PageSignals,
   extra?: Partial<Record<SensitiveHostCategory, string[]>>,
+  policyMode: PolicyMode = DEFAULT_POLICY_MODE,
 ): PolicyVerdict {
-  const urlVerdict = classifyUrl(url, extra);
+  const urlVerdict = classifyUrl(url, extra, policyMode);
   if (urlVerdict.sensitive) {
     return urlVerdict;
   }
-  return classifySignals(signals);
+  return classifySignals(signals, policyMode);
 }
 
 export function policySelfTest(

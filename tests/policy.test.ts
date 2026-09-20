@@ -144,3 +144,41 @@ test('userinfo in the URL never changes the classified host', () => {
   const notBank = classifyUrl('https://chase.com@example.com/');
   assert.equal(notBank.sensitive, false);
 });
+
+test('policy.mode off classifies a listed banking host as non-sensitive', () => {
+  // Enforce (default) first: the host IS sensitive today.
+  const enforce = evaluatePolicy('https://secure.chase.com/login', signals());
+  assert.equal(enforce.sensitive, true);
+  assert.equal(enforce.reason, 'sensitive-banking');
+
+  const off = evaluatePolicy('https://secure.chase.com/login', signals(), undefined, 'off');
+  assert.equal(off.sensitive, false);
+  assert.equal(off.reason, undefined);
+
+  // classifyUrl directly, including a non-http URL that enforce always blocks.
+  const offUrl = classifyUrl('https://secure.chase.com/login', undefined, 'off');
+  assert.equal(offUrl.sensitive, false);
+  const offChrome = classifyUrl('chrome://settings/', undefined, 'off');
+  assert.equal(offChrome.sensitive, false);
+});
+
+test('policy.mode off proceeds past a password-field page signal', () => {
+  const enforce = evaluatePolicy('https://example.com/', signals({ password: true }), undefined, 'enforce');
+  assert.equal(enforce.sensitive, true);
+  assert.equal(enforce.reason, 'sensitive-password');
+
+  const off = evaluatePolicy('https://example.com/', signals({ password: true }), undefined, 'off');
+  assert.equal(off.sensitive, false);
+  assert.equal(classifySignals(signals({ password: true, otpText: true, ccAutocomplete: true }), 'off').sensitive, false);
+});
+
+test('default/absent policy mode keeps today\'s fallback', () => {
+  // No mode argument at all: sensitive host still falls back.
+  const host = evaluatePolicy('https://secure.chase.com/login', signals());
+  assert.equal(host.sensitive, true);
+  assert.equal(host.reason, 'sensitive-banking');
+  // Explicit 'enforce' matches byte-for-byte behaviour, including signals.
+  const sig = evaluatePolicy('https://example.com/', signals({ password: true }), undefined, 'enforce');
+  assert.equal(sig.sensitive, true);
+  assert.equal(sig.reason, 'sensitive-password');
+});

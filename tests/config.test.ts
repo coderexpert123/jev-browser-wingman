@@ -170,6 +170,74 @@ test('an unknown key inside gate fails', async () => {
   }
 });
 
+test('policy.mode accepts enforce and off and defaults to enforce', async () => {
+  const readPolicyMode = (config: WingmanConfig): string | undefined =>
+    (config as WingmanConfig & { policy?: { mode?: string } }).policy?.mode;
+
+  const home = mkHome();
+  writeConfig(home, { policy: { mode: 'off' } });
+  const offResult = await loadConfig(envFor(home));
+  assert.equal(offResult.ok, true);
+  if (offResult.ok) {
+    assert.equal(readPolicyMode(offResult.config), 'off');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { policy: { mode: 'enforce' } });
+  const enforceResult = await loadConfig(envFor(home2));
+  assert.equal(enforceResult.ok, true);
+  if (enforceResult.ok) {
+    assert.equal(readPolicyMode(enforceResult.config), 'enforce');
+  }
+
+  const home3 = mkHome();
+  const absentResult = await loadConfig(envFor(home3));
+  assert.equal(absentResult.ok, true);
+  if (absentResult.ok) {
+    assert.equal(readPolicyMode(absentResult.config), 'enforce');
+  }
+});
+
+test('policy.mode "maybe" fails with a policy-specific error', async () => {
+  const home = mkHome();
+  writeConfig(home, { policy: { mode: 'maybe' } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /policy\.mode/);
+  }
+});
+
+test('an unknown key inside policy fails', async () => {
+  const home = mkHome();
+  writeConfig(home, { policy: { strictness: 'high' } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /unknown policy key/);
+  }
+});
+
+test('policyModeOf mirrors gateModeOf on absent and off configs', async () => {
+  const { policyModeOf, gateModeOf } = await import('../src/core/config.js');
+
+  const home = mkHome();
+  const absent = await loadConfig(envFor(home));
+  assert.equal(absent.ok, true);
+  if (absent.ok) {
+    assert.equal(policyModeOf(absent.config), 'enforce');
+    assert.equal(gateModeOf(absent.config), 'confirm');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { policy: { mode: 'off' } });
+  const off = await loadConfig(envFor(home2));
+  assert.equal(off.ok, true);
+  if (off.ok) {
+    assert.equal(policyModeOf(off.config), 'off');
+  }
+});
+
 test('resolveKey prefers env then secrets_file and never returns a key for an empty value', () => {
   const home = mkHome();
   const secretsFile = path.join(home, 'secrets.env');

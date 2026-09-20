@@ -22,6 +22,10 @@ export const BUDGET_LIMITS = {
 export const GATE_MODES = ['confirm', 'off'] as const;   // § 3.8 config key gate.mode; default 'confirm'
 export type GateMode = (typeof GATE_MODES)[number];
 export const DEFAULT_GATE = { mode: 'confirm' } as const;
+export const POLICY_MODES = ['enforce', 'off'] as const; // § 3.7 config key policy.mode; default 'enforce'
+export type PolicyMode = (typeof POLICY_MODES)[number];
+export const DEFAULT_POLICY_MODE: PolicyMode = 'enforce';
+export const DEFAULT_POLICY = { mode: DEFAULT_POLICY_MODE } as const;
 export const THRESHOLDS = {
   done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
 } as const;

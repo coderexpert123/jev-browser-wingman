@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expandHome, wingmanHome } from '../contract/home.js';
-import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, GATE_MODES } from '../contract/constants.js';
-import type { GateMode } from '../contract/constants.js';
+import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, DEFAULT_POLICY, GATE_MODES, POLICY_MODES } from '../contract/constants.js';
+import type { GateMode, PolicyMode } from '../contract/constants.js';
 import { SENSITIVE_HOST_CATEGORIES, WINDOW_MODES } from '../contract/types.js';
 import type { Budgets, Mode, SensitiveHostCategory, WindowMode, WingmanConfig } from '../contract/types.js';
 
@@ -18,6 +18,7 @@ const TOP_LEVEL_KEYS = new Set([
   'sensitive_hosts',
   'budgets',
   'gate',
+  'policy',
 ]);
 
 type LoadResult =
@@ -195,7 +196,27 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
   }
 
-  const config: WingmanConfig & { gate: { mode: GateMode } } = {
+  let policy: { mode: PolicyMode } = { ...DEFAULT_POLICY };
+  if ('policy' in obj) {
+    const p = obj.policy;
+    if (typeof p !== 'object' || p === null || Array.isArray(p)) {
+      return { ok: false, error: 'policy must be an object' };
+    }
+    const pObj = p as Record<string, unknown>;
+    for (const key of Object.keys(pObj)) {
+      if (key !== 'mode') {
+        return { ok: false, error: `unknown policy key: ${key}` };
+      }
+    }
+    if ('mode' in pObj) {
+      if (!(POLICY_MODES as readonly unknown[]).includes(pObj.mode)) {
+        return { ok: false, error: `invalid policy.mode: ${JSON.stringify(pObj.mode)}` };
+      }
+      policy = { mode: pObj.mode as PolicyMode };
+    }
+  }
+
+  const config: WingmanConfig & { gate: { mode: GateMode }; policy: { mode: PolicyMode } } = {
     mode,
     adapter,
     window: windowMode,
@@ -207,6 +228,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     sensitive_hosts: sensitiveHosts,
     budgets,
     gate,
+    policy,
   };
 
   return { ok: true, config, source };
@@ -218,6 +240,14 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
 export function gateModeOf(config: WingmanConfig): GateMode {
   const gate = (config as WingmanConfig & { gate?: { mode?: unknown } }).gate;
   return gate !== null && typeof gate === 'object' && gate.mode === 'off' ? 'off' : 'confirm';
+}
+
+/** The policy mode in force for a config: `policy.mode` when the loaded config
+ * carries it, the default ('enforce') otherwise (§ 3.7). Read through this
+ * accessor everywhere; the WingmanConfig type predates the key. */
+export function policyModeOf(config: WingmanConfig): PolicyMode {
+  const policy = (config as WingmanConfig & { policy?: { mode?: unknown } }).policy;
+  return policy !== null && typeof policy === 'object' && policy.mode === 'off' ? 'off' : 'enforce';
 }
 
 export function resolveKey(

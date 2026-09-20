@@ -43,7 +43,7 @@ import {
 } from '../contract/errors.js';
 import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
-import { gateModeOf } from './config.js';
+import { gateModeOf, policyModeOf } from './config.js';
 import { ConfirmTokenStore, type PendingAction } from './tokens.js';
 import { redactDeep, redactValues } from './withhold.js';
 import {
@@ -704,7 +704,7 @@ async function runTool(
     beginRound(); // one pseudo-round: observe + ask (no act/settle on check)
     const obs = await observeTimed(pageId);
     pageUrl = obs.url;
-    const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts);
+    const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
     if (policy.sensitive) {
       return mk('fallback', policy.reason as Reason);
     }
@@ -754,7 +754,7 @@ async function runTool(
       if (obs.signals.captcha) {
         return mk('blocked', 'captcha');
       }
-      const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts);
+      const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
       if (policy.sensitive) {
         // A policy hit leaves a confirm token unconsumed.
         return mk('fallback', policy.reason as Reason);

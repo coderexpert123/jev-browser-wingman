@@ -5,6 +5,14 @@
   heuristic and Jev p(irreversible) never mint a token; the act proceeds). The
   operator's own machine runs `"off"`; the public default stays `"confirm"`.
 
+- **The sensitive-surface policy is config-switchable** (2026-09-21):
+  `config.json` `policy.mode` accepts `"enforce"` (default, today's behaviour)
+  and `"off"` (`classifyUrl`/`classifySignals` never report sensitive — the
+  host/page-signal fallback to Playwright is disabled). The operator's own
+  machine runs `"off"`; the public default stays `"enforce"`. Read it via
+  `policyModeOf()` (config.ts); the irreversible gate, value withholding and
+  confirm tokens are unaffected by this switch.
+
 - **The proxy rule lives twice, on purpose.** `enumerate` (buildRecord) and
   `verify` each contain an inline copy of the styled-control proxy detection
   (hidden checkbox/radio + visible label). This duplication is required by the
