@@ -98,8 +98,17 @@ withheld — this file rides a public-bound repository). Gates:
   cmdline marker only) before any other suite can run, and the stale profile
   dirs under the OS temp dir need deleting too. Never kill a Chrome whose
   profile is the shared browser profile.
-- **The spike's `--adapter dist-playwright|dist-cdp` mode is a wave-0 stub**
-  that exits 3 once `dist/src/adapters/index.js` exists — gate I-11 has no
-  implementation until the spike consumes the production drivers (a builder
-  task: the spike actors are raw-CDP instruments, not Driver wrappers, so it
-  is not a thin adapter).
+- **The spike's `--adapter dist-playwright|dist-cdp` mode (implemented 5839256,
+  2026-09-20)** drives the shipped `createDriver` through `attach/pages/observe/
+  act/detach` only, with act element ids found by matching the accessible name in
+  the observation (`Continue` / `Full name` / `Show alert` — the fixture names the
+  conformance tests already pin). The known-bad injections the Driver contract
+  deliberately cannot express (`Target.closeTarget`, `Emulation.
+  setDeviceMetricsOverride`, a main-world eval, `Target.createBrowserContext`,
+  dialog answering) ride a harness-held raw side connection; P7's cookie read
+  uses `Network.getCookies` from that same side client because the Driver has no
+  cookie method. Unproven until gate I-11 runs.
+- **Driver-actor fixture mapping**: `driver.pages()` is the page-id source (first
+  page), and `count(selector)` becomes an observation filter — the Driver exposes
+  no evaluate-by-selector, so the phase-R element-count read can only be expressed
+  as `observe()` output (its value is never asserted).
