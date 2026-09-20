@@ -56,6 +56,19 @@ export interface BenchRunRecord {
   };
   typesafe: { calls: number; input_tokens: number; output_tokens: number; usd: number };
   wingman: { calls: number; fallback: number; needs_confirmation: number };
+  // Phase breakdown (ms) read from the run's log records. Present only when
+  // at least one wingman record carried phases. Round-level values are
+  // medians across all rounds of the run; attach_ms is the invocation sum,
+  // first_observe_ms the max across invocations.
+  wingman_phases?: {
+    attach_ms: number;
+    first_observe_ms: number;
+    observe_ms: number;
+    jev_ms: number;
+    act_ms: number;
+    settle_ms: number;
+    rounds: number;
+  } | null;
   usd: number;
 }
 
@@ -253,11 +266,20 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     let tsOutput = 0;
     let fallbackCount = 0;
     let confirmCount = 0;
+    let attachSum = 0;
+    let firstObserveMax = 0;
+    const roundPhases: Array<{ observeMs: number; jevMs: number; actMs: number; settleMs: number }> = [];
     if (fs.existsSync(logPath)) {
       const fresh = fs.readFileSync(logPath, 'utf8').slice(before);
       for (const line of fresh.split('\n')) {
         if (!line.trim()) continue;
-        let rec: { jev_calls?: unknown; input_tokens?: unknown; output_tokens?: unknown; status?: unknown };
+        let rec: {
+          jev_calls?: unknown;
+          input_tokens?: unknown;
+          output_tokens?: unknown;
+          status?: unknown;
+          phases?: { attachMs?: unknown; firstObserveMs?: unknown; rounds?: Array<Record<string, unknown>> };
+        };
         try {
           rec = JSON.parse(line);
         } catch {
@@ -268,8 +290,33 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
         tsOutput += typeof rec.output_tokens === 'number' ? rec.output_tokens : 0;
         if (rec.status === 'fallback') fallbackCount += 1;
         if (rec.status === 'needs_confirmation') confirmCount += 1;
+        const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+        if (rec.phases) {
+          if (num(rec.phases.attachMs)) attachSum += rec.phases.attachMs;
+          if (num(rec.phases.firstObserveMs)) firstObserveMax = Math.max(firstObserveMax, rec.phases.firstObserveMs);
+          for (const round of rec.phases.rounds ?? []) {
+            roundPhases.push({
+              observeMs: num(round.observeMs) ? round.observeMs : 0,
+              jevMs: num(round.jevMs) ? round.jevMs : 0,
+              actMs: num(round.actMs) ? round.actMs : 0,
+              settleMs: num(round.settleMs) ? round.settleMs : 0,
+            });
+          }
+        }
       }
     }
+    const wingmanPhases: BenchRunRecord['wingman_phases'] =
+      route === 'wingman' && roundPhases.length > 0
+        ? {
+            attach_ms: Math.round(attachSum),
+            first_observe_ms: Math.round(firstObserveMax),
+            observe_ms: Math.round(median(roundPhases.map((r) => r.observeMs))),
+            jev_ms: Math.round(median(roundPhases.map((r) => r.jevMs))),
+            act_ms: Math.round(median(roundPhases.map((r) => r.actMs))),
+            settle_ms: Math.round(median(roundPhases.map((r) => r.settleMs))),
+            rounds: roundPhases.length,
+          }
+        : null;
 
     const usage = res.usage;
     const llmUsage = {
@@ -304,6 +351,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
         route === 'wingman'
           ? { calls: tsCalls, fallback: fallbackCount, needs_confirmation: confirmCount }
           : { calls: 0, fallback: 0, needs_confirmation: 0 },
+      ...(route === 'wingman' ? { wingman_phases: wingmanPhases } : {}),
       usd,
     };
     return { record, usd };

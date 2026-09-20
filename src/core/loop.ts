@@ -222,6 +222,31 @@ async function runTool(
   let lastAction: { verb: Op; label: string } | undefined;
   let pageUrl: string | null = null;
 
+  // Per-phase wall-time capture (ms). Numbers only — never page text.
+  // `cur` is the round bucket the current ask/act/settle belongs to.
+  type PhaseRound = { observeMs: number; jevMs: number; actMs: number; settleMs: number };
+  const phaseAcc: {
+    attachMs?: number;
+    firstObserveMs?: number;
+    rounds: PhaseRound[];
+  } = { rounds: [] };
+  let cur: PhaseRound | null = null;
+  const beginRound = (): PhaseRound => {
+    const round: PhaseRound = { observeMs: 0, jevMs: 0, actMs: 0, settleMs: 0 };
+    phaseAcc.rounds.push(round);
+    cur = round;
+    return round;
+  };
+  /** Timed observe: fills the current round's observeMs and, once, firstObserveMs. */
+  const observeTimed = async (pageId: string): Promise<Observation> => {
+    const t = now();
+    const obs = await driver!.observe(pageId);
+    const ms = now() - t;
+    if (cur) cur.observeMs += ms;
+    if (phaseAcc.firstObserveMs === undefined) phaseAcc.firstObserveMs = ms;
+    return obs;
+  };
+
   const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => ({
     status,
     reason,
@@ -263,16 +288,23 @@ async function runTool(
       output_tokens: r.cost.output_tokens,
       ms: r.cost.ms,
       ...(acc.would ? { would: acc.would } : {}),
+      phases: {
+        ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
+        ...(phaseAcc.firstObserveMs !== undefined ? { firstObserveMs: phaseAcc.firstObserveMs } : {}),
+        rounds: phaseAcc.rounds,
+      },
     };
   }
 
   /** One ask that counts toward cost; enforces the timeout pin. Time-floor checks sit at the call sites. */
   async function askWithCost(request: JevRequest, purpose: 'wingman_do' | 'wingman_check', remaining: () => number): Promise<JevResult> {
     acc.jevCalls += 1;
+    const tAsk = now();
     const r = await (deps.ask as JevAsk)(request, {
       purpose,
       timeoutMs: Math.min(deps.config.budgets.jev_timeout_ms, remaining() - 500),
     });
+    if (cur) cur.jevMs += now() - tAsk;
     if (r.ok) {
       acc.inputTokens += r.usage.inputTokens;
       acc.outputTokens += r.usage.outputTokens;
@@ -536,7 +568,9 @@ async function runTool(
     if (remaining() < TIME_FLOOR_MS) {
       return { result: mk('fallback', 'budget-time'), history };
     }
+    const tAct0 = now();
     await driver.act(pageId, el.id, action.verb, actValue);
+    if (cur) cur.actMs += now() - tAct0;
     steps += 1;
     // Result labels are redacted against the call's bindings and capped (§ WP-C7 item 5).
     lastAction = { verb: action.verb, label: capLabel(redactValues(el.name, values)) };
@@ -546,7 +580,9 @@ async function runTool(
     }
     const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
     if (settleBudget > 0) {
+      const tSettle0 = now();
       await driver.settle(pageId, settleBudget);
+      if (cur) cur.settleMs += now() - tSettle0;
     }
     if (dialogEvents.some((e) => e.pageId === pageId)) {
       return { result: mk('blocked', 'dialog-open'), history };
@@ -588,7 +624,9 @@ async function runTool(
     driver.onDialog((e) => dialogEvents.push(e));
 
     try {
+      const tAttach = now();
       await driver.attach({ cdpEndpoint: endpoint });
+      phaseAcc.attachMs = now() - tAttach;
       attached = true;
     } catch (e) {
       if (e instanceof AttachError) {
@@ -650,7 +688,8 @@ async function runTool(
     if (remaining() < TIME_FLOOR_MS) {
       return mk('fallback', 'budget-time');
     }
-    const obs = await driver.observe(pageId);
+    beginRound(); // one pseudo-round: observe + ask (no act/settle on check)
+    const obs = await observeTimed(pageId);
     pageUrl = obs.url;
     const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts);
     if (policy.sensitive) {
@@ -691,7 +730,8 @@ async function runTool(
       if (remaining() < TIME_FLOOR_MS) {
         return mk('fallback', 'budget-time');
       }
-      const obs = await driver.observe(pageId);
+      const bucket = beginRound();
+      const obs = await observeTimed(pageId);
       pageUrl = obs.url;
 
       // A dialog reported through onDialog before an act.
@@ -856,7 +896,9 @@ async function runTool(
           : verb === 'select'
             ? optionValue
             : undefined;
+      const tAct = now();
       await driver.act(pageId, el.id, verb, actValue);
+      bucket.actMs += now() - tAct;
       steps += 1;
       lastAction = { verb, label: capLabel(redactValues(el.name, values)) };
       if (dialogEvents.some((e) => e.pageId === pageId)) {
@@ -864,7 +906,9 @@ async function runTool(
       }
       const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
       if (settleBudget > 0) {
+        const tSettle = now();
         await driver.settle(pageId, settleBudget);
+        bucket.settleMs += now() - tSettle;
       }
       if (dialogEvents.some((e) => e.pageId === pageId)) {
         return mk('blocked', 'dialog-open');

@@ -1,0 +1,91 @@
+{
+  "date": "2026-09-20-1634.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 2,
+  "phase_cap_usd": 3.514,
+  "aborted": null,
+  "total_usd": 1.624295,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": false,
+      "wall_ms": 57114,
+      "browser_tool_calls": 0,
+      "per_step_ms": 57114,
+      "llm": {
+        "input_tokens": 38096,
+        "output_tokens": 629,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0.123723,
+        "cli_reported_usd": 0.20620499999999997
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.123723
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": false,
+      "wall_ms": 240578,
+      "browser_tool_calls": 21,
+      "per_step_ms": 11456,
+      "llm": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0,
+        "cli_reported_usd": null
+      },
+      "typesafe": {
+        "calls": 4,
+        "input_tokens": 13609,
+        "output_tokens": 3250,
+        "usd": 0.000572
+      },
+      "wingman": {
+        "calls": 4,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 601,
+        "first_observe_ms": 64,
+        "observe_ms": 31,
+        "jev_ms": 395,
+        "act_ms": 102,
+        "settle_ms": 272,
+        "rounds": 12
+      },
+      "usd": 1.500572
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 0,
+      "median_wall_ms": 57114,
+      "median_usd": 0.123723,
+      "fallback_rate": 0
+    },
+    "wingman": {
+      "success_rate": 0,
+      "median_wall_ms": 240578,
+      "median_usd": 1.500572,
+      "fallback_rate": 0
+    }
+  }
+}

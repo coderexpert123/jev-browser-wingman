@@ -128,6 +128,14 @@ export interface WingmanLogRecord {
   status: Status; reason: Reason; steps: number; host: string; gate_hits: number;
   jev_calls: number; input_tokens: number; output_tokens: number; ms: number;
   would?: { verb: Op; role: string };   // shadow mode only
+  // Per-phase wall-time breakdown, ms. Numbers only — never page text.
+  // attachMs/firstObserveMs are once per invocation; rounds is one entry per
+  // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
+  phases?: {
+    attachMs?: number;
+    firstObserveMs?: number;
+    rounds: Array<{ observeMs: number; jevMs: number; actMs: number; settleMs: number }>;
+  };
 }
 export interface WingmanPlugin {
   name: string;

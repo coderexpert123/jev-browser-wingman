@@ -54,5 +54,12 @@
     "goal": "Open the page for the 404 status code.",
     "values": {},
     "oracle": "location.pathname === '/status_codes/404'"
+  },
+  {
+    "id": "t9-long-chain",
+    "path": "/",
+    "goal": "Multi-page chain, in order: open Checkboxes and tick the first checkbox; open Dropdown and choose Option 1; open Add Remove Elements and click Add Element twice; open Inputs and type the value named amount into the number field; open Forgot Password, enter the value named email and click Retrieve password; open Dynamic Loading, open Example 2 and click Start; open Status Codes and open the page for status code 404.",
+    "values": { "amount": "77", "email": "wingman@example.com" },
+    "oracle": "location.pathname === '/status_codes/404'"
   }
 ]

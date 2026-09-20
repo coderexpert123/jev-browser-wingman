@@ -207,6 +207,39 @@ function harness(opts: {
 
 // ---- required tests ----
 
+test('log record carries the phases breakdown (fail-first shape test)', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  const r = await h.call({ goal: 'Open the details' });
+  assert.equal(r.status, 'done');
+  const rec = h.records[0];
+  // A record without phases must fail this shape test.
+  assert.ok(rec.phases, 'log record has no phases object');
+  assert.equal(typeof rec.phases.attachMs, 'number');
+  assert.equal(typeof rec.phases.firstObserveMs, 'number');
+  assert.ok(Array.isArray(rec.phases.rounds));
+  assert.equal(rec.phases.rounds.length, 2); // act round, then the done round
+  for (const round of rec.phases.rounds) {
+    for (const key of ['observeMs', 'jevMs', 'actMs', 'settleMs'] as const) {
+      assert.equal(typeof round[key], 'number');
+      assert.ok(Number.isFinite(round[key]));
+    }
+  }
+  // JSON-serializable and free of page text: numbers and arrays only.
+  const json = JSON.parse(JSON.stringify(rec.phases)) as unknown;
+  assert.deepEqual(json, rec.phases);
+});
+
+test('check-path record carries phases with one round', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [{ answer: 0.9 }] });
+  const r = await h.callCheck({ question: 'Is the list visible?' });
+  assert.equal(r.status, 'done');
+  const rec = h.records[0];
+  assert.ok(rec.phases, 'check log record has no phases object');
+  assert.equal(rec.phases.rounds.length, 1);
+  assert.equal(rec.phases.rounds[0].actMs, 0);
+  assert.equal(rec.phases.rounds[0].settleMs, 0);
+});
+
 test('done after one click then goal-met', async () => {
   const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
   const r = await h.call({ goal: 'Open the details' });
