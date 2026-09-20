@@ -130,7 +130,10 @@ withheld — this file rides a public-bound repository). Gates:
   setDeviceMetricsOverride`, a main-world eval, `Target.createBrowserContext`,
   dialog answering) ride a harness-held raw side connection; P7's cookie read
   uses `Network.getCookies` from that same side client because the Driver has no
-  cookie method. Unproven until gate I-11 runs.
+  cookie method. Gate I-11 PROVEN 2026-09-20 (867edab): both plain runs PASS,
+  all ten known-bad runs flip exactly their target check on both adapters, and
+  the close-page collateral cascade matches the wave-0 results — the side-
+  channel injections discriminate identically to the in-actor ones.
 - **Driver-actor fixture mapping**: `driver.pages()` is the page-id source (first
   page), and `count(selector)` becomes an observation filter — the Driver exposes
   no evaluate-by-selector, so the phase-R element-count read can only be expressed
