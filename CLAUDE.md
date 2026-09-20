@@ -81,3 +81,25 @@ withheld — this file rides a public-bound repository). Gates:
   and must assert chrome-cmd's own `no-browser` JSON line (exit 1), not a `config:` error.
   Unwired, `chrome show` exits 2 with usage on stderr — that 2-vs-1 delta is the test's teeth.
 
+
+## Gotchas from the wave-5 final verification (2026-09-20)
+
+- **The full suite cannot complete as ONE `node --test` invocation on a loaded
+  16 GB machine.** The runner fans every file out in parallel; browser files
+  then hold 160-225 Chrome processes at once, the machine wedges, and the
+  runner hangs past an hour with no output (it buffers until the end). Working
+  form: scoped runs in 4-6 chunks of 3-12 basenames against the built `dist/`,
+  serially — same runner, same dist, sum the totals. Expect one
+  parallel-load flake (a `Page.navigate` cdp timeout) per heavy chunk; it
+  passes twice in isolation, so re-run the failing basename alone before
+  treating it as a defect.
+- **Killed test runners orphan their detached Chromes** on `wingman-ephemeral-*`
+  temp profiles and they survive the parent; they must be swept (kill by that
+  cmdline marker only) before any other suite can run, and the stale profile
+  dirs under the OS temp dir need deleting too. Never kill a Chrome whose
+  profile is the shared browser profile.
+- **The spike's `--adapter dist-playwright|dist-cdp` mode is a wave-0 stub**
+  that exits 3 once `dist/src/adapters/index.js` exists — gate I-11 has no
+  implementation until the spike consumes the production drivers (a builder
+  task: the spike actors are raw-CDP instruments, not Driver wrappers, so it
+  is not a thin adapter).
