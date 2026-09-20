@@ -75,6 +75,13 @@ type AnswerMap = Record<string, Answer>;
 
 const BINDING_RE = /^[a-z][a-z0-9_]{0,39}$/;
 
+// Result-text steering (2026-09-21): a wingman_do run that ends for any reason
+// other than done carries this static line so the calling model re-calls the
+// tool instead of finishing the goal with raw browser tools. Static text only —
+// no page content, so the egress rules are unaffected.
+export const CONTINUE_LINE =
+  'Goal not finished — call wingman_do again with the same goal (and the same values) to continue from here. Do not switch to raw browser tools.';
+
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
@@ -263,7 +270,13 @@ async function runTool(
   });
 
   // Exactly one log record per call; log errors never mask the tool result.
+  // The continuation note is appended here (the single return path) so it is
+  // the last field of the serialized result: for needs_confirmation the
+  // pending/confirm_token fields stay primary, ahead of it.
   const finish = async (r: WingmanResult): Promise<WingmanResult> => {
+    if (tool === 'wingman_do' && r.status !== 'done') {
+      r.note = CONTINUE_LINE;
+    }
     try {
       await deps.writeLog(buildLogRecord(r));
     } catch {

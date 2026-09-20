@@ -28,3 +28,18 @@
   shape test in `tests/loop.test.ts` is fail-first — keep it failing if the
   instrumentation is removed. Bench reads the same field into
   `wingman_phases`; do not add page text to either.
+
+- **Result-text steering (`note`) did NOT stop interleaving** (2026-09-21):
+  every non-done `wingman_do` result now carries the static `CONTINUE_LINE`
+  (appended at the single `finish()` return path; `wingman_check` never gets
+  it, and it serializes last so `confirm_token` stays primary on
+  needs_confirmation). Re-measure on t9-long-chain (results 2026-09-21-0122,
+  cap-proof) after DESCRIPTION v3 + note: wingman.calls went UP (2 → 6 and 2 →
+  3) while raw browser tool calls stayed flat (20 → 24, 25 → 25) vs the
+  2026-09-20-1709/1716 baseline. The calling model fragments into MORE
+  wingman_do calls rather than fewer; the bench prompt's own "finish the task
+  with the Playwright tools" clause on fallback is a candidate co-cause but
+  fallback never fired. Numeric-opinionated tool text alone does not fix
+  fragmentation — the next lever is the bench prompt or the loop's own
+  continuation semantics, not more description text.
+

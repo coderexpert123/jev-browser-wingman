@@ -102,6 +102,7 @@ export interface WingmanResult {
   confirm_token?: string;
   shadow?: true;
   answer?: number;                    // wingman_check only, 0..1 rounded to 2 decimals
+  note?: string;                      // static continuation hint on non-done wingman_do results; never page text
   cost: { jev_calls: number; input_tokens: number; output_tokens: number; ms: number };
   labels_untrusted: true;
 }

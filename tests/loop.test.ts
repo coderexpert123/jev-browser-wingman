@@ -362,6 +362,46 @@ test('budget-steps after max_steps acts', async () => {
   assert.equal(r.steps, 1);
 });
 
+// Result-text steering (2026-09-21): every wingman_do result that is not done
+// carries the static continuation line so the calling model re-calls the tool
+// instead of finishing the goal with raw browser tools. The expected text is
+// inlined here (not imported) so a drift on either side fails this pin.
+const SPEC_CONTINUE_LINE =
+  'Goal not finished — call wingman_do again with the same goal (and the same values) to continue from here. Do not switch to raw browser tools.';
+
+test('a non-done wingman_do result carries the continuation line (fail-first shape test)', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S()] });
+  const r = await h.call({ goal: 'g', max_steps: 1 });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.note, SPEC_CONTINUE_LINE);
+});
+
+test('done carries no continuation line; needs_confirmation keeps the token and adds it', async () => {
+  const h1 = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  const r1 = await h1.call({ goal: 'g' });
+  assert.equal(r1.status, 'done');
+  assert.equal(r1.note, undefined);
+
+  const h2 = harness({
+    observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
+    script: [S({ irreversible: 0.9 })],
+  });
+  const r2 = await h2.call({ goal: 'g' });
+  assert.equal(r2.status, 'needs_confirmation');
+  assert.match(r2.confirm_token ?? '', /^wct_/);
+  assert.equal(r2.note, SPEC_CONTINUE_LINE);
+  // Confirmation fields stay primary: they serialize ahead of the note.
+  const keys = Object.keys(JSON.parse(JSON.stringify(r2)) as Record<string, unknown>);
+  assert.ok(keys.indexOf('confirm_token') < keys.indexOf('note'));
+});
+
+test('wingman_check results never carry the goal continuation line', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S()], forceMode: 'off' });
+  const r = await h.callCheck({ question: 'q' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.note, undefined);
+});
+
 test('budget-time stops before the floor (fake clock)', async () => {
   let t = 0;
   const h = harness({

@@ -15,6 +15,7 @@
   "files": [
     "dist/src",
     "fixtures/pages",
+    "skills/jev-browser-wingman",
     "INSTALL-FOR-AGENTS.md",
     "README.md",
     "LICENSE",
