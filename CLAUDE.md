@@ -104,6 +104,26 @@ withheld — this file rides a public-bound repository). Gates:
 - The readme-bench gate picks the newest `measure` results file by name; a
   cap-proof file never leaks into the README block (spec WP-H item 8 holds).
 
+## Gotchas from OG-6 HEAVY (2026-09-20)
+
+- **Chrome lives at `C:\Program Files (x86)\...` on this machine**, not
+  `Program Files` — a manual warm-up launch from the default path fails with
+  "cannot find the file". And `Start-Process -ArgumentList` joins array items
+  with bare spaces: an unquoted `--user-data-dir=<unquoted path with spaces>` splits at the
+  space, Chrome starts on a bogus profile, and `ensureChrome` refuses it
+  ("uses a different profile"). Embed the quotes in the argument string.
+- **The memory-pressure reaper kills idle-session background shells and the
+  Chrome they spawned** (reaped a warm-up mid-launch; free RAM was ~1.3 GB).
+  Run timed bench cells foreground, and after killing a bench Chrome sweep the
+  surviving `--type=crashpad-handler` orphan by its bench-profile marker — its
+  parent is dead and `stopChrome` never sees it. The harness guard blocks
+  deleting top-level `D:\` dirs, so a mis-launch's stray `D:\My` (empty) stays.
+- **A "wingman" route cell is only a wingman measurement if `typesafe.calls`
+  > 0.** In the heavy pass the t3 wingman cell never called `wingman_do` (the
+  model drove the Playwright tools directly) — route label alone does not tell
+  you which mechanism ran; read `bench/results/*.json` `typesafe.calls` before
+  interpreting any wingman-route row.
+
 
 ## Gotchas from the wave-5 final verification (2026-09-20)
 
