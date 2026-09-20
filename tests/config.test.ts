@@ -84,6 +84,16 @@ test('~ paths expand and absolute paths pass', async () => {
   }
 });
 
+test('a max_steps override of 24 (the default) is accepted', async () => {
+  const home = mkHome();
+  writeConfig(home, { budgets: { max_steps: 24 } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.config.budgets.max_steps, 24);
+  }
+});
+
 test('a budget outside BUDGET_LIMITS fails', async () => {
   const home = mkHome();
   writeConfig(home, { budgets: { max_steps: 999 } });
