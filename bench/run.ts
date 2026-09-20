@@ -150,7 +150,15 @@ function readSecretsKey(secretsFile: string | null): string | null {
 }
 
 export function buildPrompt(task: BenchTask, route: 'playwright' | 'wingman'): string {
-  let prompt = `Use the browser tools on the page that is already open. Stay on this site. Task: ${task.goal}`;
+  let prompt = `Use the browser tools on the page that is already open. Stay on this site.`;
+  if (route === 'wingman') {
+    // The win32 spawn goes through `cmd /c` with verbatim arguments, so the
+    // prompt MUST stay a single ASCII line: newlines split the command line
+    // and non-ASCII characters depend on the console codepage (observed
+    // 2026-09-21: multi-line prompt ran as garbage commands, 0 usage).
+    prompt +=
+      ' ROUTING RULES, follow these exactly: Use the wingman MCP tool (wingman_do) for ALL browser work on this task; it runs the entire observe-decide-act loop internally at ~1 s per step and returns one compact result. Call it ONCE with the full goal. PREFER wingman_do for navigation, clicking, filling fields with known values, selecting options, and scrolling. DEPRIORITIZE the raw Playwright browser tools for all of the above; do not use them for navigation, clicks, typing, selects, or scrolls. Reserve raw browser tools ONLY for what wingman_do\'s do-not-use list covers (sensitive hosts, credentials, sign-in or payment pages) or when wingman_do returns blocked, needs_confirmation, or fallback. Do not interleave raw browser calls between wingman_do calls.';
+  }
   const entries = Object.entries(task.values ?? {});
   if (entries.length > 0) {
     prompt += ` Use these values: ${entries.map(([name, value]) => `${name} = "${value}"`).join('; ')}.`;
