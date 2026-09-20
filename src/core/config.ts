@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expandHome, wingmanHome } from '../contract/home.js';
-import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR } from '../contract/constants.js';
+import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, GATE_MODES } from '../contract/constants.js';
+import type { GateMode } from '../contract/constants.js';
 import { SENSITIVE_HOST_CATEGORIES, WINDOW_MODES } from '../contract/types.js';
 import type { Budgets, Mode, SensitiveHostCategory, WindowMode, WingmanConfig } from '../contract/types.js';
 
@@ -16,6 +17,7 @@ const TOP_LEVEL_KEYS = new Set([
   'plugin',
   'sensitive_hosts',
   'budgets',
+  'gate',
 ]);
 
 type LoadResult =
@@ -173,7 +175,27 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
   }
 
-  const config: WingmanConfig = {
+  let gate: { mode: GateMode } = { ...DEFAULT_GATE };
+  if ('gate' in obj) {
+    const g = obj.gate;
+    if (typeof g !== 'object' || g === null || Array.isArray(g)) {
+      return { ok: false, error: 'gate must be an object' };
+    }
+    const gObj = g as Record<string, unknown>;
+    for (const key of Object.keys(gObj)) {
+      if (key !== 'mode') {
+        return { ok: false, error: `unknown gate key: ${key}` };
+      }
+    }
+    if ('mode' in gObj) {
+      if (!(GATE_MODES as readonly unknown[]).includes(gObj.mode)) {
+        return { ok: false, error: `invalid gate.mode: ${JSON.stringify(gObj.mode)}` };
+      }
+      gate = { mode: gObj.mode as GateMode };
+    }
+  }
+
+  const config: WingmanConfig & { gate: { mode: GateMode } } = {
     mode,
     adapter,
     window: windowMode,
@@ -184,9 +206,18 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     plugin,
     sensitive_hosts: sensitiveHosts,
     budgets,
+    gate,
   };
 
   return { ok: true, config, source };
+}
+
+/** The gate mode in force for a config: `gate.mode` when the loaded config
+ * carries it, the default ('confirm') otherwise (§ 3.8). Read through this
+ * accessor everywhere; the WingmanConfig type predates the key. */
+export function gateModeOf(config: WingmanConfig): GateMode {
+  const gate = (config as WingmanConfig & { gate?: { mode?: unknown } }).gate;
+  return gate !== null && typeof gate === 'object' && gate.mode === 'off' ? 'off' : 'confirm';
 }
 
 export function resolveKey(

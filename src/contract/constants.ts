@@ -19,6 +19,9 @@ export const BUDGET_LIMITS = {
   max_steps: [1, 8], max_ms: [5_000, 50_000], jev_timeout_ms: [1_000, 10_000],
   max_elements: [20, 240], max_text_chars: [0, 3_000], max_state_chars: [2_000, 24_000],
 } as const;
+export const GATE_MODES = ['confirm', 'off'] as const;   // § 3.8 config key gate.mode; default 'confirm'
+export type GateMode = (typeof GATE_MODES)[number];
+export const DEFAULT_GATE = { mode: 'confirm' } as const;
 export const THRESHOLDS = {
   done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
 } as const;

@@ -43,6 +43,7 @@ import {
 } from '../contract/errors.js';
 import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
+import { gateModeOf } from './config.js';
 import { ConfirmTokenStore, type PendingAction } from './tokens.js';
 import { redactDeep, redactValues } from './withhold.js';
 import {
@@ -815,24 +816,29 @@ async function runTool(
       const { el, verb, binding, optionValue } = decide;
 
       // Rule 9 gate, then act — the gate call always precedes the act call.
-      const gate = gateHeuristic(el, el.form >= 0 ? obs.forms[el.form] : undefined, verb);
-      const irreversibleAnswer = decisionAnswers['irreversible'];
-      const irreversibleP = irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
-      if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
-        const pending: PendingAction = {
-          url: obs.url,
-          elementPath: el.path,
-          fingerprint: el.fingerprint,
-          verb,
-          ...(binding !== undefined ? { binding } : {}),
-          ...(optionValue !== undefined ? { optionValue } : {}),
-          label: el.name,
-        };
-        const confirmToken = deps.tokens.mint(pending);
-        return mk('needs_confirmation', gate.hit ? 'irreversible-heuristic' : 'irreversible-jev', {
-          pending: { verb, label: capLabel(redactValues(el.name, values)) },
-          confirm_token: confirmToken,
-        });
+      // With gate.mode 'off' (§ 3.8) the gate heuristic and the Jev
+      // irreversible probability never produce needs_confirmation: the act
+      // proceeds exactly as a non-gated action would and no token is minted.
+      if (gateModeOf(deps.config) !== 'off') {
+        const gate = gateHeuristic(el, el.form >= 0 ? obs.forms[el.form] : undefined, verb);
+        const irreversibleAnswer = decisionAnswers['irreversible'];
+        const irreversibleP = irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
+        if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
+          const pending: PendingAction = {
+            url: obs.url,
+            elementPath: el.path,
+            fingerprint: el.fingerprint,
+            verb,
+            ...(binding !== undefined ? { binding } : {}),
+            ...(optionValue !== undefined ? { optionValue } : {}),
+            label: el.name,
+          };
+          const confirmToken = deps.tokens.mint(pending);
+          return mk('needs_confirmation', gate.hit ? 'irreversible-heuristic' : 'irreversible-jev', {
+            pending: { verb, label: capLabel(redactValues(el.name, values)) },
+            confirm_token: confirmToken,
+          });
+        }
       }
 
       // Rule 11: act, then dialog, settle, dialog again, history.

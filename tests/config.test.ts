@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadConfig, resolveKey } from '../src/core/config.js';
+import type { WingmanConfig } from '../src/contract/types.js';
 
 function mkHome(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-config-test-'));
@@ -107,6 +108,54 @@ test('an unknown sensitive_hosts category fails', async () => {
   writeConfig(home, { sensitive_hosts: { not_a_real_category: ['example.com'] } });
   const result = await loadConfig(envFor(home));
   assert.equal(result.ok, false);
+});
+
+test('gate.mode accepts confirm and off and defaults to confirm', async () => {
+  const readGateMode = (config: WingmanConfig): string | undefined =>
+    (config as WingmanConfig & { gate?: { mode?: string } }).gate?.mode;
+
+  const home = mkHome();
+  writeConfig(home, { gate: { mode: 'off' } });
+  const offResult = await loadConfig(envFor(home));
+  assert.equal(offResult.ok, true);
+  if (offResult.ok) {
+    assert.equal(readGateMode(offResult.config), 'off');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { gate: { mode: 'confirm' } });
+  const confirmResult = await loadConfig(envFor(home2));
+  assert.equal(confirmResult.ok, true);
+  if (confirmResult.ok) {
+    assert.equal(readGateMode(confirmResult.config), 'confirm');
+  }
+
+  const home3 = mkHome();
+  const absentResult = await loadConfig(envFor(home3));
+  assert.equal(absentResult.ok, true);
+  if (absentResult.ok) {
+    assert.equal(readGateMode(absentResult.config), 'confirm');
+  }
+});
+
+test('an unknown gate.mode fails on the mode, not on the gate key', async () => {
+  const home = mkHome();
+  writeConfig(home, { gate: { mode: 'sometimes' } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /gate\.mode/);
+  }
+});
+
+test('an unknown key inside gate fails', async () => {
+  const home = mkHome();
+  writeConfig(home, { gate: { strength: 'high' } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /unknown gate key/);
+  }
 });
 
 test('resolveKey prefers env then secrets_file and never returns a key for an empty value', () => {

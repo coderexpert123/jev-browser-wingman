@@ -1,5 +1,10 @@
 # src/core — page-scripts gotchas
 
+- **The irreversible gate is config-switchable** (2026-09-20): `config.json`
+  `gate.mode` accepts `"confirm"` (default, today's behaviour) and `"off"` (the
+  heuristic and Jev p(irreversible) never mint a token; the act proceeds). The
+  operator's own machine runs `"off"`; the public default stays `"confirm"`.
+
 - **The proxy rule lives twice, on purpose.** `enumerate` (buildRecord) and
   `verify` each contain an inline copy of the styled-control proxy detection
   (hidden checkbox/radio + visible label). This duplication is required by the

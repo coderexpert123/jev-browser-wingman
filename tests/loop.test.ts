@@ -11,6 +11,7 @@ import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
 import { DEFAULT_BUDGETS } from '../src/contract/constants.js';
+import type { GateMode } from '../src/contract/constants.js';
 import type {
   ElementRecord,
   JevAnswer,
@@ -169,7 +170,7 @@ function harness(opts: {
   pages?: PageInfo[];
   observations: Record<string, Observation[]>;
   script: SeqEntry[];
-  config?: Partial<WingmanConfig>;
+  config?: Partial<WingmanConfig> & { gate?: { mode: GateMode } };
   ask?: JevAsk | null;
   now?: () => number;
   forceMode?: Mode;
@@ -508,5 +509,49 @@ test('an out-of-set action choice is target-uncertain', async () => {
   const r = await h.call({ goal: 'g' });
   assert.equal(r.status, 'ambiguous');
   assert.equal(r.reason, 'target-uncertain');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+// § 3.8: with gate.mode 'off' the gate heuristic and the Jev irreversible
+// probability never produce needs_confirmation — the act proceeds like any
+// other, and no confirm token is minted.
+
+test('gate off submits a gated button without a token', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
+    script: [S(), { done: 0.9 }],
+    config: { gate: { mode: 'off' } },
+  });
+  const r = await h.call({ goal: 'Order' });
+  assert.equal(r.status, 'done');
+  assert.equal(r.reason, 'goal-met');
+  assert.equal(r.confirm_token, undefined);
+  assert.equal(r.pending, undefined);
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.equal(h.driver.actCalls()[0].elementId, 'e1');
+});
+
+test('gate off with Jev p(irreversible) 0.9 still acts', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
+    script: [S({ irreversible: 0.9 }), { done: 0.9 }],
+    config: { gate: { mode: 'off' } },
+  });
+  const r = await h.call({ goal: 'g' });
+  assert.equal(r.status, 'done');
+  assert.equal(r.reason, 'goal-met');
+  assert.equal(r.confirm_token, undefined);
+  assert.equal(h.driver.actCalls().length, 1);
+});
+
+test('default (absent) gate config keeps needs_confirmation', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
+    script: [S({ irreversible: 0.9 })],
+  });
+  const r = await h.call({ goal: 'g' });
+  assert.equal(r.status, 'needs_confirmation');
+  assert.equal(r.reason, 'irreversible-jev');
+  assert.match(r.confirm_token ?? '', /^wct_/);
   assert.equal(h.driver.actCalls().length, 0);
 });
