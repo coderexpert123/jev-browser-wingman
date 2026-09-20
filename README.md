@@ -109,12 +109,20 @@ Design-only ports; no code was copied:
 
 ## Benchmark
 
+Two live passes ran on 2026-09-20 against `the-internet.herokuapp.com`, one repeat per cell (n=1). A cell is one task on one route; both routes ran the same prompt shape on the same Chrome.
+
+Light pass (`t1-checkboxes`, `t5-inputs`): 4/4 success on both routes. Median wall-clock 79.9 s (playwright) vs 78.7 s (wingman); median cost 0.183 vs 0.226 USD. Trivial tasks: near parity, wingman slightly costlier.
+
+Heavy pass (`t3-dynamic-controls`, `t7-sort-table`), summarized below: 4/4 success on both routes. Wingman was slower (median 69.3 s vs 45.1 s) and costlier (median 0.194 vs 0.154 USD). On `t3` the wingman-route run never called `wingman_do` and used the Playwright tools directly, so that cell is not a clean route comparison; on `t7` it called `wingman_do` once with no fallback.
+
+With n=1 per cell these numbers are indicative only. Nothing in them shows the heavy-task speedup or cost win the wingman design predicts.
+
 <!-- bench:begin -->
 | route | success | median wall-clock | median cost (USD) | fallback rate |
 |---|---|---|---|---|
-| playwright | 1 | 79881 | 0.182742 | 0 |
-| wingman | 1 | 78673.5 | 0.226395 | 0 |
-Source: bench/results/2026-09-20-1406.json
+| playwright | 1 | 45076.5 | 0.153535 | 0 |
+| wingman | 1 | 69290.5 | 0.194051 | 0 |
+Source: bench/results/2026-09-20-1600.json
 <!-- bench:end -->
 
 ## License

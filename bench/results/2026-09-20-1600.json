@@ -1,0 +1,138 @@
+{
+  "date": "2026-09-20-1600.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 10,
+  "aborted": null,
+  "total_usd": 0.69517,
+  "runs": [
+    {
+      "task": "t3-dynamic-controls",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 46494,
+      "browser_tool_calls": 5,
+      "per_step_ms": 9299,
+      "llm": {
+        "input_tokens": 42860,
+        "output_tokens": 185,
+        "cache_read_tokens": 211136,
+        "cache_write_tokens": 0,
+        "usd": 0.194696,
+        "cli_reported_usd": 0.32449300000000003
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.194696
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 77936,
+      "browser_tool_calls": 5,
+      "per_step_ms": 15587,
+      "llm": {
+        "input_tokens": 43118,
+        "output_tokens": 397,
+        "cache_read_tokens": 211904,
+        "cache_write_tokens": 0,
+        "usd": 0.19888,
+        "cli_reported_usd": 0.331467
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.19888
+    },
+    {
+      "task": "t7-sort-table",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 43659,
+      "browser_tool_calls": 4,
+      "per_step_ms": 10915,
+      "llm": {
+        "input_tokens": 16910,
+        "output_tokens": 130,
+        "cache_read_tokens": 198976,
+        "cache_write_tokens": 0,
+        "usd": 0.112373,
+        "cli_reported_usd": 0.187288
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.112373
+    },
+    {
+      "task": "t7-sort-table",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 60645,
+      "browser_tool_calls": 4,
+      "per_step_ms": 15161,
+      "llm": {
+        "input_tokens": 44559,
+        "output_tokens": 243,
+        "cache_read_tokens": 172800,
+        "cache_write_tokens": 0,
+        "usd": 0.189162,
+        "cli_reported_usd": 0.31527
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1395,
+        "output_tokens": 315,
+        "usd": 0.000059
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.189221
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 45076.5,
+      "median_usd": 0.153535,
+      "fallback_rate": 0
+    },
+    "wingman": {
+      "success_rate": 1,
+      "median_wall_ms": 69290.5,
+      "median_usd": 0.194051,
+      "fallback_rate": 0
+    }
+  }
+}
