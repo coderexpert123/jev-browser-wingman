@@ -72,6 +72,7 @@ Config lives at `<wingmanHome>/config.json`, by default `~/.jev-browser-wingman/
 | `plugin` | string or null | null | as `profile_dir`; path to a module exporting `wingmanPlugin` |
 | `sensitive_hosts` | object | `{}` | keys from `SENSITIVE_HOST_CATEGORIES`; values are arrays of host suffixes |
 | `budgets` | object | `DEFAULT_BUDGETS` | each key optional; each value within `BUDGET_LIMITS` |
+| `gate` | object | `{ mode: "confirm" }` | only key `mode`: `"confirm"` (default) or `"off"`; `off` disables the irreversible gate |
 
 Unknown top-level keys fail.
 
