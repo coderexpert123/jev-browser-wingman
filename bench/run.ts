@@ -1,14 +1,20 @@
 // WP-H: the benchmark harness entry point.
 //
 //   node dist/bench/run.js --cap-usd <x> --phase-cap-usd <y>
-//        [--tasks <id,...>] [--secrets-file <path>] [--purpose cap-proof|measure]
+//        [--tasks <id,...>] [--routes <csv>] [--secrets-file <path>]
+//        [--purpose cap-proof|measure|experiment]
 //
-// 8 tasks x 2 routes x 1 repeat on one Chrome (port 9344, profile
+// 8 tasks x 3 routes x 1 repeat on one Chrome (port 9344, profile
 // bench/.home/profile, window offscreen). Spend caps are enforced by
 // bench/cap.ts; the USD ceilings live there and nowhere else.
 //
+// The gate-off/policy-off stance (WP-T3) travels per run only: env
+// BENCH_GATE_OFF=1 / BENCH_POLICY_OFF=1 (or true) inject the off stance into
+// the bench home's config.json for that run; the committed bench/config.json
+// ships both flags false.
+//
 // This module is NOT run by a builder: every live benchmark run is the
-// operator-gated OG-6 stage.
+// operator-gated OG-6/OG-9 stage.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -29,19 +35,27 @@ export interface BenchTask {
   oracle: string;
 }
 
-interface BenchAppConfig {
+export type BenchRoute = 'playwright' | 'wingman' | 'browse';
+
+const KNOWN_ROUTES: BenchRoute[] = ['playwright', 'wingman', 'browse'];
+
+export interface BenchAppConfig {
   cli: string;
   model: string;
   per_run_timeout_ms: number;
   max_turns: number;
   port: number;
-  routes: Array<'playwright' | 'wingman'>;
+  routes: BenchRoute[];
   repeats: number;
+  // WP-T3 stance flags: the committed config.json ships both false; the off
+  // stance is injected per run through BENCH_GATE_OFF / BENCH_POLICY_OFF.
+  gate_off?: boolean;
+  policy_off?: boolean;
 }
 
 export interface BenchRunRecord {
   task: string;
-  route: 'playwright' | 'wingman';
+  route: BenchRoute;
   ok: boolean;
   wall_ms: number;
   browser_tool_calls: number;
@@ -74,7 +88,7 @@ export interface BenchRunRecord {
 
 export interface BenchResultsFile {
   date: string;
-  purpose: 'cap-proof' | 'measure';
+  purpose: 'cap-proof' | 'measure' | 'experiment';
   harness_version: number;
   model: string;
   cap_usd: number;
@@ -86,7 +100,7 @@ export interface BenchResultsFile {
 }
 
 export interface BenchDeps {
-  runOne(task: BenchTask, route: 'playwright' | 'wingman'): Promise<{ record: BenchRunRecord; usd: number }>;
+  runOne(task: BenchTask, route: BenchRoute): Promise<{ record: BenchRunRecord; usd: number }>;
   prepareBrowser(): Promise<void>;
   stopBrowser(): Promise<void>;
   resultsDir: string;
@@ -98,6 +112,7 @@ export interface BenchDeps {
 }
 
 const PKG_ROOT = packageRoot();
+const BENCH_HOME = path.join(PKG_ROOT, 'bench', '.home');
 const HARNESS_VERSION = 1;
 
 function readTasks(): BenchTask[] {
@@ -149,7 +164,10 @@ function readSecretsKey(secretsFile: string | null): string | null {
   return null;
 }
 
-export function buildPrompt(task: BenchTask, route: 'playwright' | 'wingman'): string {
+export function buildPrompt(task: BenchTask, route: BenchRoute): string {
+  // Route-neutral for 'playwright' and 'browse' (WP-T3): base + values +
+  // DONE, no routing rules, no wingman mention. Only the 'wingman' route
+  // carries the steering clauses.
   let prompt = `Use the browser tools on the page that is already open. Stay on this site.`;
   if (route === 'wingman') {
     // The win32 spawn goes through `cmd /c` with verbatim arguments, so the
@@ -176,7 +194,7 @@ function median(values: number[]): number {
 
 function summarize(runs: BenchRunRecord[]): BenchResultsFile['summary'] {
   const summary: BenchResultsFile['summary'] = {};
-  for (const route of ['playwright', 'wingman'] as const) {
+  for (const route of KNOWN_ROUTES) {
     const rows = runs.filter((r) => r.route === route);
     if (rows.length === 0) continue;
     const oks = rows.filter((r) => r.ok === true).length;
@@ -191,7 +209,7 @@ function summarize(runs: BenchRunRecord[]): BenchResultsFile['summary'] {
   return summary;
 }
 
-interface RunContext {
+export interface RunContext {
   app: BenchAppConfig;
   prices: BenchPrices;
   home: string;
@@ -218,7 +236,7 @@ async function resetPages(ctx: RunContext, startUrl: string): Promise<void> {
   await ctx.observer.send('Page.navigate', { url: startUrl }, sessionId);
 }
 
-function mcpConfigFor(ctx: RunContext, route: 'playwright' | 'wingman'): object {
+export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
   const servers: Record<string, unknown> = {
     playwright: {
       command: 'npx',
@@ -226,7 +244,9 @@ function mcpConfigFor(ctx: RunContext, route: 'playwright' | 'wingman'): object 
       env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint },
     },
   };
-  if (route === 'wingman') {
+  // 'wingman' and 'browse' (WP-T3 front door) both register the wingman
+  // server alongside Playwright MCP.
+  if (route !== 'playwright') {
     servers['jev-browser-wingman'] = {
       command: 'node',
       args: [ctx.mainJsPath, 'mcp'],
@@ -236,8 +256,8 @@ function mcpConfigFor(ctx: RunContext, route: 'playwright' | 'wingman'): object 
   return { mcpServers: servers };
 }
 
-function allowedToolsFor(route: 'playwright' | 'wingman'): string[] {
-  return route === 'wingman' ? ['mcp__playwright', 'mcp__jev-browser-wingman'] : ['mcp__playwright'];
+export function allowedToolsFor(route: BenchRoute): string[] {
+  return route === 'playwright' ? ['mcp__playwright'] : ['mcp__playwright', 'mcp__jev-browser-wingman'];
 }
 
 const START_BASE = 'https://the-internet.herokuapp.com';
@@ -310,7 +330,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
       }
     }
     const wingmanPhases: BenchRunRecord['wingman_phases'] =
-      route === 'wingman' && roundPhases.length > 0
+      route !== 'playwright' && roundPhases.length > 0
         ? {
             attach_ms: Math.round(attachSum),
             first_observe_ms: Math.round(firstObserveMax),
@@ -352,14 +372,36 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
       },
       typesafe: { calls: tsCalls, input_tokens: tsInput, output_tokens: tsOutput, usd: round6(tsUsd) },
       wingman:
-        route === 'wingman'
+        route !== 'playwright'
           ? { calls: tsCalls, fallback: fallbackCount, needs_confirmation: confirmCount }
           : { calls: 0, fallback: 0, needs_confirmation: 0 },
-      ...(route === 'wingman' ? { wingman_phases: wingmanPhases } : {}),
+      ...(route !== 'playwright' ? { wingman_phases: wingmanPhases } : {}),
       usd,
     };
     return { record, usd };
   };
+}
+
+// WP-T3: the pure renderer for the bench home's config.json. The gate/policy
+// off stance appears only when the run's flags are set; the committed
+// bench/config.json ships gate_off/policy_off false, so the default stance
+// always enforces.
+export function benchConfigText(app: BenchAppConfig, secretsFile: string | null): string {
+  const config: Record<string, unknown> = {
+    mode: 'on',
+    adapter: 'playwright',
+    window: 'offscreen',
+    port: app.port,
+    profile_dir: path.join(BENCH_HOME, 'profile'),
+    secrets_file: secretsFile ? path.resolve(expandHome(secretsFile)) : null,
+  };
+  if (app.gate_off === true) {
+    config.gate = { mode: 'off' };
+  }
+  if (app.policy_off === true) {
+    config.policy = { mode: 'off' };
+  }
+  return JSON.stringify(config, null, 2);
 }
 
 function defaultPrepareBrowser(
@@ -372,15 +414,7 @@ function defaultPrepareBrowser(
   const profileDir = path.join(home, 'profile');
   const prepare = async (): Promise<void> => {
     fs.mkdirSync(home, { recursive: true });
-    const config = {
-      mode: 'on',
-      adapter: 'playwright',
-      window: 'offscreen',
-      port: app.port,
-      profile_dir: profileDir,
-      secrets_file: secretsFile ? path.resolve(expandHome(secretsFile)) : null,
-    };
-    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify(config, null, 2));
+    fs.writeFileSync(path.join(home, 'config.json'), benchConfigText(app, secretsFile));
     const ensured = await ensureChrome({
       port: app.port,
       profileDir,
@@ -430,13 +464,14 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   let capUsd: number | undefined;
   let phaseCapUsd: number | undefined;
   let tasksFilter: string[] | null = null;
+  let routesFilter: BenchRoute[] | null = null;
   let secretsFile: string | null = null;
-  let purpose: 'cap-proof' | 'measure' = 'measure';
+  let purpose: 'cap-proof' | 'measure' | 'experiment' = 'measure';
 
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const value = argv[i + 1];
-    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--secrets-file' || flag === '--purpose') {
+    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--routes' || flag === '--secrets-file' || flag === '--purpose') {
       if (value === undefined) {
         process.stderr.write(`BENCH-REFUSED: ${flag} needs a value\n`);
         return 2;
@@ -444,10 +479,18 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       if (flag === '--cap-usd') capUsd = Number(value);
       else if (flag === '--phase-cap-usd') phaseCapUsd = Number(value);
       else if (flag === '--tasks') tasksFilter = value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
-      else if (flag === '--secrets-file') secretsFile = value;
-      else if (value === 'cap-proof' || value === 'measure') purpose = value;
+      else if (flag === '--routes') {
+        routesFilter = value.split(',').map((s) => s.trim()).filter((s) => s.length > 0) as BenchRoute[];
+        for (const r of routesFilter) {
+          if (!KNOWN_ROUTES.includes(r)) {
+            process.stderr.write(`BENCH-REFUSED: unknown route ${r}\n`);
+            return 2;
+          }
+        }
+      } else if (flag === '--secrets-file') secretsFile = value;
+      else if (value === 'cap-proof' || value === 'measure' || value === 'experiment') purpose = value;
       else {
-        process.stderr.write(`BENCH-REFUSED: --purpose must be cap-proof or measure\n`);
+        process.stderr.write(`BENCH-REFUSED: --purpose must be cap-proof, measure or experiment\n`);
         return 2;
       }
       i += 1;
@@ -463,6 +506,17 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   const modelOverride = env.BENCH_MODEL;
   if (typeof modelOverride === 'string' && modelOverride.trim() !== '') {
     app.model = modelOverride.trim();
+  }
+  // WP-T3 stance injection: the off stance travels per run through the env,
+  // never in the committed config.json (both flags ship false there).
+  if (env.BENCH_GATE_OFF === '1' || env.BENCH_GATE_OFF === 'true') {
+    app.gate_off = true;
+  }
+  if (env.BENCH_POLICY_OFF === '1' || env.BENCH_POLICY_OFF === 'true') {
+    app.policy_off = true;
+  }
+  if (routesFilter) {
+    app.routes = routesFilter;
   }
 
   let prices: BenchPrices | null = null;
@@ -497,7 +551,7 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     tasks = tasks.filter((t) => tasksFilter!.includes(t.id));
   }
 
-  const home = path.join(PKG_ROOT, 'bench', '.home');
+  const home = BENCH_HOME;
   const holder: { ctx: RunContext | null } = { ctx: null };
   const defaults = defaultPrepareBrowser(app, home, secretsFile, (c) => {
     holder.ctx = c;
