@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 // Coexistence spike (WP-A1): proves a second CDP client acting on Playwright
 // MCP's page does not break Playwright MCP. Standalone script, own minimal
-// act code; the production adapters (D1/D2) come later.
+// act code; the --adapter dist-* modes run the same battery through the
+// production drivers (gate I-11).
 //
-// node spike/coexistence-spike.mjs --adapter playwright|cdp [--known-bad <id>] [--port 9333] [--out <file>]
+// node spike/coexistence-spike.mjs --adapter playwright|cdp|dist-playwright|dist-cdp [--known-bad <id>] [--port 9333] [--out <file>]
 // node spike/coexistence-spike.mjs --window-probe [--port 9333]
+//
+// --adapter dist-playwright|dist-cdp (spec § 4 WP-A1 item 8, gate I-11): "our
+// client" is the production driver from ../dist/src/adapters/index.js, used
+// only through the § 3.1 Driver interface (attach/pages/observe/act/detach,
+// act element ids found by matching `name` in the observation). Every step and
+// check is unchanged. The known-bad injections the Driver contract cannot
+// express (Target.closeTarget, Emulation.setDeviceMetricsOverride, a main-world
+// eval, Target.createBrowserContext, dialog answering) ride a harness-held raw
+// side connection, as below.
 
 import { chromium } from 'playwright-core';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -616,7 +626,117 @@ async function makeCdpActor(port, knownBadId) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// "Our" client — production driver mode (item 8, gate I-11)
+// ---------------------------------------------------------------------------
+
+// The spike drives the fixture elements by accessible name (spec item 8: act
+// element ids are found by matching `name` in the observation). These are the
+// names the fixture pages give those elements.
+const DIST_ACTOR_NAMES = {
+  '#continue': 'Continue',
+  '#fullname': 'Full name',
+  '#alert': 'Show alert',
+};
+
+async function makeDistActor(adapter, port, knownBadId) {
+  const dist = await import('../dist/src/adapters/index.js');
+  const driver = dist.createDriver(adapter === 'dist-playwright' ? 'playwright' : 'cdp');
+
+  // Side channel: a harness-held raw-CDP connection for (a) the known-bad
+  // injections the Driver contract deliberately cannot express, and (b) the
+  // cookie read P7 needs (the Driver has no cookie method; Network.getCookies
+  // from a second attached client is the same second-client view the cdp
+  // actor's own connection provided). In a plain run it does nothing but hold
+  // one passive Page.enable on the acted page.
+  const ver = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const side = new CDP(ver.webSocketDebuggerUrl);
+  await side.connect();
+  const targets = await getPageTargets(side);
+  const sideTargetId = targets[0]?.targetId ?? null;
+  let sideSession = null;
+  if (sideTargetId) {
+    const at = await side.send('Target.attachToTarget', { targetId: sideTargetId, flatten: true });
+    sideSession = at.sessionId;
+    await side.send('Page.enable', {}, sideSession).catch(() => {});
+  }
+
+  if (knownBadId === 'new-context') {
+    await side.send('Target.createBrowserContext');
+  }
+  if (knownBadId === 'set-viewport') {
+    await side.send(
+      'Emulation.setDeviceMetricsOverride',
+      { width: 800, height: 600, deviceScaleFactor: 1, mobile: false },
+      sideSession,
+    );
+  }
+  if (knownBadId === 'inject-global') {
+    await side.send('Runtime.evaluate', { expression: 'globalThis.__wingman_probe = 1;' }, sideSession);
+  }
+  if (knownBadId === 'auto-dismiss-dialog') {
+    side.on('Page.javascriptDialogOpening', () => {
+      side.send('Page.handleJavaScriptDialog', { accept: true }, sideSession).catch(() => {});
+    });
+  }
+
+  await driver.attach({ cdpEndpoint: `http://127.0.0.1:${port}` });
+  driver.onDialog(() => {}); // passive listener: the driver itself never answers
+  const firstPage = (await driver.pages())[0];
+  if (!firstPage) throw new Error('no page to attach to (closed by a prior known-bad detach?)');
+  const actedPageId = firstPage.id;
+
+  async function findElementId(selector) {
+    const wanted = DIST_ACTOR_NAMES[selector];
+    if (!wanted) throw new Error(`no known accessible name for ${selector}`);
+    const obs = await driver.observe(actedPageId);
+    const el = obs.elements.find((e) => e.name === wanted);
+    if (!el) throw new Error(`element "${wanted}" not in the observation of ${selector}`);
+    return el.id;
+  }
+
+  return {
+    name: adapter,
+    async pages() {
+      return (await driver.pages()).map((p) => ({ url: p.url }));
+    },
+    async count(selector) {
+      // The Driver exposes no evaluate-by-selector; the Driver-path equivalent
+      // of the phase-R element-count read is the observation itself (value is
+      // not asserted; it must merely succeed without disturbing MCP).
+      const tag = selector.startsWith('#') ? null : selector;
+      const wanted = selector.startsWith('#') ? DIST_ACTOR_NAMES[selector] : null;
+      const obs = await driver.observe(actedPageId);
+      return obs.elements.filter((e) => (tag ? e.tag === tag : e.name === wanted)).length;
+    },
+    async click(selector) {
+      const id = await findElementId(selector);
+      await driver.act(actedPageId, id, 'click');
+    },
+    async fill(selector, value) {
+      const id = await findElementId(selector);
+      await driver.act(actedPageId, id, 'fill', value);
+    },
+    async cookieVisible(name) {
+      const { cookies } = await side
+        .send('Network.getCookies', {}, sideSession)
+        .catch(() => ({ cookies: [] }));
+      return (cookies ?? []).some((c) => c.name === name);
+    },
+    async detach() {
+      if (knownBadId === 'close-page-on-detach') {
+        await withTimeout(side.send('Target.closeTarget', { targetId: actedPageId }), 3000);
+      }
+      await withTimeout(driver.detach(), 10000);
+      side.close();
+    },
+  };
+}
+
 async function makeActor(adapter, port, knownBadId) {
+  if (adapter === 'dist-playwright' || adapter === 'dist-cdp') {
+    return makeDistActor(adapter, port, knownBadId);
+  }
   return adapter === 'playwright' ? makePlaywrightActor(port, knownBadId) : makeCdpActor(port, knownBadId);
 }
 
@@ -1132,34 +1252,12 @@ async function main() {
     process.exit(3);
   }
 
-  if (adapter === 'dist-playwright' || adapter === 'dist-cdp') {
-    // Later-use mode (item 8), written now against §3.1's Driver interface.
-    // At wave 0, `dist/src/adapters/index.js` does not exist yet: this path
-    // cannot run and is reported as untested.
-    let distAdaptersExist = false;
-    try {
-      await import('../dist/src/adapters/index.js');
-      distAdaptersExist = true;
-    } catch {
-      distAdaptersExist = false;
-    }
-    if (!distAdaptersExist) {
-      const record = {
-        adapter,
-        knownBad,
-        phaseR: 'untested',
-        checks: {},
-        verdict: 'untested-at-wave-0',
-        notes: ['dist/src/adapters/index.js does not exist yet; this mode is exercised at integration (gate I-11)'],
-      };
-      console.log(JSON.stringify(record));
-      process.exit(0);
-    }
-    console.error('dist-playwright/dist-cdp adapter execution against a real Driver is not implemented at wave 0');
-    process.exit(3);
-  }
-
-  if (adapter !== 'playwright' && adapter !== 'cdp') {
+  if (
+    adapter !== 'playwright' &&
+    adapter !== 'cdp' &&
+    adapter !== 'dist-playwright' &&
+    adapter !== 'dist-cdp'
+  ) {
     console.error(`Unknown --adapter: ${adapter}`);
     process.exit(3);
   }
