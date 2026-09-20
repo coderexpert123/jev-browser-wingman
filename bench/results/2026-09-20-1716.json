@@ -1,0 +1,91 @@
+{
+  "date": "2026-09-20-1716.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 2,
+  "phase_cap_usd": 8.1377,
+  "aborted": null,
+  "total_usd": 0.897877,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 167015,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6681,
+      "llm": {
+        "input_tokens": 39738,
+        "output_tokens": 967,
+        "cache_read_tokens": 1119808,
+        "cache_write_tokens": 0,
+        "usd": 0.469661,
+        "cli_reported_usd": 0.7827689999999998
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.469661
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 173897,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6956,
+      "llm": {
+        "input_tokens": 22402,
+        "output_tokens": 1525,
+        "cache_read_tokens": 1126528,
+        "cache_write_tokens": 0,
+        "usd": 0.428039,
+        "cli_reported_usd": 0.7133990000000001
+      },
+      "typesafe": {
+        "calls": 2,
+        "input_tokens": 4203,
+        "output_tokens": 1096,
+        "usd": 0.000177
+      },
+      "wingman": {
+        "calls": 2,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 86,
+        "first_observe_ms": 17,
+        "observe_ms": 12,
+        "jev_ms": 909,
+        "act_ms": 103,
+        "settle_ms": 238,
+        "rounds": 3
+      },
+      "usd": 0.428216
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 167015,
+      "median_usd": 0.469661,
+      "fallback_rate": 0
+    },
+    "wingman": {
+      "success_rate": 1,
+      "median_wall_ms": 173897,
+      "median_usd": 0.428216,
+      "fallback_rate": 0
+    }
+  }
+}
