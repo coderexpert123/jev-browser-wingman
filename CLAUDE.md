@@ -235,3 +235,18 @@ withheld — this file rides a public-bound repository). Gates:
   reason `sensitive-auth-path` after 3 jev rounds, then the calling model
   ground 5 raw calls until the 600 s kill. A mostly-delegated t9 run does not
   complete by delegation; the fallback lane IS the run.
+
+## Gotchas from WP-T1a (2026-09-21)
+
+- **`buildRoutingRequest`'s `elements` parameter is deliberately not consumed
+  inside the builder.** The § 3.18 element table rides in the request's `state`
+  object, which the caller (T1b) builds as redacted `elementCriterion` strings;
+  the builder passes `state` through unchanged and uses `steps`/`bindings` only
+  for the `handle<k>`/`exec<k>` instructions. Do not "fix" it by injecting
+  `elements` into the state here — that would double-redact and desync from the
+  § 3.19 flow.
+- **The `budgets` validation pattern silently accepts `NaN` thresholds.**
+  `typeof v !== 'number' || v < min || v > max` passes NaN (both comparisons
+  false); `budgets.*` is saved by `Number.isInteger`, but `takeover.threshold`
+  needed an explicit `Number.isFinite`. Any future config key with a plain
+  number range needs the same guard.
