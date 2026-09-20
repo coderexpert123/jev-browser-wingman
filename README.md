@@ -109,20 +109,34 @@ Design-only ports; no code was copied:
 
 ## Benchmark
 
-Two live passes ran on 2026-09-20 against `the-internet.herokuapp.com`, one repeat per cell (n=1). A cell is one task on one route; both routes ran the same prompt shape on the same Chrome.
+All committed passes ran on 2026-09-20 against `the-internet.herokuapp.com`, one run per cell (n=1), both routes on the same Chrome with the same prompt shape, through a proxy-served fast model. Wall-clock per cell:
 
-Light pass (`t1-checkboxes`, `t5-inputs`): 4/4 success on both routes. Median wall-clock 79.9 s (playwright) vs 78.7 s (wingman); median cost 0.183 vs 0.226 USD. Trivial tasks: near parity, wingman slightly costlier.
+| pass | task | playwright (s) | wingman (s) |
+|---|---|---|---|
+| light | t1-checkboxes | 131.4 | 102.1 |
+| light | t5-inputs | 28.3 | 55.2 |
+| heavy | t3-dynamic-controls | 46.5 | 77.9 |
+| heavy | t7-sort-table | 43.7 | 60.6 |
+| long-chain diagnosis | t9-long-chain | 57.1 | 240.6 |
+| long-chain revalidation A | t9-long-chain | 151.4 | 138.2 |
+| long-chain revalidation B | t9-long-chain | 167.0 | 173.9 |
 
-Heavy pass (`t3-dynamic-controls`, `t7-sort-table`), summarized below: 4/4 success on both routes. Wingman was slower (median 69.3 s vs 45.1 s) and costlier (median 0.194 vs 0.154 USD). On `t3` the wingman-route run never called `wingman_do` and used the Playwright tools directly, so that cell is not a clean route comparison; on `t7` it called `wingman_do` once with no fallback.
+The diagnosis row failed on both routes (0/2). The revalidation rows passed (2/2); a further diagnosis run hit the spend cap on the playwright route and is not shown. On `t3` the wingman-route run never called `wingman_do` and used the Playwright tools directly, so that cell is not a clean route comparison.
+
+On these tasks, through a proxy-served fast model, wall-clock was parity (wingman within -22% to +95% of Playwright; -9% to +4% on the two passing long-chain runs). The per-step machinery is ~1 s. The dominant cost is the calling model's turn latency, and measured speedup requires a calling model that delegates whole goals in a single call.
+
+Phase timing on the 19-step long-chain diagnosis capture put the wingman machinery (attach, observe, Jev, act, settle) at about 4% of wall.
 
 With n=1 per cell these numbers are indicative only. Nothing in them shows the heavy-task speedup or cost win the wingman design predicts.
+
+Newest pass medians (kept in sync by `scripts/gates/readme-bench.mjs`):
 
 <!-- bench:begin -->
 | route | success | median wall-clock | median cost (USD) | fallback rate |
 |---|---|---|---|---|
-| playwright | 1 | 45076.5 | 0.153535 | 0 |
-| wingman | 1 | 69290.5 | 0.194051 | 0 |
-Source: bench/results/2026-09-20-1600.json
+| playwright | 1 | 167015 | 0.469661 | 0 |
+| wingman | 1 | 173897 | 0.428216 | 0 |
+Source: bench/results/2026-09-20-1716.json
 <!-- bench:end -->
 
 ## License
