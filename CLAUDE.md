@@ -68,3 +68,16 @@ withheld — this file rides a public-bound repository). Gates:
   profile, then measure via the PowerShell EnumWindows/GetWindowRect pattern from
   `scripts/gates/window-mode.mjs`. Assert the off-screen PRECONDITION before the show, or
   the both-ways assertion cannot discriminate.
+
+## Gotchas learned while wiring show|hide into main.ts (2026-09-20)
+
+- **A scoped `build.mjs --out <dir> tests/cli.test.ts` compiles only the test's import
+  graph, and `cli.test.ts` spawns `src/cli/main.js` by path without importing it** — the
+  scoped build leaves the CLI binary missing and EVERY spawn test fails (exit 1,
+  empty stdout, "Cannot find module ... main.js"). Pass the CLI as a second entry:
+  `node scripts/build.mjs --out <dir> tests/cli.test.ts src/cli/main.ts`.
+- **`chromeCommand` tolerates a missing `config.json`** — defaults apply (`src/core/config.ts`),
+  so a dispatch-level `chrome show` test with an empty `WINGMAN_HOME` reaches the port probe
+  and must assert chrome-cmd's own `no-browser` JSON line (exit 1), not a `config:` error.
+  Unwired, `chrome show` exits 2 with usage on stderr — that 2-vs-1 delta is the test's teeth.
+

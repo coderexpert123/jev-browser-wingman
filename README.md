@@ -83,6 +83,8 @@ Unknown top-level keys fail. The config is never synced across machines.
 | `chrome ensure` | acquire the shared Chrome for the configured profile and port |
 | `chrome status` | report the Chrome answering on the port |
 | `chrome stop` | stop a Chrome this package started |
+| `chrome show` | move the shared Chrome window on-screen over CDP, for when the operator must act (e.g. a login code) |
+| `chrome hide` | move the shared Chrome window back off-screen |
 | `with-chrome -- <command> [args...]` | proxy that ensures Chrome just before the first `tools/call`, then forwards |
 | `doctor [--json] [--detect] [--client <claude\|codex\|opencode\|agy\|devin\|cursor>]` | nine read-only checks and a verdict |
 | `guide` | print INSTALL-FOR-AGENTS.md |
