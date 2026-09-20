@@ -81,6 +81,29 @@ withheld — this file rides a public-bound repository). Gates:
   and must assert chrome-cmd's own `no-browser` JSON line (exit 1), not a `config:` error.
   Unwired, `chrome show` exits 2 with usage on stderr — that 2-vs-1 delta is the test's teeth.
 
+## Gotchas learned while running OG-6 LIGHT (2026-09-20)
+
+- **`detached: true` on the win32 cmd spawn in `bench/claude-run.ts` swallowed ALL
+  stream-json output** — the child ran the full task (oracle true) but stdout was
+  0 bytes, so `usage` stayed null and `browser_tool_calls` stayed 0 on every real
+  run. Proven by A/B (identical spawn, only the flag flipped: 0 vs 1954 events).
+  Fixed in 90ad51d; any future spawn through `cmd /c` must not be detached.
+- **A fresh bench profile's first launch can miss `ensureChrome`'s 10 s window
+  twice in a row** (first-run initialization on D:); a warm-up launch answered in
+  ~3 s and the harness then reused it via the port-answering path. If
+  `ensureChrome failed: Chrome did not answer`, warm the profile once by hand
+  before blaming the port.
+- **`claude --model sonnet` on the operator's machine resolves through the local
+  GLM proxy** (`modelUsage: glm-5.3-flash[1m]`), so results `usd` is token counts
+  priced at Sonnet list rates and `cli_reported_usd` is the proxy's own synthetic
+  number (about 1.7x higher here). Route-vs-route wall-clock comparison is still
+  valid — both routes used the same backend.
+- **`stopChrome` skips a Chrome it did not start in that run** (`startedByUs:
+  false`), so a manually launched diagnostic Chrome on the bench port survives the
+  harness — sweep `chrome.exe` matching the bench profile afterwards.
+- The readme-bench gate picks the newest `measure` results file by name; a
+  cap-proof file never leaks into the README block (spec WP-H item 8 holds).
+
 
 ## Gotchas from the wave-5 final verification (2026-09-20)
 
