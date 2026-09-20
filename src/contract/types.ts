@@ -12,14 +12,14 @@ export const REASONS = {
   needs_confirmation: ['irreversible-heuristic', 'irreversible-jev'],
   blocked: ['captcha', 'page-blocked', 'dialog-open', 'covered-target', 'lock-held', 'busy'],
   login: ['login-page'],
-  ambiguous: ['tab-ambiguous', 'target-uncertain', 'no-action', 'no-value'],
+  ambiguous: ['tab-ambiguous', 'target-uncertain', 'no-action', 'no-value', 'route-unclear'],
   error: ['page-error', 'stale-element', 'act-failed', 'tool-fault', 'invalid-input', 'confirm-token-invalid'],
   fallback: [
     'mode-off', 'no-browser', 'no-key', 'breaker-open', 'jev-error', 'shadow', 'budget-steps', 'budget-time',
     'state-too-large', 'unsupported-page',
     'sensitive-banking', 'sensitive-payments', 'sensitive-webmail', 'sensitive-identity', 'sensitive-auth-path',
     'sensitive-government', 'sensitive-tax', 'sensitive-health', 'sensitive-password', 'sensitive-otp',
-    'sensitive-payment-field',
+    'sensitive-payment-field', 'route-caller', 'takeover-offered',
   ],
 } as const;
 export type Reason = (typeof REASONS)[keyof typeof REASONS][number];
@@ -103,6 +103,7 @@ export interface WingmanResult {
   shadow?: true;
   answer?: number;                    // wingman_check only, 0..1 rounded to 2 decimals
   note?: string;                      // static continuation hint on non-done wingman_do results; never page text
+  routing?: Array<{ step: string; handle: number | null; executor: 'wingman' | 'caller' }>;   // browse_step only (§ 3.17)
   cost: { jev_calls: number; input_tokens: number; output_tokens: number; ms: number };
   labels_untrusted: true;
 }
@@ -125,7 +126,7 @@ export type JevAsk = (request: JevRequest, opts: JevAskOptions) => Promise<JevRe
 
 export type LockCheckResult = { ok: true } | { ok: false; reason: 'lock-held' };
 export interface WingmanLogRecord {
-  ts: string; tool: 'wingman_do' | 'wingman_check'; mode: 'off' | 'shadow' | 'on'; adapter: string;
+  ts: string; tool: 'wingman_do' | 'wingman_check' | 'browse_step'; mode: 'off' | 'shadow' | 'on'; adapter: string;
   status: Status; reason: Reason; steps: number; host: string; gate_hits: number;
   jev_calls: number; input_tokens: number; output_tokens: number; ms: number;
   would?: { verb: Op; role: string };   // shadow mode only

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expandHome, wingmanHome } from '../contract/home.js';
-import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, DEFAULT_POLICY, GATE_MODES, POLICY_MODES } from '../contract/constants.js';
-import type { GateMode, PolicyMode } from '../contract/constants.js';
+import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, DEFAULT_POLICY, DEFAULT_TAKEOVER, GATE_MODES, POLICY_MODES, TAKEOVER_MODES, TAKEOVER_THRESHOLD_RANGE } from '../contract/constants.js';
+import type { GateMode, PolicyMode, TakeoverMode } from '../contract/constants.js';
 import { SENSITIVE_HOST_CATEGORIES, WINDOW_MODES } from '../contract/types.js';
 import type { Budgets, Mode, SensitiveHostCategory, WindowMode, WingmanConfig } from '../contract/types.js';
 
@@ -19,6 +19,7 @@ const TOP_LEVEL_KEYS = new Set([
   'budgets',
   'gate',
   'policy',
+  'takeover',
 ]);
 
 type LoadResult =
@@ -216,7 +217,39 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
   }
 
-  const config: WingmanConfig & { gate: { mode: GateMode }; policy: { mode: PolicyMode } } = {
+  let takeover: { threshold: number; mode: TakeoverMode } = { ...DEFAULT_TAKEOVER };
+  if ('takeover' in obj) {
+    const t = obj.takeover;
+    if (typeof t !== 'object' || t === null || Array.isArray(t)) {
+      return { ok: false, error: 'takeover must be an object' };
+    }
+    const tObj = t as Record<string, unknown>;
+    for (const key of Object.keys(tObj)) {
+      if (key !== 'threshold' && key !== 'mode') {
+        return { ok: false, error: `unknown takeover key: ${key}` };
+      }
+    }
+    if ('threshold' in tObj) {
+      const th = tObj.threshold;
+      const [min, max] = TAKEOVER_THRESHOLD_RANGE;
+      if (typeof th !== 'number' || !Number.isFinite(th) || th < min || th > max) {
+        return { ok: false, error: `takeover.threshold outside [${min}, ${max}]: ${JSON.stringify(th)}` };
+      }
+      takeover.threshold = th;
+    }
+    if ('mode' in tObj) {
+      if (!(TAKEOVER_MODES as readonly unknown[]).includes(tObj.mode)) {
+        return { ok: false, error: `invalid takeover.mode: ${JSON.stringify(tObj.mode)}` };
+      }
+      takeover.mode = tObj.mode as TakeoverMode;
+    }
+  }
+
+  const config: WingmanConfig & {
+    gate: { mode: GateMode };
+    policy: { mode: PolicyMode };
+    takeover: { threshold: number; mode: TakeoverMode };
+  } = {
     mode,
     adapter,
     window: windowMode,
@@ -229,6 +262,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     budgets,
     gate,
     policy,
+    takeover,
   };
 
   return { ok: true, config, source };
@@ -248,6 +282,17 @@ export function gateModeOf(config: WingmanConfig): GateMode {
 export function policyModeOf(config: WingmanConfig): PolicyMode {
   const policy = (config as WingmanConfig & { policy?: { mode?: unknown } }).policy;
   return policy !== null && typeof policy === 'object' && policy.mode === 'off' ? 'off' : 'enforce';
+}
+
+/** The takeover config in force for a config: `takeover.threshold`/`takeover.mode`
+ * when the loaded config carries the key, the defaults (0.7 / 'auto') otherwise
+ * (§ 3.20). Read through this accessor everywhere; the WingmanConfig type
+ * predates the key. */
+export function takeoverOf(config: WingmanConfig): { threshold: number; mode: TakeoverMode } {
+  const takeover = (
+    config as WingmanConfig & { takeover?: { threshold: number; mode: TakeoverMode } }
+  ).takeover;
+  return takeover ?? { ...DEFAULT_TAKEOVER };
 }
 
 export function resolveKey(
