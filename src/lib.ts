@@ -10,7 +10,7 @@ import { writeLog } from './core/log.js';
 import { createMutex } from './core/mutex.js';
 import { ConfirmTokenStore } from './core/tokens.js';
 import { createDefaultAsk } from './core/jev-client.js';
-import { runDo, runCheck } from './core/loop.js';
+import { runDo, runCheck, runStep } from './core/loop.js';
 import { resolveEndpoint } from './browser/acquire.js';
 import { createDriver } from './adapters/index.js';
 import type { Driver, JevAsk, WingmanConfig, WingmanPlugin, WingmanResult } from './contract/types.js';
@@ -25,6 +25,7 @@ const tokens = new ConfirmTokenStore();
 export interface Wingman {
   do(input: unknown): Promise<WingmanResult>;
   check(input: unknown): Promise<WingmanResult>;
+  step(input: unknown): Promise<WingmanResult>;
   config: WingmanConfig;
 }
 
@@ -85,6 +86,7 @@ export async function createWingman(
   return {
     do: (input: unknown) => runDo(input, deps),
     check: (input: unknown) => runCheck(input, deps),
+    step: (input: unknown) => runStep(input, deps),
     config,
   };
 }

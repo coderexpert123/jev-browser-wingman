@@ -9,6 +9,8 @@ import { PACKAGE_NAME, PACKAGE_VERSION } from '../contract/constants.js';
 import { loadConfig } from '../core/config.js';
 import { createWingman } from '../lib.js';
 import {
+  BROWSE_STEP_DESCRIPTION,
+  BROWSE_STEP_SCHEMA,
   WINGMAN_CHECK_DESCRIPTION,
   WINGMAN_CHECK_SCHEMA,
   WINGMAN_DO_DESCRIPTION,
@@ -18,6 +20,7 @@ import {
 const TOOLS = [
   { name: 'wingman_do', description: WINGMAN_DO_DESCRIPTION, inputSchema: WINGMAN_DO_SCHEMA },
   { name: 'wingman_check', description: WINGMAN_CHECK_DESCRIPTION, inputSchema: WINGMAN_CHECK_SCHEMA },
+  { name: 'browse_step', description: BROWSE_STEP_DESCRIPTION, inputSchema: BROWSE_STEP_SCHEMA },
 ];
 
 export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promise<void> {
@@ -38,7 +41,7 @@ export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promis
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const name = request.params.name;
-    if (name !== 'wingman_do' && name !== 'wingman_check') {
+    if (name !== 'wingman_do' && name !== 'wingman_check' && name !== 'browse_step') {
       return { content: [{ type: 'text', text: `unknown tool: ${String(name)}` }], isError: true };
     }
     try {
@@ -46,7 +49,9 @@ export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promis
       const result =
         name === 'wingman_do'
           ? await wingman.do(request.params.arguments)
-          : await wingman.check(request.params.arguments);
+          : name === 'browse_step'
+            ? await wingman.step(request.params.arguments)
+            : await wingman.check(request.params.arguments);
       return { content: [{ type: 'text', text: JSON.stringify(result) }] };
     } catch (e) {
       return {

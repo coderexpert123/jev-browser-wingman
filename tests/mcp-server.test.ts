@@ -218,16 +218,18 @@ test('mode off lists no tools', async () => {
   }
 });
 
-test('mode shadow lists both tools with the pinned descriptions', async () => {
+test('mode shadow lists all three tools with the pinned descriptions', async () => {
   const home = mkHome('shadow');
   const s = await startServer(serverEnv(home));
   try {
     const tools = await s.client.listTools();
-    assert.equal(tools.tools.length, 2);
+    assert.equal(tools.tools.length, 3);
     const doTool = tools.tools.find((t) => t.name === 'wingman_do');
     const checkTool = tools.tools.find((t) => t.name === 'wingman_check');
+    const browseTool = tools.tools.find((t) => t.name === 'browse_step');
     assert.ok(doTool, 'wingman_do missing');
     assert.ok(checkTool, 'wingman_check missing');
+    assert.ok(browseTool, 'browse_step missing');
     assert.equal(doTool.description, WINGMAN_DO_DESCRIPTION);
     assert.equal(checkTool.description, WINGMAN_CHECK_DESCRIPTION);
     assert.deepEqual(doTool.inputSchema as unknown, { ...WINGMAN_DO_SCHEMA });
