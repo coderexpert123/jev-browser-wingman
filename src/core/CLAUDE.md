@@ -19,3 +19,12 @@
   fingerprint's x/y come from the LABEL's rect (enumerate records
   `rectOf(pathEl)` where pathEl is the label), even though tag/role/name come
   from the hidden input. Only tag/role/name resolve through the pair.
+
+- **The log record's `phases` is wall-time capture, not a contract field**
+  (2026-09-20): `WingmanLogRecord.phases` ({attachMs, firstObserveMs,
+  rounds:[{observeMs, jevMs, actMs, settleMs}]}) is instrumented in
+  `loop.ts` around the existing seams (`driver.attach/observe/act/settle`,
+  `askWithCost`). `runCheck` pushes one pseudo-round (observe+jev only). The
+  shape test in `tests/loop.test.ts` is fail-first — keep it failing if the
+  instrumentation is removed. Bench reads the same field into
+  `wingman_phases`; do not add page text to either.
