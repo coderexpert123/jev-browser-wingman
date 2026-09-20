@@ -5,6 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import type { BenchRoute } from '../bench/run.js';
 import os from 'node:os';
 import path from 'node:path';
 import { runBench, type BenchDeps, type BenchRunRecord } from '../bench/run.js';
@@ -27,7 +28,7 @@ function writePrices(dir: string): string {
   return p;
 }
 
-function fakeRecord(task: object, route: 'playwright' | 'wingman', usd: number): BenchRunRecord {
+function fakeRecord(task: object, route: BenchRoute, usd: number): BenchRunRecord {
   const t = task as { id: string };
   return {
     task: t.id,
