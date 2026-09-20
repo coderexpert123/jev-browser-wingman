@@ -68,7 +68,10 @@ export async function runClaude(a: {
     const cmdArg = '"claude ' + quoteCmdLine(argv) + '"';
     child = spawn(comspec, ['/d', '/s', '/c', cmdArg], {
       cwd: a.cwd,
-      detached: true,
+      // Not detached: on win32 a detached cmd re-homes the grandchild CLI's
+      // output on a fresh console and the stream-json pipe stays empty
+      // (observed 2026-09-20: 0 stdout bytes while the run completed fine).
+      detached: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       windowsVerbatimArguments: true,

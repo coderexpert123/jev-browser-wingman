@@ -515,7 +515,7 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     };
     try {
       fs.mkdirSync(resultsDir, { recursive: true });
-      fs.writeFileSync(path.join(resultsDir, file.date + '.json'), JSON.stringify(file, null, 2));
+      fs.writeFileSync(path.join(resultsDir, file.date), JSON.stringify(file, null, 2));
     } catch (err) {
       process.stderr.write(`jev-browser-wingman bench: could not write results: ${(err as Error).message}\n`);
       if (exitCode === 0) exitCode = 1;

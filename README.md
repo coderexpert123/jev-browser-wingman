@@ -110,7 +110,11 @@ Design-only ports; no code was copied:
 ## Benchmark
 
 <!-- bench:begin -->
-No benchmark results yet.
+| route | success | median wall-clock | median cost (USD) | fallback rate |
+|---|---|---|---|---|
+| playwright | 1 | 79881 | 0.182742 | 0 |
+| wingman | 1 | 78673.5 | 0.226395 | 0 |
+Source: bench/results/2026-09-20-1406.json
 <!-- bench:end -->
 
 ## License
