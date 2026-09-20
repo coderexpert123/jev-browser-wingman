@@ -136,7 +136,7 @@ test('refuses a cap above the operator ceiling', async () => {
     runBench(['--cap-usd', '6', '--phase-cap-usd', '10'], baseDeps(resDir, pricesPath, runner.runOne)),
   );
   assert.equal(exit, 2);
-  assert.match(out, /BENCH-REFUSED: cap above operator ceiling \(5 per run, 15 per phase\)/);
+  assert.match(out, /BENCH-REFUSED: cap above operator ceiling \(5 per run, 17\.5 per phase\)/);
   assert.equal(runner.calls(), 0);
 });
 

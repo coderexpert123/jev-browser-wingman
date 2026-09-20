@@ -1,7 +1,7 @@
 // WP-H: spend caps and pricing for the benchmark harness.
 // The ceilings are hard-coded here on purpose: no CLI flag may raise them.
 
-export const OPERATOR_CEILINGS = { runUsd: 5, phaseUsd: 15 } as const;
+export const OPERATOR_CEILINGS = { runUsd: 5, phaseUsd: 17.5 } as const;
 
 export interface LlmRates {
   input_per_mtok: number;
