@@ -1,0 +1,1 @@
+{"adapter":"dist-playwright","knownBad":"new-context","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":true,"P4":true,"P5":true,"P6":false,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":["P6: C0=[] C1=[\"E0B912B34566FC51D685354FF678915D\"] pageCtx=AE7115A3736A935132512F859D38FD07"]}

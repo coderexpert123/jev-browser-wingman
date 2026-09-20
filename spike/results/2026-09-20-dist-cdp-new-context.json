@@ -1,0 +1,1 @@
+{"adapter":"dist-cdp","knownBad":"new-context","phaseR":"PASS","checks":{"P1":true,"P2":true,"P3":true,"P4":true,"P5":true,"P6":false,"P7":true,"P8":true},"verdict":"FAIL-ACT","notes":["P6: C0=[] C1=[\"A9781C4505D358429FDB2160E986A68D\"] pageCtx=7246C1178E1C563238AA4C42324AE663"]}
