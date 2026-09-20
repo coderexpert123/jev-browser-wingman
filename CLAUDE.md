@@ -200,3 +200,21 @@ withheld — this file rides a public-bound repository). Gates:
   `max_steps > 8` is still REJECTED — raising that cap is a separate decision.
 - **The bench wingman-route prompt lives in `bench/run.ts` `buildPrompt`**,
   not `bench/claude-run.ts` (spawn layer only, passes `prompt` through).
+
+## Gotchas from the route-neutral prompt pass (2026-09-21)
+
+- **Fully route-neutral prompts (no steering clauses at all, e3d47bd) drop
+  wingman_do entirely on the long chain**: t9 wingman cell ran 25 raw
+  Playwright calls, `typesafe.calls = 0`, oracle false (results
+  2026-09-21-0158). With the earlier soft steering the model at least
+  fragmented into 2 `wingman_do` calls; with none it never delegates. The
+  tool description alone does not win the route for multi-page chains —
+  the "tool descriptions do the marketing" premise is not yet earned for
+  t9-shaped tasks.
+- **The phase-ceiling arithmetic is history-coupled**: results history
+  stood at 10.3669, so ceiling 11 left only ~0.63 fresh authority, and two
+  t9 cells cost ~1.04 — the run aborts at the ceiling even though each
+  cell individually fits the 5/run cap. Any "raise ceiling to X + fresh
+  authorization Y" pairing must be checked against `phaseSpentFrom` over
+  `bench/results/*.json` first; aborted-after-N-runs still burns the whole
+  phase's authority and both completed cells stay in the results file.
