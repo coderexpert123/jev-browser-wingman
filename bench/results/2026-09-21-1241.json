@@ -1,0 +1,107 @@
+{
+  "date": "2026-09-21-1241.json",
+  "purpose": "experiment",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 5,
+  "phase_cap_usd": 30,
+  "aborted": null,
+  "total_usd": 1.346295,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": false,
+      "wall_ms": 144378,
+      "browser_tool_calls": 25,
+      "per_step_ms": 5775,
+      "llm": {
+        "input_tokens": 51871,
+        "output_tokens": 904,
+        "cache_read_tokens": 1186304,
+        "cache_write_tokens": 0,
+        "usd": 0.525064,
+        "cli_reported_usd": 0.8751070000000001
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.525064
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": false,
+      "wall_ms": 126569,
+      "browser_tool_calls": 25,
+      "per_step_ms": 5063,
+      "llm": {
+        "input_tokens": 7464,
+        "output_tokens": 961,
+        "cache_read_tokens": 1243648,
+        "cache_write_tokens": 0,
+        "usd": 0.409901,
+        "cli_reported_usd": 0.683169
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.409901
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": false,
+      "wall_ms": 152575,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6103,
+      "llm": {
+        "input_tokens": 7545,
+        "output_tokens": 985,
+        "cache_read_tokens": 1246400,
+        "cache_write_tokens": 0,
+        "usd": 0.41133,
+        "cli_reported_usd": 0.6855500000000001
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.41133
+    }
+  ],
+  "summary": {
+    "browse": {
+      "success_rate": 0,
+      "median_wall_ms": 144378,
+      "median_usd": 0.41133,
+      "fallback_rate": 0
+    }
+  }
+}
