@@ -550,6 +550,7 @@ async function runTool(
     remaining: () => number,
     entryCommit = false,
     anchorBindings: string[] = [],
+    takeover = false,
   ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
     const action = actionAnswers['action'] as JevChoiceAnswer | undefined;
     // Answers are untrusted: an out-of-set action choice, a target id that is
@@ -575,12 +576,28 @@ async function runTool(
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
     // 6. target uncertainty (action ≠ scroll) — waived for a committed entry
     // round, where the entry decision already proved a concrete listed target.
-    if (
-      !entryCommit &&
-      verb !== 'scroll' &&
-      (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target)
-    ) {
-      return uncertain();
+    // Takeover continuation round (§ 3.19 item 6, amendment 2026-09-21g): the
+    // bar is the entry decision's two-part rule instead of the fixed bar —
+    // act at the configured takeover threshold, or on a lone candidate at or
+    // above TAKEOVER_SINGLE_FLOOR; otherwise target-uncertain as below.
+    if (!entryCommit && verb !== 'scroll') {
+      if (takeover) {
+        if (targetId === 'none' || targetId === 'ambiguous') {
+          return uncertain();
+        }
+        if (targetProb < takeoverOf(deps.config).threshold) {
+          const probs = target?.probabilities ?? {};
+          let rivals = 0;
+          for (const e of obs.elements) {
+            if (e.id !== targetId && (probs[e.id] ?? 0) >= TAKEOVER_SINGLE_FLOOR) rivals += 1;
+          }
+          if (rivals > 0 || targetProb < TAKEOVER_SINGLE_FLOOR) {
+            return uncertain();
+          }
+        }
+      } else if (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target) {
+        return uncertain();
+      }
     }
     const el = obs.elements.find((e) => e.id === targetId);
     if (!el) {
@@ -1166,6 +1183,7 @@ async function runTool(
         remaining,
         entryCommit,
         entryBindings,
+        entry !== undefined,
       );
 
       if (mode === 'shadow') {

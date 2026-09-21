@@ -739,3 +739,55 @@ test('a browse-origin fill round with no named binding still bounces no-value be
   assert.ok(!valueQ?.instructions?.includes(VALUE_ANCHOR_SENTENCE), 'unanchored request carries no anchor');
   assert.equal(h.driver.actCalls().length, 0);
 });
+
+// 27. Continuation two-part rule, single-candidate leg (amendment 2026-09-21g):
+// a continuation round with a lone candidate in [floor, threshold) acts. Pin,
+// not fail-first — the shipped fixed 0.5 bar also acted here.
+test('a continuation round with a lone candidate in [floor, threshold) acts', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [
+      S(),
+      S({ target: ['e1', { e1: 0.6, e2: 0.1, none: 0.2, ambiguous: 0.1 }] }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 's' });
+  assert.equal(r.status, 'done');
+  assert.equal(h.driver.actCalls().length, 2);
+  assert.equal(h.driver.actCalls()[1].elementId, 'e1');
+});
+
+// 28. Continuation two-part rule, fail-first proof (amendment 2026-09-21g): a
+// continuation round with two plausible candidates below the threshold bounces
+// target-uncertain. The shipped rule 6 had no candidate-set check and acted.
+test('a continuation round with two candidates below the threshold bounces target-uncertain', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S(), S({ target: ['e1', { e1: 0.55, e2: 0.55, none: 0.0, ambiguous: 0.0 }] })],
+  });
+  const r = await h.call({ goal: 'g', step: 's', max_steps: 1 });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'target-uncertain');
+  assert.ok(Array.isArray(r.candidates));
+  assert.equal(r.note, RESUME_LINE);
+  assert.equal(r.step_review, undefined);
+  assert.equal(h.driver.actCalls().length, 1, 'round 2 acts nothing');
+});
+
+// 29. Continuation two-part rule, threshold leg (amendment 2026-09-21g): a
+// continuation round at or above the threshold acts regardless of candidate
+// count.
+test('a continuation round at the threshold or above acts regardless of candidate count', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [
+      S(),
+      S({ target: ['e1', { e1: 0.8, e2: 0.55, none: 0.0, ambiguous: 0.0 }] }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 's' });
+  assert.equal(r.status, 'done');
+  assert.equal(h.driver.actCalls().length, 2);
+});
