@@ -264,3 +264,98 @@ withheld — this file rides a public-bound repository). Gates:
   which silently tests the PREVIOUS dist. Mutate via a `const KB_X = true`
   flag composed with the condition instead (proven: gate bypass flips test
   7, pre-pass skip flips test 15, `>` flips test 1).
+
+## Gotchas from OG-9 (2026-09-21)
+
+- **Given the route-neutral prompt with BOTH `browse_step` and the legacy
+  `wingman_do` visible, the caller never called `browse_step`** (valid cell
+  2026-09-21-0727: 0 browse_step calls, 6 `wingman_do` + 2 `wingman_check`
+  + 6 raw Playwright calls, wall 223.5 s, oracle false — the caller declared
+  DONE after 2 of t9's 7 sub-steps). The front door does not win tool choice
+  by default; takeover (a browse_step-only concept) never engaged, so OG-9's
+  mechanism question is unanswered, not failed — the router was never
+  invoked. Only two statuses appeared: `ambiguous target-uncertain` (4),
+  `no-value`, `budget-steps` fallback (24 steps), `page-error`.
+- **A spawned bench caller can come up with NO MCP servers despite a correct
+  `--mcp-config` absolute path** (first cell, 2026-09-21-0713: the caller
+  saw only user-scope servers, contradicting `--strict-mcp-config`, answered
+  in text with zero tool calls, and cost 0.13 USD). Same CLI version,
+  same command shape attached fine minutes later and in a zero-spend probe.
+  Before charging a zero-tool-call cell to a mechanism, re-probe the exact
+  spawn flags with a trivial prompt.
+
+## Gotchas from the OG-9 isolation pass (2026-09-21)
+
+- **Hiding the legacy tools fixes tool selection, not delegation** (results
+  2026-09-21-0748, `WINGMAN_BROWSE_ONLY=1`, t9 browse cell): the caller DID
+  delegate — 3 `browse_step` calls, 0 raw Playwright calls (unlike the mixed
+  OG-9 cell's 0 browse_step) — but Jev bounced all 3 delegations back
+  (`route-caller` x3, 0 takeovers, 0 takeover rounds, act_ms 0 across every
+  round) and the caller answered DONE at 89.8 s with oracle false. Wall
+  "beating" the 151-167 s baseline is give-up-early, not speed; the failure
+  mode moved from "caller won't delegate" to "router won't take over".
+- The isolation mechanism: `WINGMAN_BROWSE_ONLY=1` in `mcp-server.ts` hides
+  wingman_do/wingman_check from tools/list AND refuses them at call time;
+  `bench/run.ts` `mcpConfigFor` forwards the env (418a5d2). Unset = product
+  default. Probe shape for verifying a spawned server's tool list: SDK
+  StdioClientTransport against `dist/src/cli/main.js mcp` with a temp home —
+  run the probe script from inside the repo tree or the SDK import fails to
+  resolve (scratch-dir node cannot see the repo's node_modules).
+
+## Gotchas from the OG-9 calibration audit (2026-09-21)
+
+- **A leaked scratch Chrome holding the probe port silently poisons every
+  later probe**: the port-answering fetch hits the zombie, whose backgrounded
+  window reports `visibilityState: 'hidden'`, so every `wingman_do` returns
+  `tab-ambiguous` with `jev_calls=0` and no ask is ever made. Always kill
+  scratch chromes by their temp-profile cmdline marker (taskkill /T /F does
+  not reliably take the tree from a plain launcher PID), poll the debug port
+  CLOSED after teardown, and use a fresh port per run.
+- **An off-screen headed Chrome needs the three `HEADED_ARGS` anti-
+  backgrounding flags plus exactly ONE page target**, or `pages()` shows
+  `visible:false` and the loop refuses before asking (`tab-ambiguous`,
+  zero candidates = zero visible, not two tabs).
+- **Ground-truth `wingman_do` fill probes must carry the value in `values`**:
+  with `values: {}` the value question is never asked (bindings-only, § 3.6)
+  and the step ends `no-value` — a probe artifact, not an execution failure.
+- **Calibration result (OG-9 follow-up, 2026-09-21)**: the t9 form steps the
+  router graded 0.05-0.1 and refused (threshold 0.5) EXECUTE fine — amount
+  fill on `/inputs` (target listed as `spinbutton (no label)`, faithfully —
+  the page has no accessible name), email fill and submit click on
+  `/forgot_password` all act on the right element. Verdict: Jev over-refuses
+  on low-state pages; the routing criterion needs recalibration, not the
+  element table.
+
+## Gotchas from the definitive t9 cycle (2026-09-21)
+
+- **The bench task goal was never in any prompt until this fix**:
+  `buildPrompt` sent base context + values + DONE only, so t9's oracle
+  endpoint (`/status_codes/404`, the 7th of 7 chain steps) was unreachable
+  by instruction. The goal now rides verbatim in every route's prompt;
+  fail-first proof in `tests/bench-browse.test.ts` ("both routes carry the
+  task goal verbatim"). Pre-fix "oracle false" results partly measure
+  wandering, not tool failure.
+- **With the goal in the prompt, `max_turns: 25` is the binding ceiling,
+  not knowledge**: 6/6 definitive cells (playwright and browse, n=3 each)
+  burned exactly 25 calls and never reached the 404 page. The 7-page chain
+  needs ~2 calls/page minimum; 25 turns cannot fit it even with perfect
+  routing. Any future t9 comparison must raise `max_turns` or the wall
+  number measures the turn cap, not the route.
+- **The browse route still gets zero delegation even with the goal
+  verbatim** (3/3 repeats: 0 `browse_step` calls, 25 raw Playwright calls,
+  no fallback/confirmation). Tool description alone still does not win the
+  route; the browse-front-door premise remains unearned for t9-shaped
+  chains. Median wall browse 144.4 s vs playwright 125.5 s — delegation
+  overhead with no delegation.
+- **max-turns-40 rerun (2026-09-21, c0e4daf + 3a0ec9c)**: with `max_turns: 40`
+  and a one-line browse engagement prompt, engagement is solved but delegation
+  is not — browse called `browse_step` 3 and 2 times per cell, yet **4/5 calls
+  fell back** (3x `jev-error`, 1x `route-caller`, 1x ambiguous
+  `target-uncertain`) and takeover engaged 0 times. Playwright went 2/2 oracle
+  at 40 turns (median 159.0 s; the 25-cap bound is gone), browse 1/2 (rep2 hit
+  the 600 s wall with only 5 raw calls). `jev-error` fallbacks, not the caller,
+  are now the binding defect on the browse route: one prompt line flipped
+  engagement 0->5 but the tool refused the work.
+- **`repeats` has no CLI flag** — an n>1 run means temporarily editing
+  `bench/config.json` `repeats` and reverting after; the results commit is
+  pathspec'd to the results file only.

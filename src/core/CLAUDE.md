@@ -51,3 +51,35 @@
   fragmentation — the next lever is the bench prompt or the loop's own
   continuation semantics, not more description text.
 
+- **browse_step routing rides the ENTRY result too** (2026-09-21, WP-T1b):
+  `runBrowse` (the routing pre-pass inside `runTool`) must attach its
+  `routing` array onto whatever `runDoRounds` returns on the takeover-entry
+  path — the round machinery builds fresh results and knows nothing of
+  routing. § 3.17's rule is "every browse_step result that completed the
+  routing ask carries `routing`", which includes done/needs_confirmation/
+  budget-* ends of a takeover, and excludes only token continuations and
+  results that return before the ask. The first gate run failed exactly here
+  (done came back with no routing).
+
+- **A KB-proof run poisons the scoped .build until you re-run build.mjs**
+  (2026-09-21, WP-T1b): the known-bad proofs mutate `src/core/loop.ts`, build
+  into `.build/<pkg>`, and restore the source — but `run-tests.mjs --dist
+  .build/<pkg>` executes the COMPILED copy, so a green-looking re-run right
+  after a restore still runs the mutated JS. Re-run
+  `node scripts/build.mjs --out <dir> <entries>` after the last restore,
+  before trusting the final gate line.
+
+
+- **`jev-error` is a catch-all — timeouts read like API defects** (2026-09-21,
+  diagnosis of 2026-09-21-1311 browse fallbacks): `askFailReason`
+  (src/core/loop.ts:274) maps every ask error except `no-key`/`circuit-open`
+  to `jev-error`, so a client timeout and an HTTP 422 log identically.
+  Discriminate via `phases.rounds[].jevMs`: a timeout sits at the full
+  `jev_timeout_ms` budget (default 10_000, src/contract/constants.ts) with
+  `input_tokens: 0`; an HTTP failure returns fast. The 13:11 run's 3×
+  jev-error were exactly this — 10,006–10,022 ms each, then ~1 s successes on
+  the same batched routing ask 7 minutes later: transient API latency, not
+  payload size or budget. Also: no circuit breaker is wired in the server
+  (`lib.ts` uses `createDefaultAsk`, which has none; nothing produces
+  `circuit-open`), and all three ask paths share one `askWithCost` timeout
+  pin — browse_step and wingman_do never differ.
