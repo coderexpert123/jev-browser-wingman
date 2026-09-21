@@ -239,6 +239,27 @@ test('mode shadow lists all three tools with the pinned descriptions', async () 
   }
 });
 
+test('WINGMAN_BROWSE_ONLY=1 lists only browse_step and refuses the legacy tools', async () => {
+  const home = mkHome('shadow');
+  const s = await startServer(serverEnv(home, { WINGMAN_BROWSE_ONLY: '1' }));
+  try {
+    const tools = await s.client.listTools();
+    assert.deepEqual(
+      tools.tools.map((t) => t.name),
+      ['browse_step'],
+      'browse-only tool list must contain exactly browse_step',
+    );
+    const res = (await s.client.callTool({
+      name: 'wingman_check',
+      arguments: { question: 'Anything here?', url_match: 'doctor.html' },
+    })) as { isError?: boolean; content: Array<{ type: string; text: string }> };
+    assert.equal(res.isError, true, 'hidden legacy tool must be refused at call time');
+    assert.match(res.content[0].text, /unknown tool: wingman_check/);
+  } finally {
+    await s.close();
+  }
+});
+
 test('shadow wingman_check returns fallback shadow with one jev call', async () => {
   const home = mkHome('shadow');
   const stub = await startScriptedStub([{ answer: 0.87 }]);

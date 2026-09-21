@@ -31,16 +31,26 @@ export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promis
   if (!startConfig.ok) {
     process.stderr.write(`jev-browser-wingman: config: ${startConfig.error}\n`);
   }
+  // Bench-only isolation (OG-9): with WINGMAN_BROWSE_ONLY=1 the legacy
+  // wingman_do/wingman_check tools are hidden from the tool list and refused
+  // at call time, leaving browse_step as the only wingman path (raw Playwright
+  // MCP stays available for its do-not-use cases). The default tool list is
+  // unchanged when the env is unset.
+  const browseOnly = env.WINGMAN_BROWSE_ONLY === '1';
+  const listedTools = browseOnly ? TOOLS.filter((t) => t.name === 'browse_step') : TOOLS;
 
   const server = new Server({ name: PACKAGE_NAME, version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     // Clients cache the tool list, so a mode change takes effect next session.
-    return { tools: startMode === 'off' ? [] : TOOLS };
+    return { tools: startMode === 'off' ? [] : listedTools };
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const name = request.params.name;
+    if (browseOnly && (name === 'wingman_do' || name === 'wingman_check')) {
+      return { content: [{ type: 'text', text: `unknown tool: ${String(name)}` }], isError: true };
+    }
     if (name !== 'wingman_do' && name !== 'wingman_check' && name !== 'browse_step') {
       return { content: [{ type: 'text', text: `unknown tool: ${String(name)}` }], isError: true };
     }

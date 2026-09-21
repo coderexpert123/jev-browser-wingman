@@ -247,10 +247,14 @@ export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
   // 'wingman' and 'browse' (WP-T3 front door) both register the wingman
   // server alongside Playwright MCP.
   if (route !== 'playwright') {
+    // OG-9 bench-only isolation: forward WINGMAN_BROWSE_ONLY so the spawned
+    // server lists browse_step without the legacy wingman_do/wingman_check.
+    // Unset (the default) leaves the server env exactly as before.
+    const browseOnly = process.env.WINGMAN_BROWSE_ONLY === '1' ? { WINGMAN_BROWSE_ONLY: '1' } : {};
     servers['jev-browser-wingman'] = {
       command: 'node',
       args: [ctx.mainJsPath, 'mcp'],
-      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint },
+      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint, ...browseOnly },
     };
   }
   return { mcpServers: servers };
