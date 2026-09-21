@@ -250,3 +250,17 @@ withheld — this file rides a public-bound repository). Gates:
   false); `budgets.*` is saved by `Number.isInteger`, but `takeover.threshold`
   needed an explicit `Number.isFinite`. Any future config key with a plain
   number range needs the same guard.
+
+## Gotchas from the wave-6 deep-recheck (2026-09-21)
+
+- **Adding a dimension to `bench/config.json` (e.g. a route) silently
+  invalidates the count assertions in `tests/bench-cap.test.ts`.** WP-T3's
+  scoped gate only ran `bench-browse`, and no wave-6 package owns
+  `bench-cap.test.ts`, so the 9×2=18 / 1×2=2 totals went stale until the
+  recheck (fixed in `910bc15`). Any future route/config-shape change must
+  re-run `bench-cap` alongside the owning package's gate.
+- **`if (false && <cond>)` is not a valid KB-mutation shape here**: the
+  dead branch loses TS discriminated-union narrowing and the build fails,
+  which silently tests the PREVIOUS dist. Mutate via a `const KB_X = true`
+  flag composed with the condition instead (proven: gate bypass flips test
+  7, pre-pass skip flips test 15, `>` flips test 1).
