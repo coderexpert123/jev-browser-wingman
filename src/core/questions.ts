@@ -70,10 +70,28 @@ function redactRecord(rec: Record<string, string>, bindings: Record<string, stri
 }
 
 /**
+ * Machine-attribute enrichment (§ 3.5, amendment 2026-09-21b): form controls
+ * carry `type=`, `name=` (the name attribute), `placeholder=` and `id=` (the
+ * id attribute) in that fixed order, each only when present, so the router
+ * can match a step's words to an element its accessible name does not name.
+ * Values are page-derived and are redacted like every criterion string.
+ */
+function machineAttributes(el: ElementRecord): string {
+  if (el.tag !== 'input' && el.tag !== 'textarea' && el.tag !== 'select') return '';
+  const parts: string[] = [];
+  if (el.type) parts.push(`type=${el.type}`);
+  if (el.attrName) parts.push(`name=${el.attrName}`);
+  if (el.placeholder) parts.push(`placeholder=${el.placeholder}`);
+  if (el.htmlId) parts.push(`id=${el.htmlId}`);
+  return parts.length > 0 ? ` ${parts.join(' ')}` : '';
+}
+
+/**
  * Target criterion text for one element: `<role> "<name>"<suffix>` cut to
  * CRITERION_MAX chars. Suffix parts, each only when the state field is
  * present, in order: checked/unchecked, empty/filled, disabled, selected.
  * An empty name renders `<role> (no label)` instead of the quoted form.
+ * Form controls append § 3.5's machine-attribute enrichment before the cut.
  */
 export function elementCriterion(el: ElementRecord): string {
   const suffixParts: string[] = [];
@@ -83,7 +101,8 @@ export function elementCriterion(el: ElementRecord): string {
   if (el.state.selected !== undefined) suffixParts.push(` (selected: ${el.state.selected})`);
   const suffix = suffixParts.join('');
   const base = el.name ? `${el.role} "${el.name}"${suffix}` : `${el.role} (no label)${suffix}`;
-  return base.slice(0, CRITERION_MAX);
+  const attrs = machineAttributes(el);
+  return (attrs ? base + attrs : base).slice(0, CRITERION_MAX);
 }
 
 function targetCriteria(elements: ElementRecord[], bindings: Record<string, string>): Record<string, string> {
@@ -280,7 +299,7 @@ export function buildCheckRequest(a: {
 // to 300); this module redacts its own instruction/criterion strings only.
 
 export const ROUTE_HANDLE_INSTRUCTION_BASE =
-  'You are grading one proposed browser step. Can this step be carried out right now by acting on exactly one listed element — clicking it, typing one of the supplied values into it, choosing one of its options, toggling it, pressing Enter in it, or by scrolling the page? The proposed step is: <step> Judge from the step text, the listed elements in the state and the page text.';
+  'You are grading one proposed browser step. Answer the probability that the step CAN be handled right now, from 0 (cannot) to 1 (can). The step\'s target must be one of the listed elements; any value it needs is supplied by the calling agent at execution time, so do not grade the value. The step CANNOT be handled when it requires one of: navigating to a URL with no matching listed link; opening or closing tabs or windows; entering credentials not supplied; generating text that no supplied value provides; file uploads or downloads; canvas or visual-only controls; reading data out of the page; acting on more than one listed element. Otherwise it CAN be handled. The proposed step is: <step> Judge from the step text, the listed elements in the state and the page text.';
 export const ROUTE_EXEC_INSTRUCTION_BASE =
   'Who should carry out the proposed step: the router, by acting on a listed element now, or the calling agent? Answer caller when the step needs something one element action cannot do, such as navigating to a URL when no listed link matches it, opening or closing a tab, entering credentials, or reading data out of the page. The proposed step is: <step>';
 export const ROUTE_EXEC_CRITERIA = {

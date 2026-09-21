@@ -90,6 +90,36 @@ test('target criteria render role, name and state suffixes', () => {
   assert.equal(elementCriterion(combined), 'checkbox "Terms" (checked) (disabled)');
 });
 
+test('form-control criteria carry the machine attributes in § 3.5 order', () => {
+  // Amendment 2026-09-21b: an unlabelled number input must render with its
+  // machine attributes so the router can match a step's words to it. The
+  // spread keeps this test type-clean against both the pre- and
+  // post-amendment ElementRecord, so the fail-first run below is an
+  // assertion failure, not a compile error.
+  const amount = {
+    ...mkEl({
+      id: 'e9', role: 'spinbutton', name: '', tag: 'input', type: 'number',
+      state: { filled: false, disabled: false },
+    }),
+    attrName: 'amount', placeholder: 'Amount', htmlId: 't9',
+  };
+  assert.equal(
+    elementCriterion(amount),
+    'spinbutton (no label) (empty) type=number name=amount placeholder=Amount id=t9',
+  );
+});
+
+test('machine attributes are omitted when absent or empty', () => {
+  const notes = {
+    ...mkEl({
+      id: 'e4', role: 'textbox', name: 'Notes', tag: 'textarea', type: '',
+      state: { filled: true, disabled: false },
+    }),
+    attrName: '', placeholder: '', htmlId: '',
+  };
+  assert.equal(elementCriterion(notes), 'textbox "Notes" (filled)');
+});
+
 test('an empty name renders (no label)', () => {
   const el = mkEl({ id: 'e1', role: 'button', name: '', state: { disabled: false } });
   assert.equal(elementCriterion(el), 'button (no label)');

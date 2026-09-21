@@ -262,3 +262,23 @@ test('a button without a type attribute reports the defaulted submit type', asyn
     await close();
   }
 });
+
+test('enumeration emits placeholder and htmlId on form controls', async () => {
+  // Amendment 2026-09-21b: the record must carry the machine attributes the
+  // § 3.5 criterion enrichment appends. Fail-first: the pre-amendment
+  // enumerate emits neither field, so both assertions see undefined.
+  const { page, close } = await withPage('/form.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const notes = obs.elements.find((e) => e.name === 'Notes');
+    assert.ok(notes, 'expected the notes textarea');
+    assert.strictEqual(notes!.placeholder, 'Notes');
+    assert.strictEqual(notes!.htmlId, 'notes');
+    const fullname = obs.elements.find((e) => e.name === 'Full name');
+    assert.ok(fullname, 'expected the fullname input');
+    assert.strictEqual(fullname!.htmlId, 'fullname');
+    assert.strictEqual(fullname!.placeholder, '');
+  } finally {
+    await close();
+  }
+});

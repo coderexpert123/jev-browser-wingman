@@ -36,6 +36,8 @@ export interface ElementRecord {
   name: string;            // accessible name, whitespace-collapsed, ≤80 chars
   type: string;            // input type / button.type, else ''
   attrName: string;        // the name attribute, ≤80 chars, else ''
+  placeholder?: string;    // placeholder attribute, collapsed, ≤80 chars, else '' (§ 3.5 amendment 2026-09-21b)
+  htmlId?: string;         // the element's id attribute, ≤80 chars, else '' (§ 3.5 amendment 2026-09-21b)
   ariaLabel: string;       // aria-label attribute, ≤80 chars, else ''
   autocomplete: string;    // autocomplete attribute lowercased, else ''
   state: { checked?: boolean; filled?: boolean; selected?: string; disabled: boolean; expanded?: boolean };

@@ -285,6 +285,8 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
       name: name,
       type: type || '',
       attrName: clip(el.getAttribute('name') || '', 80),
+      placeholder: clip(collapse(el.getAttribute('placeholder') || ''), 80),
+      htmlId: clip(el.id || '', 80),
       ariaLabel: clip(el.getAttribute('aria-label') || '', 80),
       autocomplete: (el.getAttribute('autocomplete') || '').toLowerCase(),
       state: state,
