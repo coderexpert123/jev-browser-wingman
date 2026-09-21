@@ -359,3 +359,27 @@ withheld — this file rides a public-bound repository). Gates:
 - **`repeats` has no CLI flag** — an n>1 run means temporarily editing
   `bench/config.json` `repeats` and reverting after; the results commit is
   pathspec'd to the results file only.
+
+## Gotchas from the continuation-floor pass (2026-09-21)
+
+- **The takeover continuation bar was never the takeover threshold** — until
+  amendment 2026-09-21g (2960760) continuation rounds rode § 3.7 rule 6's fixed
+  `THRESHOLDS.target` (0.5) with NO candidate-set check, so multi-candidate
+  0.55 rounds acted mid-takeover. Briefs that say "continuation requires
+  ≥ 0.7" describe the intent, not the code: read `decideTarget` and the
+  constants before trusting a threshold narrative. The two-part rule now lives
+  in rule 6 behind the `takeover` flag; `wingman_do` keeps the fixed bar.
+- **The bench phase ledger is saturated**: `phaseSpentFrom` sums ALL of
+  `bench/results/*.json` forever (30.11 as of 2026-09-21) against the hard
+  `OPERATOR_CEILINGS.phaseUsd` of 30 — any `run.js` invocation now dies
+  `BENCH-REFUSED: phase cap reached` before spending anything, and no CLI flag
+  can raise the ceiling. The `--phase-cap-usd = history + X` practice is dead
+  until the operator archives the results files or raises the ceiling; that
+  rotation is a spend-authority decision, not a builder step.
+- **`pa run commit` from a subdirectory still lands in the PA repo root** —
+  wingman paths must be passed absolute; repo-relative paths resolve against
+  `D:/Personal Assistant` and abort with `pathspec did not match`.
+- **Active claims are foreign to the commit worker**: claims held by this
+  session's CLI address are still "foreign" to the `pa run commit` zclaude
+  worker (COMMIT-DEFERRED). Release claims (renew `--ttl 1`, let lapse) before
+  committing, or the commit defers.
