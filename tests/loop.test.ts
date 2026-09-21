@@ -628,3 +628,44 @@ test('default (absent) gate config keeps needs_confirmation', async () => {
   assert.match(r.confirm_token ?? '', /^wct_/);
   assert.equal(h.driver.actCalls().length, 0);
 });
+
+// § 3.7 rule 8, amendment 2026-09-21e: the value-question anchor is
+// browse_step-only. A wingman_do fill round keeps the threshold — the same
+// 0.46 value grade that a browse-supplied binding would absorb still bounces
+// no-value here, and the request carries no anchor sentence.
+test('a wingman_do fill round below the value threshold is unchanged: ambiguous no-value', async () => {
+  const values = { email: '77' };
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [
+            el({
+              tag: 'input',
+              role: 'textbox',
+              name: 'Email',
+              type: 'email',
+              editable: true,
+              path: '#email',
+              fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 0, y: 0 },
+            }),
+          ],
+        }),
+      ],
+    },
+    script: [
+      S({
+        action: ['fill', { fill: 0.9, click: 0.05 }],
+        target: ['e1', { e1: 0.9 }],
+        value: ['email', { email: 0.46, none: 0.5 }],
+      }),
+    ],
+  });
+  const r = await h.call({ goal: 'g', values });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'no-value');
+  assert.equal(h.driver.actCalls().length, 0);
+  const valueQ = (h.requests[0].questions as Record<string, { instructions?: string }>).value;
+  assert.ok(valueQ, 'value question present');
+  assert.ok(!valueQ.instructions?.includes('treat a value as present'), 'wingman_do request carries no anchor');
+});

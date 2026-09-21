@@ -11,7 +11,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runStep, type LoopDeps } from '../src/core/loop.js';
+import { runStep, VALUE_ANCHOR_SENTENCE, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -681,4 +681,61 @@ test('exactly one log record per browse_step call with tool browse_step', async 
   const r2 = await h2.call({ goal: 'g', step: 's', confirm_token: token });
   assert.equal(r2.status, 'done');
   assert.equal(r2.step_review, undefined);
+});
+
+// ---- value-question anchor (§ 3.7 rule 8, amendment 2026-09-21e) ----
+
+const FILL_ELEMENT = el({
+  tag: 'input',
+  role: 'textbox',
+  name: 'Email',
+  type: 'email',
+  editable: true,
+  path: '#email',
+  fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 0, y: 0 },
+});
+
+function fillRound(valueAnswer: [string, Record<string, number>]): SeqEntry {
+  return S({ action: ['fill', { fill: 0.9, click: 0.05 }], target: ['e1', { e1: 0.9 }], value: valueAnswer });
+}
+
+// 25. A browse-origin fill round whose proposal names a supplied binding is
+// anchored: the value grade below the § 3.7 threshold (0.46) must NOT bounce
+// no-value — the proposal itself carries the value. Fail-first: against the
+// pre-amendment build the round bounces `step-uncertain`/`no-value`.
+test('a browse-origin fill round with a supplied binding commits below the value threshold', async () => {
+  const values = { email: '77' };
+  const h = harness({
+    observations: { p1: [observation({ elements: [FILL_ELEMENT] })] },
+    script: [fillRound(['email', { email: 0.46, none: 0.5 }]), { done: 0.9, action: ['none', { none: 0.9 }] }],
+  });
+  const r = await h.call({ goal: 'g', step: 'fill the email field', values });
+  assert.equal(r.status, 'done');
+  assert.equal(r.reason, 'goal-met');
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].op, 'fill');
+  assert.equal(acts[0].value, '77');
+  // The value question is anchored in the request; the anchor is static text
+  // and the value stays withheld.
+  const valueQ = (h.requests[0].questions as Record<string, { instructions?: string }>).value;
+  assert.ok(valueQ?.instructions?.includes(VALUE_ANCHOR_SENTENCE), 'value question carries the anchor sentence');
+  assertNoValues(JSON.stringify(h.requests), values);
+});
+
+// 26. A browse-origin round whose step text names no supplied binding is NOT
+// anchored: the same 0.46 value grade still bounces no-value.
+test('a browse-origin fill round with no named binding still bounces no-value below the threshold', async () => {
+  const values = { email: '77' };
+  const h = harness({
+    observations: { p1: [observation({ elements: [FILL_ELEMENT] })] },
+    script: [fillRound(['email', { email: 0.46, none: 0.5 }])],
+  });
+  const r = await h.call({ goal: 'g', step: 'fill the first field', values });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-value');
+  const valueQ = (h.requests[0].questions as Record<string, { instructions?: string }>).value;
+  assert.ok(!valueQ?.instructions?.includes(VALUE_ANCHOR_SENTENCE), 'unanchored request carries no anchor');
+  assert.equal(h.driver.actCalls().length, 0);
 });

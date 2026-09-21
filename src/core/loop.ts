@@ -55,6 +55,7 @@ import {
   buildRoundRequest,
   buildTargetRequest,
   elementCriterion,
+  UNTRUSTED_SENTENCE,
 } from './questions.js';
 import { registrableDomain } from './etld.js';
 
@@ -279,6 +280,40 @@ function askFailReason(r: { error: string }): Reason {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+// Value-question anchor (§ 3.7 rule 8, amendment 2026-09-21e): on
+// browse_step-originated rounds whose proposal names a supplied binding, the
+// value question is anchored, not re-rolled — the proposal itself carries the
+// value, so a below-threshold grade must not bounce `no-value`. The anchor is
+// static text appended to the value question's instruction; the value itself
+// stays withheld (redaction unchanged).
+export const VALUE_ANCHOR_SENTENCE =
+  "The calling agent's proposal explicitly supplies the value for this element; treat a value as present.";
+
+/** Binding names the entry step text mentions (case-insensitive), in order of
+ * first mention. The proposal "carries" a value binding when its step text
+ * names one; names survive redaction, values never do. */
+function bindingsInStep(step: string, values: Record<string, string>): string[] {
+  const lower = step.toLowerCase();
+  return Object.keys(values)
+    .map((name) => ({ name, at: lower.indexOf(name.toLowerCase()) }))
+    .filter((b) => b.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map((b) => b.name);
+}
+
+/** Appends the value-question anchor before the fixed untrusted-data sentence,
+ * which always stays last (§ 3.6). No-op when the request carries no value
+ * question. Static text only — never a value. */
+function anchorValueQuestion(request: JevRequest): void {
+  const q = request.questions.value;
+  if (q && q.type === 'choice') {
+    q.instructions = q.instructions.replace(
+      ` ${UNTRUSTED_SENTENCE}`,
+      ` ${VALUE_ANCHOR_SENTENCE} ${UNTRUSTED_SENTENCE}`,
+    );
+  }
 }
 
 /** Outcome of the native-select option requests (§ 3.6 / § 3.7 rule 8). */
@@ -514,6 +549,7 @@ async function runTool(
     state: object,
     remaining: () => number,
     entryCommit = false,
+    anchorBindings: string[] = [],
   ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
     const action = actionAnswers['action'] as JevChoiceAnswer | undefined;
     // Answers are untrusted: an out-of-set action choice, a target id that is
@@ -560,13 +596,21 @@ async function runTool(
     if (verb === 'fill') {
       const valueAnswer = answers['value'] as JevChoiceAnswer | undefined;
       if (
-        !valueAnswer ||
-        valueAnswer.choice === 'none' ||
-        (valueAnswer.probabilities[valueAnswer.choice] ?? 0) < THRESHOLDS.value
+        valueAnswer &&
+        valueAnswer.choice !== 'none' &&
+        valueAnswer.choice in values &&
+        // Amendment 2026-09-21e: an anchored round (the browse_step proposal
+        // names a supplied binding) treats a value as present — the grade
+        // does not re-roll the caller's explicit supply. Unanchored rounds
+        // keep the § 3.7 rule-8 threshold unchanged.
+        (anchorBindings.length > 0 || (valueAnswer.probabilities[valueAnswer.choice] ?? 0) >= THRESHOLDS.value)
       ) {
+        binding = valueAnswer.choice;
+      } else if (anchorBindings.length > 0) {
+        binding = anchorBindings[0];
+      } else {
         return { result: mk('ambiguous', 'no-value'), el, verb };
       }
-      binding = valueAnswer.choice;
       if (!(binding in values)) {
         return { result: mk('ambiguous', 'no-value'), el, verb };
       }
@@ -915,6 +959,11 @@ async function runTool(
     // decision is still due (round 1, plus round 2 when it is the one
     // self-retry). `retried` pins the at-most-one retry of § 3.19 item 4.
     const entryStep = entry !== undefined ? redactValues(entry.step, values).slice(0, 300) : undefined;
+    // Browse-origin flag (§ 3.7 rule 8, amendment 2026-09-21e): the same
+    // entry signal that marks this call a takeover. When the proposal's step
+    // text names a supplied binding, the value question is anchored for every
+    // round of the call.
+    const entryBindings = entry !== undefined ? bindingsInStep(entry.step, values) : [];
     let entryPending = entry !== undefined;
     let retried = false;
     const retryAllowed = entry !== undefined && takeoverOf(deps.config).retry;
@@ -1049,7 +1098,11 @@ async function runTool(
             return { ok: false as const, error: 'budget-time' as const };
           }
           return await askWithCost(
-            buildTargetRequest({ state, elements: targetElements, bindings: values, round }),
+            (() => {
+              const req = buildTargetRequest({ state, elements: targetElements, bindings: values, round });
+              if (entryBindings.length > 0) anchorValueQuestion(req);
+              return req;
+            })(),
             'wingman_do',
             remaining,
           );
@@ -1060,6 +1113,7 @@ async function runTool(
         secondary = r2.answers as AnswerMap;
       } else {
         const built = buildRoundRequest({ state, elements: obs.elements, bindings: values, round });
+        if (entryBindings.length > 0) anchorValueQuestion(built);
         const r = await askWithCost(built, 'wingman_do', remaining);
         if (!r.ok) {
           return mk('fallback', askFailReason(r));
@@ -1103,7 +1157,16 @@ async function runTool(
         }
         entryCommit = true;
       }
-      const decide = await decideTarget(decisionAnswers, primary, obs, values, state, remaining, entryCommit);
+      const decide = await decideTarget(
+        decisionAnswers,
+        primary,
+        obs,
+        values,
+        state,
+        remaining,
+        entryCommit,
+        entryBindings,
+      );
 
       if (mode === 'shadow') {
         // Rule 10: shadow overrides steps 1–9 — after the first round's
