@@ -8,6 +8,7 @@
 import {
   LABEL_MAX,
   SETTLE_MAX_MS,
+  TAKEOVER_SINGLE_FLOOR,
   THRESHOLDS,
   TIME_FLOOR_MS,
   TWO_STAGE,
@@ -51,7 +52,6 @@ import {
   buildGroupRequest,
   buildOptionFinalRequest,
   buildOptionRequests,
-  buildRoutingRequest,
   buildRoundRequest,
   buildTargetRequest,
   elementCriterion,
@@ -356,11 +356,11 @@ async function runTool(
     if (tool === 'wingman_do' && r.status !== 'done') {
       r.note = CONTINUE_LINE;
     } else if (tool === 'browse_step' && r.status !== 'done') {
-      // § 3.17 note table: done carries no note; route-caller and
-      // route-unclear the caller line; takeover-offered the offer line;
+      // § 3.17 note table (amendment 2026-09-21d): done carries no note;
+      // step-uncertain the caller line; takeover-offered the offer line;
       // every other non-done status the resume line.
       r.note =
-        r.reason === 'route-caller' || r.reason === 'route-unclear'
+        r.reason === 'step-uncertain'
           ? BROWSE_STEP_CALLER_LINE
           : r.reason === 'takeover-offered'
             ? BROWSE_STEP_OFFER_LINE
@@ -501,7 +501,11 @@ async function runTool(
 
   /** § 3.7 rules 6–8 plus value resolution for fill/select. `actionAnswers` is
    * the request that carried the `action` question (request 1 in both shapes;
-   * request 2 never repeats it). */
+   * request 2 never repeats it). `entryCommit` (§ 3.19 item 3, amendment
+   * 2026-09-21d) waives rule 6's uncertainty bar for one committed entry
+   * round: the entry decision already validated that the target answer names
+   * a real listed element. Op fit, value resolution, the gate and every
+   * budget rule still apply unchanged. */
   async function decideTarget(
     answers: AnswerMap,
     actionAnswers: AnswerMap,
@@ -509,6 +513,7 @@ async function runTool(
     values: Record<string, string>,
     state: object,
     remaining: () => number,
+    entryCommit = false,
   ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
     const action = actionAnswers['action'] as JevChoiceAnswer | undefined;
     // Answers are untrusted: an out-of-set action choice, a target id that is
@@ -532,8 +537,13 @@ async function runTool(
     const target = answers['target'] as JevChoiceAnswer | undefined;
     const targetId = target?.choice ?? 'none';
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
-    // 6. target uncertainty (action ≠ scroll)
-    if (verb !== 'scroll' && (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target)) {
+    // 6. target uncertainty (action ≠ scroll) — waived for a committed entry
+    // round, where the entry decision already proved a concrete listed target.
+    if (
+      !entryCommit &&
+      verb !== 'scroll' &&
+      (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target)
+    ) {
       return uncertain();
     }
     const el = obs.elements.find((e) => e.id === targetId);
@@ -836,21 +846,19 @@ async function runTool(
     return mk('done', 'answered', { answer: round2(noul) });
   }
 
-  // ---- browse_step: routing pre-pass, then takeover entry (§ 3.18, § 3.19) ----
-  // No fork: the entry rides runDoRounds' existing gated rounds; this stage
-  // only grades and decides entry. The one new policy call site below is the
-  // routing pre-pass's own round-1 prelude check, which must precede the
-  // routing ask and therefore cannot reuse the round prelude's line.
+  // ---- browse_step: first-round-decides entry (§ 3.19, amendment 2026-09-21d) ----
+  // No fork: the entry rides runDoRounds' existing gated rounds. There is no
+  // routing pre-pass and no ask before round 1's ask: the tool enters the
+  // normal machinery directly and the first round's target answer decides the
+  // call (threshold rule, single-candidate rule, one self-retry, evidence-
+  // based bounce — all inside runDoRounds' entry decision).
   async function runBrowse(pageId: string, driver: Driver, stepInput: StepInput): Promise<WingmanResult> {
     const values = stepInput.values ?? {};
     const proposals = stepInput.steps ?? [stepInput.step as string];
-    const maxMs = Math.min(stepInput.max_ms ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_ms);
-    const remaining = () => maxMs - (now() - startedAt);
 
-    // Token continuation (§ 3.19 flow item 2): no routing ask and no routing
-    // pre-pass — the token is handled at the existing fixed point inside
-    // runDoRounds, which runs the full round-1 prelude itself. `routing` is
-    // absent on this path.
+    // Token continuation (§ 3.19 flow item 1): the token is handled at the
+    // existing fixed point inside runDoRounds; no entry machinery, no
+    // step_review.
     if (stepInput.confirm_token !== undefined) {
       return runDoRounds(pageId, driver, {
         goal: stepInput.goal,
@@ -861,102 +869,18 @@ async function runTool(
       });
     }
 
-    // Round-1 prelude exactly as wingman_do round 1 (§ 3.19 flow item 1):
-    // observe (timed), dialog check, captcha check, policy — a hit returns
-    // before any ask. The routing ask records one phase bucket.
-    if (remaining() < TIME_FLOOR_MS) {
-      return mk('fallback', 'budget-time');
-    }
-    beginRound();
-    const obs = await observeTimed(pageId);
-    pageUrl = obs.url;
-    if (dialogEvents.some((e) => e.pageId === pageId)) {
-      return mk('blocked', 'dialog-open');
-    }
-    if (obs.signals.captcha) {
-      return mk('blocked', 'captcha');
-    }
-    const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
-    if (policy.sensitive) {
-      return mk('fallback', policy.reason as Reason);
-    }
-
-    // § 3.18 routing state: the buildState output with the goal, plus the
-    // element table as redacted criteria strings and the redacted step texts
-    // cut to 300. No element paths, queries or fragments leave in it.
-    const state = buildState(obs, [], stepInput.goal, values) as Record<string, unknown>;
-    state.elements = obs.elements.map((e) => redactValues(elementCriterion(e), values));
-    state.steps = proposals.map((s) => redactValues(s, values).slice(0, 300));
-    const request = buildRoutingRequest({ state, steps: proposals, elements: obs.elements, bindings: values });
-
-    if (remaining() < TIME_FLOOR_MS) {
-      return mk('fallback', 'budget-time');
-    }
-    const r = await askWithCost(request, 'browse_step', remaining);
-    if (!r.ok) {
-      return mk('fallback', askFailReason(r));
-    }
-
-    // § 3.18 executor decision, per step, in order. The comparison uses the
-    // same 2-decimal value `routing` reports — one rounding, one decision —
-    // and it is >=: a handle exactly at the threshold takes over.
-    const threshold = takeoverOf(deps.config).threshold;
-    const routing = proposals.map((s, i) => {
-      const handleAnswer = r.answers[`handle${i + 1}`];
-      const execAnswer = r.answers[`exec${i + 1}`];
-      const handleNoul =
-        handleAnswer !== undefined && handleAnswer.type === 'noul' ? handleAnswer.noul : null;
-      const execChoice =
-        execAnswer !== undefined &&
-        execAnswer.type === 'choice' &&
-        (execAnswer.choice === 'wingman' || execAnswer.choice === 'caller')
-          ? execAnswer.choice
-          : null;
-      if (handleNoul === null || execChoice === null) {
-        // The grader misbehaved — the route-unclear material, not a low grade.
-        return { step: capLabel(redactValues(s, values)), handle: null, executor: 'caller' as const };
-      }
-      const handle = round2(handleNoul);
-      const executor = handle >= threshold && execChoice === 'wingman' ? ('wingman' as const) : ('caller' as const);
-      return { step: capLabel(redactValues(s, values)), handle, executor };
-    });
-
-    // Shadow grades only (§ 3.19): the routing ask runs, nothing acts, and
-    // acc.would stays unset (routing already carries the decision).
-    if (mode === 'shadow') {
-      return mk('fallback', 'shadow', { shadow: true, routing });
-    }
-
-    // Call-level outcome (§ 3.18), in order. Only step 1's grade decides
-    // entry: the element table the grades were computed against is stale the
-    // moment anything acts, so a mixed batch returns whole, never partially
-    // executes.
-    const first = routing[0];
-    if (first.handle === null) {
-      return mk('ambiguous', 'route-unclear', { routing });
-    }
-    if (first.executor === 'caller') {
-      return mk('fallback', 'route-caller', { routing });
-    }
-    // Step 1 routes to the wingman. Participation: the call's `takeover`
-    // field overrides the config mode. The threshold is never waived by
-    // `takeover: true` — the grade above already had to clear it.
-    const participation =
+    // Participation (§ 3.19 flow item 5): the call's `takeover` field
+    // overrides the config mode, resolved once here and carried by the entry.
+    const participation: 'execute' | 'offer' =
       stepInput.takeover === true
         ? 'execute'
         : stepInput.takeover === false
           ? 'offer'
-          : takeoverOf(deps.config).mode;
-    if (participation === 'offer') {
-      return mk('fallback', 'takeover-offered', { routing });
-    }
-    // Entry (§ 3.19 flow item 4): round 1 re-observes and runs the standard
-    // § 3.7 rules against a state that carries the step text. One envelope:
-    // the routing ask and every round share this call's max_ms/max_steps,
-    // clamped by the config budgets inside runDoRounds. `routing` rides the
-    // takeover's own end status too (§ 3.17: every result that completed the
-    // routing ask carries it).
-    const entryResult = await runDoRounds(
+          : takeoverOf(deps.config).mode === 'offer'
+            ? 'offer'
+            : 'execute';
+
+    return runDoRounds(
       pageId,
       driver,
       {
@@ -965,14 +889,18 @@ async function runTool(
         ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
         ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
       },
-      proposals[0],
+      { step: proposals[0], participation },
     );
-    entryResult.routing = routing;
-    return entryResult;
   }
 
-  // ---- wingman_do rounds (§ 3.7, in order) ----
-  async function runDoRounds(pageId: string, driver: Driver, doInput: DoInput, entryStep?: string): Promise<WingmanResult> {
+  // ---- wingman_do rounds (§ 3.7, in order) plus the browse_step entry
+  // decision (§ 3.19, amendment 2026-09-21d) ----
+  async function runDoRounds(
+    pageId: string,
+    driver: Driver,
+    doInput: DoInput,
+    entry?: { step: string; participation: 'execute' | 'offer' },
+  ): Promise<WingmanResult> {
     const values = doInput.values ?? {};
     const maxSteps = Math.min(doInput.max_steps ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_steps);
     const maxMs = Math.min(doInput.max_ms ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_ms);
@@ -982,6 +910,51 @@ async function runTool(
     const token = doInput.confirm_token;
     let tokenHandled = false;
     let round = 0;
+
+    // Entry state: `entryPending` is true while the next round's entry
+    // decision is still due (round 1, plus round 2 when it is the one
+    // self-retry). `retried` pins the at-most-one retry of § 3.19 item 4.
+    const entryStep = entry !== undefined ? redactValues(entry.step, values).slice(0, 300) : undefined;
+    let entryPending = entry !== undefined;
+    let retried = false;
+    const retryAllowed = entry !== undefined && takeoverOf(deps.config).retry;
+    const entryReview = (
+      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered',
+      candidates: Array<{ label: string }>,
+    ): Partial<WingmanResult> => ({
+      step_review: { step: capLabel(entryStep ?? ''), why, candidates },
+    });
+    const bounce = (
+      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value',
+      candidates: Array<{ label: string }>,
+    ): WingmanResult => mk('fallback', 'step-uncertain', entryReview(why, candidates));
+    const canRetry = () => retryAllowed && !retried && remaining() >= TIME_FLOOR_MS;
+    /** § 3.19 item 3: null = the entry round commits (threshold rule or
+     * single-candidate rule), else the bounce `why`. */
+    function entryUncertainty(
+      answers: AnswerMap,
+      obs: Observation,
+    ): 'no-match' | 'multi-match' | 'low-confidence' | null {
+      const action = answers['action'] as JevChoiceAnswer | undefined;
+      if (!action || action.choice === 'none' || !(OPS as readonly string[]).includes(action.choice)) {
+        return 'no-match';
+      }
+      const target = answers['target'] as JevChoiceAnswer | undefined;
+      const choice = target?.choice;
+      if (!target || typeof choice !== 'string' || choice === 'none') return 'no-match';
+      if (choice === 'ambiguous') return 'multi-match';
+      const el = obs.elements.find((e) => e.id === choice);
+      if (!el) return 'no-match';
+      const conf = target.probabilities[choice] ?? 0;
+      if (conf >= takeoverOf(deps.config).threshold) return null;
+      // Candidate set: every listed element at or above the floor, unioned
+      // with the chosen id itself (§ 3.19 item 3).
+      const set = new Set<string>([choice]);
+      for (const e of obs.elements) {
+        if (e.id !== choice && (target.probabilities[e.id] ?? 0) >= TAKEOVER_SINGLE_FLOOR) set.add(e.id);
+      }
+      return set.size === 1 ? null : 'low-confidence';
+    }
 
     while (true) {
       round += 1;
@@ -1025,7 +998,7 @@ async function runTool(
         history,
         doInput.goal,
         values,
-        entryStep !== undefined && round === 1 ? redactValues(entryStep, values).slice(0, 300) : undefined,
+        entryStep !== undefined && round === 1 ? entryStep : undefined,
       );
       // Time rule: before every ask.
       if (remaining() < TIME_FLOOR_MS) {
@@ -1044,7 +1017,17 @@ async function runTool(
         primary = r1.answers as AnswerMap;
         const early = decideEarly(primary, round, obs, values);
         if (early) {
-          return mode === 'shadow' ? shadowResult() : early;
+          if (mode === 'shadow') return shadowResult();
+          // An entry round that proposed no action is a non-commit
+          // (§ 3.19 item 3, 'no-match'): retry once, else bounce.
+          if (entryPending && early.reason === 'no-action') {
+            if (canRetry()) {
+              retried = true;
+              continue;
+            }
+            return bounce('no-match', early.candidates ?? []);
+          }
+          return early;
         }
         const groupAnswer = primary['group'] as JevChoiceAnswer | undefined;
         const topIds = groupAnswer
@@ -1084,14 +1067,43 @@ async function runTool(
         primary = r.answers as AnswerMap;
         const early = decideEarly(primary, round, obs, values);
         if (early) {
-          return mode === 'shadow' ? shadowResult() : early;
+          if (mode === 'shadow') return shadowResult();
+          // An entry round that proposed no action is a non-commit
+          // (§ 3.19 item 3, 'no-match'): retry once, else bounce.
+          if (entryPending && early.reason === 'no-action') {
+            if (canRetry()) {
+              retried = true;
+              continue;
+            }
+            return bounce('no-match', early.candidates ?? []);
+          }
+          return early;
         }
       }
 
       // § 3.7 rules 6–9 from the answers that carry target/value/irreversible;
       // the verb comes from the answers that carried `action` (request 1).
       const decisionAnswers = (secondary ?? primary) as AnswerMap;
-      const decide = await decideTarget(decisionAnswers, primary, obs, values, state, remaining);
+      // Entry decision (§ 3.19 item 3, amendment 2026-09-21d): commit via the
+      // threshold rule or the single-candidate rule, else retry once, else
+      // bounce with evidence. Evaluated before decideTarget so a non-commit
+      // never reaches the act path.
+      const wasEntryRound = entryPending;
+      let entryCommit = false;
+      if (entryPending) {
+        entryPending = false;
+        const uncertainty = entryUncertainty(decisionAnswers, obs);
+        if (uncertainty !== null) {
+          if (canRetry()) {
+            retried = true;
+            entryPending = true; // the retry round carries the entry decision
+            continue;
+          }
+          return bounce(uncertainty, topTargetCandidates(decisionAnswers, obs, values));
+        }
+        entryCommit = true;
+      }
+      const decide = await decideTarget(decisionAnswers, primary, obs, values, state, remaining, entryCommit);
 
       if (mode === 'shadow') {
         // Rule 10: shadow overrides steps 1–9 — after the first round's
@@ -1115,7 +1127,24 @@ async function runTool(
       }
 
       if (decide.result) {
+        if (wasEntryRound && entryCommit && !decide.bounds) {
+          // A committed entry round that still could not finish its decision:
+          // value resolution failed (`no-value`) or the chosen element does
+          // not fit the verb (`target-uncertain`). Bounce with evidence —
+          // loop bounds keep their own reasons.
+          if (decide.result.reason === 'no-value') {
+            return bounce('no-value', topTargetCandidates(decisionAnswers, obs, values));
+          }
+          return bounce('no-match', topTargetCandidates(decisionAnswers, obs, values));
+        }
         return decide.result;
+      }
+      // Participation (§ 3.19 item 5): a committed entry round under offer
+      // participation reports the offer instead of acting.
+      if (wasEntryRound && entryCommit && entry?.participation === 'offer') {
+        return mk('fallback', 'takeover-offered', {
+          ...entryReview('offered', topTargetCandidates(decisionAnswers, obs, values)),
+        });
       }
       const { el, verb, binding, optionValue } = decide;
 

@@ -12,14 +12,14 @@ export const REASONS = {
   needs_confirmation: ['irreversible-heuristic', 'irreversible-jev'],
   blocked: ['captcha', 'page-blocked', 'dialog-open', 'covered-target', 'lock-held', 'busy'],
   login: ['login-page'],
-  ambiguous: ['tab-ambiguous', 'target-uncertain', 'no-action', 'no-value', 'route-unclear'],
+  ambiguous: ['tab-ambiguous', 'target-uncertain', 'no-action', 'no-value'],
   error: ['page-error', 'stale-element', 'act-failed', 'tool-fault', 'invalid-input', 'confirm-token-invalid'],
   fallback: [
     'mode-off', 'no-browser', 'no-key', 'breaker-open', 'jev-error', 'shadow', 'budget-steps', 'budget-time',
     'state-too-large', 'unsupported-page',
     'sensitive-banking', 'sensitive-payments', 'sensitive-webmail', 'sensitive-identity', 'sensitive-auth-path',
     'sensitive-government', 'sensitive-tax', 'sensitive-health', 'sensitive-password', 'sensitive-otp',
-    'sensitive-payment-field', 'route-caller', 'takeover-offered',
+    'sensitive-payment-field', 'step-uncertain', 'takeover-offered',
   ],
 } as const;
 export type Reason = (typeof REASONS)[keyof typeof REASONS][number];
@@ -105,7 +105,11 @@ export interface WingmanResult {
   shadow?: true;
   answer?: number;                    // wingman_check only, 0..1 rounded to 2 decimals
   note?: string;                      // static continuation hint on non-done wingman_do results; never page text
-  routing?: Array<{ step: string; handle: number | null; executor: 'wingman' | 'caller' }>;   // browse_step only (§ 3.17)
+  step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
+    step: string;                    // the redacted proposed step text, capped to LABEL_MAX
+    why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered';
+    candidates: Array<{ label: string }>;   // top 3 target candidates: redacted criteria labels
+  };
   cost: { jev_calls: number; input_tokens: number; output_tokens: number; ms: number };
   labels_untrusted: true;
 }

@@ -217,7 +217,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
   }
 
-  let takeover: { threshold: number; mode: TakeoverMode } = { ...DEFAULT_TAKEOVER };
+  let takeover: { threshold: number; mode: TakeoverMode; retry: boolean } = { ...DEFAULT_TAKEOVER };
   if ('takeover' in obj) {
     const t = obj.takeover;
     if (typeof t !== 'object' || t === null || Array.isArray(t)) {
@@ -225,7 +225,7 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
     const tObj = t as Record<string, unknown>;
     for (const key of Object.keys(tObj)) {
-      if (key !== 'threshold' && key !== 'mode') {
+      if (key !== 'threshold' && key !== 'mode' && key !== 'retry') {
         return { ok: false, error: `unknown takeover key: ${key}` };
       }
     }
@@ -243,12 +243,18 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
       }
       takeover.mode = tObj.mode as TakeoverMode;
     }
+    if ('retry' in tObj) {
+      if (typeof tObj.retry !== 'boolean') {
+        return { ok: false, error: `invalid takeover.retry: ${JSON.stringify(tObj.retry)}` };
+      }
+      takeover.retry = tObj.retry;
+    }
   }
 
   const config: WingmanConfig & {
     gate: { mode: GateMode };
     policy: { mode: PolicyMode };
-    takeover: { threshold: number; mode: TakeoverMode };
+    takeover: { threshold: number; mode: TakeoverMode; retry: boolean };
   } = {
     mode,
     adapter,
@@ -284,15 +290,18 @@ export function policyModeOf(config: WingmanConfig): PolicyMode {
   return policy !== null && typeof policy === 'object' && policy.mode === 'off' ? 'off' : 'enforce';
 }
 
-/** The takeover config in force for a config: `takeover.threshold`/`takeover.mode`
- * when the loaded config carries the key, the defaults (0.7 / 'auto') otherwise
- * (§ 3.20). Read through this accessor everywhere; the WingmanConfig type
+/** The takeover config in force for a config: `takeover.threshold`/`takeover.mode`/`takeover.retry`
+ * when the loaded config carries the key, the defaults (0.7 / 'auto' / true) otherwise
+ * (§ 3.20). Normalises per key, so a config written before `retry` still yields
+ * `retry: true`. Read through this accessor everywhere; the WingmanConfig type
  * predates the key. */
-export function takeoverOf(config: WingmanConfig): { threshold: number; mode: TakeoverMode } {
+export function takeoverOf(config: WingmanConfig): {
+  threshold: number; mode: TakeoverMode; retry: boolean;
+} {
   const takeover = (
-    config as WingmanConfig & { takeover?: { threshold: number; mode: TakeoverMode } }
+    config as WingmanConfig & { takeover?: { threshold: number; mode: TakeoverMode; retry?: boolean } }
   ).takeover;
-  return takeover ?? { ...DEFAULT_TAKEOVER };
+  return { ...DEFAULT_TAKEOVER, ...(takeover ?? {}) };
 }
 
 export function resolveKey(

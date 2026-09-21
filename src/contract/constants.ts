@@ -28,8 +28,12 @@ export const DEFAULT_POLICY_MODE: PolicyMode = 'enforce';
 export const DEFAULT_POLICY = { mode: DEFAULT_POLICY_MODE } as const;
 export const TAKEOVER_MODES = ['auto', 'offer'] as const;   // § 3.20 config key takeover.mode; default 'auto'
 export type TakeoverMode = (typeof TAKEOVER_MODES)[number];
-export const DEFAULT_TAKEOVER = { threshold: 0.7, mode: 'auto' } as const;
+export const DEFAULT_TAKEOVER = { threshold: 0.7, mode: 'auto', retry: true } as const;
 export const TAKEOVER_THRESHOLD_RANGE = [0.5, 0.95] as const;
+// § 3.19 candidate-set plausibility floor: a listed element whose round-1 target
+// probability reaches this floor counts as a plausible candidate; exactly one
+// such element commits the entry even below the takeover threshold.
+export const TAKEOVER_SINGLE_FLOOR = 0.5 as const;
 export const THRESHOLDS = {
   done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
 } as const;

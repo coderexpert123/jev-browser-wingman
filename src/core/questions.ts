@@ -291,44 +291,8 @@ export function buildCheckRequest(a: {
   return { state: a.state, questions };
 }
 
-// Routing question set (§ 3.18): one batched request per browse_step proposal.
-// Per proposed step k (1-based, call order) exactly two questions: `handle<k>`
-// (noul, p can-handle) and `exec<k>` (choice {wingman, caller}). The element
-// table rides in the state the caller builds (§ 3.18 pins its shape: `elements`
-// as redacted elementCriterion strings, `steps` as the redacted step texts cut
-// to 300); this module redacts its own instruction/criterion strings only.
-
-export const ROUTE_HANDLE_INSTRUCTION_BASE =
-  'You are grading one proposed browser step. Answer the probability that the step CAN be handled right now, from 0 (cannot) to 1 (can). The step\'s target must be one of the listed elements; any value it needs is supplied by the calling agent at execution time, so do not grade the value. The step CANNOT be handled when it requires one of: navigating to a URL with no matching listed link; opening or closing tabs or windows; entering credentials not supplied; generating text that no supplied value provides; file uploads or downloads; canvas or visual-only controls; reading data out of the page; acting on more than one listed element. Otherwise it CAN be handled. The proposed step is: <step> Judge from the step text, the listed elements in the state and the page text.';
-export const ROUTE_EXEC_INSTRUCTION_BASE =
-  'Who should carry out the proposed step: the router, by acting on a listed element now, or the calling agent? Answer caller when the step needs something one element action cannot do, such as navigating to a URL when no listed link matches it, opening or closing a tab, entering credentials, or reading data out of the page. The proposed step is: <step>';
-export const ROUTE_EXEC_CRITERIA = {
-  wingman: 'The router acts on a listed element now to carry out the step',
-  caller: 'Return the step to the calling agent',
-} as const;
-
-/** The routing request (§ 3.18). `state` passes through unchanged; `<step>` in
- * each instruction base is replaced by the redacted step text cut to 300
- * chars, then one space, then the fixed untrusted sentence. */
-export function buildRoutingRequest(a: {
-  state: object;
-  steps: string[];
-  elements: ElementRecord[];
-  bindings: Record<string, string>;
-}): JevRequest {
-  const questions: Record<string, JevNoulQuestion | JevChoiceQuestion> = {};
-  a.steps.forEach((raw, i) => {
-    const k = i + 1;
-    const stepText = redactValues(String(raw), a.bindings).slice(0, 300);
-    questions[`handle${k}`] = {
-      type: 'noul',
-      instructions: `${redactValues(ROUTE_HANDLE_INSTRUCTION_BASE.replace('<step>', stepText), a.bindings)} ${UNTRUSTED_SENTENCE}`,
-    };
-    questions[`exec${k}`] = {
-      type: 'choice',
-      instructions: `${redactValues(ROUTE_EXEC_INSTRUCTION_BASE.replace('<step>', stepText), a.bindings)} ${UNTRUSTED_SENTENCE}`,
-      criteria: redactRecord(ROUTE_EXEC_CRITERIA, a.bindings),
-    };
-  });
-  return { state: a.state, questions };
-}
+// The routing question set of the previous revision (buildRoutingRequest and
+// the ROUTE_* constants, § 3.18) was REMOVED by amendment 2026-09-21d: entry
+// is first-round-decides (§ 3.19) and no dedicated grading ask exists. The
+// machine-attribute enrichment of elementCriterion above stays — the normal
+// `target` question consumes it.

@@ -1,10 +1,11 @@
-// Takeover loop-mode tests (§ WP-T1b): browse_step inside the run loop.
-// FakeDriver plus a scripted fake ask in the tests/loop.test.ts style — the
-// harness shapes are written fresh here (helpers stay unimported between test
-// files; the FakeDriver helper itself is shared infrastructure). Each § 3.18
-// decision branch gets an input that would pass under a wrong rule order, and
-// the § 8 known-bad cases (gate-bypass, >-threshold, best-grade-batch,
-// token-ignore) flip their named test.
+// Takeover loop-mode tests (§ WP-T1b, amendment 2026-09-21d): browse_step
+// enters the run loop directly and the FIRST ROUND decides the call. FakeDriver
+// plus a scripted fake ask in the tests/loop.test.ts style — the harness shapes
+// are written fresh here (helpers stay unimported between test files; the
+// FakeDriver helper itself is shared infrastructure). Each § 3.19 decision
+// branch gets an input that would pass under a wrong rule order, and the § 8
+// known-bad cases (threshold `>`, single-candidate bypass, evidence-less
+// bounce, retry skip, gate-bypass, token-ignore) flip their named test.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,7 +84,7 @@ function page(overrides: Partial<PageInfo> = {}): PageInfo {
 function makeConfig(
   overrides: Partial<WingmanConfig> & {
     gate?: { mode: GateMode };
-    takeover?: { threshold?: number; mode?: TakeoverMode };
+    takeover?: { threshold?: number; mode?: TakeoverMode; retry?: boolean };
   } = {},
 ): WingmanConfig {
   const { gate, takeover, ...rest } = overrides;
@@ -101,7 +102,13 @@ function makeConfig(
     ...rest,
     ...(gate ? { gate } : {}),
     ...(takeover
-      ? { takeover: { threshold: takeover.threshold ?? 0.7, mode: takeover.mode ?? 'auto' } }
+      ? {
+          takeover: {
+            ...(takeover.threshold !== undefined ? { threshold: takeover.threshold } : {}),
+            ...(takeover.mode !== undefined ? { mode: takeover.mode } : {}),
+            ...(takeover.retry !== undefined ? { retry: takeover.retry } : {}),
+          },
+        }
       : {}),
   } as WingmanConfig;
 }
@@ -112,9 +119,6 @@ type NoulAnswers = {
   login?: number;
   error?: number;
   irreversible?: number;
-  handle1?: number;
-  handle2?: number;
-  handle3?: number;
 };
 type ChoiceAnswers = {
   action?: [string, Record<string, number>];
@@ -122,9 +126,6 @@ type ChoiceAnswers = {
   value?: [string, Record<string, number>];
   group?: [string, Record<string, number>];
   option?: [string, Record<string, number>];
-  exec1?: [string, Record<string, number>];
-  exec2?: [string, Record<string, number>];
-  exec3?: [string, Record<string, number>];
 };
 type SeqEntry = (NoulAnswers & ChoiceAnswers) | { fail: string };
 
@@ -132,7 +133,7 @@ function choice(c: string, probabilities: Record<string, number>): JevAnswer {
   return { type: 'choice', choice: c, probabilities, confidence: 0.9 };
 }
 
-/** Standard round answers: click e1, nothing terminal. */
+/** Standard round answers: click e1 at 0.9 (a committing round), nothing terminal. */
 function S(over: SeqEntry = {}): SeqEntry {
   return {
     done: 0.05,
@@ -145,16 +146,8 @@ function S(over: SeqEntry = {}): SeqEntry {
   };
 }
 
-/** Routing-stage answers: handle<k> noul, exec<k> choice. */
-function R(over: SeqEntry = {}): SeqEntry {
-  return {
-    exec1: ['wingman', { wingman: 0.9, caller: 0.05 }],
-    ...over,
-  };
-}
-
-const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible', 'handle1', 'handle2', 'handle3'] as const;
-const CHOICE_KEYS = ['action', 'target', 'value', 'group', 'option', 'exec1', 'exec2', 'exec3'] as const;
+const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible'] as const;
+const CHOICE_KEYS = ['action', 'target', 'value', 'group', 'option'] as const;
 
 function scriptedAsk(seq: SeqEntry[]): { ask: JevAsk; requests: JevRequest[] } {
   const requests: JevRequest[] = [];
@@ -238,119 +231,224 @@ const OFFER_LINE =
 const RESUME_LINE =
   'Takeover paused — call browse_step again with the same goal (and the same values) to continue from here.';
 
-// ---- required tests (§ WP-T1b items 1–21) ----
+function assertNoRoutingQuestions(request: JevRequest): void {
+  const keys = Object.keys(request.questions as Record<string, unknown>);
+  for (const k of keys) {
+    assert.ok(!/^handle\d+$/.test(k) && !/^exec\d+$/.test(k), `stale routing question ${k} in a round request`);
+  }
+}
 
-// 1. At-threshold entry (§ 8: a `>` temp copy flips this test).
-test('a step graded exactly at the threshold takes over and runs to done', async () => {
+// ---- required tests (§ WP-T1b items 1–24, amendment 2026-09-21d) ----
+
+// 1. First round decides: a target exactly at the threshold commits; the entry
+// ask IS the round-1 ask (the fail-first no-pre-pass pin: the pre-amendment
+// build's request 1 is the routing ask, which carries handle1/exec1). The
+// second element at 0.6 keeps the threshold rule the ONLY commit basis here —
+// with a lone candidate the single-candidate rule would commit regardless and
+// a `>` mutation of the threshold comparison would go unseen.
+test('first round commits at the threshold and runs to done; no ask precedes the round-1 ask', async () => {
   const h = harness({
-    observations: { p1: [observation()] },
-    script: [R({ handle1: 0.7 }), S(), { done: 0.9 }],
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.7, e2: 0.6, none: 0.0, ambiguous: 0.0 }] }), { done: 0.9 }],
   });
   const r = await h.call({ goal: 'Open the details', step: 'click the Details button' });
   assert.equal(r.status, 'done');
   assert.equal(r.reason, 'goal-met');
-  assert.ok(r.routing, 'no routing array on a takeover result');
-  assert.equal(r.routing?.[0].executor, 'wingman');
-  assert.equal(r.routing?.[0].handle, 0.7);
   assert.ok(r.steps >= 1);
   assert.ok(h.driver.actCalls().length >= 1);
+  assert.equal(h.requests.length, 2);
+  assertNoRoutingQuestions(h.requests[0]);
+  assertNoRoutingQuestions(h.requests[1]);
+  assert.ok(r.step_review === undefined, 'no step_review on a committed result');
 });
 
-// 2. Below threshold returns to the caller, never acts.
-test('a step graded below threshold returns to the caller as route-caller and never acts', async () => {
+// 2. Single-candidate rule: below the threshold, one plausible element acts.
+// (Fail-first: KB-single-bypass — a threshold-only commit bounces here.)
+test('a single-candidate round commits below the threshold and acts', async () => {
   const h = harness({
-    observations: { p1: [observation()] },
-    script: [R({ handle1: 0.69 })],
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [
+      S({ target: ['e1', { e1: 0.6, e2: 0.1, none: 0.2, ambiguous: 0.1 }] }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 'click the Details button' });
+  assert.equal(r.status, 'done');
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.equal(h.driver.actCalls()[0].elementId, 'e1');
+});
+
+// 3. A split round (two plausible candidates, none committed) bounces with
+// evidence and never acts.
+test('a split round bounces low-confidence with step_review and never acts', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.6, e2: 0.55, none: 0.0, ambiguous: 0.0 }] })],
+    config: { takeover: { retry: false } },
   });
   const r = await h.call({ goal: 'g', step: 'click the Details button' });
   assert.equal(r.status, 'fallback');
-  assert.equal(r.reason, 'route-caller');
-  assert.deepEqual(r.routing?.[0], { step: 'click the Details button', handle: 0.69, executor: 'caller' });
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'low-confidence');
+  assert.equal(r.step_review?.step, 'click the Details button');
+  const labels = (r.step_review?.candidates ?? []).map((c) => c.label);
+  assert.ok(labels.length >= 2, 'both plausible candidates appear in the evidence');
+  assert.ok(labels.some((l) => l.includes('button "Details"')), `criteria label missing: ${labels.join(' | ')}`);
+  assert.ok(labels.some((l) => l.includes('button "Other"')), `criteria label missing: ${labels.join(' | ')}`);
   assert.equal(h.driver.actCalls().length, 0);
   assert.equal(h.requests.length, 1);
+  assert.equal(r.note, CALLER_LINE);
 });
 
-// 3. exec=caller wins even at a high handle (decision rule 2, not rule 1).
-test('exec caller with a high handle grade returns route-caller and never acts', async () => {
+// 4. Bounce evidence is redacted: a binding value planted in the element names
+// and the step text never survives into the result or any request.
+test('bounce evidence is redacted', async () => {
+  const values = { email: 'secret.value@example.com' };
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [
+            el({ name: 'secret.value@example.com' }),
+            el({ id: 'e2', path: '#e2', name: 'Other', fingerprint: { tag: 'button', role: 'button', name: 'Other', x: 0, y: 0 } }),
+          ],
+        }),
+      ],
+    },
+    script: [S({ target: ['e1', { e1: 0.6, e2: 0.55 }] })],
+  });
+  const r = await h.call({
+    goal: 'g',
+    step: 'fill secret.value@example.com into the field',
+    values,
+  });
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.step, 'fill <value:email> into the field');
+  assertNoValues(JSON.stringify(r), values);
+  for (const request of h.requests) {
+    assertNoValues(JSON.stringify(request), values);
+  }
+});
+
+// 5. Target none bounces as no-match.
+test('target none bounces as no-match', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9, exec1: ['caller', { caller: 0.9, wingman: 0.05 }] })],
+    script: [S({ target: ['none', { none: 0.9, e1: 0.05, ambiguous: 0.05 }] })],
+    config: { takeover: { retry: false } },
   });
   const r = await h.call({ goal: 'g', step: 's' });
   assert.equal(r.status, 'fallback');
-  assert.equal(r.reason, 'route-caller');
-  assert.equal(r.routing?.[0].executor, 'caller');
-  assert.equal(r.routing?.[0].handle, 0.9);
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 4. Grader misbehaviour is route-unclear, not a low grade.
-test('a missing handle answer is ambiguous route-unclear and never acts', async () => {
+// 6. Target ambiguous bounces as multi-match.
+test('target ambiguous bounces as multi-match', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [R()], // exec1 only: no handle1 answer
+    script: [S({ target: ['ambiguous', { ambiguous: 0.8, e1: 0.1, none: 0.1 }] })],
+    config: { takeover: { retry: false } },
   });
   const r = await h.call({ goal: 'g', step: 's' });
-  assert.equal(r.status, 'ambiguous');
-  assert.equal(r.reason, 'route-unclear');
-  assert.equal(r.routing?.[0].handle, null);
-  assert.equal(r.routing?.[0].executor, 'caller');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'multi-match');
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 5. A high batch takes over once; steps 2–n are absorbed by the continuation.
-test('a batch whose steps all grade high takes over once and absorbs the remaining steps', async () => {
+// 7. An action-none entry round bounces as no-match, with candidates.
+test('an action-none round bounces as no-match with candidates', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [
-      R({
-        handle1: 0.9, handle2: 0.9, handle3: 0.9,
-        exec2: ['wingman', { wingman: 0.9, caller: 0.05 }],
-        exec3: ['wingman', { wingman: 0.9, caller: 0.05 }],
-      }),
+      {
+        done: 0.3,
+        blocked: 0.05,
+        login: 0.05,
+        irreversible: 0.05,
+        action: ['none', { none: 0.9 }],
+        target: ['e1', { e1: 0.9 }],
+      },
+    ],
+    config: { takeover: { retry: false } },
+  });
+  const r = await h.call({ goal: 'g', step: 's' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.ok((r.step_review?.candidates ?? []).length >= 1, 'candidates carried in the evidence');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+// 8. Self-retry: an uncertain first round re-observes and re-asks once, and the
+// retry round commits. (Fail-first: KB-retry-skip bounces after one ask.)
+test('self-retry fires on a target-uncertain first round and the retry commits', async () => {
+  const h = harness({
+    observations: { p1: [observation(), observation()] },
+    script: [
+      S({ target: ['none', { none: 0.9, e1: 0.05, ambiguous: 0.05 }] }),
       S(),
       { done: 0.9 },
     ],
   });
-  const r = await h.call({ goal: 'g', steps: ['s1', 's2', 's3'] });
+  const r = await h.call({ goal: 'g', step: 'click Details' });
   assert.equal(r.status, 'done');
-  assert.equal(r.routing?.length, 3);
-  // One routing ask carrying all six questions; the takeover asks follow.
-  const q = h.requests[0].questions as Record<string, unknown>;
-  assert.equal(Object.keys(q).length, 6);
-  for (const k of ['handle1', 'exec1', 'handle2', 'exec2', 'handle3', 'exec3']) assert.ok(k in q, k);
-  assert.ok(h.driver.actCalls().length >= 1);
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.ok(h.requests.length >= 3, `retry round ran (asks: ${h.requests.length})`);
 });
 
-// 6. Mixed batch never partially executes (§ 8: a best-grade temp copy flips this).
-test('a mixed batch with a low first step returns the whole batch to the caller and never acts', async () => {
+// 9. Self-retry is skippable by config.
+test('self-retry is skippable by config', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [
-      R({
-        handle1: 0.3,
-        handle2: 0.95,
-        handle3: 0.95,
-        exec2: ['wingman', { wingman: 0.9, caller: 0.05 }],
-        exec3: ['wingman', { wingman: 0.9, caller: 0.05 }],
-      }),
-    ],
+    script: [S({ target: ['none', { none: 0.9, e1: 0.05, ambiguous: 0.05 }] })],
+    config: { takeover: { retry: false } },
   });
-  const r = await h.call({ goal: 'g', steps: ['s1', 's2', 's3'] });
+  const r = await h.call({ goal: 'g', step: 'click Details' });
   assert.equal(r.status, 'fallback');
-  assert.equal(r.reason, 'route-caller');
-  assert.equal(r.routing?.length, 3);
-  assert.equal(r.routing?.[0].executor, 'caller');
-  assert.equal(r.routing?.[1].executor, 'wingman');
-  assert.equal(h.driver.actCalls().length, 0);
+  assert.equal(r.reason, 'step-uncertain');
   assert.equal(h.requests.length, 1);
+  assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 7. A gate fire inside a takeover pauses with a token (§ 8 KB-gate target).
+// 10. The retry round's non-commit is final: exactly one retry, then bounce.
+test('a non-committing retry round is final', async () => {
+  const h = harness({
+    observations: { p1: [observation(), observation()] },
+    script: [
+      S({ target: ['none', { none: 0.9, e1: 0.05, ambiguous: 0.05 }] }),
+      S({ target: ['ambiguous', { ambiguous: 0.8, e1: 0.1, none: 0.1 }] }),
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 'click Details' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'multi-match', 'the bounce carries the retry round’s evidence');
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+// 11. A batch enters on step 1 only; steps 2–n are absorbed by the continuation.
+test('a batch enters on step 1 and absorbs steps 2–n', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [S(), { done: 0.9 }],
+  });
+  const r = await h.call({ goal: 'g', steps: ['s1', 's2', 's3'] });
+  assert.equal(r.status, 'done');
+  assert.ok(h.driver.actCalls().length >= 1);
+  // Round 1's state carries the redacted proposals[0] and never the others.
+  const state = JSON.stringify(h.requests[0].state);
+  assert.ok(state.includes('s1'), 'entry step text in round-1 state');
+  assert.ok(!state.includes('"s2"') && !state.includes('"s3"'), 'steps 2–n never enter the state');
+});
+
+// 12. A gate fire inside a takeover pauses with a token (§ 8 KB-gate target).
 test('takeover pauses at a gate fire with needs_confirmation, a token and the pending action', async () => {
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
-    script: [R({ handle1: 0.9 }), S()],
+    script: [S()],
   });
   const r = await h.call({ goal: 'Order', step: 'click Place order' });
   assert.equal(r.status, 'needs_confirmation');
@@ -360,8 +458,8 @@ test('takeover pauses at a gate fire with needs_confirmation, a token and the pe
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 8. A confirm token through browse_step runs the pending action once, no
-// routing ask (§ 8 KB-token target).
+// 13. A confirm token through browse_step runs the pending action once, with no
+// entry machinery (§ 8 KB-token target).
 test('a confirm token through browse_step executes exactly the pending action once', async () => {
   const h = harness({
     observations: { p1: [observation()] },
@@ -380,17 +478,18 @@ test('a confirm token through browse_step executes exactly the pending action on
   assert.equal(acts.length, 1);
   assert.equal(acts[0].elementId, 'e1');
   assert.equal(acts[0].op, 'click');
-  // The only ask is the continuation round; no routing ask ran.
+  // The only ask is the continuation round; no entry decision preceded it.
   assert.equal(h.requests.length, 1);
-  assert.ok(!('handle1' in (h.requests[0].questions as Record<string, unknown>)));
+  assertNoRoutingQuestions(h.requests[0]);
+  assert.equal(r.step_review, undefined);
 });
 
-// 9. A takeover continuation can end ambiguous, with the resume note.
+// 14. A takeover continuation can end ambiguous, with the resume note and no
+// step_review (continuation ends never carry it).
 test('takeover continuation ends ambiguous and returns that reason', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [
-      R({ handle1: 0.9 }),
       S(),
       {
         done: 0.3,
@@ -407,13 +506,14 @@ test('takeover continuation ends ambiguous and returns that reason', async () =>
   assert.equal(r.reason, 'no-action');
   assert.ok(Array.isArray(r.candidates));
   assert.equal(r.note, RESUME_LINE);
+  assert.equal(r.step_review, undefined);
 });
 
-// 10. The takeover shares wingman_do's step budget.
+// 15. The takeover shares wingman_do's step budget.
 test('takeover ends at budget-steps when max_steps is exhausted', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 }), S(), S()],
+    script: [S(), S()],
   });
   const r = await h.call({ goal: 'g', step: 's', max_steps: 1 });
   assert.equal(r.status, 'fallback');
@@ -422,27 +522,26 @@ test('takeover ends at budget-steps when max_steps is exhausted', async () => {
   assert.equal(r.steps, 1);
 });
 
-// 11. Offer mode grades and offers, never acts.
-test('offer mode returns takeover-offered with routing and never acts', async () => {
+// 16. Offer mode: a committing round reports the offer, never acts.
+test('offer mode returns takeover-offered with step_review and never acts', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 })],
+    script: [S()],
     config: { takeover: { mode: 'offer' } },
   });
   const r = await h.call({ goal: 'g', step: 's' });
   assert.equal(r.status, 'fallback');
   assert.equal(r.reason, 'takeover-offered');
-  assert.equal(r.routing?.[0].executor, 'wingman');
+  assert.equal(r.step_review?.why, 'offered');
   assert.equal(r.note, OFFER_LINE);
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 12. takeover: true accepts an offer-mode proposal at a passing grade; the
-// threshold is never waived (a failing grade still refuses).
-test('takeover true accepts an offer-mode proposal at a passing grade; a failing grade still refuses', async () => {
+// 17. takeover: true executes; takeover: false observes and offers.
+test('takeover false observes and offers; takeover true executes', async () => {
   const h1 = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 }), S(), { done: 0.9 }],
+    script: [S(), { done: 0.9 }],
     config: { takeover: { mode: 'offer' } },
   });
   const r1 = await h1.call({ goal: 'g', step: 's', takeover: true });
@@ -451,48 +550,35 @@ test('takeover true accepts an offer-mode proposal at a passing grade; a failing
 
   const h2 = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.5 })],
-    config: { takeover: { mode: 'offer' } },
+    script: [S()],
   });
-  const r2 = await h2.call({ goal: 'g', step: 's', takeover: true });
+  const r2 = await h2.call({ goal: 'g', step: 's', takeover: false });
   assert.equal(r2.status, 'fallback');
-  assert.equal(r2.reason, 'route-caller');
+  assert.equal(r2.reason, 'takeover-offered');
+  assert.equal(r2.step_review?.why, 'offered');
   assert.equal(h2.driver.actCalls().length, 0);
 });
 
-// 13. takeover: false grades only, even in auto mode at a passing grade.
-test('takeover false grades only and returns takeover-offered at a passing grade', async () => {
+// 18. Shadow runs the entry round read-only.
+test('shadow runs the entry round read-only', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.95 })],
-  });
-  const r = await h.call({ goal: 'g', step: 's', takeover: false });
-  assert.equal(r.status, 'fallback');
-  assert.equal(r.reason, 'takeover-offered');
-  assert.equal(h.driver.actCalls().length, 0);
-});
-
-// 14. Shadow grades read-only, with routing and no act.
-test('shadow grades and returns fallback shadow with routing and never acts', async () => {
-  const h = harness({
-    observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 })],
+    script: [S()],
     forceMode: 'shadow',
   });
   const r = await h.call({ goal: 'g', step: 's' });
   assert.equal(r.status, 'fallback');
   assert.equal(r.reason, 'shadow');
   assert.equal(r.shadow, true);
-  assert.equal(r.routing?.[0].executor, 'wingman');
   assert.equal(h.requests.length, 1);
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 15. The policy check precedes the routing ask: no Jev call on a sensitive page.
-test('a sensitive page stops takeover before the routing ask', async () => {
+// 19. The policy check precedes any ask: no Jev call on a sensitive page.
+test('a sensitive page stops before any ask', async () => {
   const h = harness({
     observations: { p1: [observation({ signals: { ...cleanSignals, password: true } })] },
-    script: [R({ handle1: 0.9 })],
+    script: [S()],
   });
   const r = await h.call({ goal: 'g', step: 's' });
   assert.equal(r.status, 'fallback');
@@ -502,11 +588,11 @@ test('a sensitive page stops takeover before the routing ask', async () => {
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 16. The operator's gate-off stance is reachable from a takeover.
+// 20. The operator's gate-off stance is reachable from a takeover.
 test('gate mode off lets a takeover act on a submit button without needs_confirmation', async () => {
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
-    script: [R({ handle1: 0.9 }), S(), { done: 0.9 }],
+    script: [S(), { done: 0.9 }],
     config: { gate: { mode: 'off' } },
   });
   const r = await h.call({ goal: 'Order', step: 'click Place order' });
@@ -516,7 +602,7 @@ test('gate mode off lets a takeover act on a submit button without needs_confirm
   assert.equal(h.driver.actCalls().length, 1);
 });
 
-// 17. Exactly one of step/steps.
+// 21. Exactly one of step/steps.
 test('an input with both step and steps is invalid-input; an input with neither is invalid-input', async () => {
   const h1 = harness({ observations: { p1: [observation()] }, script: [] });
   const r1 = await h1.call({ goal: 'g', step: 's', steps: ['a', 'b'] });
@@ -529,7 +615,7 @@ test('an input with both step and steps is invalid-input; an input with neither 
   assert.equal(r2.reason, 'invalid-input');
 });
 
-// 18. Batch size bounds.
+// 22. Batch size bounds.
 test('an empty steps array or a 4-step batch is invalid-input', async () => {
   const h1 = harness({ observations: { p1: [observation()] }, script: [] });
   const r1 = await h1.call({ goal: 'g', steps: [] });
@@ -542,16 +628,20 @@ test('an empty steps array or a 4-step batch is invalid-input', async () => {
   assert.equal(r2.reason, 'invalid-input');
 });
 
-// 19. The § 3.17 note table, exact strings.
-test('route-caller results carry the caller note; takeover-offered the offer note; a non-done takeover end the resume note', async () => {
-  const h1 = harness({ observations: { p1: [observation()] }, script: [R({ handle1: 0.3 })] });
+// 23. The § 3.17 note table, exact strings.
+test('step-uncertain results carry the caller note; takeover-offered the offer note; a non-done takeover end the resume note', async () => {
+  const h1 = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.6, e2: 0.55 }] })],
+    config: { takeover: { retry: false } },
+  });
   const r1 = await h1.call({ goal: 'g', step: 's' });
-  assert.equal(r1.reason, 'route-caller');
+  assert.equal(r1.reason, 'step-uncertain');
   assert.equal(r1.note, CALLER_LINE);
 
   const h2 = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 })],
+    script: [S()],
     config: { takeover: { mode: 'offer' } },
   });
   const r2 = await h2.call({ goal: 'g', step: 's' });
@@ -560,7 +650,7 @@ test('route-caller results carry the caller note; takeover-offered the offer not
 
   const h3 = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 }), S(), S()],
+    script: [S(), S()],
   });
   const r3 = await h3.call({ goal: 'g', step: 's', max_steps: 1 });
   assert.equal(r3.status, 'fallback');
@@ -568,11 +658,12 @@ test('route-caller results carry the caller note; takeover-offered the offer not
   assert.equal(r3.note, RESUME_LINE);
 });
 
-// 20. Exactly one log record per call; routing absent on a token continuation.
+// 24. Exactly one log record per call; step_review absent on a token
+// continuation.
 test('exactly one log record per browse_step call with tool browse_step', async () => {
   const h1 = harness({
     observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 }), S(), { done: 0.9 }],
+    script: [S(), { done: 0.9 }],
   });
   const r1 = await h1.call({ goal: 'g', step: 's' });
   assert.equal(r1.status, 'done');
@@ -589,25 +680,5 @@ test('exactly one log record per browse_step call with tool browse_step', async 
   });
   const r2 = await h2.call({ goal: 'g', step: 's', confirm_token: token });
   assert.equal(r2.status, 'done');
-  assert.equal(r2.routing, undefined);
-});
-
-// 21. Binding values never reach any request, even when the step and goal echo
-// them (§ 8: the unredacted-builder leak throws here).
-test('binding values never appear in any routing or round request when the step text echoes them', async () => {
-  const values = { email: 'secret.value@example.com' };
-  const h = harness({
-    observations: { p1: [observation()] },
-    script: [R({ handle1: 0.9 }), S(), { done: 0.9 }],
-  });
-  const r = await h.call({
-    goal: 'Subscribe secret.value@example.com to the newsletter',
-    step: 'fill secret.value@example.com into the email field and click Details',
-    values,
-  });
-  assert.equal(r.status, 'done');
-  assert.ok(h.requests.length >= 2);
-  for (const request of h.requests) {
-    assertNoValues(JSON.stringify(request), values);
-  }
+  assert.equal(r2.step_review, undefined);
 });
