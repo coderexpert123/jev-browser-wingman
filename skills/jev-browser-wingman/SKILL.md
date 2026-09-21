@@ -33,6 +33,11 @@ State one outcome, and pass variable text as bindings:
 Bindings are typed locally and never sent to the decision service. Keep
 secrets out of `goal`; put text the page must receive into `values`.
 
+The same applies to `browse_step`: propose the whole remaining outcome as the
+goal (e.g. `complete the form and submit`), not single actions (`click
+Continue`) — the tool continues autonomously across pages until the outcome is
+done, which is several times faster than one action per call.
+
 ## What each status means
 
 | Status | Meaning | What to do |
