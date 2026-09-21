@@ -383,3 +383,82 @@ withheld — this file rides a public-bound repository). Gates:
   session's CLI address are still "foreign" to the `pa run commit` zclaude
   worker (COMMIT-DEFERRED). Release claims (renew `--ttl 1`, let lapse) before
   committing, or the commit defers.
+
+## Results from the takeover-tightening bench pass (2026-09-21)
+
+- **First browse-route t9 oracle TRUE** (results 2026-09-21-1947,
+  `BENCH_GATE_OFF=1 BENCH_POLICY_OFF=1`, cap 2.00): 9 `browse_step` calls,
+  28 rounds (deep continuation real — one call ran 8 steps before a
+  `budget-steps` fallback), 4 fallbacks (3x `step-uncertain` at entry,
+  1x `budget-steps`), 3 mid-takeover `target-uncertain` bounces — the new
+  rule-6 candidate-set bar bouncing exactly the multi-candidate rounds the
+  old fixed 0.5 bar would have acted on. Wall 239.2 s (best browse wall yet;
+  prior definitive cells killed at 600 s), typesafe spend 0.0013.
+- **Same-shape playwright control** (2026-09-21-1950): oracle TRUE,
+  158.4 s wall, 30 raw Playwright calls, 0.638 USD, 0 wingman involvement.
+  Browse won USD (~16% cheaper), playwright won wall (~34% faster);
+  n=1 per route — no statistical weight, direction only.
+- **The phase-ledger saturation gotcha no longer reproduces**: `run.js`
+  accepted `--phase-cap-usd 2.00` and both cells ran to completion —
+  `bench/results/` now holds only the 2026-09-21 files, so the ledger was
+  rotated since the 30.11 note. The `history + X` cap arithmetic works again
+  against the fresh ledger.
+
+## Gotchas from the real-page calibration (2026-09-21, calibration probe)
+
+- **browse_step entry on two-stage pages ALWAYS bounces `step-uncertain`/`no-match`** (proven
+  live on Amazon, Guardian and Wikipedia: 13/13 entry bounces with concrete target grades
+  0.37–1.00, incl. 1.00 twice): `entryUncertainty` (src/core/loop.ts, § 3.19 item 3) reads
+  `answers['action']` from `decisionAnswers`, which is request 2 in the two-stage shape — and
+  request 2 never carries `action` (pinned by loop.test.ts's two-stage test). Plain `wingman_do`
+  rounds are unaffected (decideTarget gets both maps). Fix shape: pass the request-1 answers
+  into the entry decision too. The two-stage test only covers non-entry rounds, which is why
+  the suite stays green.
+- **Jev's entry grades on real pages are bimodal and mostly honest about element choice**:
+  0.83–1.00 when the step's target was a well-labeled listed element, 0.37–0.38 when genuinely
+  ambiguous — but grades measure element choice only, never actability. 7/9 high grades that
+  were actually executed failed on `CoveredTargetError` (sticky header/consent overlay covers
+  the target on Guardian and NPR; Amazon's native sort select is covered by its styled control).
+  The question set has no "is it covered" probe; `blocked` asks only about captcha/paywall/etc.
+- **CAPTCHA_RE (page-scripts.ts) false-positives on whole real pages**: bbc.com and npr.org
+  both embed an iframe/element matching /captcha/i (login/ad widgets), so every browse_step
+  returns `blocked/captcha` BEFORE any ask (zero spend, zero grades). News sites are effectively
+  off-limits to the loop until the signal is scoped to real challenge widgets.
+- **Headless GitHub serves the loop a reduced repo page**: only 154 elements enumerated, no
+  Issues/Star/Watch/search targets in the table — Jev's `none` answers (0.86–0.99) were honest
+  given the table; the table, not the grader, was the bottleneck. GitHub steps then degrade to
+  a committed `scroll` (single-candidate rule) and `budget-steps`.
+- Probe artifacts (untracked `.calib/`, keeper of results-*.json): the ask-spy wrapper records
+  per-ask target probabilities, the direct-Driver phase executes Jev's own top candidate to get
+  would-succeed evidence, and verification is outcome-based main-world evals. Note: the
+  `twoStage`/`groupCount` fields in results-*.json under-report (detection bug in the spy), the
+  reliable two-stage markers are per-ask `count` ≈ 90 (top-3-groups subset) and askCount = 4
+  for 2 rounds.
+
+## Gotchas from the amendment 2026-09-21h implementation pass (2026-09-21)
+
+- **The scripted ask echoes `S()` defaults into EVERY request** — a two-stage
+  test whose request 2 should carry no `action` answer must say
+  `S({ ..., action: undefined })`, or the fake smuggles the verb in and the
+  fail-first test passes against the un-fixed code (proven: the carry test
+  passed pre-fix until the key was dropped, then failed `no-match`).
+- **Fix shape that satisfies the two-stage + obstruction pins**: the entry
+  decision gets `{ ...primary, ...secondary }` (request 2 never repeats the
+  verb question); the covered-target gate sits between entry commit and
+  `decideTarget` — before any value ask, after the retry decision, so a
+  covered target costs one ask, zero acts, and no self-retry.
+- **Enumerate probe semantics**: `elementFromPoint` at the rect center; a
+  point off-viewport answers null and is NOT evidence of a cover (`obscured`
+  stays false), and a `pointer-events: none` cover is skipped by the browser
+  so it never reports covered — act-time `CoveredTargetError` remains the
+  backstop for both.
+- **The leaked-Chrome wedge is self-compounding**: the one-invocation full
+  suite held 160-225 Chromes, leaked ones pushed the box to 440 chrome.exe,
+  and at that point WMI, `tasklist` AND `Get-Process` all stall — the sweep
+  itself cannot enumerate. Sweep by the `wingman-ephemeral-` cmdline marker
+  IMMEDIATELY after each chunk (scoped runs leak a few per launch failure),
+  and never run the suite as one invocation on this 16 GB machine.
+- **`run-tests.mjs` output piped through `tail` loses everything but the
+  tail**: the runner buffers until the end, so `... | tail -40` in a gated
+  shell shows only the last screen — a 2-fail summary with the first failure
+  discarded. Redirect to a file, then read the file.

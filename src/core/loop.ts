@@ -985,7 +985,7 @@ async function runTool(
     let retried = false;
     const retryAllowed = entry !== undefined && takeoverOf(deps.config).retry;
     const entryReview = (
-      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered',
+      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered',
       candidates: Array<{ label: string }>,
     ): Partial<WingmanResult> => ({
       step_review: { step: capLabel(entryStep ?? ''), why, candidates },
@@ -1163,7 +1163,11 @@ async function runTool(
       let entryCommit = false;
       if (entryPending) {
         entryPending = false;
-        const uncertainty = entryUncertainty(decisionAnswers, obs);
+        // Amendment 2026-09-21h (two-stage action carry): on a dense page the
+        // verb lives in request 1's answers while the target lives in request
+        // 2's, and request 2 never repeats the action question. The entry
+        // decision reads both, so it gets request 1 merged under request 2.
+        const uncertainty = entryUncertainty({ ...primary, ...decisionAnswers }, obs);
         if (uncertainty !== null) {
           if (canRetry()) {
             retried = true;
@@ -1173,6 +1177,23 @@ async function runTool(
           return bounce(uncertainty, topTargetCandidates(decisionAnswers, obs, values));
         }
         entryCommit = true;
+        // Amendment 2026-09-21h (obstruction gate): an entry target the
+        // enumerate-time probe reports covered never acts — acting into an
+        // overlay is never right. Bounce target-covered with the criterion
+        // and the cover as evidence; no self-retry, because retrying the
+        // same ask cannot change the page — the caller dismisses the overlay
+        // and re-proposes.
+        const targetAnswer = decisionAnswers['target'] as JevChoiceAnswer | undefined;
+        const chosen = targetAnswer
+          ? obs.elements.find((e) => e.id === targetAnswer.choice)
+          : undefined;
+        if (chosen?.obscured) {
+          const evidence = topTargetCandidates(decisionAnswers, obs, values);
+          if (chosen.coveredBy) {
+            evidence.push({ label: capLabel(redactValues(chosen.coveredBy, values)) });
+          }
+          return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
+        }
       }
       const decide = await decideTarget(
         decisionAnswers,

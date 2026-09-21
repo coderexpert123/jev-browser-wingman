@@ -791,3 +791,89 @@ test('a continuation round at the threshold or above acts regardless of candidat
   assert.equal(r.status, 'done');
   assert.equal(h.driver.actCalls().length, 2);
 });
+
+// 30. Two-stage action carry (amendment 2026-09-21h, fail-first proof): on a
+// dense page the entry decision must see request 1's `action` answer. The
+// pre-amendment stage-2 decision set was `secondary ?? primary`, so `action`
+// read undefined and every dense-page entry bounced no-match.
+test('a two-stage entry round commits: request 1\'s action carries into the stage-2 decision', async () => {
+  const five = [
+    el(),
+    el({ id: 'e2', path: '#e2', name: 'Other' }),
+    el({ id: 'e3', path: '#e3', name: 'Third' }),
+    el({ id: 'e4', path: '#e4', name: 'Fourth' }),
+    el({ id: 'e5', path: '#e5', name: 'Fifth' }),
+  ];
+  const h = harness({
+    observations: { p1: [observation({ elements: five })] },
+    script: [
+      { action: ['click', { click: 0.9, none: 0.05 }], group: ['g1', { g1: 0.9, g2: 0.05 }] },
+      // Request 2 carries no action answer — the real two-stage shape (the
+      // question-level pin below). Without the carry fix the entry decision
+      // reads no verb here and bounces no-match.
+      S({ target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.0 }], action: undefined }),
+      { done: 0.9 },
+    ],
+    config: { budgets: { ...DEFAULT_BUDGETS, max_elements: 4 } },
+  });
+  const r = await h.call({ goal: 'g', step: 'click the Details button' });
+  assert.equal(h.requests.length, 3, 'group ask + target ask + done round');
+  const q1 = h.requests[0].questions as Record<string, unknown>;
+  const q2 = h.requests[1].questions as Record<string, unknown>;
+  assert.ok('group' in q1 && 'action' in q1, 'request 1 is the group request');
+  assert.ok(!('target' in q1), 'request 1 carries no target question');
+  assert.ok('target' in q2, 'request 2 is the target request');
+  assert.ok(!('action' in q2), 'request 2 never repeats the action question (the shape pin)');
+  assert.equal(r.status, 'done');
+  assert.equal(r.step_review, undefined);
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.equal(h.driver.actCalls()[0].elementId, 'e1');
+});
+
+// 31. Obstruction gate (amendment 2026-09-21h, fail-first proof): a committed
+// entry target the enumerate-time probe reports covered bounces target-covered
+// with redacted evidence, zero acts, and no self-retry — acting into an
+// overlay is never right; the caller dismisses it and re-proposes.
+test('an obscured entry target bounces target-covered with evidence and never acts', async () => {
+  const h = harness({
+    observations: {
+      p1: [observation({ elements: [el({ obscured: true, coveredBy: 'div#veil' })] })],
+    },
+    script: [S({ target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] })],
+  });
+  const r = await h.call({ goal: 'g', step: 'click the Details button', values: { email: '77secret99' } });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'target-covered');
+  assert.equal(r.step_review?.why, 'target-covered');
+  assert.equal(r.step_review?.step, 'click the Details button');
+  const labels = (r.step_review?.candidates ?? []).map((c) => c.label);
+  assert.ok(labels.length >= 1, 'evidence carried');
+  assert.ok(labels.some((l) => l.includes('button "Details"')), `criterion in evidence: ${labels.join(' | ')}`);
+  assert.ok(labels.some((l) => l.includes('div#veil')), `cover named in evidence: ${labels.join(' | ')}`);
+  assert.equal(h.driver.actCalls().length, 0);
+  assert.equal(h.requests.length, 1, 'no self-retry: the caller dismisses the overlay and re-proposes');
+  assert.equal(r.note, RESUME_LINE);
+  assertNoValues(JSON.stringify(r), { email: '77secret99' });
+  for (const req of h.requests) {
+    assertNoValues(JSON.stringify(req), { email: '77secret99' });
+  }
+});
+
+// 32. The gate keys on the chosen element only (amendment 2026-09-21h): an
+// unobscured target commits on a page that also lists obscured elements.
+test('an unobscured target commits on a page that also lists obscured elements', async () => {
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [el({ obscured: true, coveredBy: 'div#veil' }), el({ id: 'e2', path: '#e2', name: 'Other' })],
+        }),
+      ],
+    },
+    script: [S({ target: ['e2', { e2: 0.9, e1: 0.05, none: 0.0, ambiguous: 0.0 }] }), { done: 0.9 }],
+  });
+  const r = await h.call({ goal: 'g', step: 's' });
+  assert.equal(r.status, 'done');
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.equal(h.driver.actCalls()[0].elementId, 'e2');
+});

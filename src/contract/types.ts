@@ -19,7 +19,7 @@ export const REASONS = {
     'state-too-large', 'unsupported-page',
     'sensitive-banking', 'sensitive-payments', 'sensitive-webmail', 'sensitive-identity', 'sensitive-auth-path',
     'sensitive-government', 'sensitive-tax', 'sensitive-health', 'sensitive-password', 'sensitive-otp',
-    'sensitive-payment-field', 'step-uncertain', 'takeover-offered',
+    'sensitive-payment-field', 'step-uncertain', 'takeover-offered', 'target-covered',
   ],
 } as const;
 export type Reason = (typeof REASONS)[keyof typeof REASONS][number];
@@ -46,6 +46,8 @@ export interface ElementRecord {
   rect: Rect;
   form: number;            // index into Observation.forms, or -1
   options?: Array<{ value: string; label: string }>;   // native <select> only; label ≤80, value ≤200
+  obscured?: boolean;      // § 3.5 amendment 2026-09-21h: the enumerate-time occlusion probe found another element on top
+  coveredBy?: string;      // what covers it when `obscured` (tag plus #id), ≤80 chars; page-derived — redact before egress
   fingerprint: Fingerprint;
 }
 
@@ -107,7 +109,7 @@ export interface WingmanResult {
   note?: string;                      // static continuation hint on non-done wingman_do results; never page text
   step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
     step: string;                    // the redacted proposed step text, capped to LABEL_MAX
-    why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered';
+    why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered';
     candidates: Array<{ label: string }>;   // top 3 target candidates: redacted criteria labels
   };
   cost: { jev_calls: number; input_tokens: number; output_tokens: number; ms: number };

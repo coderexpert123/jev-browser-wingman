@@ -244,6 +244,30 @@ test('hit test reports covered on overlay.html', async () => {
   }
 });
 
+test('enumeration emits obscured and coveredBy on overlay.html', async () => {
+  // Amendment 2026-09-21h: the enumerate-time occlusion probe (§ 3.5). Every
+  // record carries a boolean `obscured`; a covered element also names its
+  // cover. Fail-first: the pre-amendment enumerate emits neither field, so the
+  // typeof assertion sees undefined.
+  const { page, close } = await withPage('/overlay.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    for (const e of obs.elements) {
+      assert.strictEqual(typeof e.obscured, 'boolean', `record ${e.id} carries a boolean obscured`);
+    }
+    const target = obs.elements.find((e) => e.name === 'Show details');
+    assert.ok(target, 'the veiled button is enumerated');
+    assert.strictEqual(target!.obscured, true);
+    assert.strictEqual(target!.coveredBy, 'div#veil');
+    const dismiss = obs.elements.find((e) => e.name === 'Dismiss');
+    assert.ok(dismiss, 'the banner button is enumerated');
+    assert.strictEqual(dismiss!.obscured, false);
+    assert.strictEqual(dismiss!.coveredBy, undefined);
+  } finally {
+    await close();
+  }
+});
+
 test('a button without a type attribute reports the defaulted submit type', async () => {
   const { page, close } = await withPage('/form.html');
   try {

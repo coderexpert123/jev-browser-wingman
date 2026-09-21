@@ -236,6 +236,22 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     var inViewport =
       vpRect.bottom > 0 && vpRect.right > 0 && vpRect.top < window.innerHeight && vpRect.left < window.innerWidth;
 
+    // Enumerate-time occlusion probe (§ 3.5 amendment 2026-09-21h): what is
+    // on top at the record's center right now? A hit that is neither the
+    // element nor its descendant means the element is covered and a click
+    // would land on the cover. A point outside the viewport answers null —
+    // that is not evidence of a cover, so `obscured` stays false.
+    var obscured = false;
+    var coveredBy: string | undefined;
+    if (vpRect.width > 0 && vpRect.height > 0) {
+      var top = document.elementFromPoint(vpRect.left + vpRect.width / 2, vpRect.top + vpRect.height / 2);
+      if (top && top !== pathEl && !pathEl.contains(top)) {
+        obscured = true;
+        var topTag = top.tagName.toLowerCase();
+        coveredBy = clip(topTag + (top.id ? '#' + top.id : ''), 80);
+      }
+    }
+
     var editable = false;
     if (tag === 'textarea') editable = true;
     else if (tag === 'input') {
@@ -298,6 +314,8 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     };
     if (isProxy) record.controlPath = controlPath;
     if (options) record.options = options;
+    record.obscured = obscured;
+    if (obscured) record.coveredBy = coveredBy;
     return record;
   }
 
