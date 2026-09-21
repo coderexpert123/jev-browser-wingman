@@ -1,0 +1,83 @@
+{
+  "date": "2026-09-21-0245.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "glm-5.3",
+  "cap_usd": 2,
+  "phase_cap_usd": 15,
+  "aborted": null,
+  "total_usd": 0.919206,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": false,
+      "wall_ms": 157541,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6302,
+      "llm": {
+        "input_tokens": 47502,
+        "output_tokens": 802,
+        "cache_read_tokens": 1090048,
+        "cache_write_tokens": 0,
+        "usd": 0.48155,
+        "cli_reported_usd": 0.802584
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.48155
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": false,
+      "wall_ms": 112009,
+      "browser_tool_calls": 25,
+      "per_step_ms": 4480,
+      "llm": {
+        "input_tokens": 29251,
+        "output_tokens": 827,
+        "cache_read_tokens": 1124992,
+        "cache_write_tokens": 0,
+        "usd": 0.437656,
+        "cli_reported_usd": 0.7294259999999999
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.437656
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 0,
+      "median_wall_ms": 157541,
+      "median_usd": 0.48155,
+      "fallback_rate": 0
+    },
+    "wingman": {
+      "success_rate": 0,
+      "median_wall_ms": 112009,
+      "median_usd": 0.437656,
+      "fallback_rate": 0
+    }
+  }
+}

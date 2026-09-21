@@ -1,0 +1,78 @@
+{
+  "date": "2026-09-21-0225.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 1.5,
+  "phase_cap_usd": 12.91,
+  "aborted": null,
+  "total_usd": 0.925724,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": false,
+      "wall_ms": 127817,
+      "browser_tool_calls": 25,
+      "per_step_ms": 5113,
+      "llm": {
+        "input_tokens": 51131,
+        "output_tokens": 1219,
+        "cache_read_tokens": 1150080,
+        "cache_write_tokens": 0,
+        "usd": 0.516702,
+        "cli_reported_usd": 0.86117
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.516702
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": false,
+      "wall_ms": 142583,
+      "browser_tool_calls": 25,
+      "per_step_ms": 5703,
+      "llm": {
+        "input_tokens": 8242,
+        "output_tokens": 1438,
+        "cache_read_tokens": 1209088,
+        "cache_write_tokens": 0,
+        "usd": 0.409022,
+        "cli_reported_usd": 0.681704
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.409022
+    }
+  ],
+  "summary": {
+    "wingman": {
+      "success_rate": 0,
+      "median_wall_ms": 135200,
+      "median_usd": 0.462862,
+      "fallback_rate": 0
+    }
+  }
+}

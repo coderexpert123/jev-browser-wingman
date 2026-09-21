@@ -1,0 +1,83 @@
+{
+  "date": "2026-09-21-0158.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 0.75,
+  "phase_cap_usd": 11,
+  "aborted": "cap",
+  "total_usd": 1.037082,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 167344,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6694,
+      "llm": {
+        "input_tokens": 50535,
+        "output_tokens": 752,
+        "cache_read_tokens": 1127936,
+        "cache_write_tokens": 0,
+        "usd": 0.501266,
+        "cli_reported_usd": 0.8354429999999998
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.501266
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "wingman",
+      "ok": false,
+      "wall_ms": 151234,
+      "browser_tool_calls": 25,
+      "per_step_ms": 6049,
+      "llm": {
+        "input_tokens": 56893,
+        "output_tokens": 1497,
+        "cache_read_tokens": 1142272,
+        "cache_write_tokens": 0,
+        "usd": 0.535816,
+        "cli_reported_usd": 0.8930260000000002
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.535816
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 167344,
+      "median_usd": 0.501266,
+      "fallback_rate": 0
+    },
+    "wingman": {
+      "success_rate": 0,
+      "median_wall_ms": 151234,
+      "median_usd": 0.535816,
+      "fallback_rate": 0
+    }
+  }
+}

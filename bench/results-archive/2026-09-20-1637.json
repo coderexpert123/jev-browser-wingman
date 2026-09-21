@@ -1,0 +1,48 @@
+{
+  "date": "2026-09-20-1637.json",
+  "purpose": "cap-proof",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 0.5,
+  "phase_cap_usd": 2.01,
+  "aborted": "cap",
+  "total_usd": 1.5,
+  "runs": [
+    {
+      "task": "t3-dynamic-controls",
+      "route": "playwright",
+      "ok": false,
+      "wall_ms": 240451,
+      "browser_tool_calls": 0,
+      "per_step_ms": 240451,
+      "llm": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0,
+        "cli_reported_usd": null
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 1.5
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 0,
+      "median_wall_ms": 240451,
+      "median_usd": 1.5,
+      "fallback_rate": 0
+    }
+  }
+}

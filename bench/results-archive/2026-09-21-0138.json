@@ -1,0 +1,168 @@
+{
+  "date": "2026-09-21-0138.json",
+  "purpose": "measure",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 0.75,
+  "phase_cap_usd": 9.7,
+  "aborted": "cap",
+  "total_usd": 0.866978,
+  "runs": [
+    {
+      "task": "t1-checkboxes",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 72576,
+      "browser_tool_calls": 4,
+      "per_step_ms": 18144,
+      "llm": {
+        "input_tokens": 45010,
+        "output_tokens": 969,
+        "cache_read_tokens": 175744,
+        "cache_write_tokens": 0,
+        "usd": 0.202288,
+        "cli_reported_usd": 0.33714700000000003
+      },
+      "typesafe": {
+        "calls": 3,
+        "input_tokens": 3731,
+        "output_tokens": 799,
+        "usd": 0.000157
+      },
+      "wingman": {
+        "calls": 3,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 150,
+        "first_observe_ms": 16,
+        "observe_ms": 11,
+        "jev_ms": 1056,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 4
+      },
+      "usd": 0.202445
+    },
+    {
+      "task": "t2-dropdown",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 100235,
+      "browser_tool_calls": 5,
+      "per_step_ms": 20047,
+      "llm": {
+        "input_tokens": 50157,
+        "output_tokens": 678,
+        "cache_read_tokens": 214208,
+        "cache_write_tokens": 0,
+        "usd": 0.224903,
+        "cli_reported_usd": 0.37483900000000003
+      },
+      "typesafe": {
+        "calls": 4,
+        "input_tokens": 76124,
+        "output_tokens": 12153,
+        "usd": 0.003197
+      },
+      "wingman": {
+        "calls": 4,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 206,
+        "first_observe_ms": 22,
+        "observe_ms": 10,
+        "jev_ms": 703,
+        "act_ms": 30,
+        "settle_ms": 242,
+        "rounds": 44
+      },
+      "usd": 0.228101
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 112067,
+      "browser_tool_calls": 6,
+      "per_step_ms": 18678,
+      "llm": {
+        "input_tokens": 50838,
+        "output_tokens": 1217,
+        "cache_read_tokens": 259072,
+        "cache_write_tokens": 0,
+        "usd": 0.248491,
+        "cli_reported_usd": 0.41415099999999994
+      },
+      "typesafe": {
+        "calls": 5,
+        "input_tokens": 65947,
+        "output_tokens": 13304,
+        "usd": 0.00277
+      },
+      "wingman": {
+        "calls": 5,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 184,
+        "first_observe_ms": 19,
+        "observe_ms": 9,
+        "jev_ms": 356,
+        "act_ms": 31,
+        "settle_ms": 234,
+        "rounds": 54
+      },
+      "usd": 0.25126
+    },
+    {
+      "task": "t4-add-elements",
+      "route": "wingman",
+      "ok": true,
+      "wall_ms": 95570,
+      "browser_tool_calls": 9,
+      "per_step_ms": 10619,
+      "llm": {
+        "input_tokens": 9340,
+        "output_tokens": 1660,
+        "cache_read_tokens": 440128,
+        "cache_write_tokens": 0,
+        "usd": 0.184958,
+        "cli_reported_usd": 0.30826400000000004
+      },
+      "typesafe": {
+        "calls": 6,
+        "input_tokens": 5085,
+        "output_tokens": 1104,
+        "usd": 0.000214
+      },
+      "wingman": {
+        "calls": 6,
+        "fallback": 0,
+        "needs_confirmation": 5
+      },
+      "wingman_phases": {
+        "attach_ms": 218,
+        "first_observe_ms": 13,
+        "observe_ms": 11,
+        "jev_ms": 902,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 10
+      },
+      "usd": 0.185172
+    }
+  ],
+  "summary": {
+    "wingman": {
+      "success_rate": 1,
+      "median_wall_ms": 97902.5,
+      "median_usd": 0.215273,
+      "fallback_rate": 0.5
+    }
+  }
+}

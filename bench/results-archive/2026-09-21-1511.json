@@ -1,0 +1,221 @@
+{
+  "date": "2026-09-21-1511.json",
+  "purpose": "experiment",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 4.4,
+  "phase_cap_usd": 30,
+  "aborted": "cap",
+  "total_usd": 4.979943,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 159588,
+      "browser_tool_calls": 27,
+      "per_step_ms": 5911,
+      "llm": {
+        "input_tokens": 54026,
+        "output_tokens": 1089,
+        "cache_read_tokens": 1357184,
+        "cache_write_tokens": 0,
+        "usd": 0.585568,
+        "cli_reported_usd": 0.9759470000000002
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.585568
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": false,
+      "wall_ms": 600682,
+      "browser_tool_calls": 7,
+      "per_step_ms": 85812,
+      "llm": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0,
+        "cli_reported_usd": null
+      },
+      "typesafe": {
+        "calls": 2,
+        "input_tokens": 8518,
+        "output_tokens": 1572,
+        "usd": 0.000358
+      },
+      "wingman": {
+        "calls": 2,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 182,
+        "first_observe_ms": 31,
+        "observe_ms": 12,
+        "jev_ms": 360,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 6
+      },
+      "usd": 1.500358
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": false,
+      "wall_ms": 59040,
+      "browser_tool_calls": 0,
+      "per_step_ms": 59040,
+      "llm": {
+        "input_tokens": 41864,
+        "output_tokens": 590,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0.134442,
+        "cli_reported_usd": 0.22407000000000002
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.134442
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": true,
+      "wall_ms": 282772,
+      "browser_tool_calls": 24,
+      "per_step_ms": 11782,
+      "llm": {
+        "input_tokens": 54102,
+        "output_tokens": 3397,
+        "cache_read_tokens": 1204224,
+        "cache_write_tokens": 0,
+        "usd": 0.574528,
+        "cli_reported_usd": 0.9575469999999998
+      },
+      "typesafe": {
+        "calls": 9,
+        "input_tokens": 83346,
+        "output_tokens": 14687,
+        "usd": 0.003501
+      },
+      "wingman": {
+        "calls": 9,
+        "fallback": 4,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 438,
+        "first_observe_ms": 65,
+        "observe_ms": 11,
+        "jev_ms": 351,
+        "act_ms": 27,
+        "settle_ms": 237,
+        "rounds": 69
+      },
+      "usd": 0.578029
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 166052,
+      "browser_tool_calls": 31,
+      "per_step_ms": 5357,
+      "llm": {
+        "input_tokens": 63891,
+        "output_tokens": 1161,
+        "cache_read_tokens": 1573824,
+        "cache_write_tokens": 0,
+        "usd": 0.681235,
+        "cli_reported_usd": 1.135392
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.681235
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": false,
+      "wall_ms": 600568,
+      "browser_tool_calls": 7,
+      "per_step_ms": 85795,
+      "llm": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "usd": 0,
+        "cli_reported_usd": null
+      },
+      "typesafe": {
+        "calls": 2,
+        "input_tokens": 7401,
+        "output_tokens": 1280,
+        "usd": 0.000311
+      },
+      "wingman": {
+        "calls": 2,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 156,
+        "first_observe_ms": 24,
+        "observe_ms": 17,
+        "jev_ms": 336,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 5
+      },
+      "usd": 1.500311
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 0.666667,
+      "median_wall_ms": 159588,
+      "median_usd": 0.585568,
+      "fallback_rate": 0
+    },
+    "browse": {
+      "success_rate": 0.333333,
+      "median_wall_ms": 600568,
+      "median_usd": 1.500311,
+      "fallback_rate": 0.666667
+    }
+  }
+}
