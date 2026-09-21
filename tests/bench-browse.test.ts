@@ -127,6 +127,13 @@ function resultsFiles(dir: string): string[] {
   return fs.readdirSync(dir).filter((n) => n.endsWith('.json'));
 }
 
+test('both routes carry the task goal verbatim in the prompt', () => {
+  for (const route of ['playwright', 'wingman', 'browse'] as BenchRoute[]) {
+    const prompt = buildPrompt(TASK, route);
+    assert.ok(prompt.includes(TASK.goal), `task goal missing from the ${route} prompt`);
+  }
+});
+
 test('browse route prompt carries no routing rules', () => {
   const browse = buildPrompt(TASK, 'browse');
   const playwright = buildPrompt(TASK, 'playwright');

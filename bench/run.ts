@@ -165,10 +165,14 @@ function readSecretsKey(secretsFile: string | null): string | null {
 }
 
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
-  // Route-neutral for 'playwright' and 'browse' (WP-T3): base + values +
+  // Route-neutral for 'playwright' and 'browse' (WP-T3): base + goal + values +
   // DONE, no routing rules, no wingman mention. Only the 'wingman' route
-  // carries the steering clauses.
-  let prompt = `Use the browser tools on the page that is already open. Stay on this site.`;
+  // carries the steering clauses. The task goal travels in EVERY prompt
+  // (2026-09-21 defect fix): without it the oracle endpoint is unreachable by
+  // instruction and every "oracle false" partly measures wandering. Goals in
+  // tasks.json are single-line ASCII, so the wingman cmd-spawn constraint
+  // (one line, ASCII) still holds.
+  let prompt = `Use the browser tools on the page that is already open. Stay on this site. Your goal: ${task.goal}`;
   if (route === 'wingman') {
     // The win32 spawn goes through `cmd /c` with verbatim arguments, so the
     // prompt MUST stay a single ASCII line: newlines split the command line
