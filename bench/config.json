@@ -2,7 +2,7 @@
   "cli": "claude",
   "model": "sonnet",
   "per_run_timeout_ms": 600000,
-  "max_turns": 25,
+  "max_turns": 40,
   "port": 9344,
   "routes": ["playwright", "wingman", "browse"],
   "repeats": 1,

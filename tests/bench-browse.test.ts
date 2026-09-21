@@ -12,6 +12,7 @@ import path from 'node:path';
 import {
   runBench,
   buildPrompt,
+  BROWSE_ENGAGEMENT_LINE,
   benchConfigText,
   allowedToolsFor,
   mcpConfigFor,
@@ -134,12 +135,23 @@ test('both routes carry the task goal verbatim in the prompt', () => {
   }
 });
 
-test('browse route prompt carries no routing rules', () => {
+test('browse route prompt carries the engagement line, not the wingman routing rules', () => {
   const browse = buildPrompt(TASK, 'browse');
   const playwright = buildPrompt(TASK, 'playwright');
-  assert.equal(browse, playwright);
-  assert.ok(!browse.toLowerCase().includes('wingman'));
+  // 2026-09-21 (operator): browse is no longer route-identical to playwright —
+  // it carries exactly one engagement line before the goal so the route
+  // measures usage-when-engaged. The wingman route's ROUTING RULES block is
+  // still forbidden here.
+  assert.notEqual(browse, playwright);
+  assert.ok(browse.includes(BROWSE_ENGAGEMENT_LINE), 'engagement line missing from the browse prompt');
+  const goalIdx = browse.indexOf(TASK.goal);
+  const engageIdx = browse.indexOf(BROWSE_ENGAGEMENT_LINE);
+  assert.ok(engageIdx !== -1 && goalIdx !== -1 && engageIdx < goalIdx, 'engagement line must precede the goal');
   assert.ok(!browse.includes('ROUTING RULES'));
+  assert.ok(!browse.includes('wingman_do'));
+  assert.ok(!playwright.toLowerCase().includes('wingman'));
+  // the goal itself stays verbatim
+  assert.ok(browse.includes(TASK.goal));
 });
 
 test('browse route allows the wingman tools', () => {

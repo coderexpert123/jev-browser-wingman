@@ -164,15 +164,29 @@ function readSecretsKey(secretsFile: string | null): string | null {
   return null;
 }
 
+// The browse route's single engagement line (2026-09-21, operator): it sits
+// BEFORE the goal in the prompt and is its only route-specific steering —
+// no routing rules. Kept ASCII and on the prompt's single line because the
+// win32 cmd spawn requires it.
+export const BROWSE_ENGAGEMENT_LINE =
+  'For this browsing task, use the wingman browse_step tool: propose your next step (or a short batch of steps) to it and it will execute or take over autonomously.';
+
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
-  // Route-neutral for 'playwright' and 'browse' (WP-T3): base + goal + values +
-  // DONE, no routing rules, no wingman mention. Only the 'wingman' route
-  // carries the steering clauses. The task goal travels in EVERY prompt
-  // (2026-09-21 defect fix): without it the oracle endpoint is unreachable by
+  // Route-neutral for 'playwright' (WP-T3): base + goal + values + DONE, no
+  // routing rules, no wingman mention. The 'wingman' route carries the
+  // steering clauses; the 'browse' route carries exactly one engagement line
+  // before the goal (2026-09-21, operator: browse measured 0/3 browse_step
+  // engagement with the tool merely registered, so the route now tests
+  // usage-when-engaged). The task goal travels in EVERY prompt (2026-09-21
+  // defect fix): without it the oracle endpoint is unreachable by
   // instruction and every "oracle false" partly measures wandering. Goals in
   // tasks.json are single-line ASCII, so the wingman cmd-spawn constraint
   // (one line, ASCII) still holds.
-  let prompt = `Use the browser tools on the page that is already open. Stay on this site. Your goal: ${task.goal}`;
+  let prompt = 'Use the browser tools on the page that is already open. Stay on this site.';
+  if (route === 'browse') {
+    prompt += ` ${BROWSE_ENGAGEMENT_LINE}`;
+  }
+  prompt += ` Your goal: ${task.goal}`;
   if (route === 'wingman') {
     // The win32 spawn goes through `cmd /c` with verbatim arguments, so the
     // prompt MUST stay a single ASCII line: newlines split the command line
