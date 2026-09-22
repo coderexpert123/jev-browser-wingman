@@ -142,6 +142,11 @@ export async function profileHolders(
   const withPort: Array<{ pid: number; port: number }> = [];
   const withoutPort: number[] = [];
   for (const p of procs) {
+    // Chrome's own child processes (--type=gpu-process, --type=crashpad-handler,
+    // --type=utility, ...) carry --user-data-dir but never the debug port; the
+    // main browser process never carries --type=. Counting children as holders
+    // made every gate fail while the managed Chrome itself was running (OG-1).
+    if (p.cmdline.includes('--type=')) continue;
     if (!profileMarkerMatches(p.cmdline, profileDir)) continue;
     const port = debugPortOf(p.cmdline);
     if (port === null) {

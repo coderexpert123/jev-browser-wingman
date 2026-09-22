@@ -8,6 +8,7 @@ import {
   chromeStatus,
   stopChrome,
   profileMarkerMatches,
+  profileHolders,
 } from '../src/browser/chrome.js';
 import { launchTestChrome } from './helpers/chrome.js';
 
@@ -375,6 +376,34 @@ test('profileMarkerMatches rejects a sibling dir prefix', () => {
   assert.equal(profileMarkerMatches(`chrome --user-data-dir=${PROFILE}2`, PROFILE), false);
   assert.equal(profileMarkerMatches(`chrome --user-data-dir=${PROFILE}`, PROFILE), true);
 });
+
+test('profileHolders counts Chrome child processes (--type=) as non-holders (OG-1)', async () => {
+  const ours = 'C:\\Users\\u\\AppData\\Local\\Temp\\wingman-ephemeral-x';
+  const other = 'C:\\Users\\u\\AppData\\Local\\Temp\\other-profile';
+  // Realistic Windows cmdlines: quoted exe path, embedded quoting on the
+  // profile dir, plus the switches chrome.exe actually carries on win32.
+  const listChromeProcesses = async () => [
+    // (a) main browser process on OUR profile with the debug port -> holder, withPort
+    { pid: 58260, cmdline: `"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 "--user-data-dir=${ours}" --no-first-run` },
+    // (b) chrome's own gpu child on OUR profile, no port -> NOT a holder
+    { pid: 48536, cmdline: `"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" --type=gpu-process "--user-data-dir=${ours}" --mojo-platform-channel-handle=...` },
+    // (c) chrome's own crashpad child on OUR profile, no port -> NOT a holder
+    { pid: 17244, cmdline: `"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" --type=crashpad-handler "--user-data-dir=${ours}"` },
+    // (d) foreign main browser process on ANOTHER profile, no port -> holder, withoutPort
+    { pid: 23612, cmdline: `"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" "--user-data-dir=${other}"` },
+  ];
+  // On OUR profile: only the main process is a holder; the --type= children are
+  // excluded, and the foreign chrome is not a holder of this profile at all.
+  const oursResult = await profileHolders(ours, { listChromeProcesses });
+  assert.deepEqual(oursResult.withPort, [{ pid: 58260, port: 9222 }]);
+  assert.deepEqual(oursResult.withoutPort, []);
+  // On the FOREIGN profile: its main process is still a holder without a port
+  // (this is what the G4 / V4 / profile-safe gate must keep catching).
+  const otherResult = await profileHolders(other, { listChromeProcesses });
+  assert.deepEqual(otherResult.withPort, []);
+  assert.deepEqual(otherResult.withoutPort, [23612]);
+});
+
 
 test('launchEphemeralChrome returns an answering endpoint and close removes the profile', async () => {
   const chrome = await launchTestChrome();
