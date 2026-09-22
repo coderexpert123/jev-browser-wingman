@@ -16,7 +16,7 @@ Positioning, from the design evaluation:
 
 Added by this design:
 
-- A sensitive-surface policy evaluated before any data leaves the machine.
+- A sensitive-surface policy, opt-in via `policy.mode: 'enforce'`, that returns `fallback` before any data leaves a sensitive page.
 - A pluggable driver layer with a shared conformance suite.
 - Numbers measured against the LLM-plus-Playwright baseline.
 
@@ -50,7 +50,7 @@ Labels in results are untrusted page text. Confirm tokens flow through MCP or th
 
 ## Security model
 
-Values typed into the page never leave the machine. A sensitive-surface policy (host categories, login paths, password and OTP page signals) returns `fallback` before any data leaves. An irreversible gate requires a single-use `confirm_token` bound to page URL, element fingerprint and verb before submit-like actions execute.
+Values typed into the page never leave the machine. By default, wingman sends page content to TypeSafe on all pages, including sensitive ones (banking, mail). Set `policy.mode: 'enforce'` to fail closed on sensitive pages: a policy hit (host categories, login paths, password and OTP page signals) returns `fallback` before any data leaves. An irreversible gate requires a single-use `confirm_token` bound to page URL, element fingerprint and verb before submit-like actions execute.
 
 What leaves the machine: origin and path (no query or fragment), title, element roles and labels (≤80 chars), the text excerpt, the goal, binding names and type hints, and a verb-plus-label history. Never leaves: values, hidden or prefilled input values, cookies, storage, screenshots, password fields. Page text is data, never instructions, and Jev emits no text, so injection can only bias a bounded selection.
 
@@ -71,6 +71,7 @@ Machine-local config at `<wingmanHome>/config.json` (default `~/.jev-browser-win
 | `sensitive_hosts` | object | `{}` | keys from `SENSITIVE_HOST_CATEGORIES`; values are arrays of host suffixes |
 | `budgets` | object | `DEFAULT_BUDGETS` | each key optional; each value within `BUDGET_LIMITS` |
 | `gate` | object | `{ mode: "confirm" }` | only key `mode`: `"confirm"` (default) or `"off"`; `off` disables the irreversible gate |
+| `policy` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"enforce"`; `enforce` fails closed on sensitive pages |
 
 Unknown top-level keys fail. The config is never synced across machines.
 

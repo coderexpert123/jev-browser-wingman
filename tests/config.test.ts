@@ -170,7 +170,7 @@ test('an unknown key inside gate fails', async () => {
   }
 });
 
-test('policy.mode accepts enforce and off and defaults to enforce', async () => {
+test('policy.mode accepts enforce and off and defaults to off', async () => {
   const readPolicyMode = (config: WingmanConfig): string | undefined =>
     (config as WingmanConfig & { policy?: { mode?: string } }).policy?.mode;
 
@@ -194,7 +194,7 @@ test('policy.mode accepts enforce and off and defaults to enforce', async () => 
   const absentResult = await loadConfig(envFor(home3));
   assert.equal(absentResult.ok, true);
   if (absentResult.ok) {
-    assert.equal(readPolicyMode(absentResult.config), 'enforce');
+    assert.equal(readPolicyMode(absentResult.config), 'off');
   }
 });
 
@@ -218,20 +218,28 @@ test('an unknown key inside policy fails', async () => {
   }
 });
 
-test('policyModeOf mirrors gateModeOf on absent and off configs', async () => {
+test('policyModeOf defaults to off and honours an explicit enforce', async () => {
   const { policyModeOf, gateModeOf } = await import('../src/core/config.js');
 
   const home = mkHome();
   const absent = await loadConfig(envFor(home));
   assert.equal(absent.ok, true);
   if (absent.ok) {
-    assert.equal(policyModeOf(absent.config), 'enforce');
+    assert.equal(policyModeOf(absent.config), 'off');
     assert.equal(gateModeOf(absent.config), 'confirm');
   }
 
   const home2 = mkHome();
-  writeConfig(home2, { policy: { mode: 'off' } });
-  const off = await loadConfig(envFor(home2));
+  writeConfig(home2, { policy: { mode: 'enforce' } });
+  const enforced = await loadConfig(envFor(home2));
+  assert.equal(enforced.ok, true);
+  if (enforced.ok) {
+    assert.equal(policyModeOf(enforced.config), 'enforce');
+  }
+
+  const home3 = mkHome();
+  writeConfig(home3, { policy: { mode: 'off' } });
+  const off = await loadConfig(envFor(home3));
   assert.equal(off.ok, true);
   if (off.ok) {
     assert.equal(policyModeOf(off.config), 'off');

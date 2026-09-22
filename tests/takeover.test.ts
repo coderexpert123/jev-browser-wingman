@@ -16,7 +16,7 @@ import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
 import { DEFAULT_BUDGETS } from '../src/contract/constants.js';
-import type { GateMode, TakeoverMode } from '../src/contract/constants.js';
+import type { GateMode, PolicyMode, TakeoverMode } from '../src/contract/constants.js';
 import { assertNoValues } from '../src/core/withhold.js';
 import type {
   ElementRecord,
@@ -84,10 +84,11 @@ function page(overrides: Partial<PageInfo> = {}): PageInfo {
 function makeConfig(
   overrides: Partial<WingmanConfig> & {
     gate?: { mode: GateMode };
+    policy?: { mode: PolicyMode };
     takeover?: { threshold?: number; mode?: TakeoverMode; retry?: boolean };
   } = {},
 ): WingmanConfig {
-  const { gate, takeover, ...rest } = overrides;
+  const { gate, policy, takeover, ...rest } = overrides;
   return {
     mode: 'on',
     adapter: 'playwright',
@@ -101,6 +102,7 @@ function makeConfig(
     budgets: { ...DEFAULT_BUDGETS },
     ...rest,
     ...(gate ? { gate } : {}),
+    policy: policy ?? { mode: 'enforce' as PolicyMode },
     ...(takeover
       ? {
           takeover: {

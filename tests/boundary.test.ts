@@ -12,6 +12,7 @@ import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
 import { assertNoValues } from '../src/core/withhold.js';
 import { DEFAULT_BUDGETS } from '../src/contract/constants.js';
+import type { PolicyMode } from '../src/contract/constants.js';
 import type {
   ElementRecord,
   JevAnswer,
@@ -74,8 +75,11 @@ function page(overrides: Partial<PageInfo> = {}): PageInfo {
   return { id: 'p1', url: 'https://example.com/list', title: 'List', visible: true, ...overrides };
 }
 
-function makeConfig(overrides: Partial<WingmanConfig> = {}): WingmanConfig {
-  return {
+function makeConfig(
+  overrides: Partial<WingmanConfig> & { policy?: { mode: PolicyMode } } = {},
+): WingmanConfig {
+  const { policy, ...rest } = overrides;
+  const config: WingmanConfig & { policy?: { mode: PolicyMode } } = {
     mode: 'on',
     adapter: 'playwright',
     window: 'offscreen',
@@ -86,8 +90,10 @@ function makeConfig(overrides: Partial<WingmanConfig> = {}): WingmanConfig {
     plugin: null,
     sensitive_hosts: {},
     budgets: { ...DEFAULT_BUDGETS },
-    ...overrides,
+    ...rest,
+    policy: policy ?? { mode: 'enforce' },
   };
+  return config;
 }
 
 type NoulAnswers = { done?: number; blocked?: number; login?: number; error?: number; irreversible?: number };

@@ -283,11 +283,12 @@ export function gateModeOf(config: WingmanConfig): GateMode {
 }
 
 /** The policy mode in force for a config: `policy.mode` when the loaded config
- * carries it, the default ('enforce') otherwise (§ 3.7). Read through this
- * accessor everywhere; the WingmanConfig type predates the key. */
+ * carries it, the default ('off') otherwise (§ 3.8; amendment 2026-09-22 — the
+ * sensitive-surface guard is opt-in, so only an explicit 'enforce' arms it).
+ * Read through this accessor everywhere; the WingmanConfig type predates the key. */
 export function policyModeOf(config: WingmanConfig): PolicyMode {
   const policy = (config as WingmanConfig & { policy?: { mode?: unknown } }).policy;
-  return policy !== null && typeof policy === 'object' && policy.mode === 'off' ? 'off' : 'enforce';
+  return policy !== null && typeof policy === 'object' && policy.mode === 'enforce' ? 'enforce' : 'off';
 }
 
 /** The takeover config in force for a config: `takeover.threshold`/`takeover.mode`/`takeover.retry`
