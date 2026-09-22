@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execFile, execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(__dirname, '..');
@@ -61,6 +62,184 @@ if (files.length === 0) {
 
 const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-test-'));
 
+// Teardown-hardening (2026-09-22): this invocation's unique run token. It
+// rides every spawned test's env; launchEphemeralChrome copies it onto each
+// chrome command line inside its `--user-data-dir` value (profile dir
+// `wingman-ephemeral-<token>-`), and the sweep below
+// kills any chrome still carrying it before this runner exits — normal exit,
+// test failure, or delivered signal. This is the LEAK GUARANTEE; per-test
+// finally-blocks (and tests/helpers/chrome.ts's exit registry) are
+// best-effort only.
+const runToken = randomUUID();
+
+function execP(cmd, args, opts) {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, { windowsHide: true, timeout: 20_000, maxBuffer: 1024 * 1024 * 16, ...opts }, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
+  });
+}
+
+async function listChromes() {
+  try {
+    if (process.platform === 'win32') {
+      const stdout = await execP(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress`,
+        ],
+        { windowsHide: true },
+      );
+      const trimmed = stdout.trim();
+      if (!trimmed) return [];
+      let parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) parsed = [parsed];
+      return parsed
+        .filter((row) => typeof row.ProcessId === 'number' && typeof row.CommandLine === 'string')
+        .map((row) => ({ pid: row.ProcessId, cmdline: row.CommandLine }));
+    }
+    const stdout = await execP('ps', ['-ax', '-o', 'pid=,command='], { windowsHide: false });
+    const out = [];
+    for (const line of stdout.split('\n')) {
+      const m = line.trim().match(/^(\d+)\s+(.*)$/);
+      if (m && /chrome|chromium/i.test(m[2])) out.push({ pid: Number(m[1]), cmdline: m[2] });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+let sweepDone = false;
+
+async function sweepRunChromes(reason) {
+  if (sweepDone) return;
+  sweepDone = true;
+  const marker = `wingman-ephemeral-${runToken}`;
+  let leaked = [];
+  try {
+    leaked = (await listChromes()).filter((p) => p.cmdline.includes(marker));
+  } catch {
+    leaked = [];
+  }
+  if (leaked.length === 0) {
+    console.log(`RUN-TESTS: chrome sweep (${reason}): 0 matching chromes`);
+    return;
+  }
+  for (const p of leaked) {
+    console.log(`RUN-TESTS: chrome sweep (${reason}): kill pid=${p.pid}`);
+    try {
+      if (process.platform === 'win32') {
+        await execP('taskkill', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true, timeout: 15_000 });
+      } else {
+        try {
+          process.kill(-p.pid);
+        } catch {
+          // best-effort
+        }
+        try {
+          process.kill(p.pid);
+        } catch {
+          // best-effort
+        }
+      }
+    } catch {
+      // best-effort: logged the attempt either way
+    }
+  }
+  console.log(
+    `RUN-TESTS: chrome sweep (${reason}): ${leaked.length} leaked chrome process(es) killed (run token ${runToken.slice(0, 8)})`,
+  );
+}
+
+// Sync fallback for exit paths the async sweep cannot cover (a signal delivered
+// mid-run that Node turns into process exit before the handler's promise
+// settles). 'exit' handlers must be synchronous — hence execFileSync. Runs at
+// most once: the async sweep sets sweepDone first on the normal paths.
+function installExitHooks() {
+  process.on('exit', () => {
+    if (sweepDone) return;
+    sweepDone = true;
+    const marker = `wingman-ephemeral-${runToken}`;
+    try {
+      let rows = [];
+      if (process.platform === 'win32') {
+        const stdout = execFileSync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress`,
+          ],
+          { windowsHide: true, timeout: 20_000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+        );
+        const trimmed = stdout.trim();
+        if (trimmed) {
+          rows = JSON.parse(trimmed);
+          if (!Array.isArray(rows)) rows = [rows];
+        }
+      } else {
+        const stdout = execFileSync('ps', ['-ax', '-o', 'pid=,command='], {
+          timeout: 20_000,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        rows = stdout
+          .split('\n')
+          .map((line) => {
+            const m = line.trim().match(/^(\d+)\s+(.*)$/);
+            return m ? { ProcessId: Number(m[1]), CommandLine: m[2] } : null;
+          })
+          .filter((r) => r && /chrome|chromium/i.test(r.CommandLine));
+      }
+      for (const row of rows) {
+        if (typeof row.CommandLine !== 'string' || !row.CommandLine.includes(marker)) continue;
+        console.log(`RUN-TESTS: chrome sweep (exit): kill pid=${row.ProcessId}`);
+        try {
+          if (process.platform === 'win32') {
+            execFileSync('taskkill', ['/PID', String(row.ProcessId), '/T', '/F'], {
+              windowsHide: true,
+              timeout: 15_000,
+              stdio: 'ignore',
+            });
+          } else {
+            try {
+              process.kill(-row.ProcessId);
+            } catch {
+              // best-effort
+            }
+            try {
+              process.kill(row.ProcessId);
+            } catch {
+              // best-effort
+            }
+          }
+        } catch {
+          // best-effort
+        }
+      }
+    } catch {
+      // best-effort — nothing more can run at exit
+    }
+  });
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK']) {
+    try {
+      process.on(sig, () => {
+        sweepRunChromes(`signal ${sig}`)
+          .catch(() => {})
+          .finally(() => process.exit(1));
+      });
+    } catch {
+      // not every platform has every signal
+    }
+  }
+}
+
 const childEnv = { ...process.env };
 delete childEnv.NODE_TEST_CONTEXT;
 delete childEnv.TYPESAFE_API_KEY;
@@ -68,6 +247,9 @@ delete childEnv.TYPESAFE_BASE_URL;
 delete childEnv.WINGMAN_CDP_ENDPOINT;
 delete childEnv.PLAYWRIGHT_MCP_CDP_ENDPOINT;
 childEnv.WINGMAN_HOME = tmpHome;
+childEnv.WINGMAN_RUN_TOKEN = runToken;
+
+installExitHooks();
 
 let result;
 try {
@@ -120,21 +302,20 @@ while ((match = okLineRe.exec(stdout)) !== null) {
   }
 }
 
+// The leak guarantee runs on every post-run exit path (pass or fail) before
+// the process exits.
+const exitCode = zeroTestFiles.length > 0 || tests === 0 || fail !== 0 || result.status !== 0 ? 1 : 0;
+
 if (zeroTestFiles.length > 0) {
   for (const f of zeroTestFiles) {
     console.log(`RUN-TESTS: zero tests registered: ${path.basename(f)}`);
   }
-  process.exit(1);
 }
-
-if (tests === 0) {
+if (zeroTestFiles.length === 0 && tests === 0) {
   console.log('RUN-TESTS: zero tests registered');
-  process.exit(1);
 }
 
 console.log(`RUN-TESTS: files=${files.length} tests=${tests} pass=${pass} fail=${fail}`);
 
-if (fail === 0 && result.status === 0) {
-  process.exit(0);
-}
-process.exit(1);
+await sweepRunChromes('post-run');
+process.exit(exitCode);

@@ -49,7 +49,18 @@ export async function launchEphemeralChrome(
   if (!chromePath) {
     throw new Error('No Chrome executable found.');
   }
-  const profileDir = await mkdtemp(join(tmpdir(), 'wingman-ephemeral-'));
+  // Teardown-hardening (2026-09-22): when a test runner tags the environment
+  // with WINGMAN_RUN_TOKEN, bake the token into the ephemeral profile dir so
+  // every chrome carrying `--user-data-dir=<profile>` exposes the run token on
+  // its command line — that is how the runner's exit sweep identifies (and
+  // kills) anything this run leaked. The tag must ride user-data-dir, NOT an
+  // extra switch: an unknown switch (`--wingman-run-token=...`) breaks headless
+  // chrome startup (A/B proven 2026-09-22 — endpoint never answers). Unset
+  // (production, bench) = unchanged profile prefix.
+  const runToken = process.env.WINGMAN_RUN_TOKEN;
+  const profileDir = await mkdtemp(
+    join(tmpdir(), runToken ? `wingman-ephemeral-${runToken}-` : 'wingman-ephemeral-'),
+  );
   const args = [
     ...(headless ? ['--headless=new'] : []),
     '--remote-debugging-port=0',

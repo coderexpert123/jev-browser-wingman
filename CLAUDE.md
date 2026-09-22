@@ -162,7 +162,9 @@ withheld — this file rides a public-bound repository). Gates:
   temp profiles and they survive the parent; they must be swept (kill by that
   cmdline marker only) before any other suite can run, and the stale profile
   dirs under the OS temp dir need deleting too. Never kill a Chrome whose
-  profile is the shared browser profile.
+  profile is the shared browser profile. (2026-09-22: runners that EXIT —
+  normal, fail, or signal — now sweep their own token-tagged chromes at exit;
+  the manual marker sweep is only for hard-killed runners and bench chromes.)
 - **The spike's `--adapter dist-playwright|dist-cdp` mode (implemented 5839256,
   2026-09-20)** drives the shipped `createDriver` through `attach/pages/observe/
   act/detach` only, with act element ids found by matching the accessible name in
@@ -462,6 +464,28 @@ withheld — this file rides a public-bound repository). Gates:
   tail**: the runner buffers until the end, so `... | tail -40` in a gated
   shell shows only the last screen — a 2-fail summary with the first failure
   discarded. Redirect to a file, then read the file.
+
+## Gotchas from the teardown-hardening pass (2026-09-22)
+
+- **The runner token sweep is now the leak guarantee; per-test finally-blocks
+  are best-effort only.** Every `run-tests.mjs` invocation mints a unique
+  `WINGMAN_RUN_TOKEN`, passes it to each spawned test's env, and — before exit
+  on normal, fail, and delivered-signal paths (plus a sync `process.on('exit')`
+  fallback) — kills any chrome.exe whose command line carries
+  `--wingman-run-token=<token>` (PID tree; every kill logged as
+  `RUN-TESTS: chrome sweep (...)`). `launchEphemeralChrome` copies the env
+  token onto each chrome's command line, so every test chrome is tagged;
+  production and bench (token unset) are unchanged. A sync exit-registry
+  backstop in `tests/helpers/chrome.ts` tree-kills any browser still
+  registered when a test process dies without closing it. Fail-first proofs:
+  `tests/runner-sweep.test.ts`, both driving real code over a real leaked
+  chrome (the leak fixture is `tests/runner-sweep-leak.test.ts` — never
+  "fix" it; it is the drill target, and its chrome is killed by the sweep at
+  each run's exit).
+- **The token sweep cannot cover a hard-killed runner** (SIGKILL / taskkill of
+  `run-tests.mjs` itself): nothing survives that knows the token. Sweep run
+  leftovers manually by the `wingman-ephemeral-` cmdline marker as before —
+  and never kill a Chrome whose profile is the shared browser profile.
 
 ## Gotchas from the margin-rule pass (2026-09-22, amendment 2026-09-22)
 
