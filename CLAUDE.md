@@ -493,3 +493,28 @@ withheld — this file rides a public-bound repository). Gates:
   process-level counter (each test file is its own process, but tests within one file are not).
 - **`BROWSE_ENGAGEMENT_LINE` stays single-line ASCII**: the 2026-09-22 operator text's
   em-dash is folded to a hyphen for the win32 cmd spawn; keep any future wording change folded.
+
+## Results from the margin-rule validation bench pass (2026-09-22, 5 cells)
+
+- **Browse completed 3/3 for the first time** (results 2026-09-22-1059/1111/1125, all
+  t9-long-chain, gates off): walls 355.0 s (clean), 600.4 s (killed at the per-run
+  ceiling, oracle TRUE after the kill — the 1.5 killed-run charge booked and llm
+  telemetry lost), 580.9 s (clean). The bounce-stall failure mode that killed 4/6
+  cells in the 2026-09-21 final campaign is gone — 4 bounces total across the pass
+  (2+2+0), no tier-3 storm, no jev-error fallback storm.
+- **Playwright controls** (2026-09-22-1129/1131): oracle TRUE 2/2, 199.8 s and
+  161.0 s. Browse median 580.9 s vs playwright median 180.4 s — browse ~3.2x slower
+  (the 2026-09-21 pair was 239.2 vs 158.4, ~1.5x). Quality parity is now real;
+  wall parity regressed because the caller fragmented harder: 25 `browse_step`
+  delegations / 37 rounds in the best-telemetry cell vs 9 calls in the 239.2 s
+  cell. The binding constraint is caller turn-per-delegation overhead, unchanged.
+- **Escalation tiers must be reconstructed from log clustering, not read**:
+  `bench/.home/log.jsonl` records `status`/`reason` per call but never the goal
+  text (by design), so the tier of a bounce is only known if bounces are
+  CONSECUTIVE in the log — a non-bounce end between two bounces means either
+  tier 1→2 (same goal) or 1→1 (different step goals), indistinguishable. Cell
+  2's two bounces are that ambiguous shape.
+- **Read `log.jsonl` twice before trusting a fresh read**: minutes after a cell
+  finished, a read saw 147 lines; the same file then read 171 with the missing
+  24 calls backfilled (mechanism unproven — D: write-back/AV filter suspected).
+  A `wc -l` repeat or an mtime check is cheap insurance before tier analysis.

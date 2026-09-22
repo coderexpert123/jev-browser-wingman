@@ -1,0 +1,57 @@
+{
+  "date": "2026-09-22-1059.json",
+  "purpose": "experiment",
+  "harness_version": 1,
+  "model": "sonnet",
+  "cap_usd": 4,
+  "phase_cap_usd": 4,
+  "aborted": null,
+  "total_usd": 0.486932,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "browse",
+      "ok": true,
+      "wall_ms": 355036,
+      "browser_tool_calls": 6,
+      "per_step_ms": 59173,
+      "llm": {
+        "input_tokens": 55122,
+        "output_tokens": 8682,
+        "cache_read_tokens": 636608,
+        "cache_write_tokens": 0,
+        "usd": 0.486578,
+        "cli_reported_usd": 0.810964
+      },
+      "typesafe": {
+        "calls": 6,
+        "input_tokens": 8425,
+        "output_tokens": 1982,
+        "usd": 0.000354
+      },
+      "wingman": {
+        "calls": 6,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 564,
+        "first_observe_ms": 295,
+        "observe_ms": 39,
+        "jev_ms": 351,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 7
+      },
+      "usd": 0.486932
+    }
+  ],
+  "summary": {
+    "browse": {
+      "success_rate": 1,
+      "median_wall_ms": 355036,
+      "median_usd": 0.486932,
+      "fallback_rate": 1
+    }
+  }
+}
