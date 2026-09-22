@@ -500,6 +500,26 @@ withheld — this file rides a public-bound repository). Gates:
   (owner session's call) or run the test when it is down. Observed 2026-09-22
   during the teardown-hardening gates.
 
+## Gotchas from the OG-1 profileHolders fix (2026-09-22)
+
+- **Chrome's own child processes carry `--user-data-dir` but never the debug
+  port** (`--type=gpu-process`, `--type=crashpad-handler`, `--type=utility`,
+  …), and the main browser process never carries `--type=`. Any holder
+  detection that counts every chrome.exe matching the profile marker puts the
+  running managed Chrome's own children in `withoutPort` and FAILs preflight
+  G4 / verify V4 / doctor `profile-safe` while the managed Chrome itself is
+  up — the OG-1 cutover halt (shared Chrome 58260, children flagged). Fix
+  b9f3b14: `profileHolders` skips cmdlines containing `--type=`. Parent-pid
+  attribution was considered and rejected as less robust on Windows cmdlines.
+- **The gate semantics are "FOREIGN holder"**, not "any holder": a foreign
+  chrome on ANOTHER profile is never a holder of this profile at all
+  (`profileHolders(profile)` only matches that profile's marker), and a
+  foreign chrome on THIS profile without a port still must fail the gates —
+  both pinned by the fixture matrix in `tests/chrome.test.ts`.
+- **`run-tests.mjs` basenames EXCLUDE the `.test.js` suffix** — the runner
+  appends it (`chrome` → `chrome.test.js`); passing `chrome.test` matches
+  nothing (`No test files matched`).
+
 ## Gotchas from the margin-rule pass (2026-09-22, amendment 2026-09-22)
 
 - **The two-stage decision map is stage-2's alone**: a dominating stage-1 target grade (the measured 0.66) never enters the entry/continuation decision — `{...primary, ...secondary}` takes request 2's target answer wholesale, and stage 2 re-grades from scratch. The margin rule therefore fires only when ONE answer map holds both the dominating element and the beaten meta-answer; on two-stage pages a big stage-1 grade followed by an `ambiguous` stage-2 choice still bounces, by design. The `budget-steps`-at-8 mystery was simpler: the caller passed `max_steps: 8` in that `browse_step` call (schema allows 1–24; `runDoRounds` takes `min(caller, config 24)` — loop.ts's `maxSteps` line). Config default 24 applied in every other recorded call.
