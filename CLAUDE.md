@@ -486,6 +486,19 @@ withheld — this file rides a public-bound repository). Gates:
   `run-tests.mjs` itself): nothing survives that knows the token. Sweep run
   leftovers manually by the `wingman-ephemeral-` cmdline marker as before —
   and never kill a Chrome whose profile is the shared browser profile.
+- **Never tag a test Chrome with an extra unknown switch** (`--wingman-run-
+  token=...`): headless chrome writes `DevToolsActivePort` but its HTTP
+  endpoint never answers, so `launchEphemeralChrome` returns an endpoint
+  `chromeStatus` calls dead (A/B proven 2026-09-22, chrome.test
+  `launchEphemeralChrome returns an answering endpoint`). Chrome tolerates
+  unknown switches in general but not on this startup path — any future
+  tagging must ride `--user-data-dir` (as the token now does) or another
+  blessed argument.
+- **`cli.test.ts`'s `chrome show` no-browser test fails whenever the shared
+  bench Chrome is up** (it answers on default port 9222, so `chrome show`
+  succeeds with exit 0). Not a code defect: stop the shared-profile Chrome
+  (owner session's call) or run the test when it is down. Observed 2026-09-22
+  during the teardown-hardening gates.
 
 ## Gotchas from the margin-rule pass (2026-09-22, amendment 2026-09-22)
 
