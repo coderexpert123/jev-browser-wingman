@@ -230,6 +230,16 @@ const OFFER_LINE =
   'Takeover available — call browse_step again with the same arguments and takeover: true to accept, or do the step with your browser tools.';
 const RESUME_LINE =
   'Takeover paused — call browse_step again with the same goal (and the same values) to continue from here.';
+// Escalation tiers, inlined like the notes above (amendment 2026-09-22): a
+// bounce result's note at tier 1 is its static note plus TIER1; tiers 2/3
+// replace it. Bounce tests below use goal texts unique to their ladder — the
+// counter is module-level and shared by every test in this process.
+const TIER1 =
+  'Retry with a more specific description of the target, or perform this step yourself with your raw browser tools.';
+const TIER2 =
+  'wingman has now declined 2 steps of this goal. Complete the remaining steps with your own browser tools and stop calling wingman for this goal.';
+const TIER3 =
+  'wingman is not able to progress on this goal. Drive the remaining steps yourself; do not call wingman again for this goal.';
 
 function assertNoRoutingQuestions(request: JevRequest): void {
   const keys = Object.keys(request.questions as Record<string, unknown>);
@@ -286,7 +296,7 @@ test('a split round bounces low-confidence with step_review and never acts', asy
     script: [S({ target: ['e1', { e1: 0.6, e2: 0.55, none: 0.0, ambiguous: 0.0 }] })],
     config: { takeover: { retry: false } },
   });
-  const r = await h.call({ goal: 'g', step: 'click the Details button' });
+  const r = await h.call({ goal: 'esc-split-goal', step: 'click the Details button' });
   assert.equal(r.status, 'fallback');
   assert.equal(r.reason, 'step-uncertain');
   assert.equal(r.step_review?.why, 'low-confidence');
@@ -297,7 +307,9 @@ test('a split round bounces low-confidence with step_review and never acts', asy
   assert.ok(labels.some((l) => l.includes('button "Other"')), `criteria label missing: ${labels.join(' | ')}`);
   assert.equal(h.driver.actCalls().length, 0);
   assert.equal(h.requests.length, 1);
-  assert.equal(r.note, CALLER_LINE);
+  // First bounce on this goal: the caller note carries the tier-1 escalation
+  // (amendment 2026-09-22).
+  assert.equal(r.note, `${CALLER_LINE} ${TIER1}`);
 });
 
 // 4. Bounce evidence is redacted: a binding value planted in the element names
@@ -635,9 +647,12 @@ test('step-uncertain results carry the caller note; takeover-offered the offer n
     script: [S({ target: ['e1', { e1: 0.6, e2: 0.55 }] })],
     config: { takeover: { retry: false } },
   });
-  const r1 = await h1.call({ goal: 'g', step: 's' });
+  const r1 = await h1.call({ goal: 'esc-note-goal', step: 's' });
   assert.equal(r1.reason, 'step-uncertain');
-  assert.equal(r1.note, CALLER_LINE);
+  // First bounce on this goal: caller note + tier-1 escalation (amendment
+  // 2026-09-22). The offer and budget ends below are not bounces and keep
+  // their static notes.
+  assert.equal(r1.note, `${CALLER_LINE} ${TIER1}`);
 
   const h2 = harness({
     observations: { p1: [observation()] },
@@ -841,7 +856,7 @@ test('an obscured entry target bounces target-covered with evidence and never ac
     },
     script: [S({ target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] })],
   });
-  const r = await h.call({ goal: 'g', step: 'click the Details button', values: { email: '77secret99' } });
+  const r = await h.call({ goal: 'esc-covered-goal', step: 'click the Details button', values: { email: '77secret99' } });
   assert.equal(r.status, 'fallback');
   assert.equal(r.reason, 'target-covered');
   assert.equal(r.step_review?.why, 'target-covered');
@@ -852,7 +867,9 @@ test('an obscured entry target bounces target-covered with evidence and never ac
   assert.ok(labels.some((l) => l.includes('div#veil')), `cover named in evidence: ${labels.join(' | ')}`);
   assert.equal(h.driver.actCalls().length, 0);
   assert.equal(h.requests.length, 1, 'no self-retry: the caller dismisses the overlay and re-proposes');
-  assert.equal(r.note, RESUME_LINE);
+  // target-covered is a bounce and escalates (amendment 2026-09-22): first
+  // bounce on this goal is the resume note + tier 1.
+  assert.equal(r.note, `${RESUME_LINE} ${TIER1}`);
   assertNoValues(JSON.stringify(r), { email: '77secret99' });
   for (const req of h.requests) {
     assertNoValues(JSON.stringify(req), { email: '77secret99' });

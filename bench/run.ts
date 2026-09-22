@@ -164,12 +164,14 @@ function readSecretsKey(secretsFile: string | null): string | null {
   return null;
 }
 
-// The browse route's single engagement line (2026-09-21, operator): it sits
+// The browse route's single engagement line (2026-09-21, operator; full
+// outcome-phrasing and recovery guidance 2026-09-22, operator): it sits
 // BEFORE the goal in the prompt and is its only route-specific steering —
 // no routing rules. Kept ASCII and on the prompt's single line because the
-// win32 cmd spawn requires it.
+// win32 cmd spawn requires it (the 2026-09-22 text's em-dash is folded to a
+// hyphen for exactly that reason).
 export const BROWSE_ENGAGEMENT_LINE =
-  'For this browsing task, use the wingman browse_step tool: propose your next step (or a short batch of steps) to it and it will execute or take over autonomously.';
+  "For this browsing task, use the wingman browse_step tool: propose the WHOLE remaining outcome as the goal (e.g. 'complete the form and submit'), not single actions - it continues autonomously across pages. If it bounces a step, perform that step yourself with your raw browser tools and continue.";
 
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
   // Route-neutral for 'playwright' (WP-T3): base + goal + values + DONE, no

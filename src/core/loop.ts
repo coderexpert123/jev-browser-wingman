@@ -94,6 +94,24 @@ export const BROWSE_STEP_OFFER_LINE =
 export const BROWSE_STEP_RESUME_LINE =
   'Takeover paused — call browse_step again with the same goal (and the same values) to continue from here.';
 
+// Escalating bounce text (amendment 2026-09-22): when a browse_step call
+// bounces (status fallback, reason step-uncertain or target-covered), the
+// result note escalates by how many bounces this goal has already seen —
+// keyed on the goal text, in-process (one MCP-server process per caller
+// session, so a module-level map IS per-session state; nothing persists).
+// Tier 1 appends to the bounce's static note; tiers 2 and 3 replace it. Done
+// results carry no escalation; non-bounce non-done results keep the § 3.17
+// static table; wingman_do's CONTINUE_LINE is untouched. Static text only —
+// never page content, so the egress rules are unaffected.
+export const BOUNCE_TIER1_LINE =
+  'Retry with a more specific description of the target, or perform this step yourself with your raw browser tools.';
+export const BOUNCE_TIER2_LINE =
+  'wingman has now declined 2 steps of this goal. Complete the remaining steps with your own browser tools and stop calling wingman for this goal.';
+export const BOUNCE_TIER3_LINE =
+  'wingman is not able to progress on this goal. Drive the remaining steps yourself; do not call wingman again for this goal.';
+
+const bounceCounts = new Map<string, number>();
+
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
@@ -371,6 +389,9 @@ async function runTool(
   let steps = 0;
   let lastAction: { verb: Op; label: string } | undefined;
   let pageUrl: string | null = null;
+  // The browse_step goal text, set by runBrowse (the escalation counter's key;
+  // null for wingman_do and wingman_check, which never escalate).
+  let activeGoal: string | null = null;
 
   // Per-phase wall-time capture (ms). Numbers only — never page text.
   // `cur` is the round bucket the current ask/act/settle belongs to.
@@ -422,13 +443,24 @@ async function runTool(
     } else if (tool === 'browse_step' && r.status !== 'done') {
       // § 3.17 note table (amendment 2026-09-21d): done carries no note;
       // step-uncertain the caller line; takeover-offered the offer line;
-      // every other non-done status the resume line.
-      r.note =
+      // every other non-done status the resume line. Amendment 2026-09-22:
+      // a BOUNCE (step-uncertain, target-covered) escalates by the goal's
+      // prior bounce count — tier 1 appends the retry-or-take-over sentence
+      // to the static note, tiers 2/3 replace it. Offers, loop bounds and
+      // every other non-done end keep the static table unchanged.
+      const base =
         r.reason === 'step-uncertain'
           ? BROWSE_STEP_CALLER_LINE
           : r.reason === 'takeover-offered'
             ? BROWSE_STEP_OFFER_LINE
             : BROWSE_STEP_RESUME_LINE;
+      if ((r.reason === 'step-uncertain' || r.reason === 'target-covered') && activeGoal !== null) {
+        const n = (bounceCounts.get(activeGoal) ?? 0) + 1;
+        bounceCounts.set(activeGoal, n);
+        r.note = n === 1 ? `${base} ${BOUNCE_TIER1_LINE}` : n === 2 ? BOUNCE_TIER2_LINE : BOUNCE_TIER3_LINE;
+      } else {
+        r.note = base;
+      }
     }
     try {
       await deps.writeLog(buildLogRecord(r));
@@ -942,6 +974,7 @@ async function runTool(
   async function runBrowse(pageId: string, driver: Driver, stepInput: StepInput): Promise<WingmanResult> {
     const values = stepInput.values ?? {};
     const proposals = stepInput.steps ?? [stepInput.step as string];
+    activeGoal = stepInput.goal; // the bounce-escalation counter's key
 
     // Token continuation (§ 3.19 flow item 1): the token is handled at the
     // existing fixed point inside runDoRounds; no entry machinery, no
