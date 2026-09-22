@@ -5,13 +5,18 @@
   heuristic and Jev p(irreversible) never mint a token; the act proceeds). The
   operator's own machine runs `"off"`; the public default stays `"confirm"`.
 
-- **The sensitive-surface policy is config-switchable** (2026-09-21):
-  `config.json` `policy.mode` accepts `"enforce"` (default, today's behaviour)
-  and `"off"` (`classifyUrl`/`classifySignals` never report sensitive — the
-  host/page-signal fallback to Playwright is disabled). The operator's own
-  machine runs `"off"`; the public default stays `"enforce"`. Read it via
-  `policyModeOf()` (config.ts); the irreversible gate, value withholding and
-  confirm tokens are unaffected by this switch.
+- **The sensitive-surface policy is config-switchable, and OFF by default**
+  (2026-09-21, flipped 2026-09-22 by operator decision): `config.json`
+  `policy.mode` accepts `"off"` (the shipped default — page content goes to
+  TypeSafe on every page, including sensitive ones) and `"enforce"` (opt-in
+  fail-closed: `classifyUrl`/`classifySignals` report sensitive and the
+  host/page-signal fallback to Playwright fires). Read it via `policyModeOf()`
+  (config.ts), which returns `'off'` unless the config explicitly says
+  `'enforce'` — a pre-key config object therefore runs off. The classifier
+  defaults (`DEFAULT_POLICY_MODE` in constants.ts) flipped with it, so
+  `classifyUrl(url)` with no mode arg is non-sensitive; tests that pin
+  enforce semantics must pass `'enforce'` explicitly. The irreversible gate,
+  value withholding and confirm tokens are unaffected by this switch.
 
 - **The proxy rule lives twice, on purpose.** `enumerate` (buildRecord) and
   `verify` each contain an inline copy of the styled-control proxy detection
