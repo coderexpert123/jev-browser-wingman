@@ -469,3 +469,27 @@ withheld — this file rides a public-bound repository). Gates:
 - **The pre-2026-09-22 entry commit never checked the floor on the CHOSEN element** — `set.size === 1` committed any lone candidate at ANY grade below the threshold (the floor gated only rivals). Found by the KB-margin run: takeover test 35's 0.45-lone-candidate round acted pre-amendment. Any future "the entry floor is 0.5" narrative must cite the margin rule, not the old candidate set.
 - **A stub `ask` must return `usage` in the result** (`{inputTokens, outputTokens}`), or `askWithCost` throws inside the loop and the call ends `error/tool-fault` with no visible stack — the scripted fakes in tests carry it, hand-written probes don't by default. Also: wrapping `createDriver(...)` by iterating `Object.keys(base)` produces an EMPTY driver (methods live on the prototype) — same silent `tool-fault`. Diagnose either with a direct `runStep` call (unmasked exception) instead of `createWingman`.
 - **Jev's live grades are bimodal across re-asks of the SAME step**: the measured searchbox entry graded 0.66 (2026-09-21) and 0.48 (2026-09-22 re-ask) — a sub-floor re-ask bounces correctly under the margin rule and is NOT a regression. Validation of a grading-shape fix needs a measured-map replay through the real pipeline (`.calib/probe6b-replay.mjs` pattern), not one natural re-ask.
+
+## Gotchas from the escalating-bounce pass (2026-09-22, amendment 2026-09-22)
+
+- **`ensureChrome` waits only 10 s for the debug port** (`src/browser/chrome.ts`): a cold
+  Chrome start can exceed it and the bench dies `ensureChrome failed: Chrome did not answer
+  on port 9344 within 10 s` BEFORE any spend, leaving no results file. Verified: port free,
+  zero leaked chromes, immediate clean retry succeeds. One retry is the fix; do not diagnose
+  deeper on the first failure.
+- **The Claude Code background-shell memory-pressure reaper kills a RUNNING bench cell**:
+  with the box low on free memory, an idle-time reap stopped a mid-flight cell's wrapper
+  (system message, not the command failing). The run.js death orphans the bench Chrome tree
+  on port 9344 — sweep by the `wingman-ephemeral` cmdline marker IMMEDIATELY (7 processes
+  after one reap). A reaped cell writes no results file and no ledger entries; the phase
+  ledger stays where it was. Restart only after memory recovers, or the next cell is reaped
+  too (and a low-memory Chrome workload risks the 440-chrome wedge).
+- **The escalating bounce note is bounce-only by design**: bounces are exactly
+  `fallback`/`step-uncertain` and `fallback`/`target-covered`; the per-goal counter
+  (module-level `Map` in loop.ts, keyed on goal text) increments only on those, tiers 2/3
+  REPLACE the note while tier 1 appends. `takeover-offered`, `budget-*` and continuation
+  `target-uncertain` ends keep the static § 3.17 table — the takeover note-table test and
+  the covered-target test needed fresh goal texts because earlier bounce tests share the
+  process-level counter (each test file is its own process, but tests within one file are not).
+- **`BROWSE_ENGAGEMENT_LINE` stays single-line ASCII**: the 2026-09-22 operator text's
+  em-dash is folded to a hyphen for the win32 cmd spawn; keep any future wording change folded.
