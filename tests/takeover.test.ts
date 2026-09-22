@@ -877,3 +877,105 @@ test('an unobscured target commits on a page that also lists obscured elements',
   assert.equal(h.driver.actCalls().length, 1);
   assert.equal(h.driver.actCalls()[0].elementId, 'e2');
 });
+
+// 33. Top-candidate margin rule, entry (amendment 2026-09-22, the measured-case
+// fail-first proof): the answer chose the `ambiguous` meta-answer but one
+// element dominates the probability map (the live Amazon /s shape: searchbox
+// 0.66 vs ambiguous 0.25, every other element <= 0.07) — the round commits on
+// the margin rule and acts on the dominating element. Fail-first: the
+// pre-amendment build bounces 'multi-match' on any ambiguous choice.
+test('an ambiguous choice with a dominating element commits on the margin rule and acts on that element', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [
+      S({ target: ['ambiguous', { e1: 0.66, ambiguous: 0.25, e2: 0.07, none: 0.02 }] }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 'click the search box' });
+  assert.equal(r.status, 'done');
+  assert.equal(r.step_review, undefined);
+  assert.equal(h.driver.actCalls().length, 1);
+  assert.equal(h.driver.actCalls()[0].elementId, 'e1');
+});
+
+// 34. Top-candidate margin rule, entry tightening (amendment 2026-09-22, the
+// fail-first proof): a within-2x element runner-up bounces low-confidence —
+// the pre-amendment single-candidate leg committed exactly this pair (the 0.4
+// runner-up is below the 0.5 floor, so the candidate set held one member).
+test('an entry round with a within-2x element runner-up bounces low-confidence', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.66, e2: 0.4, none: 0.0, ambiguous: 0.0 }] })],
+    config: { takeover: { retry: false } },
+  });
+  const r = await h.call({ goal: 'g', step: 'click the Details button' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'low-confidence');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+// 35. Margin floor boundary (amendment 2026-09-22, pin): below the floor the
+// round bounces whatever the rivals look like; exactly at the floor with
+// dominated rivals it acts. The bounce leg is green on the pre-amendment build
+// too — it pins TAKEOVER_MARGIN_FLOOR against drift, it does not discriminate
+// the amendment (33/34/36/37 do).
+test('an entry round below the margin floor bounces and one exactly at the floor acts', async () => {
+  const below = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.45, e2: 0.1, none: 0.25, ambiguous: 0.2 }] })],
+    config: { takeover: { retry: false } },
+  });
+  const rb = await below.call({ goal: 'g', step: 'click the Details button' });
+  assert.equal(rb.status, 'fallback');
+  assert.equal(rb.reason, 'step-uncertain');
+  assert.equal(rb.step_review?.why, 'low-confidence');
+  assert.equal(below.driver.actCalls().length, 0);
+
+  const at = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S({ target: ['e1', { e1: 0.5, e2: 0.24, none: 0.13, ambiguous: 0.13 }] }), { done: 0.9 }],
+  });
+  const ra = await at.call({ goal: 'g', step: 'click the Details button' });
+  assert.equal(ra.status, 'done');
+  assert.equal(at.driver.actCalls().length, 1);
+  assert.equal(at.driver.actCalls()[0].elementId, 'e1');
+});
+
+// 36. Top-candidate margin rule, continuation (amendment 2026-09-22, the
+// continuation fail-first proof): a mid-takeover round whose answer chose
+// `ambiguous` while one element dominates acts on that element. Fail-first:
+// the pre-amendment continuation returns target-uncertain on any meta-answer
+// choice.
+test('a continuation round with an ambiguous choice and a dominating element acts on that element', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [
+      S(),
+      S({ target: ['ambiguous', { e1: 0.66, ambiguous: 0.25, e2: 0.07, none: 0.02 }] }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'g', step: 's' });
+  assert.equal(r.status, 'done');
+  assert.equal(h.driver.actCalls().length, 2);
+  assert.equal(h.driver.actCalls()[1].elementId, 'e1');
+});
+
+// 37. Top-candidate margin rule, continuation tightening (amendment 2026-09-22,
+// the continuation fail-first proof): a within-2x element runner-up bounces
+// target-uncertain — the pre-amendment single-candidate leg acted round 2 and
+// the call ended budget-steps.
+test('a continuation round with a within-2x element runner-up bounces target-uncertain', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [S(), S({ target: ['e1', { e1: 0.66, e2: 0.4, none: 0.0, ambiguous: 0.0 }] })],
+  });
+  const r = await h.call({ goal: 'g', step: 's', max_steps: 1 });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'target-uncertain');
+  assert.equal(r.note, RESUME_LINE);
+  assert.equal(r.step_review, undefined);
+  assert.equal(h.driver.actCalls().length, 1, 'round 2 acts nothing');
+});

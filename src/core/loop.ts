@@ -8,7 +8,8 @@
 import {
   LABEL_MAX,
   SETTLE_MAX_MS,
-  TAKEOVER_SINGLE_FLOOR,
+  TAKEOVER_MARGIN_FLOOR,
+  TAKEOVER_MARGIN_RATIO,
   THRESHOLDS,
   TIME_FLOOR_MS,
   TWO_STAGE,
@@ -250,6 +251,34 @@ function opFits(verb: Op, el: ElementRecord): boolean {
     default:
       return true; // click and scroll fit anything
   }
+}
+
+/** § 3.19 top-candidate margin rule (amendment 2026-09-22). Returns the id of
+ * the highest-probability listed element when its probability reaches
+ * TAKEOVER_MARGIN_FLOOR and out-scores every OTHER entry in the probability map
+ * — every other listed element AND every non-element answer (`none`,
+ * `ambiguous`) — by at least TAKEOVER_MARGIN_RATIO; null otherwise. The caller
+ * acts on the returned element, including when the answer's own choice was a
+ * meta-answer. */
+function marginCommitTarget(
+  probs: Record<string, number>,
+  elements: Array<ElementRecord>,
+): string | null {
+  let topId: string | null = null;
+  let topProb = 0;
+  for (const e of elements) {
+    const p = probs[e.id] ?? 0;
+    if (p > topProb) {
+      topId = e.id;
+      topProb = p;
+    }
+  }
+  if (topId === null || topProb < TAKEOVER_MARGIN_FLOOR) return null;
+  for (const [id, p] of Object.entries(probs)) {
+    if (id === topId) continue;
+    if (p * TAKEOVER_MARGIN_RATIO > topProb) return null;
+  }
+  return topId;
 }
 
 /** The ask never sees the query string or the fragment (egress rule). */
@@ -536,11 +565,11 @@ async function runTool(
 
   /** § 3.7 rules 6–8 plus value resolution for fill/select. `actionAnswers` is
    * the request that carried the `action` question (request 1 in both shapes;
-   * request 2 never repeats it). `entryCommit` (§ 3.19 item 3, amendment
-   * 2026-09-21d) waives rule 6's uncertainty bar for one committed entry
-   * round: the entry decision already validated that the target answer names
-   * a real listed element. Op fit, value resolution, the gate and every
-   * budget rule still apply unchanged. */
+   * request 2 never repeats it). Takeover rounds — entry and continuation
+   * alike (§ 3.19 items 3 and 6, amendment 2026-09-22) — are decided here by
+   * the threshold rule or the top-candidate margin rule; the margin rule may
+   * override a meta-answer choice with the dominating listed element. Op fit,
+   * value resolution, the gate and every budget rule still apply unchanged. */
   async function decideTarget(
     answers: AnswerMap,
     actionAnswers: AnswerMap,
@@ -548,7 +577,6 @@ async function runTool(
     values: Record<string, string>,
     state: object,
     remaining: () => number,
-    entryCommit = false,
     anchorBindings: string[] = [],
     takeover = false,
   ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
@@ -574,32 +602,30 @@ async function runTool(
     const target = answers['target'] as JevChoiceAnswer | undefined;
     const targetId = target?.choice ?? 'none';
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
-    // 6. target uncertainty (action ≠ scroll) — waived for a committed entry
-    // round, where the entry decision already proved a concrete listed target.
-    // Takeover continuation round (§ 3.19 item 6, amendment 2026-09-21g): the
-    // bar is the entry decision's two-part rule instead of the fixed bar —
-    // act at the configured takeover threshold, or on a lone candidate at or
-    // above TAKEOVER_SINGLE_FLOOR; otherwise target-uncertain as below.
-    if (!entryCommit && verb !== 'scroll') {
+    // 6. target uncertainty (action ≠ scroll). Takeover round (§ 3.19 items 3
+    // and 6, amendment 2026-09-22 — entry and continuation share this one
+    // implementation): act at the configured takeover threshold on the answer's
+    // chosen element, or on the margin rule's dominating element (which may
+    // override an `ambiguous`/`none` meta-answer choice); otherwise
+    // target-uncertain as below.
+    let elId = targetId;
+    if (verb !== 'scroll') {
       if (takeover) {
-        if (targetId === 'none' || targetId === 'ambiguous') {
-          return uncertain();
-        }
-        if (targetProb < takeoverOf(deps.config).threshold) {
-          const probs = target?.probabilities ?? {};
-          let rivals = 0;
-          for (const e of obs.elements) {
-            if (e.id !== targetId && (probs[e.id] ?? 0) >= TAKEOVER_SINGLE_FLOOR) rivals += 1;
-          }
-          if (rivals > 0 || targetProb < TAKEOVER_SINGLE_FLOOR) {
+        const threshold = takeoverOf(deps.config).threshold;
+        const chosenElement =
+          targetId !== 'none' && targetId !== 'ambiguous' && obs.elements.some((e) => e.id === targetId);
+        if (!(chosenElement && targetProb >= threshold)) {
+          const marginId = marginCommitTarget(target?.probabilities ?? {}, obs.elements);
+          if (marginId === null) {
             return uncertain();
           }
+          elId = marginId;
         }
       } else if (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target) {
         return uncertain();
       }
     }
-    const el = obs.elements.find((e) => e.id === targetId);
+    const el = obs.elements.find((e) => e.id === elId);
     if (!el) {
       return uncertain();
     }
@@ -911,8 +937,8 @@ async function runTool(
   // No fork: the entry rides runDoRounds' existing gated rounds. There is no
   // routing pre-pass and no ask before round 1's ask: the tool enters the
   // normal machinery directly and the first round's target answer decides the
-  // call (threshold rule, single-candidate rule, one self-retry, evidence-
-  // based bounce — all inside runDoRounds' entry decision).
+  // call (threshold rule, top-candidate margin rule, one self-retry,
+  // evidence-based bounce — all inside runDoRounds' entry decision).
   async function runBrowse(pageId: string, driver: Driver, stepInput: StepInput): Promise<WingmanResult> {
     const values = stepInput.values ?? {};
     const proposals = stepInput.steps ?? [stepInput.step as string];
@@ -996,7 +1022,7 @@ async function runTool(
     ): WingmanResult => mk('fallback', 'step-uncertain', entryReview(why, candidates));
     const canRetry = () => retryAllowed && !retried && remaining() >= TIME_FLOOR_MS;
     /** § 3.19 item 3: null = the entry round commits (threshold rule or
-     * single-candidate rule), else the bounce `why`. */
+     * top-candidate margin rule), else the bounce `why`. */
     function entryUncertainty(
       answers: AnswerMap,
       obs: Observation,
@@ -1007,19 +1033,21 @@ async function runTool(
       }
       const target = answers['target'] as JevChoiceAnswer | undefined;
       const choice = target?.choice;
-      if (!target || typeof choice !== 'string' || choice === 'none') return 'no-match';
-      if (choice === 'ambiguous') return 'multi-match';
-      const el = obs.elements.find((e) => e.id === choice);
-      if (!el) return 'no-match';
-      const conf = target.probabilities[choice] ?? 0;
-      if (conf >= takeoverOf(deps.config).threshold) return null;
-      // Candidate set: every listed element at or above the floor, unioned
-      // with the chosen id itself (§ 3.19 item 3).
-      const set = new Set<string>([choice]);
-      for (const e of obs.elements) {
-        if (e.id !== choice && (target.probabilities[e.id] ?? 0) >= TAKEOVER_SINGLE_FLOOR) set.add(e.id);
+      if (!target || typeof choice !== 'string') return 'no-match';
+      // The threshold rule needs a real listed element as the answer's choice;
+      // the top-candidate margin rule (§ 3.19 item 3, amendment 2026-09-22)
+      // does not — it commits on the dominating listed element even when the
+      // answer chose the `ambiguous` or `none` meta-answer.
+      const probs = target.probabilities ?? {};
+      if (choice !== 'none' && choice !== 'ambiguous') {
+        const el = obs.elements.find((e) => e.id === choice);
+        if (!el) return 'no-match';
+        if ((probs[choice] ?? 0) >= takeoverOf(deps.config).threshold) return null;
       }
-      return set.size === 1 ? null : 'low-confidence';
+      if (marginCommitTarget(probs, obs.elements) !== null) return null;
+      if (choice === 'none') return 'no-match';
+      if (choice === 'ambiguous') return 'multi-match';
+      return 'low-confidence';
     }
 
     while (true) {
@@ -1155,10 +1183,11 @@ async function runTool(
       // § 3.7 rules 6–9 from the answers that carry target/value/irreversible;
       // the verb comes from the answers that carried `action` (request 1).
       const decisionAnswers = (secondary ?? primary) as AnswerMap;
-      // Entry decision (§ 3.19 item 3, amendment 2026-09-21d): commit via the
-      // threshold rule or the single-candidate rule, else retry once, else
-      // bounce with evidence. Evaluated before decideTarget so a non-commit
-      // never reaches the act path.
+      // Entry decision (§ 3.19 item 3, amendment 2026-09-21d; margin rule per
+      // amendment 2026-09-22): commit via the threshold rule or the
+      // top-candidate margin rule, else retry once, else bounce with evidence.
+      // Evaluated before decideTarget so a non-commit never reaches the act
+      // path; decideTarget applies the same rule and resolves the element.
       const wasEntryRound = entryPending;
       let entryCommit = false;
       if (entryPending) {
@@ -1182,11 +1211,18 @@ async function runTool(
         // overlay is never right. Bounce target-covered with the criterion
         // and the cover as evidence; no self-retry, because retrying the
         // same ask cannot change the page — the caller dismisses the overlay
-        // and re-proposes.
+        // and re-proposes. The committed element is the answer's choice, or
+        // the margin rule's dominating element when the choice was a
+        // meta-answer (amendment 2026-09-22).
         const targetAnswer = decisionAnswers['target'] as JevChoiceAnswer | undefined;
-        const chosen = targetAnswer
-          ? obs.elements.find((e) => e.id === targetAnswer.choice)
-          : undefined;
+        const chosenId =
+          targetAnswer !== undefined &&
+          targetAnswer.choice !== 'none' &&
+          targetAnswer.choice !== 'ambiguous' &&
+          obs.elements.some((e) => e.id === targetAnswer.choice)
+            ? targetAnswer.choice
+            : marginCommitTarget(targetAnswer?.probabilities ?? {}, obs.elements);
+        const chosen = chosenId !== null ? obs.elements.find((e) => e.id === chosenId) : undefined;
         if (chosen?.obscured) {
           const evidence = topTargetCandidates(decisionAnswers, obs, values);
           if (chosen.coveredBy) {
@@ -1202,7 +1238,6 @@ async function runTool(
         values,
         state,
         remaining,
-        entryCommit,
         entryBindings,
         entry !== undefined,
       );

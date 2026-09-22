@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { REASONS } from '../src/contract/types.js';
 import type { WingmanConfig } from '../src/contract/types.js';
-import { DEFAULT_TAKEOVER, TAKEOVER_MODES, TAKEOVER_SINGLE_FLOOR, TAKEOVER_THRESHOLD_RANGE } from '../src/contract/constants.js';
+import { DEFAULT_TAKEOVER, TAKEOVER_MARGIN_FLOOR, TAKEOVER_MARGIN_RATIO, TAKEOVER_MODES, TAKEOVER_THRESHOLD_RANGE } from '../src/contract/constants.js';
 import { loadConfig, takeoverOf } from '../src/core/config.js';
 
 function mkHome(): string {
@@ -46,7 +46,8 @@ test('takeover config absent means threshold 0.7, mode auto, retry true', async 
   assert.deepEqual(DEFAULT_TAKEOVER, { threshold: 0.7, mode: 'auto', retry: true });
   assert.deepEqual(TAKEOVER_THRESHOLD_RANGE, [0.5, 0.95]);
   assert.deepEqual([...TAKEOVER_MODES], ['auto', 'offer']);
-  assert.equal(TAKEOVER_SINGLE_FLOOR, 0.5);
+  assert.equal(TAKEOVER_MARGIN_FLOOR, 0.5);
+  assert.equal(TAKEOVER_MARGIN_RATIO, 2);
   const home = mkHome();
   const result = await loadConfig(envFor(home));
   assert.equal(result.ok, true);
