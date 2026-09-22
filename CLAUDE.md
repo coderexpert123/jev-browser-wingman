@@ -518,3 +518,10 @@ withheld — this file rides a public-bound repository). Gates:
   finished, a read saw 147 lines; the same file then read 171 with the missing
   24 calls backfilled (mechanism unproven — D: write-back/AV filter suspected).
   A `wc -l` repeat or an mtime check is cheap insurance before tier analysis.
+- **Bench walls are load-sensitive at the caller-fragmentation margin**: the same
+  browse t9 cells run with background agent load present measured 355.0 s and a
+  600 s ceiling-kill (8 delegations); re-run clean they measured 341.3 s and
+  277.4 s (13 and 5 delegations). Route-vs-route gaps narrowed from ~3.2x to
+  ~1.7x vs the same-session playwright controls — never compare cells measured
+  under different machine load, and treat cross-pass wall ratios >2x as suspect
+  until load is accounted for.
