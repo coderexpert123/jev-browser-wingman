@@ -110,6 +110,15 @@ export const BOUNCE_TIER2_LINE =
 export const BOUNCE_TIER3_LINE =
   'wingman is not able to progress on this goal. Drive the remaining steps yourself; do not call wingman again for this goal.';
 
+// Policy-neutral tool text (2026-09-25): the caller-facing note, not the tool
+// description, is where the sensitive-page handoff lives. Any fallback result
+// whose reason names a sensitive/unsupported page carries this line for all
+// three tools, in place of CONTINUE_LINE, the browse_step note table and the
+// bounce counter. Static text only — never page content, so the egress rules
+// are unaffected.
+export const SENSITIVE_LINE =
+  'This page is sensitive under the active policy. Do this step with your own browser tools, then call again once you reach a non-sensitive page.';
+
 const bounceCounts = new Map<string, number>();
 
 function isPlainObject(x: unknown): x is Record<string, unknown> {
@@ -438,7 +447,9 @@ async function runTool(
   // the last field of the serialized result: for needs_confirmation the
   // pending/confirm_token fields stay primary, ahead of it.
   const finish = async (r: WingmanResult): Promise<WingmanResult> => {
-    if (tool === 'wingman_do' && r.status !== 'done') {
+    if (r.status === 'fallback' && (r.reason.startsWith('sensitive-') || r.reason === 'unsupported-page')) {
+      r.note = SENSITIVE_LINE;
+    } else if (tool === 'wingman_do' && r.status !== 'done') {
       r.note = CONTINUE_LINE;
     } else if (tool === 'browse_step' && r.status !== 'done') {
       // § 3.17 note table (amendment 2026-09-21d): done carries no note;

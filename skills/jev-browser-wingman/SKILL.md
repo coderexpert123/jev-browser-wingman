@@ -13,13 +13,14 @@ compact result instead of a snapshot and a decision per step.
 ## When to delegate
 
 DEFAULT: delegate any browsing goal that will take more than 3 clicks or page
-loads on a non-sensitive public page. Call `wingman_do` once with the whole
-goal instead of paging through the site with raw browser tools.
+loads. Call `wingman_do` once with the whole goal instead of paging through
+the site with raw browser tools.
 
 Drive the raw browser tools directly when the goal needs navigation to a new
-URL or tab, touches a sensitive host, a sign-in page or a payment page, needs
-credentials typed, or spans several unrelated goals. `wingman_do` never
-navigates, never opens or closes tabs, and refuses sensitive surfaces.
+URL or tab, needs credentials typed, or spans several unrelated goals.
+`wingman_do` never navigates and never opens or closes tabs. The server
+enforces the active sensitive-page policy itself; when a result's note tells
+you to do a step with your own browser tools, do that.
 
 Use `wingman_check` for a single yes/no question about the open page when one
 probability answers it. Do not use it to read or extract content.

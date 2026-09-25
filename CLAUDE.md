@@ -140,6 +140,21 @@ withheld — this file rides a public-bound repository). Gates:
   imported the same constants, so spec drift was invisible. The pin must inline the SPEC's
   text as the expected value (now does); when adding a pinned-text export, add the
   spec-inline comparison, not a same-constant mirror.
+- **Amendment 2026-09-25 (policy-neutral tool text): descriptions no longer name a policy
+  or a specific browser tool.** `WINGMAN_DO_DESCRIPTION`, `WINGMAN_CHECK_DESCRIPTION` and
+  `BROWSE_STEP_DESCRIPTION` (`src/surfaces/tool-text.ts`) dropped every "non-sensitive
+  public page" / "sensitive hosts, credentials, sign-in or payment pages" clause and every
+  "Playwright MCP" reference — the server (`policy.mode`, re-read every call) is the sole
+  enforcer, and `loop.ts`'s `finish()` now sets a fallback result's `note` to the new
+  `SENSITIVE_LINE` for any `sensitive-*`/`unsupported-page` reason, on all three tools,
+  bypassing `CONTINUE_LINE`, the browse_step note table and the bounce counter — that's
+  where the caller learns to hand a step back to its own browser tools. Descriptions are
+  served once per session, so this is the only way a policy change (e.g. `policy.mode`
+  toggled without a restart) reaches caller behaviour. The old `WINGMAN_DO_DESCRIPTION`'s
+  "the tab Playwright MCP last selected" clause was inaccurate even before this amendment —
+  the wingman attaches over CDP and acts on the one visible tab, or the tab `url_match`
+  names, never "whatever Playwright last selected"; the text now says so. Spec:
+  `pa/plans/2026-09-25-wingman-policy-neutral-tool-text-SPEC.md`.
 - **Two concurrent bench phases on the shared port-9344 Chrome poison each other's
   results**: the second phase's `resetPages`/navigation collides with the first's, its
   claude run times out, and the killed_run_charge_usd (1.5) trips any per-run cap under
@@ -582,3 +597,26 @@ withheld — this file rides a public-bound repository). Gates:
   ~1.7x vs the same-session playwright controls — never compare cells measured
   under different machine load, and treat cross-pass wall ratios >2x as suspect
   until load is accounted for.
+- **Two pre-existing, diff-unrelated scoped-gate failures as of 2026-09-25** (confirmed
+  unrelated to the policy-neutral tool-text amendment: neither test file nor anything it
+  imports touches `loop.ts`/`tool-text.ts`): `tests/adapter-cdp.test.ts` "observe matches
+  the pinned form.html table" fails twice in a row (not a flake) — the live `ElementRecord`
+  now carries `htmlId`/`obscured`/`placeholder` fields the pinned expectation predates.
+  `tests/cli.test.ts` "chrome show dispatches into chrome-cmd (no-browser JSON, not the
+  usage exit)" fails with exit 0 vs expected 1. Both need their own diagnosis pass; do not
+  assume a future red run on these two is caused by whatever diff triggered it without
+  checking first.
+- **A full `node --test` run genuinely can take 40+ min to complete even scoped
+  to 8 basenames when the machine is under other-session load** — the CLAUDE.md
+  "cannot complete as ONE invocation" gotcha is about parallel fan-out wedging on
+  160+ Chromes, but even a serial 4-6-chunk run can look hung because
+  `run-tests.mjs`'s spawnSync buffers ALL stdout until the child exits (empty
+  interim file is normal, per the existing gotcha above) — but it can ALSO
+  actually hang. `adapter-cdp.test.ts` specifically hung for ~50 min with 48
+  ephemeral Chromes leaked in one 2026-09-25 run; a foreground run of the same
+  file alone, moments later, finished cleanly in ~65-77 s. Prefer foreground
+  runs with an explicit tool-level timeout (this harness's Bash `timeout_ms`,
+  not a shell `timeout` prefix) over backgrounding+polling for scoped gates —
+  a background run gives no live signal that distinguishes "buffered, still
+  working" from "actually wedged," and a Monitor watching only for the
+  completion line has the same blind spot.

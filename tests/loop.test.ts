@@ -6,12 +6,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runDo, runCheck, type LoopDeps } from '../src/core/loop.js';
+import { runDo, runCheck, runStep, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
-import { DEFAULT_BUDGETS } from '../src/contract/constants.js';
-import type { GateMode } from '../src/contract/constants.js';
+import { DEFAULT_BUDGETS, POLICY_SELF_TEST_HOST } from '../src/contract/constants.js';
+import type { GateMode, PolicyMode, TakeoverMode } from '../src/contract/constants.js';
 import type {
   ElementRecord,
   JevAnswer,
@@ -164,13 +164,18 @@ interface Harness {
   deps: LoopDeps;
   call: (input: unknown) => Promise<WingmanResult>;
   callCheck: (input: unknown) => Promise<WingmanResult>;
+  callStep: (input: unknown) => Promise<WingmanResult>;
 }
 
 function harness(opts: {
   pages?: PageInfo[];
   observations: Record<string, Observation[]>;
   script: SeqEntry[];
-  config?: Partial<WingmanConfig> & { gate?: { mode: GateMode } };
+  config?: Partial<WingmanConfig> & {
+    gate?: { mode: GateMode };
+    policy?: { mode: PolicyMode };
+    takeover?: { threshold?: number; mode?: TakeoverMode; retry?: boolean };
+  };
   ask?: JevAsk | null;
   now?: () => number;
   forceMode?: Mode;
@@ -202,6 +207,7 @@ function harness(opts: {
     deps,
     call: (input: unknown) => runDo(input, deps),
     callCheck: (input: unknown) => runCheck(input, deps),
+    callStep: (input: unknown) => runStep(input, deps),
   };
 }
 
@@ -668,4 +674,92 @@ test('a wingman_do fill round below the value threshold is unchanged: ambiguous 
   const valueQ = (h.requests[0].questions as Record<string, { instructions?: string }>).value;
   assert.ok(valueQ, 'value question present');
   assert.ok(!valueQ.instructions?.includes('treat a value as present'), 'wingman_do request carries no anchor');
+});
+
+// Sensitive-page handoff note (2026-09-25 amendment, E2): a fallback result
+// whose reason starts with 'sensitive-' or equals 'unsupported-page' carries
+// this static line for all three tools instead of the tool's own continuation
+// text, and bypasses the bounce counter. The literal is inlined here (not
+// imported from loop.ts) so a drift on either side fails this pin — G2 is the
+// proof this check can fail: run against the unmodified loop.ts first.
+const SPEC_SENSITIVE_LINE =
+  'This page is sensitive under the active policy. Do this step with your own browser tools, then call again once you reach a non-sensitive page.';
+
+const SENSITIVE_URL = `https://${POLICY_SELF_TEST_HOST}/o/oauth2/auth`;
+
+test('wingman_do on a sensitive host under policy.mode enforce carries the sensitive-page note', async () => {
+  const h = harness({
+    pages: [page({ url: SENSITIVE_URL })],
+    observations: { p1: [observation({ url: SENSITIVE_URL })] },
+    script: [S()],
+    config: { policy: { mode: 'enforce' } },
+  });
+  const r = await h.call({ goal: 'g' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'sensitive-identity');
+  assert.equal(r.note, SPEC_SENSITIVE_LINE);
+});
+
+test('wingman_check on a sensitive host under policy.mode enforce carries the sensitive-page note', async () => {
+  const h = harness({
+    pages: [page({ url: SENSITIVE_URL })],
+    observations: { p1: [observation({ url: SENSITIVE_URL })] },
+    script: [S()],
+    config: { policy: { mode: 'enforce' } },
+  });
+  const r = await h.callCheck({ question: 'Is this a sign-in page?' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'sensitive-identity');
+  assert.equal(r.note, SPEC_SENSITIVE_LINE);
+});
+
+test('browse_step on a sensitive host under policy.mode enforce carries the sensitive-page note', async () => {
+  const h = harness({
+    pages: [page({ url: SENSITIVE_URL })],
+    observations: { p1: [observation({ url: SENSITIVE_URL })] },
+    script: [S()],
+    config: { policy: { mode: 'enforce' } },
+  });
+  const r = await h.callStep({ goal: 'g', step: 'Click sign in' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'sensitive-identity');
+  assert.equal(r.note, SPEC_SENSITIVE_LINE);
+});
+
+test('the same sensitive host under policy.mode off never yields the sensitive-page note', async () => {
+  const h = harness({
+    pages: [page({ url: SENSITIVE_URL })],
+    observations: { p1: [observation({ url: SENSITIVE_URL })] },
+    script: [S(), { done: 0.9 }],
+    config: { policy: { mode: 'off' } },
+  });
+  const r = await h.call({ goal: 'g' });
+  assert.notEqual(r.reason, 'sensitive-identity');
+  assert.notEqual(r.note, SPEC_SENSITIVE_LINE);
+});
+
+// Regression guard: a step-uncertain browse_step bounce (the untouched path —
+// its reason never starts with 'sensitive-' and is never 'unsupported-page')
+// still carries the HEAD § 3.17 caller line plus the tier-1 escalation
+// sentence, unaffected by the sensitive-note branch in finish().
+test('a step-uncertain browse_step bounce still carries the HEAD caller line and bounce tier 1', async () => {
+  const CALLER_LINE =
+    'Step returned to you — do this step with your browser tools, then call browse_step again with the same goal and your next proposed step.';
+  const TIER1 =
+    'Retry with a more specific description of the target, or perform this step yourself with your raw browser tools.';
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [el({ id: 'e1', name: 'Alpha', path: '#e1' }), el({ id: 'e2', name: 'Beta', path: '#e2' })],
+        }),
+      ],
+    },
+    script: [S({ target: ['e1', { e1: 0.6, e2: 0.55, none: 0.05, ambiguous: 0.05 }] })],
+    config: { takeover: { retry: false } },
+  });
+  const r = await h.callStep({ goal: 'regression-tier1-goal', step: 'Click the right one' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.note, `${CALLER_LINE} ${TIER1}`);
 });
