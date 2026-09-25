@@ -514,6 +514,25 @@ withheld — this file rides a public-bound repository). Gates:
   succeeds with exit 0). Not a code defect: stop the shared-profile Chrome
   (owner session's call) or run the test when it is down. Observed 2026-09-22
   during the teardown-hardening gates.
+- **Ephemeral-Chrome leak fix (2026-09-25):** detached headless chromes
+  outlive a killed/hung test worker or aborted runner — neither the returned
+  `close()` nor run-tests.mjs's token sweep ever runs for those. The defence
+  in `src/browser/ephemeral.ts` is three-layered: every profile dir embeds
+  the launching process's own pid (`wingman-ephemeral-<token?>-p<pid>-...`,
+  token still before pid so the runner's substring match still hits); a
+  `process.on('exit')` guard in the same module tree-kills anything this
+  process launched and never closed; and `sweepOrphanedEphemeralChromes`
+  (memoized, runs once per process at the top of every
+  `launchEphemeralChrome` call) kills tagged root chromes whose owner pid is
+  dead and removes their profile dirs, plus ages out unreferenced legacy
+  (untagged) dirs after 24h — it never kills a legacy chrome, since an
+  untagged dir can't prove orphanhood. Launch failures (e.g. the
+  `DevToolsActivePort` 15s timeout) now kill the spawned tree and remove the
+  profile dir before rethrowing, instead of leaking both. Tests in
+  `tests/ephemeral-sweep.test.ts` use injected fakes only — never launch a
+  real Chrome; any test file that does launch a real one runs alone in the
+  foreground (see the RAM-exhaustion incident this responds to, and the
+  `wingman-ephemeral-` sweep gotcha above).
 
 ## Gotchas from the OG-1 profileHolders fix (2026-09-22)
 
