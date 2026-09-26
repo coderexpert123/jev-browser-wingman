@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { typeHint, redactValues, redactDeep, assertNoValues } from '../src/core/withhold.js';
+import { typeHint, redactValues, redactDeep, assertNoValues, isPathLike } from '../src/core/withhold.js';
+import { PATH_VALUE_MAX } from '../src/contract/constants.js';
 
 test('typeHint classifies email, phone, number, date, url and text', () => {
   assert.equal(typeHint('ada@example.com'), 'email');
@@ -46,4 +47,21 @@ test('redactDeep walks nested arrays and objects', () => {
   assert.equal(out.list[0], 'contains <value:fullname> too');
   assert.equal((out.list[1] as { nested: string }).nested, 'and <value:fullname> again');
   assert.equal(out.n, 42);
+});
+
+test('isPathLike accepts drive-letter, absolute-slash and UNC paths', () => {
+  assert.equal(isPathLike('C:\\a\\b.txt'), true);
+  assert.equal(isPathLike('/tmp/x'), true);
+  assert.equal(isPathLike('\\\\srv\\s\\f'), true);
+  // boundary: exactly PATH_VALUE_MAX characters still counts as a path
+  assert.equal(isPathLike('/' + 'a'.repeat(PATH_VALUE_MAX - 1)), true);
+});
+
+test('isPathLike rejects urls, bare names, oversized and multiline values', () => {
+  assert.equal(isPathLike('https://x/y'), false);
+  assert.equal(isPathLike('notes.txt'), false);
+  const oversized = '/' + 'a'.repeat(PATH_VALUE_MAX); // 1001 characters
+  assert.equal(oversized.length, PATH_VALUE_MAX + 1);
+  assert.equal(isPathLike(oversized), false);
+  assert.equal(isPathLike('line1\nline2'), false);
 });

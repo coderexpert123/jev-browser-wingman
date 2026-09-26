@@ -1,4 +1,4 @@
-import { REDACT_MIN_LEN } from '../contract/constants.js';
+import { REDACT_MIN_LEN, PATH_VALUE_MAX } from '../contract/constants.js';
 
 export function typeHint(
   value: string,
@@ -10,6 +10,19 @@ export function typeHint(
   if (/^\+?[\d\s()-]{7,}$/.test(value)) return 'phone';
   if (value.length <= 40) return 'text-short';
   return 'text-long';
+}
+
+/** True when a supplied value looks like a local file path (spec 2026-09-26
+ * § 5.4, B1-1): within PATH_VALUE_MAX, single-line, not a web address, and
+ * starting with a drive letter, a UNC prefix or an absolute slash. The value
+ * itself never leaves this module — callers use it only to type bindings. */
+export function isPathLike(value: string): boolean {
+  return (
+    value.length <= PATH_VALUE_MAX
+    && !/[\r\n]/.test(value)
+    && typeHint(value) !== 'url'
+    && /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(value)
+  );
 }
 
 function escapeRegExp(s: string): string {
