@@ -296,6 +296,13 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
 
     await resetPages(ctx, START_BASE + task.path);
 
+    // A/B rerun (2026-09-26): capture the raw stream for browse-route cells
+    // only, so a post-run pass can build the per-handoff breakdown (status,
+    // reason, steps, note per browse_step/wingman_do call) by joining
+    // tool_use/tool_result pairs. Harness-only; no product code path reads it.
+    const transcriptPath =
+      route === 'browse' ? path.join(ctx.home, `transcript-${task.id}-${route}-${Date.now()}.ndjson`) : undefined;
+
     const res = await runClaude({
       prompt: buildPrompt(task, route),
       mcpConfigPath,
@@ -304,6 +311,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
       maxTurns: ctx.app.max_turns,
       timeoutMs: ctx.app.per_run_timeout_ms,
       cwd: path.join(PKG_ROOT, 'bench', '.home'),
+      transcriptPath,
     });
 
     const ok = await evaluateOracle(ctx.observer, ctx.keptTargetId, task.oracle);

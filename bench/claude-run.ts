@@ -4,6 +4,7 @@
 // outlives timeoutMs has its process tree killed and is reported as killed.
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { quoteCmdLine } from '../src/browser/chrome.js';
 import { killTree } from '../src/browser/process-list.js';
 
@@ -44,6 +45,11 @@ export async function runClaude(a: {
   maxTurns: number;
   timeoutMs: number;
   cwd: string;
+  // A/B rerun (2026-09-26, harness-only instrumentation for the per-handoff
+  // breakdown): when set, every raw stream-json line is appended here
+  // verbatim, so a later pass can join tool_use/tool_result pairs for the
+  // browser MCP tools. Optional and additive; omitted callers see no change.
+  transcriptPath?: string;
 }): Promise<ClaudeRunResult> {
   const argv = [
     '-p',
@@ -112,6 +118,13 @@ export async function runClaude(a: {
       const line = stdoutText.slice(0, idx);
       stdoutText = stdoutText.slice(idx + 1);
       if (!line.trim()) continue;
+      if (a.transcriptPath) {
+        try {
+          fs.appendFileSync(a.transcriptPath, line + '\n');
+        } catch {
+          // best-effort capture only
+        }
+      }
       let ev: StreamEvent;
       try {
         ev = JSON.parse(line) as StreamEvent;
