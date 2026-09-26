@@ -1,11 +1,15 @@
 // WP-F2: `detect` — a read-only inventory of browser-tool registrations,
 // the shared Chrome's state, and the endpoint env markers. Prints nothing
-// (§ 3.13); the caller formats.
+// (§ 3.13); the caller formats. Browsing tools are recognised through their
+// capability profiles (spec 2026-09-26-wingman-forced-handoff § 5.8a); no
+// browsing product is named in code (C8).
 
 import { homedir } from 'node:os';
 import { loadConfig } from '../core/config.js';
 import { DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR } from '../contract/constants.js';
 import type { WingmanConfig } from '../contract/types.js';
+import { wingmanHome } from '../contract/home.js';
+import { loadProfiles, profileForArgv, type Profile } from '../core/profiles.js';
 import { probeVersion, profileHolders } from '../browser/chrome.js';
 import {
   clientConfigPath,
@@ -14,7 +18,9 @@ import {
   type RegistrationEntry,
 } from './registrations.js';
 
-export type DetectKind = 'playwright-mcp' | 'chrome-devtools-mcp' | 'jev-browser-wingman' | 'other';
+// kind is a profile id, 'jev-browser-wingman', or 'other' (§ 5.8a); today's
+// tool-family strings survive as profile data, not code.
+export type DetectKind = string;
 export type DetectMode = 'launch' | 'cdp-endpoint' | 'extension' | 'wrapped' | 'n/a';
 
 export interface DetectServer {
@@ -40,7 +46,7 @@ export interface DetectReport {
     profile_dir: string;
     holders: { withPort: Array<{ pid: number; port: number }>; withoutPort: number[] };
   };
-  env: { WINGMAN_CDP_ENDPOINT: boolean; PLAYWRIGHT_MCP_CDP_ENDPOINT: boolean };
+  env: Record<string, boolean>;
 }
 
 export const DETECT_CLIENTS: readonly ClientId[] = ['claude', 'codex', 'opencode', 'agy', 'devin', 'cursor'];
@@ -53,6 +59,7 @@ export interface DetectDeps {
   probeVersionFn?: typeof probeVersion;
   profileHoldersFn?: typeof profileHolders;
   loadConfigFn?: typeof loadConfig;
+  loadProfilesFn?: typeof loadProfiles;
 }
 
 const DEFAULT_CONFIG: WingmanConfig = {
@@ -74,23 +81,27 @@ function withTilde(p: string, home: string): string {
   return p;
 }
 
-function classifyServer(e: RegistrationEntry): { kind: DetectKind; mode: DetectMode } {
-  const argsInclude = (needle: string) => e.args.some((a) => a.includes(needle));
-  if (argsInclude('@playwright/mcp') || e.command.includes('@playwright/mcp')) {
-    let mode: DetectMode = 'launch';
-    if (argsInclude('--cdp-endpoint')) mode = 'cdp-endpoint';
-    else if (e.args.some((a) => a === '--extension' || a.startsWith('--extension='))) mode = 'extension';
-    else if (e.args[0] === 'with-chrome') mode = 'wrapped';
-    return { kind: 'playwright-mcp', mode };
-  }
-  if (argsInclude('chrome-devtools-mcp') || e.command.includes('chrome-devtools-mcp')) {
-    const mode: DetectMode = argsInclude('--browserUrl') || argsInclude('--browser-url') ? 'cdp-endpoint' : 'launch';
-    return { kind: 'chrome-devtools-mcp', mode };
-  }
+/** An extension/endpoint flag entry matches an argument equal to the flag or
+ * starting with <flag>= (§ 5.8a). */
+function flagPresent(args: string[], flags: readonly string[]): boolean {
+  return flags.some((f) => args.some((a) => a === f || a.startsWith(`${f}=`)));
+}
+
+/** § 5.8a mode order, first match wins: the exact wrapper check, then the
+ * profile's extension flags, then its endpoint flags, else launch. */
+function detectMode(args: string[], profile: Profile | null): DetectMode {
+  if (args[0] === 'with-browser' || args[0] === 'with-chrome') return 'wrapped';
+  if (flagPresent(args, profile?.detect.extension_flags ?? [])) return 'extension';
+  if (flagPresent(args, profile?.detect.endpoint_flags ?? [])) return 'cdp-endpoint';
+  return 'launch';
+}
+
+function classifyServer(e: RegistrationEntry, profiles: Profile[]): { kind: DetectKind; mode: DetectMode } {
   if (e.command === 'jev-browser-wingman' && e.args.includes('mcp')) {
     return { kind: 'jev-browser-wingman', mode: 'n/a' };
   }
-  return { kind: 'other', mode: 'n/a' };
+  const profile = profileForArgv(profiles, e.command, e.args);
+  return { kind: profile ? profile.id : 'other', mode: detectMode(e.args, profile) };
 }
 
 function maskSecrets(args: string[]): string[] {
@@ -107,6 +118,7 @@ export async function detect(deps: DetectDeps = {}): Promise<DetectReport> {
 
   const loaded = await (deps.loadConfigFn ?? loadConfig)(env);
   const config: WingmanConfig = loaded.ok ? loaded.config : DEFAULT_CONFIG;
+  const profiles = (deps.loadProfilesFn ?? loadProfiles)(wingmanHome(env));
 
   const clientReports: DetectClientReport[] = [];
   for (const client of clients) {
@@ -116,7 +128,7 @@ export async function detect(deps: DetectDeps = {}): Promise<DetectReport> {
       continue;
     }
     const servers: DetectServer[] = result.entries.map((e) => {
-      const { kind, mode } = classifyServer(e);
+      const { kind, mode } = classifyServer(e, profiles);
       return { name: e.server, command: e.command, args: maskSecrets(e.args), kind, mode };
     });
     clientReports.push({
@@ -138,9 +150,15 @@ export async function detect(deps: DetectDeps = {}): Promise<DetectReport> {
       profile_dir: withTilde(config.profile_dir, home),
       holders: { withPort: holdersResult.withPort, withoutPort: holdersResult.withoutPort },
     },
-    env: {
-      WINGMAN_CDP_ENDPOINT: Boolean(env.WINGMAN_CDP_ENDPOINT),
-      PLAYWRIGHT_MCP_CDP_ENDPOINT: Boolean(env.PLAYWRIGHT_MCP_CDP_ENDPOINT),
-    },
+    env: (() => {
+      // Every endpoint env marker the profiles know, plus wingman's own.
+      const markers: Record<string, boolean> = {
+        WINGMAN_CDP_ENDPOINT: Boolean(env.WINGMAN_CDP_ENDPOINT),
+      };
+      for (const p of profiles) {
+        if (p.launch.endpoint_env) markers[p.launch.endpoint_env] = Boolean(env[p.launch.endpoint_env]);
+      }
+      return markers;
+    })(),
   };
 }

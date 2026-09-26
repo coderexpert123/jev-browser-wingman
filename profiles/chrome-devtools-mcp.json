@@ -1,0 +1,52 @@
+{
+  "id": "chrome-devtools-mcp",
+  "description": "Chrome DevTools MCP server (chrome-devtools-mcp)",
+  "detect": {
+    "args_contain": ["chrome-devtools-mcp"],
+    "extension_flags": [],
+    "endpoint_flags": ["--browserUrl", "--browser-url", "--wsEndpoint"]
+  },
+  "launch": {
+    "endpoint_env": null,
+    "endpoint_arg": "--browserUrl={endpoint}",
+    "strip_args": ["--userDataDir", "--user-data-dir"]
+  },
+  "match_tools": ["take_snapshot", "click"],
+  "tools": {
+    "click": "element-act",
+    "fill": "type",
+    "fill_form": "type",
+    "type_text": "type",
+    "press_key": "key",
+    "hover": "hover",
+    "upload_file": "upload",
+    "navigate_page": "navigate",
+    "drag": "drag",
+    "new_page": "tabs",
+    "close_page": "tabs",
+    "list_pages": "tabs",
+    "select_page": "tabs",
+    "handle_dialog": "dialog",
+    "take_snapshot": "read",
+    "take_screenshot": "read",
+    "list_console_messages": "read",
+    "get_console_message": "read",
+    "list_network_requests": "read",
+    "get_network_request": "read",
+    "get_css_styles": "read",
+    "take_heapsnapshot": "read",
+    "performance_start_trace": "read",
+    "performance_stop_trace": "read",
+    "performance_analyze_insight": "read",
+    "lighthouse_audit": "read",
+    "wait_for": "wait",
+    "evaluate_script": "script",
+    "emulate": "session",
+    "resize_page": "session"
+  },
+  "arg_rules": [
+    { "tool": "navigate_page", "args_equal": { "type": "back" }, "class": "back" },
+    { "tool": "navigate_page", "args_equal": { "type": "reload" }, "class": "session" },
+    { "tool": "navigate_page", "args_equal": { "type": "forward" }, "class": "session" }
+  ]
+}
