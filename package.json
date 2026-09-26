@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "prebuild": "node scripts/sync-version.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
