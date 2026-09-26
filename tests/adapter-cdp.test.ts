@@ -239,6 +239,11 @@ test('attach retries a cold endpoint within its budget', async () => {
 
 // Pinned from the actual enumeration of fixtures/pages/form.html at WP-D2
 // build time; verified by hand against the in-page script contract (§ 3.5).
+// Re-pinned 2026-09-26 for the § 3.5 record fields added since: `placeholder`
+// and `htmlId` (amendment 2026-09-21b, machine-attribute routing criteria) and
+// `obscured` (amendment 2026-09-21h, enumerate-time occlusion probe). Nothing
+// covers any control on this fixture, so every row is `obscured: false` with
+// no `coveredBy`; only the textarea carries a placeholder.
 const PINNED_FORM_ELEMENTS: ElementRecord[] = [
   {
     id: 'e1',
@@ -248,6 +253,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Full name',
     type: 'text',
     attrName: 'fullname',
+    placeholder: '',
+    htmlId: 'fullname',
     ariaLabel: '',
     autocomplete: '',
     state: { disabled: false, filled: false },
@@ -256,6 +263,7 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 72, y: 101, w: 177, h: 21 },
     form: 0,
     fingerprint: { tag: 'input', role: 'textbox', name: 'Full name', x: 72, y: 101 },
+    obscured: false,
   },
   {
     id: 'e2',
@@ -265,6 +273,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Email',
     type: 'email',
     attrName: 'email',
+    placeholder: '',
+    htmlId: 'email',
     ariaLabel: 'Email',
     autocomplete: '',
     state: { disabled: false, filled: false },
@@ -273,6 +283,7 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 249, y: 101, w: 177, h: 21 },
     form: 0,
     fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 249, y: 101 },
+    obscured: false,
   },
   {
     id: 'e3',
@@ -282,6 +293,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Notes',
     type: '',
     attrName: 'notes',
+    placeholder: 'Notes',
+    htmlId: 'notes',
     ariaLabel: '',
     autocomplete: '',
     state: { disabled: false, filled: true },
@@ -290,6 +303,7 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 426, y: 80, w: 168, h: 36 },
     form: 0,
     fingerprint: { tag: 'textarea', role: 'textbox', name: 'Notes', x: 426, y: 80 },
+    obscured: false,
   },
   {
     id: 'e4',
@@ -299,6 +313,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Country',
     type: '',
     attrName: 'country',
+    placeholder: '',
+    htmlId: 'country',
     ariaLabel: '',
     autocomplete: '',
     state: { disabled: false, selected: 'Choose' },
@@ -307,6 +323,7 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 647, y: 102, w: 103, h: 19 },
     form: 0,
     fingerprint: { tag: 'select', role: 'combobox', name: 'Country', x: 647, y: 102 },
+    obscured: false,
     options: [
       { value: '', label: 'Choose' },
       { value: 'in', label: 'India' },
@@ -321,6 +338,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Continue',
     type: 'button',
     attrName: '',
+    placeholder: '',
+    htmlId: 'continue',
     ariaLabel: '',
     autocomplete: '',
     state: { disabled: false },
@@ -329,6 +348,7 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 8, y: 122, w: 69, h: 21 },
     form: 0,
     fingerprint: { tag: 'button', role: 'button', name: 'Continue', x: 8, y: 122 },
+    obscured: false,
   },
   {
     id: 'e6',
@@ -338,6 +358,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     name: 'Place order',
     type: 'submit',
     attrName: '',
+    placeholder: '',
+    htmlId: 'place',
     ariaLabel: '',
     autocomplete: '',
     state: { disabled: false },
@@ -346,5 +368,6 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     rect: { x: 77, y: 122, w: 84, h: 21 },
     form: 0,
     fingerprint: { tag: 'button', role: 'button', name: 'Place order', x: 77, y: 122 },
+    obscured: false,
   },
 ];
