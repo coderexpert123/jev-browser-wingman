@@ -57,10 +57,28 @@ function mkHome(mode: string): string {
 
 // ---- required tests ----
 
-test('--version prints jev-browser-wingman 0.1.0', () => {
+// The package's own package.json version, found by walking up from this build
+// (dist/ and scoped .build/ outputs sit at different depths).
+function packageJsonVersion(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    const candidate = path.join(dir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      const pkg = JSON.parse(fs.readFileSync(candidate, 'utf8')) as { name?: string; version?: string };
+      if (pkg.name === 'jev-browser-wingman' && typeof pkg.version === 'string') return pkg.version;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error('package.json for jev-browser-wingman not found');
+    dir = parent;
+  }
+}
+
+test('--version prints jev-browser-wingman <package.json version>', () => {
+  // --version must track package.json (`npm version` bumps only that file;
+  // prebuild's sync-version.js carries it into PACKAGE_VERSION).
   const r = runCli(['--version']);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout, 'jev-browser-wingman 0.1.0\n');
+  assert.equal(r.stdout, `jev-browser-wingman ${packageJsonVersion()}\n`);
 });
 
 test('an unknown subcommand exits 2', () => {
