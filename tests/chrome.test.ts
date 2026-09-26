@@ -5,11 +5,14 @@ import {
   HEADED_ARGS,
   OFFSCREEN_ARGS,
   ensureChrome,
+  chromeCandidates,
   chromeStatus,
+  findChrome,
   stopChrome,
   profileMarkerMatches,
   profileHolders,
 } from '../src/browser/chrome.js';
+import { join } from 'node:path';
 import { launchTestChrome } from './helpers/chrome.js';
 
 const HOME = '/tmp/wingman-home-test';
@@ -404,6 +407,66 @@ test('profileHolders counts Chrome child processes (--type=) as non-holders (OG-
   assert.deepEqual(otherResult.withoutPort, [23612]);
 });
 
+
+// Exact candidate arrays per platform: Google Chrome variants first, then
+// Edge, then Brave, then Chromium. chromeCandidates(null, env, platform) is
+// the real producer; these pins assert the FULL array, so a reordered or
+// dropped candidate fails.
+const TEST_ENV = {
+  PROGRAMFILES: 'C:\\PF',
+  'PROGRAMFILES(X86)': 'C:\\PF (x86)',
+  LOCALAPPDATA: 'C:\\LAD',
+};
+
+test('win32 candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+  assert.deepEqual(chromeCandidates(null, TEST_ENV, 'win32'), [
+    join('C:\\PF', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    join('C:\\PF (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    join('C:\\LAD', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+    join('C:\\PF', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    join('C:\\PF (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe'),
+    join('C:\\PF', 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+    join('C:\\LAD', 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+    join('C:\\LAD', 'Chromium', 'Application', 'chrome.exe'),
+    join('C:\\PF', 'Chromium', 'Application', 'chrome.exe'),
+  ]);
+});
+
+test('darwin candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+  assert.deepEqual(chromeCandidates(null, TEST_ENV, 'darwin'), [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+  ]);
+});
+
+test('linux candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+  assert.deepEqual(chromeCandidates(null, TEST_ENV, 'linux'), [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/microsoft-edge-stable',
+    '/usr/bin/brave-browser',
+    '/usr/bin/brave-browser-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+  ]);
+});
+
+test('findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)', () => {
+  // Only the Edge binary under PF(x86) exists — Chrome is absent, so
+  // autodiscovery must land on the first Chromium-family candidate.
+  const fileExists = (p: string) => p === join('C:\\PF (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe');
+  assert.equal(findChrome(null, { fileExists }, TEST_ENV, 'win32'), join('C:\\PF (x86)', 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+});
+
+test('an explicit chromePath still wins over every autodiscovered candidate', () => {
+  const fileExists = () => true;
+  assert.deepEqual(chromeCandidates('C:\\custom\\chrome.exe', TEST_ENV, 'win32')[0], 'C:\\custom\\chrome.exe');
+  assert.equal(findChrome('C:\\custom\\chrome.exe', { fileExists }, TEST_ENV, 'win32'), 'C:\\custom\\chrome.exe');
+});
 
 test('launchEphemeralChrome returns an answering endpoint and close removes the profile', async () => {
   const chrome = await launchTestChrome();

@@ -35,20 +35,42 @@ export const OFFSCREEN_WINDOW_BOUNDS = { left: -32000, top: -32000 };
 export const ONSCREEN_WINDOW_BOUNDS = { left: 40, top: 40 };
 
 function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): string[] {
+  // Order everywhere: Google Chrome variants first, then Edge, then Brave,
+  // then Chromium — autodiscovery falls through in this order when Chrome
+  // itself is absent.
   if (platform === 'win32') {
-    const suffix = join('Google', 'Chrome', 'Application', 'chrome.exe');
+    const chromeSuffix = join('Google', 'Chrome', 'Application', 'chrome.exe');
+    const edgeSuffix = join('Microsoft', 'Edge', 'Application', 'msedge.exe');
+    const braveSuffix = join('BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe');
+    // Chromium's Windows executable is chrome.exe, not chromium.exe.
+    const chromiumSuffix = join('Chromium', 'Application', 'chrome.exe');
     return [
-      join(env.PROGRAMFILES ?? 'C:\\Program Files', suffix),
-      join(env['PROGRAMFILES(X86)'] ?? 'C:\\Program Files (x86)', suffix),
-      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), suffix),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', chromeSuffix),
+      join(env['PROGRAMFILES(X86)'] ?? 'C:\\Program Files (x86)', chromeSuffix),
+      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), chromeSuffix),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', edgeSuffix),
+      join(env['PROGRAMFILES(X86)'] ?? 'C:\\Program Files (x86)', edgeSuffix),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', braveSuffix),
+      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), braveSuffix),
+      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), chromiumSuffix),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', chromiumSuffix),
     ];
   }
   if (platform === 'darwin') {
-    return ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'];
+    return [
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+      '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    ];
   }
   return [
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/microsoft-edge-stable',
+    '/usr/bin/brave-browser',
+    '/usr/bin/brave-browser-stable',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
     '/snap/bin/chromium',
