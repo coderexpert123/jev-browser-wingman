@@ -1,6 +1,6 @@
 {
   "name": "jev-browser-wingman",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Step tool for browser agents: attaches to a running Chrome beside Playwright MCP, lets TypeSafe Jev pick the next element, keeps typed values local and gates irreversible actions.",
   "type": "module",
   "license": "MIT",
