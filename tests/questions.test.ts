@@ -469,8 +469,18 @@ test('Q10: right_page and ready ride iff chain; recover rides iff recover and on
     assert.equal(id in both.request.questions, true, `${id} missing from request 1`);
   }
 
-  const request2 = buildTargetRequest({ state: {}, elements, bindings: {}, round: 2, chain: true, recover: true });
-  for (const id of ['step_done', 'right_page', 'ready', 'recover'] as const) {
+  // § 5.4 two-stage rule: request 2 takes the focus sentence only — key, url
+  // and file also stay on request 1, even when their ops and bindings exist.
+  const request2 = buildTargetRequest({
+    state: {},
+    elements,
+    bindings: { home: 'https://example.com/form', doc: 'C:/tmp/report.pdf' },
+    round: 2,
+    ops: ['press', 'navigate', 'upload', 'fill'],
+    chain: true,
+    recover: true,
+  });
+  for (const id of ['step_done', 'right_page', 'ready', 'recover', 'key', 'url', 'file'] as const) {
     assert.equal(id in request2.questions, false, `${id} leaked onto request 2`);
   }
 });
