@@ -1,13 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import fs from 'node:fs';
 import {
   REASONS,
   STATUSES,
   SENSITIVE_HOST_CATEGORIES,
   DOCTOR_CHECK_IDS,
+  OPS,
+  TARGETLESS_OPS,
+  LEGACY_OPS,
+  PRESS_KEYS,
 } from '../src/contract/types.js';
-import { DEFAULT_BUDGETS, BUDGET_LIMITS } from '../src/contract/constants.js';
+import {
+  DEFAULT_BUDGETS,
+  BUDGET_LIMITS,
+  WITHHOLDABLE_CLASSES,
+  RETAINED_CLASSES,
+  CLASS_OPS,
+  HANDOFF_REFUSAL_TEXT,
+} from '../src/contract/constants.js';
 import { wingmanHome, expandHome } from '../src/contract/home.js';
 import {
   WingmanError,
@@ -49,20 +61,84 @@ test('DEFAULT_BUDGETS sit inside BUDGET_LIMITS', () => {
 test('default max_steps budget is 24 (whole-goal delegation)', () => {
   // 24 must fit a long-chain goal (t9 is 19 steps) in one wingman_do call.
   assert.equal(DEFAULT_BUDGETS.max_steps, 24);
-  assert.equal(DEFAULT_BUDGETS.max_ms, 45_000);
 });
 
-test('max_ms ceiling is below the codex 60 s tool timeout', () => {
-  assert.ok(BUDGET_LIMITS.max_ms[1] <= 50_000);
+test('max_ms default is 90 s and the ceiling is 120 s', () => {
+  assert.equal(DEFAULT_BUDGETS.max_ms, 90_000);
+  assert.equal(BUDGET_LIMITS.max_ms[1], 120_000);
 });
 
-test('DOCTOR_CHECK_IDS has 9 unique ids in the pinned order', () => {
-  assert.equal(DOCTOR_CHECK_IDS.length, 9);
-  assert.equal(new Set(DOCTOR_CHECK_IDS).size, 9);
+test('DOCTOR_CHECK_IDS has 10 unique ids in the pinned order', () => {
+  assert.equal(DOCTOR_CHECK_IDS.length, 10);
+  assert.equal(new Set(DOCTOR_CHECK_IDS).size, 10);
   assert.deepEqual(DOCTOR_CHECK_IDS, [
     'key-present', 'config-loaded', 'registration-portable', 'policy-loaded', 'profile-safe',
-    'adapter-attach', 'default-context', 'coexistence', 'jev-round',
+    'adapter-attach', 'default-context', 'coexistence', 'handoff', 'jev-round',
   ]);
+});
+
+test('OPS, TARGETLESS_OPS, LEGACY_OPS and PRESS_KEYS are pinned (§ 5.1)', () => {
+  assert.deepEqual(OPS, [
+    'click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll',
+    'scroll_up', 'dblclick', 'hover', 'upload', 'navigate', 'back', 'wait', 'scroll_to', 'reload',
+  ]);
+  for (const op of TARGETLESS_OPS) {
+    assert.ok((OPS as readonly string[]).includes(op), `TARGETLESS_OPS entry ${op} must be in OPS`);
+  }
+  assert.deepEqual(TARGETLESS_OPS, ['scroll', 'scroll_up', 'wait', 'navigate', 'back', 'reload']);
+  assert.deepEqual(LEGACY_OPS, ['click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll']);
+  assert.deepEqual(PRESS_KEYS, [
+    'Enter', 'Tab', 'ShiftTab', 'Escape', 'Space', 'Backspace', 'SelectAll',
+    'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  ]);
+  assert.equal(PRESS_KEYS.length, 11);
+});
+
+test('WITHHOLDABLE_CLASSES and RETAINED_CLASSES are pinned and disjoint (§ 5.2)', () => {
+  assert.deepEqual(WITHHOLDABLE_CLASSES, [
+    'element-act', 'type', 'select', 'key', 'hover', 'upload', 'navigate', 'back', 'scroll',
+  ]);
+  assert.deepEqual(RETAINED_CLASSES, [
+    'pointer-xy', 'drag', 'tabs', 'dialog', 'read', 'wait', 'script', 'session', 'unknown',
+  ]);
+  for (const c of WITHHOLDABLE_CLASSES) {
+    assert.ok(!(RETAINED_CLASSES as readonly string[]).includes(c), `${c} must not be both withholdable and retained`);
+  }
+});
+
+test('CLASS_OPS keys are exactly WITHHOLDABLE_CLASSES, and every op it lists is in OPS', () => {
+  assert.deepEqual(Object.keys(CLASS_OPS).sort(), [...WITHHOLDABLE_CLASSES].sort());
+  for (const [cls, ops] of Object.entries(CLASS_OPS)) {
+    for (const op of ops) {
+      assert.ok((OPS as readonly string[]).includes(op), `CLASS_OPS.${cls} lists ${op}, not in OPS`);
+    }
+  }
+});
+
+test('HANDOFF_REFUSAL_TEXT is the pinned literal (§ 5.2)', () => {
+  assert.equal(
+    HANDOFF_REFUSAL_TEXT,
+    'jev-browser-wingman forced handoff: this browser action is handled by the wingman. Call browse_step with your goal, the ordered remaining steps in steps, and every URL, file path and text in values; if it returns a step to you, call it again with pick naming the element by role and name.',
+  );
+});
+
+test('REASONS.fallback includes unsupported-op', () => {
+  assert.ok(REASONS.fallback.includes('unsupported-op' as (typeof REASONS.fallback)[number]));
+});
+
+test('constants.ts never names a browsing product except the marked ENV.PLAYWRIGHT_CDP line', () => {
+  // run-tests.mjs spawns the compiled test with cwd = the package root ("P/"),
+  // so this reads the real TypeScript source, not the compiled scratch build.
+  const constantsPath = path.join(process.cwd(), 'src', 'contract', 'constants.ts');
+  const source = fs.readFileSync(constantsPath, 'utf8');
+  for (const line of source.split(/\r?\n/)) {
+    if (/playwright/i.test(line)) {
+      assert.ok(
+        line.includes('PLAYWRIGHT_CDP') && line.includes('deleted by WP-R'),
+        `unexpected product-name leak: ${line}`,
+      );
+    }
+  }
 });
 
 test('wingmanHome honours WINGMAN_HOME and falls back to ~/.jev-browser-wingman', () => {

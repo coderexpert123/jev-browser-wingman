@@ -1,5 +1,19 @@
-export const OPS = ['click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll'] as const;
+export const OPS = [
+  'click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll',
+  'scroll_up', 'dblclick', 'hover', 'upload', 'navigate', 'back', 'wait', 'scroll_to', 'reload',
+] as const;
 export type Op = (typeof OPS)[number];
+/** Ops that act on no element: the loop always passes elementId null for them. Adapters still accept an element id for `scroll` (today's verified-element wheel; tests/conformance.test.ts:280 uses it). `scroll_to` is targeted (it scrolls one element into view). */
+export const TARGETLESS_OPS: readonly Op[] = ['scroll', 'scroll_up', 'wait', 'navigate', 'back', 'reload'];
+/** Ops a Driver without an `ops` declaration is assumed to support (the pre-0.3.0 set). */
+export const LEGACY_OPS: readonly Op[] = ['click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll'];
+/** Fixed key enumeration for `press` (§ 5.4 key Choice ids = these). ShiftTab = Shift+Tab; SelectAll = Ctrl+A (Cmd+A on macOS). */
+export const PRESS_KEYS = [
+  'Enter', 'Tab', 'ShiftTab', 'Escape', 'Space', 'Backspace', 'SelectAll', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+] as const;
+export type PressKey = (typeof PRESS_KEYS)[number];
+/** browse_step `pick` (§ 5.6). */
+export interface PickInput { role?: string; name?: string; action: Op; nth?: number; value?: string }
 
 export const STATUSES = ['done', 'needs_confirmation', 'blocked', 'login', 'ambiguous', 'error', 'fallback'] as const;
 export type Status = (typeof STATUSES)[number];
@@ -16,7 +30,7 @@ export const REASONS = {
   error: ['page-error', 'stale-element', 'act-failed', 'tool-fault', 'invalid-input', 'confirm-token-invalid'],
   fallback: [
     'mode-off', 'no-browser', 'no-key', 'breaker-open', 'jev-error', 'shadow', 'budget-steps', 'budget-time',
-    'state-too-large', 'unsupported-page',
+    'state-too-large', 'unsupported-page', 'unsupported-op',
     'sensitive-banking', 'sensitive-payments', 'sensitive-webmail', 'sensitive-identity', 'sensitive-auth-path',
     'sensitive-government', 'sensitive-tax', 'sensitive-health', 'sensitive-password', 'sensitive-otp',
     'sensitive-payment-field', 'step-uncertain', 'takeover-offered', 'target-covered',
@@ -81,10 +95,14 @@ export interface DialogEvent { pageId: string; type: 'alert' | 'confirm' | 'prom
 
 export interface Driver {
   readonly name: string;                                  // 'playwright' | 'cdp' for the shipped adapters
+  /** the ops this adapter executes; absent = LEGACY_OPS. The router never asks Jev for an op outside this set (§ 5.5.6). */
+  readonly ops?: readonly Op[];
   attach(target: AttachTarget): Promise<void>;
   pages(): Promise<PageInfo[]>;                            // default-context page targets only
   observe(pageId: string): Promise<Observation>;
-  act(pageId: string, elementId: string, op: Op, value?: string): Promise<void>;
+  /** elementId is null only for ops in TARGETLESS_OPS; scroll also accepts an element id (legacy form, same wheel).
+   * value: fill text, select option value, press key (a PressKey; absent = Enter), navigate URL (http/https), upload absolute file path. */
+  act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void>;
   settle(pageId: string, budgetMs: number): Promise<{ settled: boolean; ms: number }>;
   onDialog(handler: (e: DialogEvent) => void): void;
   detach(): Promise<void>;
@@ -101,7 +119,7 @@ export interface WingmanResult {
   reason: Reason;
   steps: number;
   last_action?: { verb: Op; label: string };
-  candidates?: Array<{ label: string }>;
+  candidates?: Array<{ label: string; role?: string; name?: string }>;
   pending?: { verb: Op; label: string };
   confirm_token?: string;
   shadow?: true;
@@ -109,9 +127,12 @@ export interface WingmanResult {
   note?: string;                      // static continuation hint on non-done wingman_do results; never page text
   step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
     step: string;                    // the redacted proposed step text, capped to LABEL_MAX
-    why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered';
-    candidates: Array<{ label: string }>;   // top 3 target candidates: redacted criteria labels
+    why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
+       | 'already-done' | 'wrong-page' | 'not-ready';
+    candidates: Array<{ label: string; role?: string; name?: string }>;   // top 3 target candidates: redacted criteria labels
   };
+  progress?: { step_index: number; steps_done: number; steps_total: number };
+  missing_binding?: string;           // a binding NAME, never a value
   cost: { jev_calls: number; input_tokens: number; output_tokens: number; ms: number };
   labels_untrusted: true;
 }
@@ -138,6 +159,9 @@ export interface WingmanLogRecord {
   status: Status; reason: Reason; steps: number; host: string; gate_hits: number;
   jev_calls: number; input_tokens: number; output_tokens: number; ms: number;
   would?: { verb: Op; role: string };   // shadow mode only
+  progress?: { step_index: number; steps_done: number; steps_total: number };
+  pick?: true;
+  acts_by_op?: Partial<Record<Op, number>>;
   // Per-phase wall-time breakdown, ms. Numbers only — never page text.
   // attachMs/firstObserveMs are once per invocation; rounds is one entry per
   // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
@@ -177,7 +201,7 @@ export interface WingmanConfig {
 
 export const DOCTOR_CHECK_IDS = [
   'key-present', 'config-loaded', 'registration-portable', 'policy-loaded', 'profile-safe',
-  'adapter-attach', 'default-context', 'coexistence', 'jev-round',
+  'adapter-attach', 'default-context', 'coexistence', 'handoff', 'jev-round',
 ] as const;
 export type DoctorCheckId = (typeof DOCTOR_CHECK_IDS)[number];
 export interface DoctorCheck { id: DoctorCheckId; status: 'PASS' | 'FAIL' | 'SKIP'; detail: string }

@@ -28,7 +28,7 @@ test('missing file loads defaults', async () => {
     assert.equal(result.config.adapter, 'playwright');
     assert.equal(result.config.window, 'offscreen');
     assert.equal(result.config.budgets.max_steps, 24); // whole-goal delegation default
-    assert.equal(result.config.budgets.max_ms, 45_000);
+    assert.equal(result.config.budgets.max_ms, 90_000);
   }
 });
 
@@ -122,7 +122,7 @@ test('an unknown sensitive_hosts category fails', async () => {
   assert.equal(result.ok, false);
 });
 
-test('gate.mode accepts confirm and off and defaults to confirm', async () => {
+test('gate.mode accepts confirm and off and defaults to off', async () => {
   const readGateMode = (config: WingmanConfig): string | undefined =>
     (config as WingmanConfig & { gate?: { mode?: string } }).gate?.mode;
 
@@ -146,7 +146,7 @@ test('gate.mode accepts confirm and off and defaults to confirm', async () => {
   const absentResult = await loadConfig(envFor(home3));
   assert.equal(absentResult.ok, true);
   if (absentResult.ok) {
-    assert.equal(readGateMode(absentResult.config), 'confirm');
+    assert.equal(readGateMode(absentResult.config), 'off');
   }
 });
 
@@ -226,7 +226,7 @@ test('policyModeOf defaults to off and honours an explicit enforce', async () =>
   assert.equal(absent.ok, true);
   if (absent.ok) {
     assert.equal(policyModeOf(absent.config), 'off');
-    assert.equal(gateModeOf(absent.config), 'confirm');
+    assert.equal(gateModeOf(absent.config), 'off');
   }
 
   const home2 = mkHome();
@@ -244,6 +244,191 @@ test('policyModeOf defaults to off and honours an explicit enforce', async () =>
   if (off.ok) {
     assert.equal(policyModeOf(off.config), 'off');
   }
+});
+
+// § 5.3 handoff config block (tests (1)-(10))
+test('(1) handoff key absent loads { mode: forced, tools: browse-only, retain: [] }', async () => {
+  const readHandoff = (config: WingmanConfig) =>
+    (config as WingmanConfig & { handoff?: { mode?: string; tools?: string; retain?: string[] } }).handoff;
+
+  const home = mkHome();
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(readHandoff(result.config), { mode: 'forced', tools: 'browse-only', retain: [] });
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { policy: { mode: 'enforce' } });
+  const withPolicy = await loadConfig(envFor(home2));
+  assert.equal(withPolicy.ok, true);
+  if (withPolicy.ok) {
+    assert.deepEqual(readHandoff(withPolicy.config), { mode: 'forced', tools: 'browse-only', retain: [] });
+  }
+});
+
+test('(2) handoff.mode given, tools absent, derives tools from mode', async () => {
+  const readHandoff = (config: WingmanConfig) =>
+    (config as WingmanConfig & { handoff?: { mode?: string; tools?: string } }).handoff;
+
+  const home = mkHome();
+  writeConfig(home, { handoff: { mode: 'forced' } });
+  const forced = await loadConfig(envFor(home));
+  assert.equal(forced.ok, true);
+  if (forced.ok) {
+    assert.equal(readHandoff(forced.config)?.tools, 'browse-only');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { handoff: { mode: 'optional' } });
+  const optional = await loadConfig(envFor(home2));
+  assert.equal(optional.ok, true);
+  if (optional.ok) {
+    assert.equal(readHandoff(optional.config)?.tools, 'all');
+  }
+});
+
+test('(3) handoff.tools or handoff.retain given, mode absent, defaults mode to forced', async () => {
+  const readHandoff = (config: WingmanConfig) =>
+    (config as WingmanConfig & { handoff?: { mode?: string } }).handoff;
+
+  const home = mkHome();
+  writeConfig(home, { handoff: { tools: 'all' } });
+  const withTools = await loadConfig(envFor(home));
+  assert.equal(withTools.ok, true);
+  if (withTools.ok) {
+    assert.equal(readHandoff(withTools.config)?.mode, 'forced');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { handoff: { retain: ['scroll'] } });
+  const withRetain = await loadConfig(envFor(home2));
+  assert.equal(withRetain.ok, true);
+  if (withRetain.ok) {
+    assert.equal(readHandoff(withRetain.config)?.mode, 'forced');
+  }
+});
+
+test('(4) handoff.retain accepts withholdable classes and rejects an unknown class', async () => {
+  const readHandoff = (config: WingmanConfig) =>
+    (config as WingmanConfig & { handoff?: { retain?: string[] } }).handoff;
+
+  const home = mkHome();
+  writeConfig(home, { handoff: { retain: ['scroll', 'key'] } });
+  const ok = await loadConfig(envFor(home));
+  assert.equal(ok.ok, true);
+  if (ok.ok) {
+    assert.deepEqual(readHandoff(ok.config)?.retain, ['scroll', 'key']);
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { handoff: { retain: ['script'] } }); // 'script' is a retained class, not withholdable
+  const bad = await loadConfig(envFor(home2));
+  assert.equal(bad.ok, false);
+});
+
+test('(5) the five handoff error strings', async () => {
+  const home = mkHome();
+  writeConfig(home, { handoff: 'not-an-object' });
+  const notObject = await loadConfig(envFor(home));
+  assert.equal(notObject.ok, false);
+  if (!notObject.ok) assert.equal(notObject.error, 'handoff must be an object');
+
+  const home2 = mkHome();
+  writeConfig(home2, { handoff: { unknown_key: true } });
+  const unknownKey = await loadConfig(envFor(home2));
+  assert.equal(unknownKey.ok, false);
+  if (!unknownKey.ok) assert.equal(unknownKey.error, 'unknown handoff key: unknown_key');
+
+  const home3 = mkHome();
+  writeConfig(home3, { handoff: { mode: 'sometimes' } });
+  const invalidMode = await loadConfig(envFor(home3));
+  assert.equal(invalidMode.ok, false);
+  if (!invalidMode.ok) assert.equal(invalidMode.error, 'invalid handoff.mode: "sometimes"');
+
+  const home4 = mkHome();
+  writeConfig(home4, { handoff: { tools: 'everything' } });
+  const invalidTools = await loadConfig(envFor(home4));
+  assert.equal(invalidTools.ok, false);
+  if (!invalidTools.ok) assert.equal(invalidTools.error, 'invalid handoff.tools: "everything"');
+
+  const home5 = mkHome();
+  writeConfig(home5, { handoff: { retain: ['not-a-class'] } });
+  const invalidRetain = await loadConfig(envFor(home5));
+  assert.equal(invalidRetain.ok, false);
+  if (!invalidRetain.ok) assert.equal(invalidRetain.error, 'invalid handoff.retain: ["not-a-class"]');
+});
+
+test('(6) forced + policy.mode enforce is not a config error and handoffOf reads forced (Q4)', async () => {
+  const { handoffOf } = await import('../src/core/config.js');
+
+  const home = mkHome();
+  writeConfig(home, { mode: 'on', policy: { mode: 'enforce' }, handoff: { mode: 'forced' } });
+  const explicit = await loadConfig(envFor(home));
+  assert.equal(explicit.ok, true);
+  if (explicit.ok) {
+    assert.equal(handoffOf(explicit.config).mode, 'forced');
+  }
+
+  const home2 = mkHome();
+  writeConfig(home2, { mode: 'on', policy: { mode: 'enforce' } });
+  const implicit = await loadConfig(envFor(home2));
+  assert.equal(implicit.ok, true);
+  if (implicit.ok) {
+    assert.equal(handoffOf(implicit.config).mode, 'forced');
+  }
+});
+
+test('(7) handoffOf on a hand-built object with no handoff key returns optional', async () => {
+  const { handoffOf } = await import('../src/core/config.js');
+  const handBuilt = { mode: 'on' } as unknown as WingmanConfig;
+  assert.deepEqual(handoffOf(handBuilt), { mode: 'optional', tools: 'all', retain: [] });
+});
+
+test('(8) handoffOf reads retain from a loaded config', async () => {
+  const { handoffOf } = await import('../src/core/config.js');
+  const home = mkHome();
+  writeConfig(home, { mode: 'on', handoff: { mode: 'forced', retain: ['scroll'] } });
+  const result = await loadConfig(envFor(home));
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(handoffOf(result.config).retain, ['scroll']);
+  }
+});
+
+test('(9) handoffOf on a hand-built forced object with top-level mode on returns forced', async () => {
+  const { handoffOf } = await import('../src/core/config.js');
+  const forced = { mode: 'on', handoff: { mode: 'forced', tools: 'browse-only', retain: [] } } as unknown as WingmanConfig;
+  assert.equal(handoffOf(forced).mode, 'forced');
+});
+
+test('(10) handoffOf returns optional whenever top-level mode is not on, whatever handoff says', async () => {
+  const { handoffOf } = await import('../src/core/config.js');
+
+  const off = { mode: 'off', handoff: { mode: 'forced' } } as unknown as WingmanConfig;
+  assert.equal(handoffOf(off).mode, 'optional');
+
+  const shadow = { mode: 'shadow', handoff: { mode: 'forced' } } as unknown as WingmanConfig;
+  assert.equal(handoffOf(shadow).mode, 'optional');
+
+  const on = { mode: 'on', handoff: { mode: 'forced' } } as unknown as WingmanConfig;
+  assert.equal(handoffOf(on).mode, 'forced');
+});
+
+// § 5.3a gate default OFF (Q6) (tests (11)-(12))
+test('(11) gateModeOf on a hand-built config: absent gate is off, explicit confirm is confirm', async () => {
+  const { gateModeOf } = await import('../src/core/config.js');
+
+  const noGate = {} as unknown as WingmanConfig;
+  assert.equal(gateModeOf(noGate), 'off');
+
+  const confirmGate = { gate: { mode: 'confirm' } } as unknown as WingmanConfig;
+  assert.equal(gateModeOf(confirmGate), 'confirm');
+});
+
+test('(12) DEFAULT_GATE deep-equals { mode: off }', async () => {
+  const { DEFAULT_GATE } = await import('../src/contract/constants.js');
+  assert.deepEqual(DEFAULT_GATE, { mode: 'off' });
 });
 
 test('resolveKey prefers env then secrets_file and never returns a key for an empty value', () => {

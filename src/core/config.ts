@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expandHome, wingmanHome } from '../contract/home.js';
-import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, DEFAULT_POLICY, DEFAULT_TAKEOVER, GATE_MODES, POLICY_MODES, TAKEOVER_MODES, TAKEOVER_THRESHOLD_RANGE } from '../contract/constants.js';
-import type { GateMode, PolicyMode, TakeoverMode } from '../contract/constants.js';
+import { BUDGET_LIMITS, DEFAULT_BUDGETS, DEFAULT_PORT, DEFAULT_PROFILE_DIR, DEFAULT_GATE, DEFAULT_POLICY, DEFAULT_TAKEOVER, GATE_MODES, POLICY_MODES, TAKEOVER_MODES, TAKEOVER_THRESHOLD_RANGE, WITHHOLDABLE_CLASSES } from '../contract/constants.js';
+import type { GateMode, PolicyMode, TakeoverMode, HandoffMode, HandoffTools, WithholdableClass } from '../contract/constants.js';
 import { SENSITIVE_HOST_CATEGORIES, WINDOW_MODES } from '../contract/types.js';
 import type { Budgets, Mode, SensitiveHostCategory, WindowMode, WingmanConfig } from '../contract/types.js';
 
@@ -20,6 +20,7 @@ const TOP_LEVEL_KEYS = new Set([
   'gate',
   'policy',
   'takeover',
+  'handoff',
 ]);
 
 type LoadResult =
@@ -251,10 +252,52 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     }
   }
 
+  let handoff: { mode: HandoffMode; tools: HandoffTools; retain: WithholdableClass[] } = {
+    mode: 'forced', tools: 'browse-only', retain: [],
+  };
+  if ('handoff' in obj) {
+    const h = obj.handoff;
+    if (typeof h !== 'object' || h === null || Array.isArray(h)) {
+      return { ok: false, error: 'handoff must be an object' };
+    }
+    const hObj = h as Record<string, unknown>;
+    for (const key of Object.keys(hObj)) {
+      if (key !== 'mode' && key !== 'tools' && key !== 'retain') {
+        return { ok: false, error: `unknown handoff key: ${key}` };
+      }
+    }
+    let hMode: HandoffMode | undefined;
+    if ('mode' in hObj) {
+      if (hObj.mode !== 'forced' && hObj.mode !== 'optional') {
+        return { ok: false, error: `invalid handoff.mode: ${JSON.stringify(hObj.mode)}` };
+      }
+      hMode = hObj.mode;
+    }
+    let hTools: HandoffTools | undefined;
+    if ('tools' in hObj) {
+      if (hObj.tools !== 'browse-only' && hObj.tools !== 'all') {
+        return { ok: false, error: `invalid handoff.tools: ${JSON.stringify(hObj.tools)}` };
+      }
+      hTools = hObj.tools;
+    }
+    let hRetain: WithholdableClass[] = [];
+    if ('retain' in hObj) {
+      const r = hObj.retain;
+      if (!Array.isArray(r) || r.some((c) => !(WITHHOLDABLE_CLASSES as readonly unknown[]).includes(c))) {
+        return { ok: false, error: `invalid handoff.retain: ${JSON.stringify(r)}` };
+      }
+      hRetain = r as WithholdableClass[];
+    }
+    const mode: HandoffMode = hMode ?? 'forced';
+    const tools: HandoffTools = hTools ?? (mode === 'forced' ? 'browse-only' : 'all');
+    handoff = { mode, tools, retain: hRetain };
+  }
+
   const config: WingmanConfig & {
     gate: { mode: GateMode };
     policy: { mode: PolicyMode };
     takeover: { threshold: number; mode: TakeoverMode; retry: boolean };
+    handoff: { mode: HandoffMode; tools: HandoffTools; retain: WithholdableClass[] };
   } = {
     mode,
     adapter,
@@ -269,17 +312,18 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
     gate,
     policy,
     takeover,
+    handoff,
   };
 
   return { ok: true, config, source };
 }
 
-/** The gate mode in force for a config: `gate.mode` when the loaded config
- * carries it, the default ('confirm') otherwise (§ 3.8). Read through this
- * accessor everywhere; the WingmanConfig type predates the key. */
+/** The gate mode in force for a config: `'confirm'` iff `gate.mode` is explicitly `'confirm'`,
+ * the default ('off', Q6) otherwise (§ 3.8, § 5.3a). Read through this accessor everywhere;
+ * the WingmanConfig type predates the key. */
 export function gateModeOf(config: WingmanConfig): GateMode {
   const gate = (config as WingmanConfig & { gate?: { mode?: unknown } }).gate;
-  return gate !== null && typeof gate === 'object' && gate.mode === 'off' ? 'off' : 'confirm';
+  return gate !== null && typeof gate === 'object' && gate.mode === 'confirm' ? 'confirm' : 'off';
 }
 
 /** The policy mode in force for a config: `policy.mode` when the loaded config
@@ -303,6 +347,23 @@ export function takeoverOf(config: WingmanConfig): {
     config as WingmanConfig & { takeover?: { threshold: number; mode: TakeoverMode; retry?: boolean } }
   ).takeover;
   return { ...DEFAULT_TAKEOVER, ...(takeover ?? {}) };
+}
+
+/** The handoff config in force. An object with no `handoff` key (hand-built, or never loaded through
+ * loadConfig) runs 'optional' — today's code path; loadConfig materialises the forced default. */
+export function handoffOf(config: WingmanConfig): { mode: HandoffMode; tools: HandoffTools; retain: WithholdableClass[] } {
+  const h = (config as WingmanConfig & { handoff?: { mode?: unknown; tools?: unknown; retain?: unknown } }).handoff;
+  // A wingman that never acts (mode 'off' lists no tools, 'shadow' acts on nothing) must not have the
+  // caller's action tools withheld: that would dead-end every in-page action.
+  if (config.mode !== 'on') return { mode: 'optional', tools: 'all', retain: [] };
+  if (h === null || typeof h !== 'object') return { mode: 'optional', tools: 'all', retain: [] };
+  const mode: HandoffMode = h.mode === 'forced' ? 'forced' : 'optional';
+  const tools: HandoffTools =
+    h.tools === 'browse-only' || h.tools === 'all' ? h.tools : mode === 'forced' ? 'browse-only' : 'all';
+  const retain = Array.isArray(h.retain)
+    ? (h.retain.filter((c) => (WITHHOLDABLE_CLASSES as readonly unknown[]).includes(c)) as WithholdableClass[])
+    : [];
+  return { mode, tools, retain };
 }
 
 export function resolveKey(
