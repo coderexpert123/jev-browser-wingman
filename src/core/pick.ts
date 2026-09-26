@@ -56,7 +56,10 @@ export function validatePick(
   // value: required iff the action is in PICK_VALUE_OPS, forbidden otherwise;
   // it must match BINDING_RE and name a key of values.
   if (PICK_VALUE_OPS.includes(action)) {
-    if (typeof o.value !== 'string' || !BINDING_RE.test(o.value) || !(o.value in values)) {
+    if (
+      typeof o.value !== 'string' || !BINDING_RE.test(o.value) ||
+      !Object.prototype.hasOwnProperty.call(values, o.value)
+    ) {
       return { ok: false };
     }
   } else if (o.value !== undefined) {

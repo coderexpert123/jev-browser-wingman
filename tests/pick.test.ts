@@ -115,6 +115,9 @@ test('validatePick requires value to match BINDING_RE and name a binding', () =>
   assert.equal(validatePick({ action: 'fill', role: 'textbox', name: 'x', value: '9bad' }, VALUES).ok, false);
   assert.equal(validatePick({ action: 'fill', role: 'textbox', name: 'x', value: 'Bad Name' }, VALUES).ok, false);
   assert.equal(validatePick({ action: 'fill', role: 'textbox', name: 'x', value: 7 }, VALUES).ok, false);
+  // a prototype member is not a key of values (own keys only; 'constructor'
+  // matches BINDING_RE, so it must be rejected by the binding check)
+  assert.equal(validatePick({ action: 'fill', role: 'textbox', name: 'x', value: 'constructor' }, {}).ok, false);
   assert.equal(validatePick({ action: 'fill', role: 'textbox', name: 'x', value: 'full_name' }, VALUES).ok, true);
 });
 
