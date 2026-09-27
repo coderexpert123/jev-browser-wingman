@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { launchTestChrome } from './helpers/chrome.js';
-import { startTypeSafeStub } from './helpers/typesafe-stub.js';
+import { fillDefaultAnswers, startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import type { WingmanResult } from '../src/contract/types.js';
 
@@ -290,7 +290,11 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       }
     }
 
-    return { status: 200, body: { answers, usage: {} } };
+    // Every other question the request asks (key is always offered; value
+    // when no clause above filled it, recover/step_done/right_page/ready
+    // otherwise) gets a neutral default so parseJevAnswers never rejects the
+    // response as invalid.
+    return { status: 200, body: { answers: fillDefaultAnswers(q, answers), usage: {} } };
   });
 }
 

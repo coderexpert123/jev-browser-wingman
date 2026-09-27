@@ -22,7 +22,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { chromium } from 'playwright-core';
 import { launchTestChrome } from './helpers/chrome.js';
-import { startTypeSafeStub } from './helpers/typesafe-stub.js';
+import { fillDefaultAnswers, startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import type { WingmanResult } from '../src/contract/types.js';
 
@@ -177,7 +177,11 @@ async function startPickStub(): Promise<Awaited<ReturnType<typeof startTypeSafeS
         confidence: 0.4,
       };
     }
-    return { status: 200, body: { answers, usage: {} } };
+    // Every other question the request asks (key and value are always
+    // possible in this flow — the fill never actually reaches the stub, but
+    // the request still carries the questions) gets a neutral default so
+    // parseJevAnswers never rejects the response as invalid.
+    return { status: 200, body: { answers: fillDefaultAnswers(q, answers), usage: {} } };
   });
 }
 
@@ -252,7 +256,9 @@ test('P2: a pick onto an obscured element returns target-covered with no act and
     assert.equal(res.reason, 'target-covered');
     assert.equal(res.step_review?.why, 'target-covered');
     const log = await pageEval('overlay.html', () => document.getElementById('log')?.textContent ?? null);
-    assert.equal(log, null, 'the covered button was not clicked; the log is unchanged');
+    // The fixture's <output id="log"></output> starts as '' (element present,
+    // no text), not null — null would mean the element itself is missing.
+    assert.equal(log, '', 'the covered button was not clicked; the log is unchanged');
     assert.equal(stub.requests.length, 0, 'a pick round sends nothing to the stub');
   } finally {
     await s.close();

@@ -38,6 +38,14 @@ function mkTempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
+// .build/ is gitignored and absent on a fresh clone; mkdtempSync needs its
+// parent to already exist.
+function mkBuildTempDir(prefix: string): string {
+  const buildDir = path.join(root, '.build');
+  fs.mkdirSync(buildDir, { recursive: true });
+  return fs.mkdtempSync(path.join(buildDir, prefix));
+}
+
 function rawGet(port: number, rawPath: string): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
     const req = http.get({ host: '127.0.0.1', port, path: rawPath }, (res) => {
@@ -52,7 +60,7 @@ function rawGet(port: number, rawPath: string): Promise<{ status: number; body: 
 }
 
 test('build.mjs scoped build emits BUILD ok', () => {
-  const outDir = fs.mkdtempSync(path.join(root, '.build', 'tmp-scaffold-'));
+  const outDir = mkBuildTempDir('tmp-scaffold-');
   try {
     const result = run(['scripts/build.mjs', '--out', outDir, 'src/package-root.ts']);
     assert.match(result.stdout, /BUILD: ok out=/);
@@ -69,8 +77,8 @@ test('build.mjs refuses entries without --out', () => {
 });
 
 test('build.mjs reports a type error without BUILD ok', () => {
-  const outDir = fs.mkdtempSync(path.join(root, '.build', 'tmp-scaffold-'));
-  const badEntryDir = fs.mkdtempSync(path.join(root, '.build', 'tmp-scaffold-src-'));
+  const outDir = mkBuildTempDir('tmp-scaffold-');
+  const badEntryDir = mkBuildTempDir('tmp-scaffold-src-');
   const badEntry = path.join(badEntryDir, 'bad-entry.ts');
   fs.writeFileSync(badEntry, "const x: number = 'a';\n");
   try {

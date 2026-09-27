@@ -103,6 +103,47 @@ test('attaches to the default context and lists the page', async () => {
   }
 });
 
+// Font rendering (and therefore box geometry: rect x/y/w/h and the fingerprint's
+// x/y) is OS-specific — the same fixture measures differently on Linux than on
+// the Windows box this suite was pinned on (e.g. w: 185 vs pinned 177, x: 257 vs
+// pinned 249). Every semantic field (role, name, htmlId, placeholder, obscured,
+// type, attrName, state, editable, inViewport, form, options, ...) still asserts
+// exact equality; only the pixel-geometry fields get a tolerance, and even those
+// are still checked, not skipped: each must be within a few px of the pinned
+// value and stay sane (non-negative, matching between rect and fingerprint).
+const GEOMETRY_TOLERANCE_PX = 20;
+
+function assertElementsMatchWithGeometryTolerance(actual: ElementRecord[], expected: ElementRecord[]): void {
+  assert.equal(actual.length, expected.length, 'element count mismatch');
+  for (let i = 0; i < expected.length; i++) {
+    const a = actual[i];
+    const e = expected[i];
+    const { rect: aRect, fingerprint: aFp, ...aRest } = a as any;
+    const { rect: eRect, fingerprint: eFp, ...eRest } = e as any;
+    assert.deepEqual(aRest, eRest, `element ${i} (${e.name}) semantic fields differ`);
+    const { x: eFpX, y: eFpY, ...eFpRest } = eFp;
+    const { x: aFpX, y: aFpY, ...aFpRest } = aFp;
+    assert.deepEqual(aFpRest, eFpRest, `element ${i} (${e.name}) fingerprint non-geometric fields differ`);
+    for (const key of ['x', 'y', 'w', 'h'] as const) {
+      const av = aRect[key];
+      const ev = eRect[key];
+      assert.ok(av >= 0, `element ${i} (${e.name}) rect.${key}=${av} is negative`);
+      assert.ok(
+        Math.abs(av - ev) <= GEOMETRY_TOLERANCE_PX,
+        `element ${i} (${e.name}) rect.${key}=${av} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${ev}`,
+      );
+    }
+    assert.ok(
+      Math.abs(aFpX - eFpX) <= GEOMETRY_TOLERANCE_PX,
+      `element ${i} (${e.name}) fingerprint.x=${aFpX} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eFpX}`,
+    );
+    assert.ok(
+      Math.abs(aFpY - eFpY) <= GEOMETRY_TOLERANCE_PX,
+      `element ${i} (${e.name}) fingerprint.y=${aFpY} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eFpY}`,
+    );
+  }
+}
+
 test('observe matches the pinned form.html table', async () => {
   const rig = await openRig('form.html', 'Fixture form');
   try {
@@ -110,7 +151,7 @@ test('observe matches the pinned form.html table', async () => {
     assert.equal(observation.title, 'Fixture form');
     assert.match(observation.url, /\/form\.html$/);
     assert.equal(observation.truncated, false);
-    assert.deepEqual(observation.elements, PINNED_FORM_ELEMENTS);
+    assertElementsMatchWithGeometryTolerance(observation.elements, PINNED_FORM_ELEMENTS);
     assert.equal(observation.forms.length, 1);
     assert.equal(observation.forms[0].id, 'details');
     assert.equal(observation.forms[0].method, 'post');

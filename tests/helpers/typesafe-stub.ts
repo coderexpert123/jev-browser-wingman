@@ -11,6 +11,53 @@ export interface TypeSafeStubResult {
   delayMs?: number;
 }
 
+/** The bits of a `JevQuestion` a stub needs to pick a default answer; matches
+ * the shape `body.questions[id]` arrives in over the wire. */
+export interface StubQuestion {
+  type: string;
+  criteria?: Record<string, unknown>;
+}
+
+/**
+ * Fill in any question the request asks that `explicit` does not already
+ * answer, with a neutral default that cannot change a scripted stub's
+ * intended outcome — real Jev answers every asked question
+ * (`parseJevAnswers` in src/core/jev-client.ts rejects a response missing
+ * one), and the e2e stubs must too:
+ *
+ *  - noul -> a low, non-committing probability (0.05): "no" to every
+ *    yes/no read (done, blocked, login, error, irreversible, step_done) and
+ *    "not yet" to right_page/ready — a test that actually needs those high
+ *    (chain-e2e, pick-e2e) already answers them explicitly, which wins.
+ *  - choice with a `none` criterion (action, target, value, key, url, file,
+ *    option) -> `none` at a low confidence, so it never fires an act, a fill
+ *    or a press on its own.
+ *  - choice with no `none` criterion (recover is the only one) -> its first
+ *    criterion key, at a low confidence; loop.ts only reads `recover` once
+ *    the `error` noul has already crossed its threshold, which the 0.05
+ *    default here never does, so the choice itself is inert.
+ *
+ * Explicit answers always win: any id already in `explicit` passes through
+ * unchanged, byte for byte.
+ */
+export function fillDefaultAnswers(
+  questions: Record<string, StubQuestion>,
+  explicit: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...explicit };
+  for (const [id, question] of Object.entries(questions ?? {})) {
+    if (id in out) continue;
+    if (question.type === 'choice') {
+      const keys = Object.keys(question.criteria ?? {});
+      const choice = keys.includes('none') ? 'none' : (keys[0] ?? 'none');
+      out[id] = { type: 'choice', choice, probabilities: { [choice]: 0.05 }, confidence: 0.05 };
+    } else {
+      out[id] = { type: 'noul', noul: 0.05 };
+    }
+  }
+  return out;
+}
+
 export async function startTypeSafeStub(
   handler: (body: { questions: Record<string, unknown>; state: unknown }) => TypeSafeStubResult,
 ): Promise<{ url: string; requests: unknown[]; close(): Promise<void> }> {

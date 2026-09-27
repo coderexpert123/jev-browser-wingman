@@ -19,7 +19,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { chromium } from 'playwright-core';
 import { launchTestChrome } from './helpers/chrome.js';
-import { startTypeSafeStub } from './helpers/typesafe-stub.js';
+import { fillDefaultAnswers, startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import {
   WINGMAN_CHECK_DESCRIPTION,
@@ -158,7 +158,10 @@ async function startScriptedStub(script: Script[] = []) {
       const pick = keys[0] ?? 'none';
       answers.value = { type: 'choice', choice: pick, probabilities: { [pick]: 0.9 }, confidence: 0.9 };
     }
-    return { status: 200, body: { answers, usage: {} }, delayMs: step.delayMs };
+    // Every other question the request asks (key is always offered; url/file/
+    // recover/step_done/right_page/ready are conditional) gets a neutral
+    // default so parseJevAnswers never rejects the response as invalid.
+    return { status: 200, body: { answers: fillDefaultAnswers(q, answers), usage: {} }, delayMs: step.delayMs };
   });
 }
 

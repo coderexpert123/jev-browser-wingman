@@ -373,14 +373,41 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
               break;
             }
             case 'back': {
-              const wentBack = await raceAgainstDialog(
+              // Playwright's goBack() resolves null both when there truly is
+              // no previous history entry AND when the browser restores the
+              // previous document from the back/forward cache (a bfcache
+              // restore fires no Network.responseReceived for the main
+              // frame, so Playwright's response-tracking has nothing to
+              // return even though the navigation genuinely happened) OR on
+              // any other same-document navigation (e.g. a history entry
+              // reached via history.pushState with no new network request).
+              // So null is never a reliable "no previous page" signal, and
+              // neither is comparing the URL before/after: a same-document
+              // entry can share the exact URL of the entry before it. Read
+              // the real navigation stack instead, over this page's own CDP
+              // session (already used for Page.getFrameTree elsewhere in
+              // this file) — the same check the CDP adapter makes via
+              // Page.getNavigationHistory before it ever navigates. This is a
+              // browser-process query (navigation history lives on Chromium's
+              // NavigationController, not the renderer), so it should not
+              // wedge behind a page dialog the way Runtime.evaluate can — but
+              // bound it anyway, matching the CDP adapter's own call (which
+              // passes NAV_TIMEOUT_MS) and every other CDP round-trip in this
+              // file, rather than leaving one command with no timeout at all.
+              const hist = await Promise.race([
+                rec.session.send('Page.getNavigationHistory'),
+                new Promise<never>((_, reject) => {
+                  setTimeout(() => reject(new ActFailedError('operation timed out')), NAV_TIMEOUT_MS).unref();
+                }),
+              ]);
+              if (!hist || typeof hist.currentIndex !== 'number' || hist.currentIndex <= 0 || !hist.entries?.length) {
+                throw new ActFailedError('no previous page');
+              }
+              await raceAgainstDialog(
                 rec,
                 () => rec.page.goBack({ waitUntil: 'commit', timeout: NAV_TIMEOUT_MS }),
                 NAV_TIMEOUT_MS + 2_000,
               );
-              if (wentBack === null) {
-                throw new ActFailedError('no previous page');
-              }
               break;
             }
             case 'reload':

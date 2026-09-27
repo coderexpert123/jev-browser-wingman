@@ -527,7 +527,7 @@ test('listChromeProcesses Windows command covers the five family executables', a
   const procs = await listChromeProcesses(async (cmd, args) => {
     captured = [cmd, ...args];
     return '';
-  });
+  }, 'win32');
   assert.deepEqual(procs, []);
   const command = captured.join(' ');
   for (const name of ['chrome.exe', 'msedge.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe']) {

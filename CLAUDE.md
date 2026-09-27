@@ -639,3 +639,44 @@ withheld — this file rides a public-bound repository). Gates:
   a background run gives no live signal that distinguishes "buffered, still
   working" from "actually wedged," and a Monitor watching only for the
   completion line has the same blind spot.
+
+## Gotchas from the forced-handoff-0.3.0 verifier pass (2026-09-27)
+
+- **`fillDefaultAnswers` (tests/helpers/typesafe-stub.ts) defaults every noul to
+  a LOW probability (0.05) — safe only for questions where low is the
+  defensive/no-op reading (done, blocked, login, error, irreversible,
+  step_done). `right_page` and `ready` are inverted: low means "not yet"/
+  "wrong page", which `src/core/loop.ts`'s `runChainEarly` reads as a real
+  problem (`noulOf('ready') < THRESHOLDS.ready` fires a mechanical `wait`,
+  then bounces `not-ready` after `READY_MAX_WAITS` rounds). Any chain-mode
+  stub (any request carrying `steps`, i.e. every `browse_step` call) that
+  doesn't explicitly answer `right_page`/`ready` high (0.95, matching
+  `chain-e2e.test.ts` and `pick-e2e.test.ts`'s own stubs) gets every round
+  silently replaced with `wait` and never reaches its scripted action.
+  `tests/browse-step-surface.test.ts` now sets `right_page: 0.95, ready: 0.95`
+  in its `noulDefaults` defensively (no current test there reaches a chain
+  round through the stub, so it was latent, not live). Check this first for
+  any NEW chain-mode stub built on `fillDefaultAnswers`.
+- **`src/adapters/playwright.ts`'s `back` op**: Playwright's `goBack()`
+  resolving `null` is not a reliable "no previous page" signal (bfcache
+  restores AND same-document navigations, e.g. a `history.pushState` entry,
+  both resolve `null` with no network response) — and neither is comparing
+  the URL before/after (a same-document entry can share the exact URL of the
+  entry before it, e.g. repeated `pushState(state, '', location.href)`). The
+  robust check is the real navigation stack via this page's own CDP session:
+  `rec.session.send('Page.getNavigationHistory')`, throwing when
+  `currentIndex <= 0`, mirroring `src/adapters/cdp.ts`'s own `back` case
+  exactly. Bound that call with a plain timeout (it's a browser-process query,
+  not a renderer round-trip, so it shouldn't wedge on a page dialog the way
+  `Runtime.evaluate` can — but every other CDP round-trip in this file is
+  timeout-bounded, so this one is too, for consistency).
+- **`bench/cloud/chromium-wrapper.sh`**: `chmod o+x` on ONLY the immediate
+  parent of `--user-data-dir` is not enough once the profile lives more than
+  one level under a directory `nobody` can't traverse. The ephemeral/mkdtemp
+  profile only needed one level (its parent sits under `/tmp`, already
+  world-traversable); the default profile
+  (`~/.jev-browser-wingman/profile` → `/root/.jev-browser-wingman/profile`
+  when the bench runs as root) needs `/root` itself made traversable too, and
+  `/root` defaults to 0700. Fix: walk every ancestor from the immediate
+  parent up to (not including) `/`, granting `o+x` only (never `o+r`, so
+  `nobody` still can't list the directory's other contents) on each.

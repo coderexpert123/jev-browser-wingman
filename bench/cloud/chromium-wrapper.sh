@@ -11,10 +11,26 @@
 REAL_CHROMIUM="${REAL_CHROMIUM:-/opt/pw-browsers/chromium}"
 
 # ensureChrome() creates the profile dir as root; hand it to nobody first.
+# `nobody` also needs +x (traverse, never +r/list) on every ANCESTOR
+# directory of user-data-dir, not just its immediate parent: the ephemeral
+# mkdtemp case only needed one level because its parent was already
+# world-traversable (under /tmp), but the default profile
+# (~/.jev-browser-wingman/profile, i.e. /root/.jev-browser-wingman/profile
+# when the bench runs as root) sits two levels under /root itself, which
+# defaults to 0700 — a single-level chmod leaves /root blocking traversal
+# and chrome never starts. Walk every ancestor up to (not including) `/`,
+# granting only the execute bit (never read, so `nobody` still cannot list
+# /root's other contents).
 for a in "$@"; do
   case "$a" in
     --user-data-dir=*)
-      chown -R nobody "${a#--user-data-dir=}"
+      dir="${a#--user-data-dir=}"
+      chown -R nobody "$dir"
+      d="$(dirname "$dir")"
+      while [ "$d" != "/" ] && [ "$d" != "." ] && [ -n "$d" ]; do
+        chmod o+x "$d" 2>/dev/null || true
+        d="$(dirname "$d")"
+      done
       ;;
   esac
 done

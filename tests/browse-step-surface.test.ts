@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { launchTestChrome } from './helpers/chrome.js';
-import { startTypeSafeStub } from './helpers/typesafe-stub.js';
+import { fillDefaultAnswers, startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import { createWingman } from '../src/lib.js';
 import { BROWSE_STEP_DESCRIPTION, BROWSE_STEP_SCHEMA } from '../src/surfaces/tool-text.js';
@@ -158,6 +158,16 @@ async function startScriptedStub(script: Script[] = []) {
       login: 0.05,
       error: 0.05,
       irreversible: 0.05,
+      // right_page/ready are inverted nouls: low is the DEFENSIVE reading
+      // ("not yet" / "wrong page"), so a low default (fillDefaultAnswers'
+      // own 0.05) makes every chain round look not-ready and the loop
+      // bounces to a not-ready result within READY_MAX_WAITS rounds without
+      // ever reaching the scripted action. This file's chain rounds (every
+      // browse_step call carries `steps`, so chain is always true here) are
+      // never testing readiness, so they need the high default explicitly,
+      // matching chain-e2e.test.ts and pick-e2e.test.ts's own stubs.
+      right_page: 0.95,
+      ready: 0.95,
     };
     for (const [key, dflt] of Object.entries(noulDefaults)) {
       if (key in q) {
@@ -184,7 +194,10 @@ async function startScriptedStub(script: Script[] = []) {
       const pick = keys[0] ?? 'none';
       answers.value = { type: 'choice', choice: pick, probabilities: { [pick]: 0.9 }, confidence: 0.9 };
     }
-    return { status: 200, body: { answers, usage: {} }, delayMs: step.delayMs };
+    // Every other question the request asks (key is always offered; url/file/
+    // recover/step_done/right_page/ready are conditional) gets a neutral
+    // default so parseJevAnswers never rejects the response as invalid.
+    return { status: 200, body: { answers: fillDefaultAnswers(q, answers), usage: {} }, delayMs: step.delayMs };
   });
 }
 
@@ -306,7 +319,7 @@ test('a first call with the verbatim t9 goal, seven steps and a numeric value is
   try {
     const res = (await s.client.callTool({
       name: 'browse_step',
-      arguments: { goal: T9_GOAL, steps: T9_STEPS, values: { amount: 77 } },
+      arguments: { goal: T9_GOAL, steps: T9_STEPS, values: { amount: 77, email: 'qa@example.com' } },
     })) as { isError?: boolean; content: Array<{ type: string; text: string }> };
     const result = JSON.parse(res.content[0].text) as WingmanResult;
     assert.ok(
