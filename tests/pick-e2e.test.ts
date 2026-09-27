@@ -133,17 +133,27 @@ async function pageEval(urlPart: string, fn: () => unknown): Promise<unknown> {
   }
 }
 
-// P1 stub. Request phasing: call 1 is chain rounds 1 and 2 (the non-commit
-// retries once, § 5.5.2 rule 9); each round asks action (+chain Nouls) in
-// request 1 and target in request 2, so call 1 owns requests 0..3. Call 2 is
-// the pick round (no request) plus ONE round-2 request whose action is
-// targetless `none` — request 2 is skipped (§ 5.5.2 rule 6) and the advance on
-// step_done fires from request-1 answers — so phase B starts at request 4.
+// P1 stub. Bug found 2026-09-27: this used to switch to phase B by a raw
+// request count (`reqNo >= 4`), on the assumption that each round asks
+// action in request 1 and target in request 2. That assumption is wrong for
+// a non-two-stage round (form.html's element count never triggers two-stage)
+// — src/core/questions.ts buildRoundRequest puts action AND target in ONE
+// request, so call 1 (round 1, then a same-clause retry per § 5.5.2 rule 9)
+// makes only 2 requests, not 4, and call 2's own retry exhausted at request 3
+// — the count-based switch never flipped before the retry-exhausted bounce
+// fired, so call 2 non-committed multi-match again instead of reaching phase
+// B's targetless `none` + step_done advance.
+//
+// Phase B now keys on page/state content instead: once the pick's fill has
+// happened, buildState's `history` (loop.ts ~2403) carries a
+// `{ verb: 'fill', label: 'Full name' }` entry (element names are not
+// redacted — only bound values are, per buildState's redaction), so that
+// entry is the signal that the pick round already ran and this call should
+// finish, not re-ask the same ambiguous target.
 async function startPickStub(): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
-  let reqNo = 0;
   return startTypeSafeStub((body) => {
-    const phaseB = reqNo >= 4;
-    reqNo += 1;
+    const state = (body.state ?? {}) as { history?: Array<{ verb?: string; label?: string }> };
+    const phaseB = (state.history ?? []).some((h) => h.verb === 'fill' && h.label === 'Full name');
     const q = (body.questions ?? {}) as Record<string, { type: string; criteria?: Record<string, string> }>;
     const answers: Record<string, unknown> = {};
     // `recover` is the one choice question with no `none` criterion (§

@@ -111,6 +111,25 @@ test('attaches to the default context and lists the page', async () => {
 // exact equality; only the pixel-geometry fields get a tolerance, and even those
 // are still checked, not skipped: each must be within a few px of the pinned
 // value and stay sane (non-negative, matching between rect and fingerprint).
+//
+// A flat per-field tolerance on absolute x was too strict for a wide row: each
+// text control's width drifts a few px with the font, and those per-element
+// drifts accumulate along the row (element 3 in form.html's row 1 measured
+// x=677 on Linux against a pinned 647 — 30px off a 20px budget — while each
+// individual control's width was within tolerance). w/h keep the flat
+// tolerance; x is checked relative to the previous element on the same line
+// (gap = x - (prev.x + prev.w), within tolerance of the pinned gap) so a
+// width drift doesn't compound, with the first element's x checked absolute
+// (there is no previous element to gap from). y is checked the same way, as a
+// delta from the previous element's y, which also catches a wrap to a new
+// line: a wrapped element's y jumps by roughly a full row height, so its
+// delta from the previous element no longer matches the pinned delta, and the
+// tolerance check fails. A genuine pinned row break (its pinned gap-from-prev
+// at or below -GEOMETRY_TOLERANCE_PX, e.g. form.html's Country -> Continue)
+// gets the SAME absolute check as element 0 instead: a gap-relative check
+// there would inherit the whole previous row's accumulated drift into the
+// new row's first element, reproducing the exact compounding bug one element
+// downstream (verifier fix, 2026-09-27).
 const GEOMETRY_TOLERANCE_PX = 20;
 
 function assertElementsMatchWithGeometryTolerance(actual: ElementRecord[], expected: ElementRecord[]): void {
@@ -124,7 +143,7 @@ function assertElementsMatchWithGeometryTolerance(actual: ElementRecord[], expec
     const { x: eFpX, y: eFpY, ...eFpRest } = eFp;
     const { x: aFpX, y: aFpY, ...aFpRest } = aFp;
     assert.deepEqual(aFpRest, eFpRest, `element ${i} (${e.name}) fingerprint non-geometric fields differ`);
-    for (const key of ['x', 'y', 'w', 'h'] as const) {
+    for (const key of ['w', 'h'] as const) {
       const av = aRect[key];
       const ev = eRect[key];
       assert.ok(av >= 0, `element ${i} (${e.name}) rect.${key}=${av} is negative`);
@@ -133,14 +152,53 @@ function assertElementsMatchWithGeometryTolerance(actual: ElementRecord[], expec
         `element ${i} (${e.name}) rect.${key}=${av} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${ev}`,
       );
     }
-    assert.ok(
-      Math.abs(aFpX - eFpX) <= GEOMETRY_TOLERANCE_PX,
-      `element ${i} (${e.name}) fingerprint.x=${aFpX} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eFpX}`,
-    );
-    assert.ok(
-      Math.abs(aFpY - eFpY) <= GEOMETRY_TOLERANCE_PX,
-      `element ${i} (${e.name}) fingerprint.y=${aFpY} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eFpY}`,
-    );
+    assert.ok(aRect.x >= 0, `element ${i} (${e.name}) rect.x=${aRect.x} is negative`);
+    assert.ok(aRect.y >= 0, `element ${i} (${e.name}) rect.y=${aRect.y} is negative`);
+    // A gap-from-previous check only makes sense when i and i-1 sit on the
+    // same pinned line: a genuine row break (e.g. form.html's Country ->
+    // Continue, whose pinned gap is -742) otherwise inherits the entire
+    // previous row's accumulated font-width drift into the first element of
+    // the new row, reproducing the exact compounding failure this tolerance
+    // was written to remove — just one element downstream (verifier fix,
+    // 2026-09-27: caught by a scratch harness modelling realistic reflow,
+    // where a widened row-1 pushed the row-2 gap out by ~24px). Row
+    // membership is decided from the PINNED gap (stable, known at pin time):
+    // a pinned gap at or below -GEOMETRY_TOLERANCE_PX means the next element
+    // starts a new line, so it gets the same absolute check as element 0
+    // (its own position never depends on the previous row's drift); anything
+    // less negative is treated as the same line and gets the relative check.
+    const prevE = i > 0 ? (expected[i - 1] as any) : null;
+    const pinnedGapFromPrev = prevE ? eRect.x - (prevE.rect.x + prevE.rect.w) : null;
+    const rowBreak = i === 0 || (pinnedGapFromPrev as number) <= -GEOMETRY_TOLERANCE_PX;
+    if (rowBreak) {
+      assert.ok(
+        Math.abs(aRect.x - eRect.x) <= GEOMETRY_TOLERANCE_PX,
+        `element ${i} (${e.name}) rect.x=${aRect.x} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eRect.x}`,
+      );
+      assert.ok(
+        Math.abs(aRect.y - eRect.y) <= GEOMETRY_TOLERANCE_PX,
+        `element ${i} (${e.name}) rect.y=${aRect.y} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eRect.y}`,
+      );
+    } else {
+      const prevA = actual[i - 1] as any;
+      const actualGap = aRect.x - (prevA.rect.x + prevA.rect.w);
+      const pinnedGap = pinnedGapFromPrev as number;
+      assert.ok(
+        Math.abs(actualGap - pinnedGap) <= GEOMETRY_TOLERANCE_PX,
+        `element ${i} (${e.name}) x-gap from the previous element=${actualGap} not within ${GEOMETRY_TOLERANCE_PX}px of pinned gap ${pinnedGap}`,
+      );
+      const actualRowDelta = aRect.y - prevA.rect.y;
+      const pinnedRowDelta = eRect.y - prevE.rect.y;
+      assert.ok(
+        Math.abs(actualRowDelta - pinnedRowDelta) <= GEOMETRY_TOLERANCE_PX,
+        `element ${i} (${e.name}) y-delta from the previous element=${actualRowDelta} not within ${GEOMETRY_TOLERANCE_PX}px of pinned delta ${pinnedRowDelta} (row membership mismatch, e.g. a wrap to a new line)`,
+      );
+    }
+    // fingerprint.x/y are captured from the same rect at enumerate time
+    // (src/core/page-scripts.ts: `fingerprint = { ..., x: rect.x, y: rect.y }`),
+    // so they must equal the actual rect exactly, not just the pin.
+    assert.equal(aFpX, aRect.x, `element ${i} (${e.name}) fingerprint.x=${aFpX} does not equal rect.x=${aRect.x}`);
+    assert.equal(aFpY, aRect.y, `element ${i} (${e.name}) fingerprint.y=${aFpY} does not equal rect.y=${aRect.y}`);
   }
 }
 

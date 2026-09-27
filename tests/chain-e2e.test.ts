@@ -132,6 +132,28 @@ async function visiblePage(): Promise<{ url: string; title: string }> {
   return { url: page.url, title: page.title };
 }
 
+/** Navigates the open fixture tab to another fixture page, through a fresh
+ * CDP attach (mirrors pageEval's connect pattern). Needed when a test reuses
+ * one tab across a `good` run (which leaves the page wherever it navigated
+ * to) and a later `url_match`-scoped run that expects the tab back on its
+ * starting page — bug found 2026-09-27: E3's bad-urlAnswer loop asserted
+ * against `url_match: 'chain-index.html'` while the shared tab was still on
+ * chain-form.html from the preceding good run, so every call resolved zero
+ * matching tabs and returned status `ambiguous`/reason `tab-ambiguous`
+ * instead of the no-value bounce under test. */
+async function gotoFixture(name: string): Promise<void> {
+  const { chromium } = await import('playwright-core');
+  const browser = await chromium.connectOverCDP(chrome.endpoint, { noDefaults: true });
+  try {
+    const ctx = browser.contexts()[0];
+    const page = ctx.pages().find((p) => p.url().startsWith(fixture.url));
+    assert.ok(page, 'a fixture page is open to navigate');
+    await page!.goto(`${fixture.url}/${name}.html`);
+  } finally {
+    await browser.close();
+  }
+}
+
 /** Read a main-world value from a fixture page, through a fresh CDP attach. */
 async function pageEval(urlPart: string, fn: () => unknown): Promise<unknown> {
   const { chromium } = await import('playwright-core');
@@ -421,6 +443,10 @@ test('E3: navigate works from a url binding, offers only url-typed bindings, and
     );
 
     for (const bad of ['none']) {
+      // The good run above left the shared tab on chain-form.html; put it
+      // back on chain-index.html so this call's `url_match` still resolves
+      // to it (see gotoFixture's comment for the bug this fixes).
+      await gotoFixture('chain-index');
       const stub = await startChainStub({ urlAnswer: bad });
       const s = await startServer(stub.url);
       try {
