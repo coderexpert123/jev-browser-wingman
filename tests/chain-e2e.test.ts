@@ -166,16 +166,24 @@ function findId(target: StubQuestion | undefined, regex: RegExp): string | null 
   return null;
 }
 
+// Gotcha (found via the E3 budget-steps bug, 2026-09-27): buildState's
+// redactDeep (src/core/withhold.ts) replaces any state field containing a
+// binding value ≥4 chars with `<value:name>` before this stub ever sees it —
+// so a clause branch below must never key page identity off `state.url` when
+// a call's own binding value could equal the destination URL (E3's `form_url`
+// does, once navigated there). Prefer `state.title` or target criteria text.
 async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
   return await startTypeSafeStub((body) => {
     const state = (body.state ?? {}) as {
       url?: string;
+      title?: string;
       text?: string;
       step?: string;
       history?: Array<{ verb: string; label: string }>;
     };
     const q = (body.questions ?? {}) as Record<string, StubQuestion>;
     const url = state.url ?? '';
+    const title = state.title ?? '';
     const text = state.text ?? '';
     const step = state.step ?? '';
     const history = state.history ?? [];
@@ -223,7 +231,9 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
         noul('step_done', 0.95);
       }
     } else if (step.includes('by its address')) {
-      if (url.includes('chain-form.html')) {
+      // Keyed on title, not url — see the redaction gotcha above the stub:
+      // form_url equals this page's own address once navigated there.
+      if (title === 'Fixture chain form') {
         noul('step_done', 0.95);
       } else {
         cho('action', 'navigate', { navigate: 0.9, none: 0.05 });
@@ -249,11 +259,19 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
     } else if (step.includes('open Form')) {
       if (url.includes('chain-form.html')) {
         noul('step_done', 0.95);
+      } else if (text.includes('Not found')) {
+        // The not-found check runs before the chain-error.html guard: after
+        // the Broken link click, the browser is on missing.html, not
+        // chain-error.html, so nesting this under that guard (as written)
+        // made it dead code and the recover branch never fired (E6).
+        // 'give-up' (not 'none') fills the low-confidence slot — recover's
+        // criteria (§ questions.ts RECOVER_CRITERIA) has no `none`, and
+        // parseJevAnswers rejects any probabilities key outside the offered
+        // criteria.
+        noul('error', 0.9);
+        cho('recover', 'back', { back: 0.9, 'give-up': 0.05 });
       } else if (url.includes('chain-error.html')) {
-        if (text.includes('Not found')) {
-          noul('error', 0.9);
-          cho('recover', 'back', { back: 0.9, none: 0.05 });
-        } else if (history.some((h) => /Broken link/.test(h.label))) {
+        if (history.some((h) => /Broken link/.test(h.label))) {
           clickOn(/link "Form"/);
         } else {
           clickOn(/link "Broken link"/);
@@ -365,7 +383,7 @@ test('E2: max_steps splits the chain; the re-call resumes on clause 3', { timeou
 
 // ---- E3: the D7 pin — navigate only from a url-typed binding ----
 
-test('E3: navigate works from a url binding and bounces no-value otherwise', { timeout: 180_000 }, async () => {
+test('E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none', { timeout: 180_000 }, async () => {
   const good = await startChainStub({ urlAnswer: 'form_url' });
   const sg = await startServer(good.url);
   const pageId = await openFixturePage('chain-index');
@@ -381,7 +399,28 @@ test('E3: navigate works from a url binding and bounces no-value otherwise', { t
     const now = await visiblePage();
     assert.ok(now.url.includes('chain-form.html'), `navigated to the form: ${now.url}`);
 
-    for (const bad of ['note', 'none', 'https://evil.example/']) {
+    // The url question's criteria are url-typed bindings plus `none`
+    // (src/core/questions.ts urlQuestion: urlBindings(...) + URL_EXTRA.none) —
+    // real Jev can only ever choose among criteria it was offered, so a
+    // non-url binding name (`note`) or a free-text URL is never a choice it
+    // could send; parseJevAnswers (src/core/jev-client.ts) rejects a `choice`
+    // outside the criteria outright, which is not the no-value path this test
+    // is after. So instead of scripting those as fake stub answers, assert
+    // directly on the request the good-case run already made: the criteria
+    // are exactly the url-typed binding (`form_url`) and `none` — `note`
+    // (present but not url-typed) is never offered.
+    const urlRequest = good.requests.find((req) => {
+      const r = req as { body?: { questions?: Record<string, StubQuestion> } };
+      return r.body?.questions?.url !== undefined;
+    }) as { body: { questions: Record<string, StubQuestion> } } | undefined;
+    assert.ok(urlRequest, 'the good-case run asked the url question at least once');
+    assert.deepEqual(
+      Object.keys(urlRequest!.body.questions.url.criteria ?? {}).sort(),
+      ['form_url', 'none'],
+      'the url question offers only the url-typed binding and none — never `note` or a free-text URL',
+    );
+
+    for (const bad of ['none']) {
       const stub = await startChainStub({ urlAnswer: bad });
       const s = await startServer(stub.url);
       try {

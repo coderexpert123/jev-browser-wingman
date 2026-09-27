@@ -44,12 +44,20 @@ test('leaks a token-tagged chrome on purpose (the runner sweep is the guarantee)
     `const chrome = await launchEphemeralChrome({ headless: true });`,
     // READY only prints after launchEphemeralChrome saw DevToolsActivePort,
     // so stdout READY is proof a live chrome existed before this child is
-    // killed. It must not exit on its own afterwards (an intentional hang) —
-    // an exit here, even without close(), would let this child's own exit
-    // hook run and defeat the fixture.
+    // killed. It must not exit on its own afterwards (kept alive below by a
+    // ref'd timer, not a bare unsettled promise) — an exit here, even
+    // without close(), would let this child's own exit hook run and defeat
+    // the fixture.
     `if (!chrome.pid || !chrome.endpoint) { throw new Error('fixture child failed to launch a live chrome'); }`,
     `console.log('READY');`,
-    `await new Promise(() => {});`,
+    // A bare `await new Promise(() => {})` is NOT enough to hang this child:
+    // with no live handle keeping the event loop alive (the detached,
+    // unref()'d chrome keeps nothing alive on our side), Node 22 detects an
+    // "unsettled top-level await" and exits (code 13) right after READY
+    // prints — which lets this child's own process.on('exit') guard reap the
+    // chrome before the parent ever gets to SIGKILL it, defeating the
+    // fixture. A ref'd timer genuinely keeps the loop alive until killed.
+    `setInterval(() => {}, 1 << 30);`,
   ].join('\n');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-sweep-leak-'));
   const scriptPath = path.join(dir, 'leak-child.mjs');
@@ -66,6 +74,13 @@ test('leaks a token-tagged chrome on purpose (the runner sweep is the guarantee)
       child.on('exit', () => resolve(false));
     });
     assert.ok(ready, 'fixture child did not report a live chrome before exiting on its own');
+    // Guard against a regression of the exit-code-13 bug this fixture exists
+    // to avoid (see the setInterval comment above): if the child already
+    // exited on its own between READY and here, it did so via its normal
+    // 'exit' path, which reaps the chrome before the sweep ever runs — so
+    // this must fail loudly here instead of silently in runner-sweep.test.ts.
+    assert.equal(child.exitCode, null, 'fixture child exited on its own before being killed');
+    assert.equal(child.signalCode, null, 'fixture child exited on its own before being killed');
     // Kill unconditionally: no 'exit' handler in the child ever runs.
     child.kill('SIGKILL');
   } finally {

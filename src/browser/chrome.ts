@@ -7,13 +7,15 @@ import * as os from 'node:os';
 import type { WindowMode } from '../contract/types.js';
 import { killTree, listChromeProcesses, processListAvailable } from './process-list.js';
 
+export const CHROME_WINDOW_SIZE_ARG = '--window-size=1280,800';
+
 export const CHROME_ARGS = (port: number, profileDir: string): string[] => [
   '--remote-debugging-port=' + port,
   '--user-data-dir=' + profileDir,
   '--no-first-run',
   '--no-default-browser-check',
   '--restore-last-session=false',
-  '--window-size=1280,800',
+  CHROME_WINDOW_SIZE_ARG,
   '--disable-backgrounding-occluded-windows',
   '--disable-background-timer-throttling',
   '--disable-renderer-backgrounding',

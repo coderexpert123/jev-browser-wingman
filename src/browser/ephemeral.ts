@@ -2,7 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { findChrome } from './chrome.js';
+import { findChrome, CHROME_WINDOW_SIZE_ARG } from './chrome.js';
 import { killTree as killTreeReal, listChromeProcesses as listChromeProcessesReal } from './process-list.js';
 
 async function defaultSocketOwnerPid(port: number): Promise<number | null> {
@@ -276,6 +276,12 @@ export async function launchEphemeralChrome(
     '--user-data-dir=' + profileDir,
     '--no-first-run',
     '--no-default-browser-check',
+    // Stable viewport (2026-09-27): headless Chrome defaults to an 800x600
+    // window (~780px CSS viewport on Linux), which wraps the form.html
+    // fixture's single row of fields onto a second line and throws off
+    // pinned-coordinate assertions (e.g. adapter-cdp.test.ts). Mirrors the
+    // shared Chrome's window size in chrome.ts's CHROME_ARGS.
+    CHROME_WINDOW_SIZE_ARG,
     'about:blank',
   ];
   const child = spawn(chromePath, args, { detached: true, stdio: 'ignore', windowsHide: true });

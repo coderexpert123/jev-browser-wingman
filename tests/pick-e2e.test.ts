@@ -146,9 +146,14 @@ async function startPickStub(): Promise<Awaited<ReturnType<typeof startTypeSafeS
     reqNo += 1;
     const q = (body.questions ?? {}) as Record<string, { type: string; criteria?: Record<string, string> }>;
     const answers: Record<string, unknown> = {};
+    // `recover` is the one choice question with no `none` criterion (§
+    // questions.ts RECOVER_CRITERIA: back/reload/wait/continue/give-up) — it
+    // must never ride this noul-only default map, and any stub that answers
+    // it must not put `none` in its `probabilities` either: parseJevAnswers
+    // rejects the whole response outright rather than ignoring the bad key.
     const noulDefaults: Record<string, number> = {
       done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05,
-      step_done: 0.05, right_page: 0.95, ready: 0.95, recover: 0.05,
+      step_done: 0.05, right_page: 0.95, ready: 0.95,
     };
     for (const [key, dflt] of Object.entries(noulDefaults)) {
       if (key in q) {
