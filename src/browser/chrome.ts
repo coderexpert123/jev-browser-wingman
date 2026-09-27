@@ -35,9 +35,8 @@ export const OFFSCREEN_WINDOW_BOUNDS = { left: -32000, top: -32000 };
 export const ONSCREEN_WINDOW_BOUNDS = { left: 40, top: 40 };
 
 function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): string[] {
-  // Order everywhere: Google Chrome variants first, then Edge, then Brave,
-  // then Chromium — autodiscovery falls through in this order when Chrome
-  // itself is absent.
+  // Order everywhere: Chrome, Edge, Brave, Chromium, Opera, Vivaldi —
+  // autodiscovery falls through in this order when Chrome itself is absent.
   if (platform === 'win32') {
     const chromeSuffix = join('Google', 'Chrome', 'Application', 'chrome.exe');
     const edgeSuffix = join('Microsoft', 'Edge', 'Application', 'msedge.exe');
@@ -54,6 +53,10 @@ function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): 
       join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), braveSuffix),
       join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), chromiumSuffix),
       join(env.PROGRAMFILES ?? 'C:\\Program Files', chromiumSuffix),
+      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Opera', 'opera.exe'),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', 'Opera', 'opera.exe'),
+      join(env.LOCALAPPDATA ?? join(os.homedir(), 'AppData', 'Local'), 'Vivaldi', 'Application', 'vivaldi.exe'),
+      join(env.PROGRAMFILES ?? 'C:\\Program Files', 'Vivaldi', 'Application', 'vivaldi.exe'),
     ];
   }
   if (platform === 'darwin') {
@@ -62,6 +65,8 @@ function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): 
       '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
       '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Opera.app/Contents/MacOS/Opera',
+      '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
     ];
   }
   return [
@@ -74,6 +79,11 @@ function chromeCandidatesForPlatform(env: NodeJS.ProcessEnv, platform: string): 
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
     '/snap/bin/chromium',
+    '/usr/bin/opera',
+    '/snap/bin/opera',
+    '/usr/bin/vivaldi',
+    '/usr/bin/vivaldi-stable',
+    '/opt/vivaldi/vivaldi',
   ];
 }
 
@@ -106,13 +116,49 @@ export function defaultUserDataDir(
   env: NodeJS.ProcessEnv = process.env,
   home: string = os.homedir(),
 ): string {
+  return defaultUserDataDirs(platform, env, home)[0];
+}
+
+// Family default user-data dirs in the same order as chromeCandidatesForPlatform:
+// Chrome, Edge, Brave, Chromium, Opera, Vivaldi. `isDefaultUserDataDir` checks
+// all of them; `defaultUserDataDir` stays (Chrome's) for compatibility.
+export function defaultUserDataDirs(
+  platform: string = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = os.homedir(),
+): string[] {
   if (platform === 'win32') {
-    return join(env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'Google', 'Chrome', 'User Data');
+    const lad = env.LOCALAPPDATA ?? join(home, 'AppData', 'Local');
+    const roam = env.APPDATA ?? join(home, 'AppData', 'Roaming');
+    return [
+      join(lad, 'Google', 'Chrome', 'User Data'),
+      join(lad, 'Microsoft', 'Edge', 'User Data'),
+      join(lad, 'BraveSoftware', 'Brave-Browser', 'User Data'),
+      join(lad, 'Chromium', 'User Data'),
+      join(roam, 'Opera Software', 'Opera Stable'),
+      join(lad, 'Vivaldi', 'User Data'),
+    ];
   }
   if (platform === 'darwin') {
-    return join(home, 'Library', 'Application Support', 'Google', 'Chrome');
+    const support = join(home, 'Library', 'Application Support');
+    return [
+      join(support, 'Google', 'Chrome'),
+      join(support, 'Microsoft Edge'),
+      join(support, 'BraveSoftware', 'Brave-Browser'),
+      join(support, 'Chromium'),
+      join(support, 'com.operasoftware.Opera'),
+      join(support, 'Vivaldi'),
+    ];
   }
-  return join(home, '.config', 'google-chrome');
+  const config = join(home, '.config');
+  return [
+    join(config, 'google-chrome'),
+    join(config, 'microsoft-edge'),
+    join(config, 'BraveSoftware', 'Brave-Browser'),
+    join(config, 'chromium'),
+    join(config, 'opera'),
+    join(config, 'vivaldi'),
+  ];
 }
 
 function normSlashes(s: string): string {
@@ -125,14 +171,14 @@ export function isDefaultUserDataDir(
   env: NodeJS.ProcessEnv = process.env,
   home: string = os.homedir(),
 ): boolean {
-  const def = defaultUserDataDir(platform, env, home);
   const caseInsensitive = platform === 'win32' || platform === 'darwin';
   const norm = (s: string) => {
     let out = normSlashes(s).replace(/\/+$/, '');
     if (caseInsensitive) out = out.toLowerCase();
     return out;
   };
-  return norm(dir) === norm(def);
+  const target = norm(dir);
+  return defaultUserDataDirs(platform, env, home).some((def) => norm(def) === target);
 }
 
 export function profileMarkerMatches(cmdline: string, profileDir: string): boolean {

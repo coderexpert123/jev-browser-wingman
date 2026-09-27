@@ -21,16 +21,22 @@ const defaultExec: ExecFn = (cmd, args, opts) =>
     });
   });
 
-export async function listChromeProcesses(exec: ExecFn = defaultExec): Promise<Array<{ pid: number; cmdline: string }>> {
+export async function listChromeProcesses(
+  exec: ExecFn = defaultExec,
+  platform: string = process.platform,
+): Promise<Array<{ pid: number; cmdline: string }>> {
   try {
-    if (process.platform === 'win32') {
+    if (platform === 'win32') {
       const stdout = await exec(
         'powershell.exe',
         [
           '-NoProfile',
           '-NonInteractive',
           '-Command',
-          `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress`,
+          // The whole Chromium family, not just chrome.exe: Edge, Brave,
+          // Opera and Vivaldi holders, stop/sweep and the lazy-chrome gate
+          // must see them all (spec C9 / G3).
+          `Get-CimInstance Win32_Process -Filter "Name='chrome.exe' OR Name='msedge.exe' OR Name='brave.exe' OR Name='opera.exe' OR Name='vivaldi.exe'" | Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress`,
         ],
         { windowsHide: true, timeout: 15_000 },
       );
@@ -58,7 +64,7 @@ export async function listChromeProcesses(exec: ExecFn = defaultExec): Promise<A
         const m = trimmed.match(/^(\d+)\s+(.*)$/);
         if (!m) continue;
         const cmdline = m[2];
-        if (/chrome|chromium/i.test(cmdline)) {
+        if (/chrome|chromium|msedge|microsoft-edge|brave|opera|vivaldi/i.test(cmdline)) {
           out.push({ pid: Number(m[1]), cmdline });
         }
       }

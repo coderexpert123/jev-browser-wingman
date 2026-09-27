@@ -14,6 +14,8 @@ import {
 } from '../src/browser/chrome.js';
 import { join } from 'node:path';
 import { launchTestChrome } from './helpers/chrome.js';
+import { isDefaultUserDataDir } from '../src/browser/chrome.js';
+import { listChromeProcesses } from '../src/browser/process-list.js';
 
 const HOME = '/tmp/wingman-home-test';
 const PROFILE = '/tmp/wingman-profile-test';
@@ -409,16 +411,16 @@ test('profileHolders counts Chrome child processes (--type=) as non-holders (OG-
 
 
 // Exact candidate arrays per platform: Google Chrome variants first, then
-// Edge, then Brave, then Chromium. chromeCandidates(null, env, platform) is
-// the real producer; these pins assert the FULL array, so a reordered or
-// dropped candidate fails.
+// Edge, then Brave, then Chromium, then Opera, then Vivaldi.
+// chromeCandidates(null, env, platform) is the real producer; these pins
+// assert the FULL array, so a reordered or dropped candidate fails.
 const TEST_ENV = {
   PROGRAMFILES: 'C:\\PF',
   'PROGRAMFILES(X86)': 'C:\\PF (x86)',
   LOCALAPPDATA: 'C:\\LAD',
 };
 
-test('win32 candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+test('win32 candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)', () => {
   assert.deepEqual(chromeCandidates(null, TEST_ENV, 'win32'), [
     join('C:\\PF', 'Google', 'Chrome', 'Application', 'chrome.exe'),
     join('C:\\PF (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
@@ -429,19 +431,25 @@ test('win32 candidates: Chrome first, then Edge, Brave, Chromium (exact array)',
     join('C:\\LAD', 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
     join('C:\\LAD', 'Chromium', 'Application', 'chrome.exe'),
     join('C:\\PF', 'Chromium', 'Application', 'chrome.exe'),
+    join('C:\\LAD', 'Programs', 'Opera', 'opera.exe'),
+    join('C:\\PF', 'Opera', 'opera.exe'),
+    join('C:\\LAD', 'Vivaldi', 'Application', 'vivaldi.exe'),
+    join('C:\\PF', 'Vivaldi', 'Application', 'vivaldi.exe'),
   ]);
 });
 
-test('darwin candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+test('darwin candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)', () => {
   assert.deepEqual(chromeCandidates(null, TEST_ENV, 'darwin'), [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Opera.app/Contents/MacOS/Opera',
+    '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
   ]);
 });
 
-test('linux candidates: Chrome first, then Edge, Brave, Chromium (exact array)', () => {
+test('linux candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)', () => {
   assert.deepEqual(chromeCandidates(null, TEST_ENV, 'linux'), [
     '/usr/bin/google-chrome',
     '/usr/bin/google-chrome-stable',
@@ -452,7 +460,95 @@ test('linux candidates: Chrome first, then Edge, Brave, Chromium (exact array)',
     '/usr/bin/chromium',
     '/usr/bin/chromium-browser',
     '/snap/bin/chromium',
+    '/usr/bin/opera',
+    '/snap/bin/opera',
+    '/usr/bin/vivaldi',
+    '/usr/bin/vivaldi-stable',
+    '/opt/vivaldi/vivaldi',
   ]);
+});
+
+test('findChrome falls through to Opera, then Vivaldi, when only they exist', () => {
+  const opera = join('C:\\LAD', 'Programs', 'Opera', 'opera.exe');
+  const vivaldi = join('C:\\LAD', 'Vivaldi', 'Application', 'vivaldi.exe');
+  // Only Opera exists -> Opera wins (it precedes Vivaldi in the candidate order).
+  assert.equal(findChrome(null, { fileExists: (p) => p === opera }, TEST_ENV, 'win32'), opera);
+  // Only Vivaldi exists -> the fallthrough reaches the last family member.
+  assert.equal(findChrome(null, { fileExists: (p) => p === vivaldi }, TEST_ENV, 'win32'), vivaldi);
+});
+
+// Exact family default user-data dirs per platform (G2). The inputs are
+// literal, so a dropped or renamed default fails.
+const DIRS_ENV = { LOCALAPPDATA: 'C:\\LAD', APPDATA: 'C:\\RM' };
+const DIRS_HOME = 'C:\\Users\\u';
+
+test('isDefaultUserDataDir is true for each family default dir per platform (exact inputs)', () => {
+  const win32Dirs = [
+    join('C:\\LAD', 'Google', 'Chrome', 'User Data'),
+    join('C:\\LAD', 'Microsoft', 'Edge', 'User Data'),
+    join('C:\\LAD', 'BraveSoftware', 'Brave-Browser', 'User Data'),
+    join('C:\\LAD', 'Chromium', 'User Data'),
+    join('C:\\RM', 'Opera Software', 'Opera Stable'),
+    join('C:\\LAD', 'Vivaldi', 'User Data'),
+  ];
+  for (const d of win32Dirs) {
+    assert.equal(isDefaultUserDataDir(d, 'win32', DIRS_ENV, DIRS_HOME), true, d);
+  }
+  const darwinHome = '/Users/u';
+  const darwinDirs = [
+    '/Users/u/Library/Application Support/Google/Chrome',
+    '/Users/u/Library/Application Support/Microsoft Edge',
+    '/Users/u/Library/Application Support/BraveSoftware/Brave-Browser',
+    '/Users/u/Library/Application Support/Chromium',
+    '/Users/u/Library/Application Support/com.operasoftware.Opera',
+    '/Users/u/Library/Application Support/Vivaldi',
+  ];
+  for (const d of darwinDirs) {
+    assert.equal(isDefaultUserDataDir(d, 'darwin', {}, darwinHome), true, d);
+  }
+  const linuxHome = '/home/u';
+  const linuxDirs = [
+    '/home/u/.config/google-chrome',
+    '/home/u/.config/microsoft-edge',
+    '/home/u/.config/BraveSoftware/Brave-Browser',
+    '/home/u/.config/chromium',
+    '/home/u/.config/opera',
+    '/home/u/.config/vivaldi',
+  ];
+  for (const d of linuxDirs) {
+    assert.equal(isDefaultUserDataDir(d, 'linux', {}, linuxHome), true, d);
+  }
+  // A directory outside the family defaults is still not a default dir.
+  assert.equal(isDefaultUserDataDir('C:\\not-a-default', 'win32', DIRS_ENV, DIRS_HOME), false);
+});
+
+test('listChromeProcesses Windows command covers the five family executables', async () => {
+  let captured: string[] = [];
+  const procs = await listChromeProcesses(async (cmd, args) => {
+    captured = [cmd, ...args];
+    return '';
+  });
+  assert.deepEqual(procs, []);
+  const command = captured.join(' ');
+  for (const name of ['chrome.exe', 'msedge.exe', 'brave.exe', 'opera.exe', 'vivaldi.exe']) {
+    assert.ok(command.includes(`Name='${name}'`), `missing Name='${name}' in: ${command}`);
+  }
+});
+
+test('listChromeProcesses POSIX keeps msedge, brave, opera and vivaldi lines and drops firefox', async () => {
+  const psOut = [
+    '  100 /usr/lib/chromium/chromium --type=gpu-process',
+    '  101 /usr/bin/vivaldi-stable --remote-debugging-port=9333',
+    '  102 /usr/bin/opera',
+    '  103 /opt/microsoft/msedge/msedge --some-flag',
+    '  104 /usr/lib/microsoft-edge/microsoft-edge',
+    '  105 /usr/bin/brave-browser',
+    '  106 /usr/bin/firefox',
+    '  107 /snap/bin/chromium',
+  ].join('\n');
+  const procs = await listChromeProcesses(async () => psOut, 'linux');
+  const pids = procs.map((p) => p.pid).sort((a, b) => a - b);
+  assert.deepEqual(pids, [100, 101, 102, 103, 104, 105, 107]);
 });
 
 test('findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)', () => {
