@@ -33,7 +33,7 @@ export const REASONS = {
     'state-too-large', 'unsupported-page', 'unsupported-op',
     'sensitive-banking', 'sensitive-payments', 'sensitive-webmail', 'sensitive-identity', 'sensitive-auth-path',
     'sensitive-government', 'sensitive-tax', 'sensitive-health', 'sensitive-password', 'sensitive-otp',
-    'sensitive-payment-field', 'step-uncertain', 'takeover-offered', 'target-covered',
+    'sensitive-payment-field', 'step-uncertain', 'takeover-offered', 'target-covered', 'no-progress',
   ],
 } as const;
 export type Reason = (typeof REASONS)[keyof typeof REASONS][number];
@@ -128,7 +128,7 @@ export interface WingmanResult {
   step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
     step: string;                    // the redacted proposed step text, capped to LABEL_MAX
     why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
-       | 'already-done' | 'wrong-page' | 'not-ready';
+       | 'already-done' | 'wrong-page' | 'not-ready' | 'no-progress';
     candidates: Array<{ label: string; role?: string; name?: string }>;   // top 3 target candidates: redacted criteria labels
   };
   progress?: { step_index: number; steps_done: number; steps_total: number };
@@ -162,13 +162,28 @@ export interface WingmanLogRecord {
   progress?: { step_index: number; steps_done: number; steps_total: number };
   pick?: true;
   acts_by_op?: Partial<Record<Op, number>>;
+  // No-progress telemetry (WP-outcome-evidence): the why and the candidate
+  // COUNT of this call's final step_review, when it carries one. Never the
+  // candidate labels themselves — those are page text, kept out of log.jsonl
+  // like every other field here.
+  step_review?: { why: string; candidates: number };
   // Per-phase wall-time breakdown, ms. Numbers only — never page text.
   // attachMs/firstObserveMs are once per invocation; rounds is one entry per
   // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
+  // The per-round fields below are for threshold tuning (WP-outcome-evidence
+  // telemetry): action/target are the round's chosen ids and probabilities
+  // (labels, not raw page text — already sent to Jev as criteria and
+  // returned in results); historyResult is the outcome evidence (§ WP-A) of
+  // the element/verb this round acted on, once known. Never a raw value.
   phases?: {
     attachMs?: number;
     firstObserveMs?: number;
-    rounds: Array<{ observeMs: number; jevMs: number; actMs: number; settleMs: number }>;
+    rounds: Array<{
+      observeMs: number; jevMs: number; actMs: number; settleMs: number;
+      action?: string; actionP?: number;
+      target1?: string; target1P?: number; target2?: string; target2P?: number;
+      historyResult?: string;
+    }>;
   };
 }
 export interface WingmanPlugin {

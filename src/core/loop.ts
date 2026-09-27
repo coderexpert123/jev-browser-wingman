@@ -225,6 +225,138 @@ function isFileInput(el: ElementRecord): boolean {
   return el.tag === 'input' && el.type === 'file';
 }
 
+// § outcome evidence (WP-outcome-evidence WP-A/WP-B): one history entry per
+// act, identity plus a verb-specific outcome signal. `path`/`fingerprint` are
+// the acted-on element's identity (absent for targetless/binding-only verbs);
+// `before` is that signal captured from the round's obs BEFORE the act,
+// `result` the same signal recomputed from the FRESH obs at the top of the
+// next round (annotateLastOutcome below). Neither `path`, `fingerprint` nor
+// `before` ever reaches buildState's `raw.history` — only verb/label/result
+// do, and those pass through the existing redactDeep like every other field.
+interface HistoryEntry {
+  verb: Op;
+  label: string;
+  path?: string;
+  fingerprint?: Fingerprint;
+  before?: string;
+  result?: string;
+  // § outcome evidence WP-B scope (orchestrator decision, 2026-09-28): which
+  // step this act belonged to — the chain clause index (`c<cursor>`) in
+  // chain mode, else `'single'` (a legacy browse_step entry or a wingman_do
+  // call is one implicit step for this purpose). Internal only — never
+  // reaches buildState's history mapping.
+  stepKey?: string;
+}
+
+/** § outcome evidence: element-state verbs read `state` directly (no new
+ * page call — it is already on every enumerated element); every other verb
+ * (click-family, and any el-targeted verb outside this set) falls back to a
+ * page-level signal so a targetless act never gets a false "unchanged". */
+const ELEMENT_STATE_VERBS: ReadonlySet<Op> = new Set(['fill', 'select', 'check', 'uncheck']);
+
+function elementStateSignal(verb: Op, el: ElementRecord): string {
+  if (verb === 'fill') return el.state.filled ? 'filled' : 'empty';
+  if (verb === 'select') return el.state.selected !== undefined ? `selected: ${el.state.selected}` : 'unknown';
+  return el.state.checked ? 'checked' : 'unchecked'; // check / uncheck
+}
+
+/** A short, stable, cheap string hash (FNV-ish) — never a value itself, just
+ * a fingerprint of `obs.text` so the click-family page-level signal below
+ * can detect a text change without carrying the whole text around. */
+function shortHash(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+/** § outcome evidence (widened 2026-09-28, operator: a same-title/same-url
+ * click that visibly changes the page — e.g. "click Add Element" twice,
+ * which appends a Delete button each time — must NOT read as unchanged).
+ * The click-family page-level signal: url, title, a short hash of obs.text,
+ * the element count, and — when the acted element itself is still findable —
+ * its own state and obscured flag. All of it is already on every obs; zero
+ * new driver calls. 'no visible change' only when every part matches. */
+function pageSignal(obs: Observation, el?: ElementRecord): string {
+  const parts = [obs.url, obs.title, shortHash(obs.text), String(obs.elements.length)];
+  if (el) parts.push(JSON.stringify(el.state), String(el.obscured ?? false));
+  return parts.join('\u0000');
+}
+
+/** The outcome signal for one (verb, el, obs) at either end of an act: the
+ * pre-act `before` and the post-act `result` are the same function applied to
+ * two different observations. `el` is the acted-on element from THAT obs
+ * (undefined for a targetless/binding-only verb, which never gets a signal —
+ * no per-element state exists to read and no extra page call is added). */
+function outcomeSignal(verb: Op, el: ElementRecord | undefined, obs: Observation): string | undefined {
+  if (ELEMENT_STATE_VERBS.has(verb) && el) return elementStateSignal(verb, el);
+  if (el) return pageSignal(obs, el); // click-family: cheap page-level signal
+  return undefined; // targetless / binding-only verb: no signal, no guard, no result
+}
+
+/** § outcome evidence choke point: run once at the top of every round, right
+ * after the fresh obs is fetched. Fills the LAST history entry's `result`
+ * (never touches earlier entries — each is annotated exactly once, on the
+ * round right after its act) by re-reading the same acted-on element from the
+ * fresh obs; 'element gone' when it can no longer be found. Zero new driver
+ * calls. Covers chain, legacy and token-consuming paths alike: they all
+ * re-enter this same loop top. */
+function annotateLastOutcome(history: HistoryEntry[], obs: Observation): HistoryEntry[] {
+  if (history.length === 0) return history;
+  const last = history[history.length - 1];
+  if (last.result !== undefined || last.before === undefined) return history;
+  let result: string;
+  if (last.path !== undefined) {
+    const fresh = obs.elements.find(
+      (e) => e.path === last.path && (last.fingerprint === undefined || fingerprintMatches(e.fingerprint, last.fingerprint)),
+    );
+    result = fresh ? elementStateSignal(last.verb, fresh) : 'element gone';
+    if (!ELEMENT_STATE_VERBS.has(last.verb)) {
+      // click-family el-targeted verb: fall back to the page-level signal,
+      // same shape `before` was computed with, unless the element is gone.
+      result = fresh ? (pageSignal(obs, fresh) !== last.before ? 'page changed' : 'no visible change') : 'element gone';
+    }
+  } else {
+    result = pageSignal(obs) !== last.before ? 'page changed' : 'no visible change';
+  }
+  const updated: HistoryEntry = { ...last, result };
+  return [...history.slice(0, -1), updated];
+}
+
+/** § outcome evidence WP-B: true when `decision` repeats the exact same
+ * (verb, element path) as the last recorded act AND that act's observed
+ * result (per annotateLastOutcome, already computed from this round's fresh
+ * obs before decision-making) is identical to its pre-act baseline — i.e.
+ * the act had no observable effect. Targetless/binding-only verbs (no
+ * `decision.el`) never match: they carry no path and no signal. */
+function isNoProgress(
+  decision: { el: ElementRecord | null; verb: Op },
+  history: HistoryEntry[],
+  currentStepKey: string,
+): boolean {
+  if (history.length === 0 || decision.el === null) return false;
+  const last = history[history.length - 1];
+  if (
+    last.path === undefined ||
+    last.path !== decision.el.path ||
+    last.verb !== decision.verb ||
+    last.result === undefined ||
+    last.stepKey !== currentStepKey
+  ) {
+    return false;
+  }
+  // Element-state verbs store the SAME kind of signal in `before` and
+  // `result` (both from elementStateSignal), so they compare directly:
+  // 'empty' === 'empty' means the fill never took. Click-family verbs store
+  // the raw page-level signal in `before` but a already-compared VERDICT
+  // word in `result` ('page changed' / 'no visible change') — comparing
+  // `result === before` there would never match (a word never equals a raw
+  // url+title+hash string), so 'no visible change' IS the no-progress signal
+  // for them.
+  return ELEMENT_STATE_VERBS.has(last.verb) ? last.result === last.before : last.result === 'no visible change';
+}
+
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
 function fingerprintMatches(fresh: Fingerprint, pending: Fingerprint): boolean {
   return (
@@ -618,8 +750,16 @@ async function runTool(
   let chainState: ChainState | null = null;
 
   // Per-phase wall-time capture (ms). Numbers only — never page text.
-  // `cur` is the round bucket the current ask/act/settle belongs to.
-  type PhaseRound = { observeMs: number; jevMs: number; actMs: number; settleMs: number };
+  // `cur` is the round bucket the current ask/act/settle belongs to. The
+  // non-timing fields (§ telemetry, WP-outcome-evidence WP-C) are labels and
+  // probabilities already sent to Jev and returned in results — never raw
+  // page text or a bound value.
+  type PhaseRound = {
+    observeMs: number; jevMs: number; actMs: number; settleMs: number;
+    action?: string; actionP?: number;
+    target1?: string; target1P?: number; target2?: string; target2P?: number;
+    historyResult?: string;
+  };
   const phaseAcc: {
     attachMs?: number;
     firstObserveMs?: number;
@@ -640,6 +780,32 @@ async function runTool(
     if (cur) cur.observeMs += ms;
     if (phaseAcc.firstObserveMs === undefined) phaseAcc.firstObserveMs = ms;
     return obs;
+  };
+
+  /** Telemetry (WP-outcome-evidence WP-C): the round's chosen action and the
+   * target's top-1/top-2 candidates, with probabilities — ids and
+   * probabilities only (already sent to Jev as criteria and returned in
+   * results), never a raw value or page text beyond that. */
+  const recordDecisionTelemetry = (answers: AnswerMap): void => {
+    if (!cur) return;
+    const action = answers['action'];
+    if (action && action.type === 'choice') {
+      cur.action = action.choice;
+      const p = action.probabilities?.[action.choice];
+      if (p !== undefined) cur.actionP = p;
+    }
+    const target = answers['target'];
+    if (target && target.type === 'choice') {
+      const ranked = Object.entries(target.probabilities ?? {}).sort((a, b) => b[1] - a[1]);
+      if (ranked[0]) {
+        cur.target1 = ranked[0][0];
+        cur.target1P = ranked[0][1];
+      }
+      if (ranked[1]) {
+        cur.target2 = ranked[1][0];
+        cur.target2P = ranked[1][1];
+      }
+    }
   };
 
   const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => ({
@@ -666,7 +832,7 @@ async function runTool(
       if (why === 'not-ready') return FORCED_NOT_READY_LINE;
       return FORCED_BOUNCE_LINE;
     }
-    if (r.reason === 'target-covered') return FORCED_BOUNCE_LINE;
+    if (r.reason === 'target-covered' || r.reason === 'no-progress') return FORCED_BOUNCE_LINE;
     if (r.reason === 'takeover-offered') return FORCED_OFFER_LINE;
     if (r.status === 'login') return FORCED_LOGIN_LINE;
     if (r.reason === 'dialog-open') return FORCED_DIALOG_LINE;
@@ -744,7 +910,7 @@ async function runTool(
         // to the static note, tiers 2/3 replace it. Offers, loop bounds and
         // every other non-done end keep the static table unchanged.
         const base =
-          r.reason === 'step-uncertain'
+          r.reason === 'step-uncertain' || r.reason === 'no-progress'
             ? BROWSE_STEP_CALLER_LINE
             : r.reason === 'takeover-offered'
               ? BROWSE_STEP_OFFER_LINE
@@ -785,6 +951,10 @@ async function runTool(
       ...(r.progress ? { progress: r.progress } : {}),
       ...(pickRan ? { pick: true as const } : {}),
       ...(Object.keys(actsByOp).length > 0 ? { acts_by_op: actsByOp } : {}),
+      // No-progress telemetry (WP-outcome-evidence WP-C): why + a candidate
+      // COUNT only, never the candidate labels. Feeds bench's why breakdown
+      // (handoffRecordsFromLog parses log.jsonl, so it has to ride here).
+      ...(r.step_review ? { step_review: { why: r.step_review.why, candidates: r.step_review.candidates.length } } : {}),
       phases: {
         ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
         ...(phaseAcc.firstObserveMs !== undefined ? { firstObserveMs: phaseAcc.firstObserveMs } : {}),
@@ -815,7 +985,7 @@ async function runTool(
 
   function buildState(
     obs: Observation,
-    history: Array<{ verb: Op; label: string }>,
+    history: HistoryEntry[],
     goal: string | null,
     values: Record<string, string>,
     step?: string,
@@ -829,7 +999,14 @@ async function runTool(
     };
     if (goal !== null) {
       raw.goal = goal;
-      raw.history = history.map((h) => ({ verb: h.verb, label: h.label }));
+      // Outcome evidence (§ WP-A): each entry's observed result, when known,
+      // rides alongside verb/label. Identity (path/fingerprint) and the
+      // pre-act baseline never leave this function.
+      raw.history = history.map((h) => ({
+        verb: h.verb,
+        label: h.label,
+        ...(h.result !== undefined ? { result: h.result } : {}),
+      }));
     }
     // § 3.19 flow item 4: round 1 of a takeover entry carries the proposed
     // step text (already redacted and cut to 300 by the caller); rounds ≥ 2
@@ -928,7 +1105,7 @@ async function runTool(
     values: Record<string, string>,
     legacyRecoverActs: number,
     hasOp: (op: Op) => boolean,
-  ): { result: WingmanResult } | { mechanical: Op } | null {
+  ): { result: WingmanResult } | { mechanical: Op } | { recovered: true } | null {
     const noulOf = (id: string): number => {
       const a = answers[id];
       return a && a.type === 'noul' ? a.noul : 0;
@@ -969,7 +1146,7 @@ async function runTool(
       if (r !== 'continue') {
         return { result: mk('error', 'page-error') };
       }
-      return null;
+      return { recovered: true };
     }
     // 5. action none
     const action = answers['action'] as JevChoiceAnswer | undefined;
@@ -1242,9 +1419,10 @@ async function runTool(
     values: Record<string, string>,
     maxSteps: number,
     remaining: () => number,
-    history: Array<{ verb: Op; label: string }>,
+    history: HistoryEntry[],
     driverOps: readonly Op[],
-  ): Promise<{ result: WingmanResult | null; history: Array<{ verb: Op; label: string }> }> {
+    stepKey: string,
+  ): Promise<{ result: WingmanResult | null; history: HistoryEntry[] }> {
     const action = deps.tokens.consume(token);
     if (!action) {
       return { result: mk('error', 'confirm-token-invalid'), history };
@@ -1307,7 +1485,20 @@ async function runTool(
     if (dialogEvents.some((e) => e.pageId === pageId)) {
       return { result: mk('blocked', 'dialog-open'), history };
     }
-    return { result: null, history: [...history, { verb: action.verb, label: el.name }] };
+    return {
+      result: null,
+      history: [
+        ...history,
+        {
+          verb: action.verb,
+          label: el.name,
+          path: el.path,
+          fingerprint: el.fingerprint,
+          before: outcomeSignal(action.verb, el, obs),
+          stepKey,
+        },
+      ],
+    };
   }
 
   const validated =
@@ -1564,7 +1755,7 @@ async function runTool(
     const maxMs = Math.min(doInput.max_ms ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_ms);
     const remaining = () => maxMs - (now() - startedAt);
     const shadowResult = (): WingmanResult => mk('fallback', 'shadow', { shadow: true });
-    let history: Array<{ verb: Op; label: string }> = [];
+    let history: HistoryEntry[] = [];
     const token = doInput.confirm_token;
     let tokenHandled = false;
     let round = 0;
@@ -1582,6 +1773,14 @@ async function runTool(
     let waits = 0;
     // § 5.5.4 recover acts for legacy browse_step (per call).
     let legacyRecoverActs = 0;
+    // § outcome evidence WP-B scope rule 2 (orchestrator decision,
+    // 2026-09-28): true for a round whose decision fell through from an
+    // error+recover 'continue' — set by decideEarly/runChainEarly right
+    // before their fallthrough `return null`, reset at the top of every
+    // round. The no-progress guard defers to the existing recoverActs cap
+    // (RECOVER_MAX_PER_CLAUSE, then page-error) for these rounds instead of
+    // firing independently.
+    let recoveredThisRound = false;
 
     /** A committed decision about to pass the gate and the act site. */
     interface Decision {
@@ -1735,6 +1934,7 @@ async function runTool(
         if (r !== 'continue') {
           return { kind: 'result', result: mk('error', 'page-error') };
         }
+        recoveredThisRound = true;
       }
       // 5. ready (Q5)
       if (noulOf('ready') < THRESHOLDS.ready) {
@@ -1817,8 +2017,24 @@ async function runTool(
         return mk('fallback', 'budget-time');
       }
       const bucket = beginRound();
+      recoveredThisRound = false;
       const obs = await observeTimed(pageId);
       pageUrl = obs.url;
+      // § outcome evidence choke point: fills the last act's observed result
+      // from this round's fresh obs, before anything reads history.
+      history = annotateLastOutcome(history, obs);
+      const lastResult = history.length > 0 ? history[history.length - 1].result : undefined;
+      if (cur && lastResult !== undefined) {
+        // § outcome evidence secrecy (verifier fix, 2026-09-28): `result` can
+        // be `selected: <raw option text>`, which may equal a bound value —
+        // buildState redacts it before it reaches Jev (redactDeep over the
+        // whole `raw` object), but this telemetry field bypasses buildState
+        // entirely and went straight to log.jsonl unredacted. Same redaction
+        // here closes that gap; every other result shape ('filled'/'empty'/
+        // 'checked'/'unchecked'/'page changed'/'no visible change'/'element
+        // gone') is a fixed string redactValues leaves untouched.
+        cur.historyResult = redactValues(lastResult, values);
+      }
 
       // A dialog reported through onDialog before an act.
       if (dialogEvents.some((e) => e.pageId === pageId)) {
@@ -1851,7 +2067,10 @@ async function runTool(
       if (token !== undefined && !tokenHandled) {
         tokenHandled = true;
         if (mode !== 'shadow') {
-          const outcome = await runTokenAction(pageId, driver, obs, token, values, maxSteps, remaining, history, driverOps);
+          const outcome = await runTokenAction(
+            pageId, driver, obs, token, values, maxSteps, remaining, history, driverOps,
+            chain ? `c${chain.cursor}` : 'single',
+          );
           if (outcome.result) {
             return outcome.result;
           }
@@ -1987,6 +2206,7 @@ async function runTool(
           }
           primary = r1.answers as AnswerMap;
           decisionAnswers = primary;
+          recordDecisionTelemetry(primary);
           if (chain) {
             // § 5.5.2 step 6: in shadow mode return after this ask.
             if (mode === 'shadow') return shadowResult();
@@ -1999,7 +2219,13 @@ async function runTool(
             const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
             if (early) {
               if (mode === 'shadow') return shadowResult();
-              if ('mechanical' in early) {
+              if ('recovered' in early) {
+                // § outcome evidence WP-B scope rule 2: an error+recover
+                // 'continue' fell through to a normal decision this round —
+                // exempt from the no-progress guard (the recoverActs cap
+                // already owns this retry loop).
+                recoveredThisRound = true;
+              } else if ('mechanical' in early) {
                 legacyRecoverActs += 1;
                 decision = { el: null, verb: early.mechanical, gate: false };
               } else {
@@ -2106,6 +2332,7 @@ async function runTool(
           }
           primary = r.answers as AnswerMap;
           decisionAnswers = primary;
+          recordDecisionTelemetry(primary);
           if (chain) {
             if (mode === 'shadow') return shadowResult();
             const early = runChainEarly(primary, round, obs);
@@ -2117,7 +2344,9 @@ async function runTool(
             const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
             if (early) {
               if (mode === 'shadow') return shadowResult();
-              if ('mechanical' in early) {
+              if ('recovered' in early) {
+                recoveredThisRound = true;
+              } else if ('mechanical' in early) {
                 legacyRecoverActs += 1;
                 decision = { el: null, verb: early.mechanical, gate: false };
               } else {
@@ -2145,6 +2374,7 @@ async function runTool(
         if (decision === null) {
           const merged = (secondary ? { ...primary, ...secondary } : primary) as AnswerMap;
           decisionAnswers = merged;
+          recordDecisionTelemetry(merged);
           if (chain) {
             // § 5.5.2 step 8.
             const cands = () => topTargetCandidates(merged, obs, values);
@@ -2369,6 +2599,35 @@ async function runTool(
         if (remaining() < TIME_FLOOR_MS) {
           return mk('fallback', 'budget-time');
         }
+        // § outcome evidence WP-B: a deterministic no-progress guard, right
+        // before the act — this round's decision repeats the exact (verb,
+        // element path) of the last recorded act WITHIN THE SAME STEP, and
+        // that act's observed result (annotated above from this round's
+        // fresh obs) shows no change from its pre-act baseline. Placed AFTER
+        // the budget checks (not before them): when an explicit tight
+        // max_steps would already end the call this round, that budget
+        // reason wins — this guard is for a call that would otherwise keep
+        // repeating past any budget, not for one already ending anyway.
+        // Fires for both chain and legacy/wingman_do decisions alike (this
+        // is the one shared decision site every mode funnels through).
+        // Two scope exemptions (orchestrator decision, 2026-09-28):
+        // (1) a clause/step advance resets it — `currentStepKey` ties the
+        // comparison to the SAME chain clause (or the single implicit step
+        // of a non-chain call), so two different steps landing on the same
+        // element never counts as a repeat; (2) a round that fell through
+        // from an error+recover 'continue' is exempt outright —
+        // `recoveredThisRound` — because the existing recoverActs cap
+        // (RECOVER_MAX_PER_CLAUSE, then page-error) already owns that retry
+        // loop and this guard would otherwise short-circuit it.
+        const currentStepKey = chain ? `c${chain.cursor}` : 'single';
+        if (!recoveredThisRound && isNoProgress(decision, history, currentStepKey)) {
+          const candidates = decision.el ? [candidateOf(decision.el, values)] : [];
+          if (isBrowse) {
+            const step = chain ? clauseReviewStep() : capLabel(entryStep ?? '');
+            return mk('fallback', 'no-progress', { step_review: { step, why: 'no-progress', candidates } });
+          }
+          return mk('fallback', 'no-progress', { candidates });
+        }
         const actValue =
           decision.verb === 'fill' || decision.verb === 'navigate' || decision.verb === 'upload'
             ? decision.binding !== undefined
@@ -2400,7 +2659,16 @@ async function runTool(
         if (dialogEvents.some((e) => e.pageId === pageId)) {
           return mk('blocked', 'dialog-open');
         }
-        history = [...history, { verb: decision.verb, label: decision.el ? decision.el.name : (decision.binding ?? '') }];
+        history = [
+          ...history,
+          {
+            verb: decision.verb,
+            label: decision.el ? decision.el.name : (decision.binding ?? ''),
+            ...(decision.el ? { path: decision.el.path, fingerprint: decision.el.fingerprint } : {}),
+            before: outcomeSignal(decision.verb, decision.el ?? undefined, obs),
+            stepKey: currentStepKey,
+          },
+        ];
       }
       // next round
     }

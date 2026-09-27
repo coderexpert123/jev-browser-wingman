@@ -783,8 +783,19 @@ test('a browse-origin fill round with no named binding still bounces no-value be
 // a continuation round with a lone candidate in [floor, threshold) acts. Pin,
 // not fail-first — the shipped fixed 0.5 bar also acted here.
 test('a continuation round with a lone candidate in [floor, threshold) acts', async () => {
+  // Round 2's obs carries different text (as if the page settled after
+  // round 1's click) so the repeated click on e1 is not a literal
+  // zero-change repeat — this test exercises the continuation
+  // threshold/candidate rule, not the § outcome evidence no-progress guard;
+  // a truly static fixture would make round 2's identical click a correct
+  // no-progress match instead of exercising the threshold rule.
   const h = harness({
-    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    observations: {
+      p1: [
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] }),
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
+      ],
+    },
     script: [
       S(),
       S({ target: ['e1', { e1: 0.6, e2: 0.1, none: 0.2, ambiguous: 0.1 }] }),
@@ -818,8 +829,16 @@ test('a continuation round with two candidates below the threshold bounces targe
 // continuation round at or above the threshold acts regardless of candidate
 // count.
 test('a continuation round at the threshold or above acts regardless of candidate count', async () => {
+  // See the identical note on test 27 above: round 2's obs differs so the
+  // repeated click on e1 is not a literal zero-change repeat (§ outcome
+  // evidence no-progress guard) — this test is about the threshold rule.
   const h = harness({
-    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    observations: {
+      p1: [
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] }),
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
+      ],
+    },
     script: [
       S(),
       S({ target: ['e1', { e1: 0.8, e2: 0.55, none: 0.0, ambiguous: 0.0 }] }),
@@ -990,8 +1009,16 @@ test('an entry round below the margin floor bounces and one exactly at the floor
 // the pre-amendment continuation returns target-uncertain on any meta-answer
 // choice.
 test('a continuation round with an ambiguous choice and a dominating element acts on that element', async () => {
+  // See the identical note on test 27 above: round 2's obs differs so the
+  // repeated click on e1 is not a literal zero-change repeat (§ outcome
+  // evidence no-progress guard) — this test is about the margin rule.
   const h = harness({
-    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    observations: {
+      p1: [
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] }),
+        observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
+      ],
+    },
     script: [
       S(),
       S({ target: ['ambiguous', { e1: 0.66, ambiguous: 0.25, e2: 0.07, none: 0.02 }] }),

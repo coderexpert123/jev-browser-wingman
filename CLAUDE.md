@@ -680,3 +680,7 @@ withheld — this file rides a public-bound repository). Gates:
   `/root` defaults to 0700. Fix: walk every ancestor from the immediate
   parent up to (not including) `/`, granting `o+x` only (never `o+r`, so
   `nobody` still can't list the directory's other contents) on each.
+- **Optional telemetry fields on `PhaseRound` / `WingmanLogRecord`** must never be
+  assigned when the source value is undefined: `assert.deepStrictEqual` treats
+  `{k: undefined}` as different from `{}`, and `tests/loop.test.ts` pins the exact
+  round shape. Guard every such write with `!== undefined`.

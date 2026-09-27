@@ -1270,8 +1270,14 @@ test('T23: two consecutive low right_page rounds on one clause bounce wrong-page
 });
 
 test('T23: right_page low then high does not bounce, and an advance resets the counter', async () => {
+  // Round 2's obs carries different text (as if the page finished settling
+  // after round 1's click) so the repeated click on e1 is not a literal
+  // zero-change repeat — this is a right_page-counter test, not a no-progress
+  // one (§ outcome evidence WP-B); a truly static fixture would make round
+  // 2's identical click a correct no-progress match instead of exercising
+  // the counter.
   const h = harness({
-    observations: { p1: [observation()] },
+    observations: { p1: [observation(), observation({ text: 'plain page text, now settled' })] },
     script: [CS({ right_page: 0.2 }), CS({ right_page: 0.9 }), ADV()],
   });
   const r = await h.call({ goal: 'chain-t23 recover goal', steps: ['r1', 'r2'] });

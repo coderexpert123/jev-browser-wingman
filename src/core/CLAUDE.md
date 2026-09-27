@@ -183,3 +183,129 @@
   (`lib.ts` uses `createDefaultAsk`, which has none; nothing produces
   `circuit-open`), and all three ask paths share one `askWithCost` timeout
   pin — browse_step and wingman_do never differ.
+- **Outcome evidence + no-progress guard (2026-09-27/28, WP-outcome-evidence):**
+  `buildState`'s `history` entries are now `HistoryEntry` (`loop.ts` ~228-241:
+  `verb, label, path?, fingerprint?, before?, result?`), not the old
+  `{verb,label}` pair. `before` is a verb-specific signal captured from the
+  round's obs BEFORE the act (`outcomeSignal`, ~248-256): element-state verbs
+  (`fill`/`select`/`check`/`uncheck`) read `el.state` directly; every other
+  el-targeted verb (click-family) falls back to a page-level `url\u0000title`
+  signal — zero new driver calls either way. `annotateLastOutcome` (~265-295)
+  is the ONE choke point: called right after `observeTimed` at the top of the
+  main round loop (~1927), it fills the LAST history entry's `result` from
+  THIS round's fresh obs, by re-finding the same `path`/`fingerprint`
+  (`'element gone'` if it can't). It only ever touches the last entry — each
+  gets annotated exactly once, on the round right after its act — so it's
+  safe to call unconditionally every round including round 1 (no-op on empty
+  history). `isNoProgress` (~299-311) is the literal spec check: this round's
+  `decision` repeats the last act's exact `(verb, path)` AND `result ===
+  before` (no observed change) — checked at the ONE shared decision site
+  (`if (decision !== null) {` ~2486, before the gate), so it covers chain,
+  legacy and pick decisions alike without duplicating logic per mode.
+  `buildState` maps history to `{verb, label, result?}` only — `path`,
+  `fingerprint` and `before` never reach Jev, and `result` (which can equal a
+  bound value, e.g. a select's chosen option text) passes through the
+  existing whole-`raw`-object `redactDeep`, so no separate redaction call was
+  needed. **Gotcha for round-shape tests:** never assign a `PhaseRound`
+  telemetry field (`historyResult`, `actionP`, …) unconditionally when the
+  source value might be `undefined` — `{k: undefined}` is NOT deep-equal to
+  `{}` under `assert.deepStrictEqual` (Node keeps the key), and
+  `tests/loop.test.ts`'s "log record carries the phases breakdown" test pins
+  the exact round shape; guard every optional-telemetry assignment with an
+  explicit `!== undefined` check first. New `Reason` value `no-progress`
+  (`contract/types.ts` REASONS.fallback) reuses `FORCED_BOUNCE_LINE` /
+  `BROWSE_STEP_CALLER_LINE` in `forcedNote`/`finish` rather than a new note
+  string (judgment call, flagged in the build report — no note text was
+  specified for it). `WingmanLogRecord` gained a top-level `step_review:
+  {why, candidates: count}` (labels/values never logged, only the count) so
+  bench's `handoffRecordsFromLog` can parse a why-breakdown from log.jsonl —
+  `bench/run.ts`'s spec text said "from each browse_step result," but the
+  parser only ever reads log lines, so the log record is the actual wire.
+  **Click-family signal widened (2026-09-28, operator: a same-url/title click
+  that visibly changes the page — e.g. the-internet.herokuapp.com's "click
+  Add Element twice," which appends a Delete button each time — must not read
+  as unchanged):** `pageSignal` (~275-279) is url+title+`shortHash(obs.text)`
+  +`elements.length`+(el's own `state`+`obscured` when present), not just
+  url+title. **`isNoProgress` has two branches, not one comparison** (~327+):
+  element-state verbs (`fill`/`select`/`check`/`uncheck`) compare
+  `result === before` directly (both are `elementStateSignal` output, so
+  'empty'==='empty' is meaningful); click-family verbs compare `result ===
+  'no visible change'` — `annotateLastOutcome` already reduces their raw
+  `pageSignal` diff to a verdict word before storing it, so comparing that
+  word against the RAW `before` signal would never match (a word never
+  equals a hash string) and silently disabled the guard for every click.
+  **The guard's placement matters, not just its condition:** it sits AFTER
+  the budget-steps/budget-time checks, not before — a `max_steps: 1` call
+  that repeats the same act is a REAL pre-existing pattern in
+  `tests/loop.test.ts` and `tests/bounce-escalation.test.ts` (deliberately
+  exhausting a tiny explicit budget), and if no-progress is checked first it
+  wins over budget-steps on the round that would exhaust it, breaking those
+  pinned reasons. Checking budgets first makes budget-steps win when the call
+  would end anyway either way, and lets no-progress only catch a repeat that
+  would otherwise run indefinitely. **Scope rules (orchestrator decision,
+  2026-09-28), both implemented:** (1) the guard resets on a clause/step
+  advance — `HistoryEntry.stepKey` (`c<cursor>` in chain mode, else
+  `'single'` for a legacy browse_step entry or a wingman_do call, which have
+  no clause structure) must match between the last act and the current
+  decision, checked in `isNoProgress`'s third parameter, computed once per
+  round as `currentStepKey` right before the guard call (~2602) and reused
+  at the history push a few lines later. (2) a round whose decision fell
+  through from an error+recover `'continue'` is exempt outright — the
+  per-round `recoveredThisRound` flag (reset to `false` at the top of every
+  round, ~2016), set at BOTH `decideEarly`'s and `runChainEarly`'s
+  `'continue'`-fallthrough sites. `decideEarly` and `runTokenAction` are NOT
+  in the same nested-function scope as `chain`/`recoveredThisRound` (they're
+  siblings inside `runTool`, not nested inside the round-loop closure) — you
+  cannot just reach in and mutate the flag from inside them; `decideEarly`
+  instead returns a new `{ recovered: true }` variant (added to its return
+  union) that both of its call sites translate into `recoveredThisRound =
+  true` themselves, and `runTokenAction` takes `stepKey` as an explicit
+  parameter rather than computing `chain ? ... : 'single'` internally. This
+  fixed `tests/chain.test.ts` T2, T25 and part of T23 (its `h2` sub-case).
+  **T23's `h` sub-case (orchestrator-approved test fix, 2026-09-28 —
+  no third scope rule):** it scripted `[CS({right_page:0.2}),
+  CS({right_page:0.9}), ADV()]` for ONE clause — round 1's low `right_page`
+  (below `WRONG_PAGE_MAX`) does not block the act, so both rounds committed
+  the identical click on an identical static fixture within the SAME step,
+  no recover involved — a genuine no-progress match by both rules above, not
+  a bug in either. It was a test artifact (`CS()`'s default click fixture
+  reused across rounds to test the wrong-page COUNTER, not meant as a
+  deliberate repeat): fixed by giving round 2's observation different `text`
+  (as if the page settled after round 1's click), so the repeat is no longer
+  a literal zero-change one; the right_page-counter assertions are
+  untouched.
+- **Verifier findings, 2026-09-28 (both fixed, both confirmed by a before/
+  after repro — see `bench/forced-verdict.ts` review notes for method):**
+  (1) **Secrecy gap, `cur.historyResult` (loop.ts, top of the round loop):**
+  the WingmanLogRecord telemetry field was assigned straight from
+  `history[...].result` — the SAME raw signal `buildState` redacts before it
+  reaches Jev — but this telemetry write bypassed `buildState`/`redactDeep`
+  entirely, so a `select`'s `'selected: <raw option text>'` reached
+  `log.jsonl` un-redacted whenever the option text equaled a bound value.
+  Every other `result` shape (`filled`/`empty`/`checked`/`unchecked`/`page
+  changed`/`no visible change`/`element gone`) is a fixed string with
+  nothing to leak — `select` was the one path with page-derived text in the
+  signal. Fixed by wrapping the assignment in `redactValues(lastResult,
+  values)` (already imported in loop.ts). Repro'd with a standalone
+  `.build/` script before and after the fix (not covered by any existing
+  test — nothing asserts on `WingmanLogRecord.phases.rounds[].historyResult`
+  today). **Any future field added to `PhaseRound`/`WingmanLogRecord` that
+  can carry page-derived text needs the same explicit redaction — the
+  per-round telemetry object is NOT auto-redacted the way `buildState`'s
+  `raw` object is.** (2) **The T23 `h`-sub-case fixture-collision class
+  above is not unique to `tests/chain.test.ts`:** `tests/takeover.test.ts`
+  had three PRE-EXISTING, previously-green tests (`#27`/`#29`/`#36` — the
+  continuation two-part-rule and top-candidate-margin tests) that reuse a
+  single static observation across two rounds while the script intentionally
+  repeats the same click on `e1` in round 2 to exercise unrelated
+  threshold/margin logic — the same shape as T23's `h` case, just in a
+  different file the original build didn't re-run. All three now correctly
+  read as no-progress under the new guard and were fixed the same way (a
+  second observation entry with different `text`, so FakeDriver's "repeat
+  the last entry when exhausted" stops making round 2 a literal zero-change
+  repeat). **Any test that scripts two consecutive rounds acting on the same
+  (verb, element) with a single static observation is now a no-progress
+  guard trip by construction** — auditing for this pattern across the whole
+  suite (not just the file a change set names) is required work for any
+  future change to `isNoProgress`/`annotateLastOutcome`, not optional
+  follow-up.

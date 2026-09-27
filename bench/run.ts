@@ -112,6 +112,10 @@ export interface HandoffRecord {
   rounds: number;
   pick?: true;
   progress?: { step_index: number; steps_done: number; steps_total: number };
+  // WP-outcome-evidence WP-C: this handoff's step_review why (when it carried
+  // one) and its candidate count — never the candidate labels.
+  why?: string;
+  candidates?: number;
 }
 
 export interface BenchResultsFile {
@@ -348,6 +352,9 @@ interface LoggedRecord {
   progress?: unknown;
   phases?: { rounds?: unknown[] };
   acts_by_op?: Record<string, unknown>;
+  // WP-outcome-evidence WP-C: written by loop.ts's buildLogRecord from the
+  // call's final step_review, why + a candidate COUNT only (never labels).
+  step_review?: { why?: unknown; candidates?: unknown };
 }
 
 // WP-F F3: parse a run's fresh log lines into `browse_step` handoff records
@@ -373,6 +380,8 @@ export function handoffRecordsFromLog(lines: string[]): HandoffRecord[] {
     if (rec.progress && typeof rec.progress === 'object') {
       record.progress = rec.progress as HandoffRecord['progress'];
     }
+    if (typeof rec.step_review?.why === 'string') record.why = rec.step_review.why;
+    if (typeof rec.step_review?.candidates === 'number') record.candidates = rec.step_review.candidates;
     records.push(record);
   }
   return records;

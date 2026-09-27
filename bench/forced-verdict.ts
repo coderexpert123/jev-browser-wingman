@@ -137,6 +137,19 @@ export function forcedVerdict(file: { runs?: BenchRunRecord[] }, mode: VerdictMo
   const rawScript = forcedRuns.reduce((s, r) => s + (r.raw_script ?? 0), 0);
   lines.push(`FORCED-VERDICT: raw-script ${rawScript}`);
 
+  // why-breakdown: informational only (WP-outcome-evidence WP-C) — splits
+  // step-uncertain non-commits by cause, from each handoff's step_review.why.
+  // Never gates; purely for tuning thresholds from data.
+  const whyCounts: Record<string, number> = {};
+  for (const rec of forcedRecords) {
+    if (typeof rec.why === 'string') whyCounts[rec.why] = (whyCounts[rec.why] ?? 0) + 1;
+  }
+  const whyBreakdown = Object.entries(whyCounts)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([why, n]) => `${why}=${n}`)
+    .join(' ');
+  lines.push(`FORCED-VERDICT: why-breakdown ${whyBreakdown || 'n/a'}`);
+
   lines.push(`FORCED-VERDICT: overall ${failures.length === 0 ? 'PASS' : 'FAIL'}`);
   return { lines, pass: failures.length === 0, failures };
 }

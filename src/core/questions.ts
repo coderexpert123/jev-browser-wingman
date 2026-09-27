@@ -25,7 +25,7 @@ const GROUP_TEXT_MAX = 300;
 export const OPTION_INSTRUCTION_BASE = `Which option of this dropdown best fits the goal and the supplied value's name?`;
 
 export const INSTRUCTIONS: Record<string, string> = {
-  done: `Is the goal already achieved on this page? Judge from the goal, the page text and the action history. ${UNTRUSTED_SENTENCE}`,
+  done: `Is the goal already achieved on this page? Judge from the goal, the page text and the action history, which includes each action's observed result. ${UNTRUSTED_SENTENCE}`,
   blocked: `Is progress toward the goal blocked by something no listed element can clear, such as a captcha, an access-denied notice or a paywall? ${UNTRUSTED_SENTENCE}`,
   login: `Does the page ask the user to sign in, create an account or prove their identity before the goal can continue? ${UNTRUSTED_SENTENCE}`,
   error: `Does the page show an error, caused by the previous action, that stops progress toward the goal, such as a validation message or a failed-request notice? A page that the goal or step asks to open counts as reached, not as an error, whatever status it reports. ${UNTRUSTED_SENTENCE}`,
@@ -36,7 +36,7 @@ export const INSTRUCTIONS: Record<string, string> = {
   group: `Which group of listed elements contains the element the next action should use? ${UNTRUSTED_SENTENCE}`,
   option: `${OPTION_INSTRUCTION_BASE} ${UNTRUSTED_SENTENCE}`,
   answer: `Answer this question about the current page: <question> ${UNTRUSTED_SENTENCE}`,
-  step_done: `Is the state's step already completed? Judge from the step, the page text and the action history. ${UNTRUSTED_SENTENCE}`,
+  step_done: `Is the state's step already completed? Judge from the step, the page text and the action history, which includes each action's observed result. ${UNTRUSTED_SENTENCE}`,
   key: `If the next action presses a key, which key should it press? ${UNTRUSTED_SENTENCE}`,
   url: `If the next action opens a web address, which supplied web address should it open? ${UNTRUSTED_SENTENCE}`,
   file: `If the next action attaches a file, which supplied file should it attach? ${UNTRUSTED_SENTENCE}`,
