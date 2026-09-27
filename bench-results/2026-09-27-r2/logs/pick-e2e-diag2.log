@@ -1,0 +1,44 @@
+TAP version 13
+# DIAG-INVALID id=recover reason=bad-choice choice=undefined criteria={"back":"Go back to the previous page, because the last action led to a wrong or broken page","reload":"Reload the page, because it failed to load properly","wait":"Wait, because the error is temporary and the page is still working","continue":"Continue, because the error does not stop the current step","give-up":"Stop, because the error cannot be fixed from this page"}
+# Subtest: P1: ambiguous target bounces with candidates, then pick fills and finishes done
+not ok 1 - P1: ambiguous target bounces with candidates, then pick fills and finishes done
+  ---
+  duration_ms: 1547.526321
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/pick-e2e.test.js:164:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'jev-error'
+    - 'step-uncertain'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'step-uncertain'
+  actual: 'jev-error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/pick-e2e.test.js:178:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: P2: a pick onto an obscured element returns target-covered with no act and no ask
+ok 2 - P2: a pick onto an obscured element returns target-covered with no act and no ask
+  ---
+  duration_ms: 848.905212
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3538.120105
+RUN-TESTS: files=1 tests=2 pass=1 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

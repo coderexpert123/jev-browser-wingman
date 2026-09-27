@@ -1,0 +1,42 @@
+TAP version 13
+# Subtest: claude + wrapped, profile-matched server + key + mode on: O1-O4 met, O5 exact doctor step
+ok 1 - claude + wrapped, profile-matched server + key + mode on: O1-O4 met, O5 exact doctor step
+  ---
+  duration_ms: 57.473884
+  type: 'test'
+  ...
+# Subtest: the same with config mode absent: O1 unmet, steps include the mode-on step
+ok 2 - the same with config mode absent: O1 unmet, steps include the mode-on step
+  ---
+  duration_ms: 24.2684
+  type: 'test'
+  ...
+# Subtest: claude + unwrapped: the O2 step carries the exact wrapBrowsingEntry JSON
+ok 3 - claude + unwrapped: the O2 step carries the exact wrapBrowsingEntry JSON
+  ---
+  duration_ms: 32.237813
+  type: 'test'
+  ...
+# Subtest: claude + extension-mode server: O2 deny step names mcp__<server>__<tool> entries, O3 is the debugging-port step
+ok 4 - claude + extension-mode server: O2 deny step names mcp__<server>__<tool> entries, O3 is the debugging-port step
+  ---
+  duration_ms: 19.711892
+  type: 'test'
+  ...
+# Subtest: an unknown client id and a foreign-named unknown server: known false, hints only, never throws
+ok 5 - an unknown client id and a foreign-named unknown server: known false, hints only, never throws
+  ---
+  duration_ms: 0.495012
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 955.114869
+RUN-TESTS: files=1 tests=5 pass=5 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

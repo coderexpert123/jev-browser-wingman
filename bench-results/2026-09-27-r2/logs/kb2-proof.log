@@ -1,0 +1,286 @@
+TAP version 13
+# Subtest: parity
+    # Subtest: ADAPTER_OPS.playwright deep-equals ADAPTER_OPS.cdp
+    ok 1 - ADAPTER_OPS.playwright deep-equals ADAPTER_OPS.cdp
+      ---
+      duration_ms: 2.739473
+      type: 'test'
+      ...
+    # Subtest: every declared op has at least one test below (static coverage map)
+    ok 2 - every declared op has at least one test below (static coverage map)
+      ---
+      duration_ms: 0.381647
+      type: 'test'
+      ...
+    # Subtest: ops.html element table is identical across adapters
+    ok 3 - ops.html element table is identical across adapters
+      ---
+      duration_ms: 329.787384
+      type: 'test'
+      ...
+    1..3
+ok 1 - parity
+  ---
+  duration_ms: 937.055043
+  type: 'suite'
+  ...
+# Subtest: playwright
+    # Subtest: O1 hover reveals the hover log
+    ok 1 - O1 hover reveals the hover log
+      ---
+      duration_ms: 294.077768
+      type: 'test'
+      ...
+    # Subtest: O2 dblclick writes the double log
+    ok 2 - O2 dblclick writes the double log
+      ---
+      duration_ms: 258.078096
+      type: 'test'
+      ...
+    # Subtest: O3 press Tab in First moves focus to Second
+    ok 3 - O3 press Tab in First moves focus to Second
+      ---
+      duration_ms: 266.52139
+      type: 'test'
+      ...
+    # Subtest: O4 fill replaces the contenteditable text
+    ok 4 - O4 fill replaces the contenteditable text
+      ---
+      duration_ms: 252.158969
+      type: 'test'
+      ...
+    # Subtest: O5 upload attaches the named file to the file input
+    ok 5 - O5 upload attaches the named file to the file input
+      ---
+      duration_ms: 248.218188
+      type: 'test'
+      ...
+    # Subtest: O6 navigate to form.html then back to ops.html
+    ok 6 - O6 navigate to form.html then back to ops.html
+      ---
+      duration_ms: 218.697355
+      type: 'test'
+      ...
+    # Subtest: O7 navigate rejects a non-http url
+    ok 7 - O7 navigate rejects a non-http url
+      ---
+      duration_ms: 157.113785
+      type: 'test'
+      ...
+    # Subtest: O8 wait sleeps about one second
+    ok 8 - O8 wait sleeps about one second
+      ---
+      duration_ms: 1163.889123
+      type: 'test'
+      ...
+    # Subtest: O9 scroll_up undoes a deep scroll
+    ok 9 - O9 scroll_up undoes a deep scroll
+      ---
+      duration_ms: 283.853579
+      type: 'test'
+      ...
+    # Subtest: O10 scroll moves the page down
+    ok 10 - O10 scroll moves the page down
+      ---
+      duration_ms: 302.112772
+      type: 'test'
+      ...
+    # Subtest: O11 click with a null element rejects
+    ok 11 - O11 click with a null element rejects
+      ---
+      duration_ms: 188.067123
+      type: 'test'
+      ...
+    # Subtest: O12 legacy ops still behave on form.html
+    ok 12 - O12 legacy ops still behave on form.html
+      ---
+      duration_ms: 455.328274
+      type: 'test'
+      ...
+    # Subtest: O12 check and uncheck on styled-controls.html
+    ok 13 - O12 check and uncheck on styled-controls.html
+      ---
+      duration_ms: 346.649947
+      type: 'test'
+      ...
+    # Subtest: O13 scroll_to brings Far away into view and clicks it
+    ok 14 - O13 scroll_to brings Far away into view and clicks it
+      ---
+      duration_ms: 377.737021
+      type: 'test'
+      ...
+    # Subtest: O14 reload resets the page
+    ok 15 - O14 reload resets the page
+      ---
+      duration_ms: 168.016835
+      type: 'test'
+      ...
+    # Subtest: O15 press ShiftTab in Second moves focus back to First
+    ok 16 - O15 press ShiftTab in Second moves focus back to First
+      ---
+      duration_ms: 261.819965
+      type: 'test'
+      ...
+    # Subtest: O16 press Backspace deletes the character before the cursor
+    ok 17 - O16 press Backspace deletes the character before the cursor
+      ---
+      duration_ms: 216.124969
+      type: 'test'
+      ...
+    # Subtest: O17 press SelectAll then Backspace empties the field
+    ok 18 - O17 press SelectAll then Backspace empties the field
+      ---
+      duration_ms: 228.93885
+      type: 'test'
+      ...
+    1..18
+ok 2 - playwright
+  ---
+  duration_ms: 6252.691695
+  type: 'suite'
+  ...
+# Subtest: cdp
+    # Subtest: O1 hover reveals the hover log
+    ok 1 - O1 hover reveals the hover log
+      ---
+      duration_ms: 186.64152
+      type: 'test'
+      ...
+    # Subtest: O2 dblclick writes the double log
+    ok 2 - O2 dblclick writes the double log
+      ---
+      duration_ms: 142.136067
+      type: 'test'
+      ...
+    # Subtest: O3 press Tab in First moves focus to Second
+    ok 3 - O3 press Tab in First moves focus to Second
+      ---
+      duration_ms: 141.01952
+      type: 'test'
+      ...
+    # Subtest: O4 fill replaces the contenteditable text
+    ok 4 - O4 fill replaces the contenteditable text
+      ---
+      duration_ms: 137.394596
+      type: 'test'
+      ...
+    # Subtest: O5 upload attaches the named file to the file input
+    ok 5 - O5 upload attaches the named file to the file input
+      ---
+      duration_ms: 129.10755
+      type: 'test'
+      ...
+    # Subtest: O6 navigate to form.html then back to ops.html
+    ok 6 - O6 navigate to form.html then back to ops.html
+      ---
+      duration_ms: 151.198274
+      type: 'test'
+      ...
+    # Subtest: O7 navigate rejects a non-http url
+    ok 7 - O7 navigate rejects a non-http url
+      ---
+      duration_ms: 107.86936
+      type: 'test'
+      ...
+    # Subtest: O8 wait sleeps about one second
+    ok 8 - O8 wait sleeps about one second
+      ---
+      duration_ms: 1116.958807
+      type: 'test'
+      ...
+    # Subtest: O9 scroll_up undoes a deep scroll
+    ok 9 - O9 scroll_up undoes a deep scroll
+      ---
+      duration_ms: 285.159068
+      type: 'test'
+      ...
+    # Subtest: O10 scroll moves the page down
+    ok 10 - O10 scroll moves the page down
+      ---
+      duration_ms: 260.115612
+      type: 'test'
+      ...
+    # Subtest: O11 click with a null element rejects
+    ok 11 - O11 click with a null element rejects
+      ---
+      duration_ms: 130.1358
+      type: 'test'
+      ...
+    # Subtest: O12 legacy ops still behave on form.html
+    ok 12 - O12 legacy ops still behave on form.html
+      ---
+      duration_ms: 342.811563
+      type: 'test'
+      ...
+    # Subtest: O12 check and uncheck on styled-controls.html
+    ok 13 - O12 check and uncheck on styled-controls.html
+      ---
+      duration_ms: 229.782657
+      type: 'test'
+      ...
+    # Subtest: O13 scroll_to brings Far away into view and clicks it
+    not ok 14 - O13 scroll_to brings Far away into view and clicks it
+      ---
+      duration_ms: 2241.570543
+      type: 'test'
+      location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:186:13'
+      failureType: 'testCodeFailure'
+      error: 'timed out waiting for Far away inside the viewport'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected: true
+      actual: false
+      operator: '=='
+      stack: |-
+        pollUntil (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:128:16)
+        async file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:287:13
+        async withPage (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:104:16)
+        async TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:187:17)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async Suite.processPendingSubtests (node:internal/test_runner/test:744:7)
+      ...
+    # Subtest: O14 reload resets the page
+    ok 15 - O14 reload resets the page
+      ---
+      duration_ms: 131.806061
+      type: 'test'
+      ...
+    # Subtest: O15 press ShiftTab in Second moves focus back to First
+    ok 16 - O15 press ShiftTab in Second moves focus back to First
+      ---
+      duration_ms: 141.885302
+      type: 'test'
+      ...
+    # Subtest: O16 press Backspace deletes the character before the cursor
+    ok 17 - O16 press Backspace deletes the character before the cursor
+      ---
+      duration_ms: 176.892156
+      type: 'test'
+      ...
+    # Subtest: O17 press SelectAll then Backspace empties the field
+    ok 18 - O17 press SelectAll then Backspace empties the field
+      ---
+      duration_ms: 196.691668
+      type: 'test'
+      ...
+    1..18
+not ok 3 - cdp
+  ---
+  duration_ms: 6929.986825
+  type: 'suite'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb2/tests/conformance-ops.test.js:175:5'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..3
+# tests 39
+# suites 3
+# pass 38
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23807.812671
+RUN-TESTS: files=1 tests=39 pass=38 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

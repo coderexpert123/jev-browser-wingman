@@ -1,0 +1,96 @@
+TAP version 13
+# Subtest: both shipped profiles load and validate
+ok 1 - both shipped profiles load and validate
+  ---
+  duration_ms: 3.811543
+  type: 'test'
+  ...
+# Subtest: every tool class in both shipped profiles is a CAPABILITY_CLASSES member
+ok 2 - every tool class in both shipped profiles is a CAPABILITY_CLASSES member
+  ---
+  duration_ms: 1.125714
+  type: 'test'
+  ...
+# Subtest: every one of the 0.0.80 default 24 names has a class in the playwright profile
+ok 3 - every one of the 0.0.80 default 24 names has a class in the playwright profile
+  ---
+  duration_ms: 0.691412
+  type: 'test'
+  ...
+# Subtest: every one of the 1.10.1 30 names has a class in the devtools profile
+ok 4 - every one of the 1.10.1 30 names has a class in the devtools profile
+  ---
+  duration_ms: 0.511958
+  type: 'test'
+  ...
+# Subtest: profileForArgv and profileForTools pick correctly
+ok 5 - profileForArgv and profileForTools pick correctly
+  ---
+  duration_ms: 0.791842
+  type: 'test'
+  ...
+# Subtest: classOfCall applies argument rules before the tool map
+ok 6 - classOfCall applies argument rules before the tool map
+  ---
+  duration_ms: 0.727828
+  type: 'test'
+  ...
+# Subtest: denyEntries omits tools with a rule to a retained class and includes plain withheld tools
+ok 7 - denyEntries omits tools with a rule to a retained class and includes plain withheld tools
+  ---
+  duration_ms: 0.886358
+  type: 'test'
+  ...
+# Subtest: withheldClasses(OPS, []) is all nine withholdable classes
+ok 8 - withheldClasses(OPS, []) is all nine withholdable classes
+  ---
+  duration_ms: 1.351675
+  type: 'test'
+  ...
+# Subtest: withheldClasses omits upload when the adapter lacks it (dead-end rule)
+ok 9 - withheldClasses omits upload when the adapter lacks it (dead-end rule)
+  ---
+  duration_ms: 0.37994
+  type: 'test'
+  ...
+# Subtest: withheldClasses honours retain
+ok 10 - withheldClasses honours retain
+  ---
+  duration_ms: 0.351978
+  type: 'test'
+  ...
+# Subtest: denyEntries shapes per client and returns null for unknown clients
+ok 11 - denyEntries shapes per client and returns null for unknown clients
+  ---
+  duration_ms: 0.782707
+  type: 'test'
+  ...
+# Subtest: an invalid user profile is skipped with one stderr line naming the file
+ok 12 - an invalid user profile is skipped with one stderr line naming the file
+  ---
+  duration_ms: 0.86582
+  type: 'test'
+  ...
+# Subtest: a user profile with the same id overrides the shipped one
+ok 13 - a user profile with the same id overrides the shipped one
+  ---
+  duration_ms: 0.598471
+  type: 'test'
+  ...
+# Subtest: toolsFingerprint is stable, order-insensitive and 16 hex chars
+ok 14 - toolsFingerprint is stable, order-insensitive and 16 hex chars
+  ---
+  duration_ms: 1.403147
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 131.141126
+RUN-TESTS: files=1 tests=14 pass=14 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

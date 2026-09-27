@@ -1,0 +1,133 @@
+TAP version 13
+# DIAG-ROUND step="go back to the index" url="http://127.0.0.1:39289/chain-check.html" text="Checkboxes Accept terms" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"}]
+# DIAG-ROUND step="go back to the index" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"},{"verb":"back","label":""}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"},{"verb":"back","label":""}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-form.html" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"},{"verb":"back","label":""},{"verb":"click","label":"Form"}]
+# Subtest: E1: the four-clause chain completes in one call
+ok 1 - E1: the four-clause chain completes in one call
+  ---
+  duration_ms: 6607.88588
+  type: 'test'
+  ...
+# DIAG-ROUND step="go back to the index" url="http://127.0.0.1:39289/chain-check.html" text="Checkboxes Accept terms" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"}]
+# DIAG-ROUND step="go back to the index" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"},{"verb":"back","label":""}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"},{"verb":"back","label":""}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","irreversible","action","target","value","key","step_done","right_page","ready"] history=[]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-form.html" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Form"}]
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  duration_ms: 4940.26043
+  type: 'test'
+  ...
+# DIAG-ROUND step="open the form page by its address" url="http://127.0.0.1:39289/chain-index.html" text="Chain index Checkboxes Form Delayed" qKeys=["done","blocked","login","irreversible","action","target","value","key","url","step_done","right_page","ready"] history=[]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# DIAG-ROUND step="open the form page by its address" url="<value:form_url>" text="Form Email Send" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","url","recover","step_done","right_page","ready"] history=[{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"},{"verb":"navigate","label":"form_url"}]
+# Subtest: E3: navigate works from a url binding and bounces no-value otherwise
+not ok 3 - E3: navigate works from a url binding and bounces no-value otherwise
+  ---
+  duration_ms: 10406.591023
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/chain-e2e.test.js:349:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: budget-steps
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/chain-e2e.test.js:361:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E4: the delay page waits for Finish and finishes
+ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  duration_ms: 6528.6236
+  type: 'test'
+  ...
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-check.html" text="Checkboxes Accept terms" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-check.html" text="Checkboxes Accept terms" qKeys=["done","blocked","login","error","irreversible","action","target","value","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Checkboxes"},{"verb":"check","label":"Accept terms"}]
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  duration_ms: 3574.89719
+  type: 'test'
+  ...
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/chain-error.html" text="Links Broken link Form" qKeys=["done","blocked","login","irreversible","action","target","key","step_done","right_page","ready"] history=[]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/missing.html" text="Not found" qKeys=["done","blocked","login","error","irreversible","action","target","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Broken link"}]
+# DIAG-ROUND step="open Form" url="http://127.0.0.1:39289/missing.html" text="Not found" qKeys=["done","blocked","login","error","irreversible","action","target","key","recover","step_done","right_page","ready"] history=[{"verb":"click","label":"Broken link"}]
+# Subtest: E6: a broken link recovers with back and then opens Form
+not ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  duration_ms: 3569.076884
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/chain-e2e.test.js:434:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: step-uncertain
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/diag-dist/tests/chain-e2e.test.js:444:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  duration_ms: 6011.011923
+  type: 'test'
+  ...
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  duration_ms: 3665.592857
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 6
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 46132.234699
+RUN-TESTS: files=1 tests=8 pass=6 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,259 @@
+TAP version 13
+# Subtest: refuses the default user-data dir without spawning
+ok 1 - refuses the default user-data dir without spawning
+  ---
+  duration_ms: 1.643152
+  type: 'test'
+  ...
+# Subtest: refuses when a Chrome holds the profile without a debug port and kills nothing
+ok 2 - refuses when a Chrome holds the profile without a debug port and kills nothing
+  ---
+  duration_ms: 1.507413
+  type: 'test'
+  ...
+# Subtest: refuses when the answering Chrome uses another profile
+ok 3 - refuses when the answering Chrome uses another profile
+  ---
+  duration_ms: 0.441517
+  type: 'test'
+  ...
+# Subtest: reuses an answering Chrome on the same profile without spawning
+ok 4 - reuses an answering Chrome on the same profile without spawning
+  ---
+  duration_ms: 0.273654
+  type: 'test'
+  ...
+# Subtest: spawns with CHROME_ARGS and records the socket owner pid
+ok 5 - spawns with CHROME_ARGS and records the socket owner pid
+  ---
+  duration_ms: 0.617595
+  type: 'test'
+  ...
+# Subtest: a spawn that never answers is killed and the pidfile removed
+ok 6 - a spawn that never answers is killed and the pidfile removed
+  ---
+  duration_ms: 10002.40238
+  type: 'test'
+  ...
+# Subtest: win32 offscreen, normal and minimized launches go through start /min and never spawn chrome directly
+ok 7 - win32 offscreen, normal and minimized launches go through start /min and never spawn chrome directly
+  ---
+  duration_ms: 1.664098
+  type: 'test'
+  ...
+# Subtest: every launch mode passes an explicit --window-position (WP-X)
+ok 8 - every launch mode passes an explicit --window-position (WP-X)
+  ---
+  duration_ms: 0.544497
+  type: 'test'
+  ...
+# Subtest: minimized mode minimises every window of a Chrome it started through Browser.setWindowBounds
+ok 9 - minimized mode minimises every window of a Chrome it started through Browser.setWindowBounds
+  ---
+  duration_ms: 0.551252
+  type: 'test'
+  ...
+# Subtest: offscreen and normal modes never call Browser.setWindowBounds
+ok 10 - offscreen and normal modes never call Browser.setWindowBounds
+  ---
+  duration_ms: 0.493147
+  type: 'test'
+  ...
+# Subtest: headless mode spawns chrome directly with --headless=new and never minimises
+ok 11 - headless mode spawns chrome directly with --headless=new and never minimises
+  ---
+  duration_ms: 0.2848
+  type: 'test'
+  ...
+# Subtest: a reused Chrome is never minimised or activated
+ok 12 - a reused Chrome is never minimised or activated
+  ---
+  duration_ms: 0.893062
+  type: 'test'
+  ...
+# Subtest: darwin launches through open -g -n -a when the binary is inside an app bundle
+ok 13 - darwin launches through open -g -n -a when the binary is inside an app bundle
+  ---
+  duration_ms: 0.461846
+  type: 'test'
+  ...
+# Subtest: stopChrome kills only the pidfile pid with both markers
+ok 14 - stopChrome kills only the pidfile pid with both markers
+  ---
+  duration_ms: 0.486194
+  type: 'test'
+  ...
+# Subtest: stopChrome never sweeps other Chromes on the profile
+ok 15 - stopChrome never sweeps other Chromes on the profile
+  ---
+  duration_ms: 0.484085
+  type: 'test'
+  ...
+# Subtest: CHROME_ARGS equals the PA launcher headed list
+ok 16 - CHROME_ARGS equals the PA launcher headed list
+  ---
+  duration_ms: 0.219394
+  type: 'test'
+  ...
+# Subtest: profileMarkerMatches rejects a sibling dir prefix
+ok 17 - profileMarkerMatches rejects a sibling dir prefix
+  ---
+  duration_ms: 0.214791
+  type: 'test'
+  ...
+# Subtest: profileHolders counts Chrome child processes (--type=) as non-holders (OG-1)
+ok 18 - profileHolders counts Chrome child processes (--type=) as non-holders (OG-1)
+  ---
+  duration_ms: 0.350314
+  type: 'test'
+  ...
+# Subtest: win32 candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+not ok 19 - win32 candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  duration_ms: 3.611882
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb7/tests/chrome.test.js:390:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'C:\\PF/Google/Chrome/Application/chrome.exe',
+        'C:\\PF (x86)/Google/Chrome/Application/chrome.exe',
+        'C:\\LAD/Google/Chrome/Application/chrome.exe',
+        'C:\\PF/Microsoft/Edge/Application/msedge.exe',
+    ...
+        'C:\\PF/Chromium/Application/chrome.exe',
+    -   'C:\\LAD/Programs/Opera/opera.exe',
+    -   'C:\\PF/Opera/opera.exe',
+        'C:\\LAD/Vivaldi/Application/vivaldi.exe',
+        'C:\\PF/Vivaldi/Application/vivaldi.exe'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'C:\\PF/Google/Chrome/Application/chrome.exe'
+    1: 'C:\\PF (x86)/Google/Chrome/Application/chrome.exe'
+    2: 'C:\\LAD/Google/Chrome/Application/chrome.exe'
+    3: 'C:\\PF/Microsoft/Edge/Application/msedge.exe'
+    4: 'C:\\PF (x86)/Microsoft/Edge/Application/msedge.exe'
+    5: 'C:\\PF/BraveSoftware/Brave-Browser/Application/brave.exe'
+    6: 'C:\\LAD/BraveSoftware/Brave-Browser/Application/brave.exe'
+    7: 'C:\\LAD/Chromium/Application/chrome.exe'
+    8: 'C:\\PF/Chromium/Application/chrome.exe'
+    9: 'C:\\LAD/Programs/Opera/opera.exe'
+    10: 'C:\\PF/Opera/opera.exe'
+    11: 'C:\\LAD/Vivaldi/Application/vivaldi.exe'
+    12: 'C:\\PF/Vivaldi/Application/vivaldi.exe'
+  actual:
+    0: 'C:\\PF/Google/Chrome/Application/chrome.exe'
+    1: 'C:\\PF (x86)/Google/Chrome/Application/chrome.exe'
+    2: 'C:\\LAD/Google/Chrome/Application/chrome.exe'
+    3: 'C:\\PF/Microsoft/Edge/Application/msedge.exe'
+    4: 'C:\\PF (x86)/Microsoft/Edge/Application/msedge.exe'
+    5: 'C:\\PF/BraveSoftware/Brave-Browser/Application/brave.exe'
+    6: 'C:\\LAD/BraveSoftware/Brave-Browser/Application/brave.exe'
+    7: 'C:\\LAD/Chromium/Application/chrome.exe'
+    8: 'C:\\PF/Chromium/Application/chrome.exe'
+    9: 'C:\\LAD/Vivaldi/Application/vivaldi.exe'
+    10: 'C:\\PF/Vivaldi/Application/vivaldi.exe'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb7/tests/chrome.test.js:391:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: darwin candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+ok 20 - darwin candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  duration_ms: 0.093662
+  type: 'test'
+  ...
+# Subtest: linux candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+ok 21 - linux candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  duration_ms: 0.073682
+  type: 'test'
+  ...
+# Subtest: findChrome falls through to Opera, then Vivaldi, when only they exist
+not ok 22 - findChrome falls through to Opera, then Vivaldi, when only they exist
+  ---
+  duration_ms: 0.392687
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb7/tests/chrome.test.js:435:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + null
+    - 'C:\\LAD/Programs/Opera/opera.exe'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'C:\\LAD/Programs/Opera/opera.exe'
+  actual: ~
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kb7/tests/chrome.test.js:439:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: isDefaultUserDataDir is true for each family default dir per platform (exact inputs)
+ok 23 - isDefaultUserDataDir is true for each family default dir per platform (exact inputs)
+  ---
+  duration_ms: 0.654724
+  type: 'test'
+  ...
+# Subtest: listChromeProcesses Windows command covers the five family executables
+ok 24 - listChromeProcesses Windows command covers the five family executables
+  ---
+  duration_ms: 0.278649
+  type: 'test'
+  ...
+# Subtest: listChromeProcesses POSIX keeps msedge, brave, opera and vivaldi lines and drops firefox
+ok 25 - listChromeProcesses POSIX keeps msedge, brave, opera and vivaldi lines and drops firefox
+  ---
+  duration_ms: 0.450599
+  type: 'test'
+  ...
+# Subtest: findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)
+ok 26 - findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)
+  ---
+  duration_ms: 0.118886
+  type: 'test'
+  ...
+# Subtest: an explicit chromePath still wins over every autodiscovered candidate
+ok 27 - an explicit chromePath still wins over every autodiscovered candidate
+  ---
+  duration_ms: 0.117184
+  type: 'test'
+  ...
+# Subtest: launchEphemeralChrome returns an answering endpoint and close removes the profile
+ok 28 - launchEphemeralChrome returns an answering endpoint and close removes the profile
+  ---
+  duration_ms: 657.006409
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 26
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10818.239178
+RUN-TESTS: files=1 tests=28 pass=26 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

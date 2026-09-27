@@ -1,0 +1,54 @@
+TAP version 13
+# Subtest: tools/list in shadow mode lists three tools in the pinned order
+ok 1 - tools/list in shadow mode lists three tools in the pinned order
+  ---
+  duration_ms: 1285.384085
+  type: 'test'
+  ...
+# Subtest: browse_step carries the pinned description
+ok 2 - browse_step carries the pinned description
+  ---
+  duration_ms: 1021.814703
+  type: 'test'
+  ...
+# Subtest: browse_step schema matches the pinned schema
+ok 3 - browse_step schema matches the pinned schema
+  ---
+  duration_ms: 980.097834
+  type: 'test'
+  ...
+# Subtest: the default config lists only browse_step
+ok 4 - the default config lists only browse_step
+  ---
+  duration_ms: 878.941424
+  type: 'test'
+  ...
+# Subtest: a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+ok 5 - a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+  ---
+  duration_ms: 763.307018
+  type: 'test'
+  ...
+# Subtest: browse_step dispatches a committed takeover result through tools/call
+ok 6 - browse_step dispatches a committed takeover result through tools/call
+  ---
+  duration_ms: 3324.826275
+  type: 'test'
+  ...
+# Subtest: Wingman.step validates input and returns error invalid-input
+ok 7 - Wingman.step validates input and returns error invalid-input
+  ---
+  duration_ms: 5.593033
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9397.017819
+RUN-TESTS: files=1 tests=7 pass=7 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

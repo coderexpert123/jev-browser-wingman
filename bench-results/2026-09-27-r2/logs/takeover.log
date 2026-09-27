@@ -1,0 +1,234 @@
+TAP version 13
+# Subtest: first round commits at the threshold and runs to done; no ask precedes the round-1 ask
+ok 1 - first round commits at the threshold and runs to done; no ask precedes the round-1 ask
+  ---
+  duration_ms: 10.233697
+  type: 'test'
+  ...
+# Subtest: a single-candidate round commits below the threshold and acts
+ok 2 - a single-candidate round commits below the threshold and acts
+  ---
+  duration_ms: 1.383356
+  type: 'test'
+  ...
+# Subtest: a split round bounces low-confidence with step_review and never acts
+ok 3 - a split round bounces low-confidence with step_review and never acts
+  ---
+  duration_ms: 1.616871
+  type: 'test'
+  ...
+# Subtest: bounce evidence is redacted
+ok 4 - bounce evidence is redacted
+  ---
+  duration_ms: 2.545748
+  type: 'test'
+  ...
+# Subtest: target none bounces as no-match
+ok 5 - target none bounces as no-match
+  ---
+  duration_ms: 0.808272
+  type: 'test'
+  ...
+# Subtest: target ambiguous bounces as multi-match
+ok 6 - target ambiguous bounces as multi-match
+  ---
+  duration_ms: 0.793182
+  type: 'test'
+  ...
+# Subtest: an action-none round bounces as no-match with candidates
+ok 7 - an action-none round bounces as no-match with candidates
+  ---
+  duration_ms: 0.703752
+  type: 'test'
+  ...
+# Subtest: self-retry fires on a target-uncertain first round and the retry commits
+ok 8 - self-retry fires on a target-uncertain first round and the retry commits
+  ---
+  duration_ms: 1.616129
+  type: 'test'
+  ...
+# Subtest: self-retry is skippable by config
+ok 9 - self-retry is skippable by config
+  ---
+  duration_ms: 2.262316
+  type: 'test'
+  ...
+# Subtest: a non-committing retry round is final
+ok 10 - a non-committing retry round is final
+  ---
+  duration_ms: 1.286232
+  type: 'test'
+  ...
+# Subtest: a batch enters on step 1 and absorbs steps 2–n
+ok 11 - a batch enters on step 1 and absorbs steps 2–n
+  ---
+  duration_ms: 1.607254
+  type: 'test'
+  ...
+# Subtest: takeover pauses at a gate fire with needs_confirmation, a token and the pending action
+ok 12 - takeover pauses at a gate fire with needs_confirmation, a token and the pending action
+  ---
+  duration_ms: 0.990677
+  type: 'test'
+  ...
+# Subtest: a confirm token through browse_step executes exactly the pending action once
+ok 13 - a confirm token through browse_step executes exactly the pending action once
+  ---
+  duration_ms: 1.243463
+  type: 'test'
+  ...
+# Subtest: takeover continuation ends ambiguous and returns that reason
+ok 14 - takeover continuation ends ambiguous and returns that reason
+  ---
+  duration_ms: 0.635703
+  type: 'test'
+  ...
+# Subtest: takeover ends at budget-steps when max_steps is exhausted
+ok 15 - takeover ends at budget-steps when max_steps is exhausted
+  ---
+  duration_ms: 0.620443
+  type: 'test'
+  ...
+# Subtest: offer mode returns takeover-offered with step_review and never acts
+ok 16 - offer mode returns takeover-offered with step_review and never acts
+  ---
+  duration_ms: 0.64616
+  type: 'test'
+  ...
+# Subtest: takeover false observes and offers; takeover true executes
+ok 17 - takeover false observes and offers; takeover true executes
+  ---
+  duration_ms: 0.878707
+  type: 'test'
+  ...
+# Subtest: shadow runs the entry round read-only
+ok 18 - shadow runs the entry round read-only
+  ---
+  duration_ms: 0.724679
+  type: 'test'
+  ...
+# Subtest: a sensitive page stops before any ask
+ok 19 - a sensitive page stops before any ask
+  ---
+  duration_ms: 0.360719
+  type: 'test'
+  ...
+# Subtest: gate mode off lets a takeover act on a submit button without needs_confirmation
+ok 20 - gate mode off lets a takeover act on a submit button without needs_confirmation
+  ---
+  duration_ms: 0.726603
+  type: 'test'
+  ...
+# Subtest: an input with both step and steps runs chain mode; goal-only derives one clause
+ok 21 - an input with both step and steps runs chain mode; goal-only derives one clause
+  ---
+  duration_ms: 3.06041
+  type: 'test'
+  ...
+# Subtest: an empty steps array or a 13-step batch is invalid-input
+ok 22 - an empty steps array or a 13-step batch is invalid-input
+  ---
+  duration_ms: 0.462546
+  type: 'test'
+  ...
+# Subtest: step-uncertain results carry the caller note; takeover-offered the offer note; a non-done takeover end the resume note
+ok 23 - step-uncertain results carry the caller note; takeover-offered the offer note; a non-done takeover end the resume note
+  ---
+  duration_ms: 1.358011
+  type: 'test'
+  ...
+# Subtest: exactly one log record per browse_step call with tool browse_step
+ok 24 - exactly one log record per browse_step call with tool browse_step
+  ---
+  duration_ms: 1.301316
+  type: 'test'
+  ...
+# Subtest: a browse-origin fill round with a supplied binding commits below the value threshold
+ok 25 - a browse-origin fill round with a supplied binding commits below the value threshold
+  ---
+  duration_ms: 1.272989
+  type: 'test'
+  ...
+# Subtest: a browse-origin fill round with no named binding still bounces no-value below the threshold
+ok 26 - a browse-origin fill round with no named binding still bounces no-value below the threshold
+  ---
+  duration_ms: 0.535596
+  type: 'test'
+  ...
+# Subtest: a continuation round with a lone candidate in [floor, threshold) acts
+ok 27 - a continuation round with a lone candidate in [floor, threshold) acts
+  ---
+  duration_ms: 0.557901
+  type: 'test'
+  ...
+# Subtest: a continuation round with two candidates below the threshold bounces target-uncertain
+ok 28 - a continuation round with two candidates below the threshold bounces target-uncertain
+  ---
+  duration_ms: 0.554351
+  type: 'test'
+  ...
+# Subtest: a continuation round at the threshold or above acts regardless of candidate count
+ok 29 - a continuation round at the threshold or above acts regardless of candidate count
+  ---
+  duration_ms: 1.516422
+  type: 'test'
+  ...
+# Subtest: a two-stage entry round commits: request 1's action carries into the stage-2 decision
+ok 30 - a two-stage entry round commits: request 1's action carries into the stage-2 decision
+  ---
+  duration_ms: 1.131445
+  type: 'test'
+  ...
+# Subtest: an obscured entry target bounces target-covered with evidence and never acts
+ok 31 - an obscured entry target bounces target-covered with evidence and never acts
+  ---
+  duration_ms: 0.832586
+  type: 'test'
+  ...
+# Subtest: an unobscured target commits on a page that also lists obscured elements
+ok 32 - an unobscured target commits on a page that also lists obscured elements
+  ---
+  duration_ms: 0.553342
+  type: 'test'
+  ...
+# Subtest: an ambiguous choice with a dominating element commits on the margin rule and acts on that element
+ok 33 - an ambiguous choice with a dominating element commits on the margin rule and acts on that element
+  ---
+  duration_ms: 0.490076
+  type: 'test'
+  ...
+# Subtest: an entry round with a within-2x element runner-up bounces low-confidence
+ok 34 - an entry round with a within-2x element runner-up bounces low-confidence
+  ---
+  duration_ms: 0.668847
+  type: 'test'
+  ...
+# Subtest: an entry round below the margin floor bounces and one exactly at the floor acts
+ok 35 - an entry round below the margin floor bounces and one exactly at the floor acts
+  ---
+  duration_ms: 0.901979
+  type: 'test'
+  ...
+# Subtest: a continuation round with an ambiguous choice and a dominating element acts on that element
+ok 36 - a continuation round with an ambiguous choice and a dominating element acts on that element
+  ---
+  duration_ms: 0.684078
+  type: 'test'
+  ...
+# Subtest: a continuation round with a within-2x element runner-up bounces target-uncertain
+ok 37 - a continuation round with a within-2x element runner-up bounces target-uncertain
+  ---
+  duration_ms: 0.626629
+  type: 'test'
+  ...
+1..37
+# tests 37
+# suites 0
+# pass 37
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 221.497001
+RUN-TESTS: files=1 tests=37 pass=37 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

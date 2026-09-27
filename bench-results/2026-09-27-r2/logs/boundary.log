@@ -1,0 +1,126 @@
+TAP version 13
+# Subtest: binding values never reach ask, even when the page echoes them
+ok 1 - binding values never reach ask, even when the page echoes them
+  ---
+  duration_ms: 11.144565
+  type: 'test'
+  ...
+# Subtest: query strings and fragments never reach ask
+ok 2 - query strings and fragments never reach ask
+  ---
+  duration_ms: 1.430237
+  type: 'test'
+  ...
+# Subtest: a sensitive host falls back before any ask
+ok 3 - a sensitive host falls back before any ask
+  ---
+  duration_ms: 0.991202
+  type: 'test'
+  ...
+# Subtest: a password field falls back before any ask
+ok 4 - a password field falls back before any ask
+  ---
+  duration_ms: 0.593317
+  type: 'test'
+  ...
+# Subtest: an irreversible heuristic returns needs_confirmation and never acts
+ok 5 - an irreversible heuristic returns needs_confirmation and never acts
+  ---
+  duration_ms: 3.231121
+  type: 'test'
+  ...
+# Subtest: an irreversible noul returns needs_confirmation and never acts
+ok 6 - an irreversible noul returns needs_confirmation and never acts
+  ---
+  duration_ms: 1.227384
+  type: 'test'
+  ...
+# Subtest: a confirm token executes exactly the pending action once
+ok 7 - a confirm token executes exactly the pending action once
+  ---
+  duration_ms: 2.432514
+  type: 'test'
+  ...
+# Subtest: a reused confirm token is confirm-token-invalid
+ok 8 - a reused confirm token is confirm-token-invalid
+  ---
+  duration_ms: 2.289324
+  type: 'test'
+  ...
+# Subtest: a token on a different URL is confirm-token-invalid
+ok 9 - a token on a different URL is confirm-token-invalid
+  ---
+  duration_ms: 1.176348
+  type: 'test'
+  ...
+# Subtest: an open dialog returns blocked dialog-open and never acts
+ok 10 - an open dialog returns blocked dialog-open and never acts
+  ---
+  duration_ms: 0.683829
+  type: 'test'
+  ...
+# Subtest: shadow never acts and logs the would-be verb and role
+ok 11 - shadow never acts and logs the would-be verb and role
+  ---
+  duration_ms: 0.723001
+  type: 'test'
+  ...
+# Subtest: a confirm token in shadow mode is never executed
+ok 12 - a confirm token in shadow mode is never executed
+  ---
+  duration_ms: 0.682031
+  type: 'test'
+  ...
+# Subtest: lock-held refuses before attaching
+ok 13 - lock-held refuses before attaching
+  ---
+  duration_ms: 1.218078
+  type: 'test'
+  ...
+# Subtest: one log record per call with no path, title, label, value or page text
+ok 14 - one log record per call with no path, title, label, value or page text
+  ---
+  duration_ms: 1.135133
+  type: 'test'
+  ...
+# Subtest: result labels are redacted and at most 80 chars
+ok 15 - result labels are redacted and at most 80 chars
+  ---
+  duration_ms: 0.74518
+  type: 'test'
+  ...
+# Subtest: an option request redacts option labels and carries the chosen binding name
+ok 16 - an option request redacts option labels and carries the chosen binding name
+  ---
+  duration_ms: 1.288409
+  type: 'test'
+  ...
+# Subtest: an out-of-set option choice is no-value, never an act with an undefined value
+ok 17 - an out-of-set option choice is no-value, never an act with an undefined value
+  ---
+  duration_ms: 0.685162
+  type: 'test'
+  ...
+# Subtest: last_action label is redacted and at most 80 chars
+ok 18 - last_action label is redacted and at most 80 chars
+  ---
+  duration_ms: 0.73726
+  type: 'test'
+  ...
+# Subtest: detach runs even when the loop throws
+ok 19 - detach runs even when the loop throws
+  ---
+  duration_ms: 0.625912
+  type: 'test'
+  ...
+1..19
+# tests 19
+# suites 0
+# pass 19
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 216.040365
+RUN-TESTS: files=1 tests=19 pass=19 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,283 @@
+TAP version 13
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E1: the four-clause chain completes in one call
+not ok 1 - E1: the four-clause chain completes in one call
+  ---
+  duration_ms: 446.472987
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:291:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+not ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  duration_ms: 51.355516
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:317:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E3: navigate works from a url binding and bounces no-value otherwise
+not ok 3 - E3: navigate works from a url binding and bounces no-value otherwise
+  ---
+  duration_ms: 50.948327
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:346:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E4: the delay page waits for Finish and finishes
+not ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  duration_ms: 41.392449
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:385:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+not ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  duration_ms: 38.290622
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:408:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E6: a broken link recovers with back and then opens Form
+not ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  duration_ms: 42.690418
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:431:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+not ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  duration_ms: 40.033936
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:454:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+# node:internal/modules/cjs/loader:1386
+#   throw err;
+#   ^
+# Error: Cannot find module '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/src/cli/main.js'
+#     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+#     at Function._load (node:internal/modules/cjs/loader:1192:37)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+#     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+#     at node:internal/main/run_main_module:36:49 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v22.22.2
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+not ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  duration_ms: 40.927734
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/.build/kbb/tests/chain-e2e.test.js:481:1'
+  failureType: 'testCodeFailure'
+  error: 'MCP error -32000: Connection closed'
+  code: -32000
+  name: 'McpError'
+  stack: |-
+    McpError.fromError (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js:2048:16)
+    Client._onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:263:32)
+    _transport.onclose (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js:223:18)
+    ChildProcess.<anonymous> (file:///home/user/jev-browser-wingman/.claude/worktrees/agent-ab371206253a367b1/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js:85:31)
+    ChildProcess.emit (node:events:519:28)
+    maybeClose (node:internal/child_process:1101:16)
+    ChildProcess._handle.onexit (node:internal/child_process:304:5)
+  ...
+RUN-TESTS: zero tests registered
+RUN-TESTS: files=1 tests=0 pass=0 fail=0

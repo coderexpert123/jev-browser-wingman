@@ -1,0 +1,96 @@
+TAP version 13
+# Subtest: pinned descriptions match spec § 3.11 exactly
+ok 1 - pinned descriptions match spec § 3.11 exactly
+  ---
+  duration_ms: 356.346748
+  type: 'test'
+  ...
+# Subtest: mode off lists no tools
+ok 2 - mode off lists no tools
+  ---
+  duration_ms: 814.101848
+  type: 'test'
+  ...
+# Subtest: mode shadow lists all three tools with the pinned descriptions
+ok 3 - mode shadow lists all three tools with the pinned descriptions
+  ---
+  duration_ms: 809.91129
+  type: 'test'
+  ...
+# Subtest: the default config lists only browse_step and refuses wingman_do
+ok 4 - the default config lists only browse_step and refuses wingman_do
+  ---
+  duration_ms: 761.291167
+  type: 'test'
+  ...
+# Subtest: handoff optional lists all three tools
+ok 5 - handoff optional lists all three tools
+  ---
+  duration_ms: 709.699894
+  type: 'test'
+  ...
+# Subtest: forced handoff with tools all lists all three tools
+ok 6 - forced handoff with tools all lists all three tools
+  ---
+  duration_ms: 705.74449
+  type: 'test'
+  ...
+# Subtest: WINGMAN_BROWSE_ONLY is ignored
+ok 7 - WINGMAN_BROWSE_ONLY is ignored
+  ---
+  duration_ms: 772.531872
+  type: 'test'
+  ...
+# Subtest: shadow wingman_check returns fallback shadow with one jev call
+ok 8 - shadow wingman_check returns fallback shadow with one jev call
+  ---
+  duration_ms: 2913.902707
+  type: 'test'
+  ...
+# Subtest: wingman_do clicks Continue and returns done
+ok 9 - wingman_do clicks Continue and returns done
+  ---
+  duration_ms: 3320.151592
+  type: 'test'
+  ...
+# Subtest: wingman_do on Remove item returns needs_confirmation and nothing happens
+ok 10 - wingman_do on Remove item returns needs_confirmation and nothing happens
+  ---
+  duration_ms: 3170.338383
+  type: 'test'
+  ...
+# Subtest: the confirm token executes the action and the dialog leaves it blocked dialog-open
+ok 11 - the confirm token executes the action and the dialog leaves it blocked dialog-open
+  ---
+  duration_ms: 8158.8147
+  type: 'test'
+  ...
+# Subtest: a second concurrent call returns blocked busy
+ok 12 - a second concurrent call returns blocked busy
+  ---
+  duration_ms: 4789.166824
+  type: 'test'
+  ...
+# Subtest: startup and tools/list never contact the browser endpoint; the first tool call does
+ok 13 - startup and tools/list never contact the browser endpoint; the first tool call does
+  ---
+  duration_ms: 20961.474572
+  type: 'test'
+  ...
+# Subtest: stdout carries only protocol frames
+ok 14 - stdout carries only protocol frames
+  ---
+  duration_ms: 1030.575563
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50560.015962
+RUN-TESTS: files=1 tests=14 pass=14 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

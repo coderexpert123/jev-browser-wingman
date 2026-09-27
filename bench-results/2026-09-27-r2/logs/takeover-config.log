@@ -1,0 +1,72 @@
+TAP version 13
+# Subtest: the takeover reasons match the amended REASONS
+ok 1 - the takeover reasons match the amended REASONS
+  ---
+  duration_ms: 0.9919
+  type: 'test'
+  ...
+# Subtest: takeover config absent means threshold 0.7, mode auto, retry true
+ok 2 - takeover config absent means threshold 0.7, mode auto, retry true
+  ---
+  duration_ms: 3.01018
+  type: 'test'
+  ...
+# Subtest: takeover config accepts an explicit threshold and mode
+ok 3 - takeover config accepts an explicit threshold and mode
+  ---
+  duration_ms: 3.564552
+  type: 'test'
+  ...
+# Subtest: a threshold outside 0.5 to 0.95, or not a number, fails
+ok 4 - a threshold outside 0.5 to 0.95, or not a number, fails
+  ---
+  duration_ms: 2.480087
+  type: 'test'
+  ...
+# Subtest: a takeover mode outside auto and offer fails
+ok 5 - a takeover mode outside auto and offer fails
+  ---
+  duration_ms: 0.989854
+  type: 'test'
+  ...
+# Subtest: an unknown key inside takeover fails
+ok 6 - an unknown key inside takeover fails
+  ---
+  duration_ms: 1.040127
+  type: 'test'
+  ...
+# Subtest: a non-object takeover fails
+ok 7 - a non-object takeover fails
+  ---
+  duration_ms: 0.729342
+  type: 'test'
+  ...
+# Subtest: a missing retry key normalises to true
+ok 8 - a missing retry key normalises to true
+  ---
+  duration_ms: 0.641248
+  type: 'test'
+  ...
+# Subtest: retry false loads
+ok 9 - retry false loads
+  ---
+  duration_ms: 1.118817
+  type: 'test'
+  ...
+# Subtest: a non-boolean retry fails
+ok 10 - a non-boolean retry fails
+  ---
+  duration_ms: 1.019395
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 136.194152
+RUN-TESTS: files=1 tests=10 pass=10 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
