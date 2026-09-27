@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn as nodeSpawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { rmSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -17,7 +17,13 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 // The scoped build compiles only what the test files import; the wrapper
 // script loads runWithChrome from the build at runtime, so import it here
 // too to keep with-chrome.js in the build output.
-import { runWithChrome } from '../src/cli/with-chrome.js';
+import { runWithChrome, runWithBrowser } from '../src/cli/with-chrome.js';
+import { packageRoot } from '../src/package-root.js';
+import { HANDOFF_REFUSAL_TEXT } from '../src/contract/constants.js';
+import { OPS } from '../src/contract/types.js';
+
+assert.equal(typeof runWithBrowser, 'function');
+assert.equal(runWithChrome, runWithBrowser);
 
 assert.equal(typeof runWithChrome, 'function');
 
@@ -184,9 +190,13 @@ test('the stdout purity assertion fails on a wrapper that prints first', async (
   assert.throws(() => assertStdoutOnlyChildBytes(run.stdout));
 });
 
-test('the child sees PLAYWRIGHT_MCP_CDP_ENDPOINT', async () => {
+test('a matched profile sets its own endpoint_env on the child (§ 5.9; product env is data-driven, not hardcoded)', async () => {
   // The echo child cannot print env in both modes; reuse the argv printer is
-  // unnecessary — run with JEVW_CHILD_MODE=env and a fresh child copy.
+  // unnecessary — run with JEVW_CHILD_MODE=env and a fresh child copy. The
+  // wrapped argv carries a dummy arg matching the shipped playwright-mcp
+  // profile's detect.args_contain, so argvProfile resolves and its
+  // launch.endpoint_env ("PLAYWRIGHT_MCP_CDP_ENDPOINT") is what gets set —
+  // never a name this file writes itself (grep gate: no "playwright" here).
   const envChild = join(scratch, 'env-child.mjs');
   await writeFile(
     envChild,
@@ -194,7 +204,10 @@ test('the child sees PLAYWRIGHT_MCP_CDP_ENDPOINT', async () => {
     'utf8',
   );
   const log = join(scratch, 'env.log');
-  const run = await runWrapper([process.execPath, envChild], childEnv(log, { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT }));
+  const run = await runWrapper(
+    [process.execPath, envChild, '--dummy=@playwright/mcp'],
+    childEnv(log, { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, WINGMAN_HOME: scratch }),
+  );
   assert.equal(run.stdout, PRESET_ENDPOINT);
 });
 
@@ -318,6 +331,500 @@ test('an ensure failure answers the tool call with isError and never forwards it
   const logText = await readLog(log);
   assert.ok(logText.includes('ensure '), 'expected the ensure attempt');
   assert.ok(!logText.includes('stub:tools/call'), 'the gated tool call was forwarded despite the failed ensure');
+});
+
+// ---- WP-C C4: generic withholding proxy (§ 5.9, § 6 WP-C), all through the
+// stub child (C3, tests/fixtures/stub-browsing-mcp.mjs). WINGMAN_HOME is a
+// temp dir per test; the real home is never read. Each config carries an
+// explicit `handoff` (§ test-setup note): a hand-built config without one
+// runs optional, so "absent means forced" holds only through loadConfig.
+
+const stubBrowsingMcpPath = join(packageRoot(), 'tests', 'fixtures', 'stub-browsing-mcp.mjs');
+
+const WH_WRAPPER = `
+import fs from 'node:fs';
+import { runWithBrowser } from ${JSON.stringify(pathToFileURL(join(buildRoot, 'src', 'cli', 'with-chrome.js')).href)};
+
+const LOG = process.env.JEVW_WH_LOG;
+const append = (s) => { try { fs.appendFileSync(LOG, s + '\\n'); } catch { /* best effort */ } };
+
+const deps = {
+  env: process.env,
+  ensureChromeFn: async (opts) => {
+    append('ensure ' + opts.port);
+    if (process.env.JEVW_ENSURE_MODE === 'fail') {
+      return { ok: false, code: 'no-chrome', message: 'stub ensure failure' };
+    }
+    return { ok: true, endpoint: 'http://127.0.0.1:' + opts.port, port: opts.port, pid: null, startedByUs: false };
+  },
+  probeVersionFn: async (port) => {
+    append('probe ' + port);
+    return process.env.JEVW_PROBE_ANSWERS === '1' ? { Browser: 'Chrome' } : null;
+  },
+};
+if (process.env.JEVW_ADAPTER_OPS) {
+  deps.adapterOps = JSON.parse(process.env.JEVW_ADAPTER_OPS);
+}
+if (process.env.JEVW_CLASSIFY_RESULT) {
+  const result = JSON.parse(process.env.JEVW_CLASSIFY_RESULT);
+  deps.classifyToolsFn = async () => result;
+}
+const code = await runWithBrowser(process.argv.slice(2), deps);
+process.exitCode = code;
+`;
+
+const whWrapperPath = join(scratch, 'wh-wrapper.mjs');
+await writeFile(whWrapperPath, WH_WRAPPER, 'utf8');
+
+interface WHProc {
+  send(msg: unknown): void;
+  next(): Promise<string>;
+  waitClose(): Promise<number | null>;
+  endStdin(): void;
+  stderrText(): string;
+}
+
+function startWithhold(opts: { home: string; extraArgv?: string[]; env?: Record<string, string> }): WHProc {
+  const env = safeEnv(join(opts.home, 'wh.log'), { JEVW_WH_LOG: join(opts.home, 'wh.log'), WINGMAN_HOME: opts.home, ...opts.env });
+  const argv = [whWrapperPath, process.execPath, stubBrowsingMcpPath, ...(opts.extraArgv ?? [])];
+  const child: ChildProcess = nodeSpawn(process.execPath, argv, { env, windowsHide: true });
+  child.stdout!.setEncoding('utf8');
+  child.stderr!.setEncoding('utf8');
+  let stderrText = '';
+  child.stderr!.on('data', (c: string) => {
+    stderrText += c;
+  });
+  let buf = '';
+  const queue: string[] = [];
+  const waiters: Array<(l: string) => void> = [];
+  child.stdout!.on('data', (chunk: string) => {
+    buf += chunk;
+    let idx: number;
+    while ((idx = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, idx);
+      buf = buf.slice(idx + 1);
+      if (waiters.length > 0) waiters.shift()!(line);
+      else queue.push(line);
+    }
+  });
+  const closeP = new Promise<number | null>((resolve) => {
+    child.on('close', (code) => resolve(code));
+  });
+  return {
+    send: (msg) => child.stdin!.write(JSON.stringify(msg) + '\n'),
+    next: () => (queue.length > 0 ? Promise.resolve(queue.shift()!) : new Promise((resolve) => waiters.push(resolve))),
+    waitClose: () => closeP,
+    endStdin: () => child.stdin!.end(),
+    stderrText: () => stderrText,
+  };
+}
+
+async function writeWHConfig(
+  home: string,
+  opts: { topMode?: 'on' | 'off'; handoff?: { mode: 'forced' | 'optional'; retain?: string[] } } = {},
+): Promise<void> {
+  await mkdir(home, { recursive: true });
+  const cfg: Record<string, unknown> = { mode: opts.topMode ?? 'on', adapter: 'cdp' };
+  if (opts.handoff) cfg.handoff = opts.handoff;
+  await writeFile(join(home, 'config.json'), JSON.stringify(cfg), 'utf8');
+}
+
+async function waitForLog(path: string, predicate: (text: string) => boolean, timeoutMs = 5000): Promise<string> {
+  const start = Date.now();
+  for (;;) {
+    const text = await readLog(path);
+    if (predicate(text)) return text;
+    if (Date.now() - start > timeoutMs) throw new Error(`timed out waiting for log at ${path}: ${text}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+interface ToolCallResult {
+  result: { isError?: boolean; content?: Array<{ type: string; text: string }> };
+}
+
+async function listTools(proc: WHProc, id = 1): Promise<{ names: string[]; raw: unknown }> {
+  proc.send({ jsonrpc: '2.0', id, method: 'tools/list', params: {} });
+  const line = await proc.next();
+  const parsed = JSON.parse(line) as { result: { tools: Array<{ name: string }> } };
+  return { names: parsed.result.tools.map((t) => t.name), raw: parsed };
+}
+
+async function callTool(proc: WHProc, name: string, args: unknown, id: number): Promise<ToolCallResult> {
+  proc.send({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } });
+  const line = await proc.next();
+  return JSON.parse(line) as ToolCallResult;
+}
+
+const PLAYWRIGHT_TOOLS = [
+  'browser_click', 'browser_check', 'browser_uncheck', 'browser_type', 'browser_select_option',
+  'browser_press_key', 'browser_hover', 'browser_file_upload', 'browser_navigate', 'browser_navigate_back',
+  'browser_tabs', 'browser_snapshot', 'browser_wait_for',
+].map((name) => ({ name, description: name }));
+
+const DEVTOOLS_TOOLS = ['take_snapshot', 'click', 'navigate_page', 'new_page'].map((name) => ({ name, description: name }));
+
+const FOREIGN_TOOL_NAMES = ['pagetool_press_button', 'pagetool_goto', 'pagetool_look', 'pagetool_coords_click'];
+const FOREIGN_TOOLS = FOREIGN_TOOL_NAMES.map((name) => ({ name, description: name }));
+const FOREIGN_CLASSES: Record<string, string> = {
+  pagetool_press_button: 'element-act',
+  pagetool_goto: 'navigate',
+  pagetool_look: 'read',
+  pagetool_coords_click: 'pointer-xy',
+};
+
+const WHOLE_OPS = [...OPS];
+const OPS_WITHOUT_UPLOAD = OPS.filter((o) => o !== 'upload');
+
+test('W1: forced + preset + a playwright-named tool set — withheld names absent, retained present', async () => {
+  const home = join(scratch, 'w1');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(!names.includes('browser_click'), `browser_click should be withheld: ${names}`);
+  assert.ok(names.includes('browser_snapshot'), `browser_snapshot should be retained: ${names}`);
+  assert.ok(names.includes('browser_tabs'), `browser_tabs should be retained: ${names}`);
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W2: forced — browser_click is refused inline and never reaches the stub; browser_snapshot forwards', async () => {
+  const home = join(scratch, 'w2');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  await listTools(proc);
+  const refused = await callTool(proc, 'browser_click', {}, 2);
+  assert.equal(refused.result.isError, true);
+  assert.equal(refused.result.content?.[0]?.text, HANDOFF_REFUSAL_TEXT);
+  const forwarded = await callTool(proc, 'browser_snapshot', {}, 3);
+  assert.notEqual(forwarded.result.isError, true);
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(!stubText.includes('method:tools/call:browser_click'), `the stub must never see browser_click: ${stubText}`);
+  assert.ok(stubText.includes('method:tools/call:browser_snapshot'), `the stub should see browser_snapshot: ${stubText}`);
+});
+
+test('W3: devtools-named stub — click withheld, navigate_page argument-ruled by type', async () => {
+  const home = join(scratch, 'w3');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(DEVTOOLS_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(!names.includes('click'), `click should be withheld from the list: ${names}`);
+  assert.ok(names.includes('navigate_page'), `navigate_page should stay listed (argument-ruled): ${names}`);
+
+  const urlCall = await callTool(proc, 'navigate_page', { type: 'url', url: 'https://example.com' }, 2);
+  assert.equal(urlCall.result.isError, true, 'navigate_page url form should be refused');
+  const backCall = await callTool(proc, 'navigate_page', { type: 'back' }, 3);
+  assert.equal(backCall.result.isError, true, 'navigate_page back form should be refused');
+  const reloadCall = await callTool(proc, 'navigate_page', { type: 'reload' }, 4);
+  assert.notEqual(reloadCall.result.isError, true, 'navigate_page reload form should forward (session, retained)');
+  const newPageCall = await callTool(proc, 'new_page', { url: 'https://example.com' }, 5);
+  assert.notEqual(newPageCall.result.isError, true, 'new_page should forward (tabs, retained)');
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W4: optional + preset — unfiltered, byte path inherited', async () => {
+  const home = join(scratch, 'w4');
+  await writeWHConfig(home, { handoff: { mode: 'optional' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_click'), 'optional handoff must not filter the list');
+  const call = await callTool(proc, 'browser_click', {}, 2);
+  assert.notEqual(call.result.isError, true);
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(stubText.includes('method:tools/call:browser_click'));
+});
+
+test('W5: forced, no preset — a refused call does not ensure; a forwarded call ensures once', async () => {
+  const home = join(scratch, 'w5');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const whLog = join(home, 'wh.log');
+  const proc = startWithhold({
+    home,
+    env: { STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log'), JEVW_PROBE_ANSWERS: '1' },
+  });
+  await listTools(proc);
+  const refused = await callTool(proc, 'browser_click', {}, 2);
+  assert.equal(refused.result.isError, true);
+  let logText = await readLog(whLog);
+  assert.ok(!logText.includes('ensure '), `a refused call must not ensure: ${logText}`);
+  const forwarded = await callTool(proc, 'browser_snapshot', {}, 3);
+  assert.notEqual(forwarded.result.isError, true);
+  logText = await readLog(whLog);
+  assert.ok(logText.includes('ensure '), 'a forwarded call must ensure');
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W6: forced — a raw notification line from the child arrives byte-identical', async () => {
+  const home = join(scratch, 'w6');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const raw = '{"jsonrpc":  "2.0" , "method":"notifications/x","params":{}}';
+  const proc = startWithhold({
+    home,
+    env: {
+      WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT,
+      STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS),
+      STUB_NOTIFY_RAW: raw,
+      STUB_LOG: join(home, 'stub.log'),
+    },
+  });
+  const line = await proc.next();
+  assert.equal(line, raw);
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W7: forced — a batch array with a withheld call gets an array of refusals; nothing forwarded', async () => {
+  const home = join(scratch, 'w7');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  await listTools(proc);
+  proc.send([
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'browser_click', arguments: {} } },
+    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'browser_snapshot', arguments: {} } },
+  ]);
+  const line = await proc.next();
+  const parsed = JSON.parse(line) as ToolCallResult['result'][];
+  assert.ok(Array.isArray(parsed));
+  assert.equal(parsed.length, 2);
+  for (const r of parsed as unknown as Array<{ result: { isError?: boolean } }>) {
+    assert.equal(r.result.isError, true);
+  }
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(!stubText.includes('tools/call'), `the child must never see the batch: ${stubText}`);
+});
+
+test('W8: preset + config failure — stderr line, unfiltered', async () => {
+  const home = join(scratch, 'w8');
+  await mkdir(home, { recursive: true });
+  await writeFile(join(home, 'config.json'), '{ this is not json', 'utf8');
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_click'), 'a config failure must fall back to optional, unfiltered');
+  proc.endStdin();
+  const code = await proc.waitClose();
+  assert.equal(code, 0);
+  assert.ok(proc.stderrText().includes('config:'), `expected a config error line: ${proc.stderrText()}`);
+  assert.ok(proc.stderrText().includes('handoff optional'), proc.stderrText());
+});
+
+test('W9 (agnosticism gate): a user profile classifies foreign-named tools', async () => {
+  const home = join(scratch, 'w9');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  await mkdir(join(home, 'profiles'), { recursive: true });
+  await writeFile(
+    join(home, 'profiles', 'pagetool.json'),
+    JSON.stringify({
+      id: 'pagetool',
+      description: 'foreign test tool',
+      detect: { args_contain: [], extension_flags: [], endpoint_flags: [] },
+      launch: { endpoint_env: null, endpoint_arg: null, strip_args: [] },
+      match_tools: FOREIGN_TOOL_NAMES,
+      tools: FOREIGN_CLASSES,
+      arg_rules: [],
+    }),
+    'utf8',
+  );
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(FOREIGN_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(!names.includes('pagetool_press_button'), `${names}`);
+  assert.ok(!names.includes('pagetool_goto'), `${names}`);
+  assert.ok(names.includes('pagetool_look'), `${names}`);
+  assert.ok(names.includes('pagetool_coords_click'), `${names}`);
+  const refusedA = await callTool(proc, 'pagetool_press_button', {}, 2);
+  assert.equal(refusedA.result.isError, true);
+  const refusedB = await callTool(proc, 'pagetool_goto', {}, 3);
+  assert.equal(refusedB.result.isError, true);
+  const okA = await callTool(proc, 'pagetool_look', {}, 4);
+  assert.notEqual(okA.result.isError, true);
+  const okB = await callTool(proc, 'pagetool_coords_click', {}, 5);
+  assert.notEqual(okB.result.isError, true);
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W10: same foreign stub, no profile — injected classifyToolsFn yields the same result as W9', async () => {
+  const home = join(scratch, 'w10');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const classifyResult = {
+    profile: {
+      id: 'auto-w10',
+      auto: true,
+      description: 'auto-classified',
+      detect: { args_contain: [], extension_flags: [], endpoint_flags: [] },
+      launch: { endpoint_env: null, endpoint_arg: null, strip_args: [] },
+      match_tools: FOREIGN_TOOL_NAMES,
+      tools: FOREIGN_CLASSES,
+      arg_rules: [],
+    },
+  };
+  const proc = startWithhold({
+    home,
+    env: {
+      WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT,
+      STUB_TOOLS: JSON.stringify(FOREIGN_TOOLS),
+      STUB_LOG: join(home, 'stub.log'),
+      JEVW_CLASSIFY_RESULT: JSON.stringify(classifyResult),
+    },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(!names.includes('pagetool_press_button'), `${names}`);
+  assert.ok(!names.includes('pagetool_goto'), `${names}`);
+  assert.ok(names.includes('pagetool_look'), `${names}`);
+  assert.ok(names.includes('pagetool_coords_click'), `${names}`);
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W11: classifyToolsFn returns no-key — every tool stays listed and forwarded, plus the stderr line', async () => {
+  const home = join(scratch, 'w11');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    env: {
+      WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT,
+      STUB_TOOLS: JSON.stringify(FOREIGN_TOOLS),
+      STUB_LOG: join(home, 'stub.log'),
+      JEVW_CLASSIFY_RESULT: JSON.stringify({ profile: null, reason: 'no-key' }),
+    },
+  });
+  const { names } = await listTools(proc);
+  for (const name of FOREIGN_TOOL_NAMES) assert.ok(names.includes(name), `${name} should stay listed: ${names}`);
+  const call = await callTool(proc, 'pagetool_press_button', {}, 2);
+  assert.notEqual(call.result.isError, true);
+  proc.endStdin();
+  await proc.waitClose();
+  assert.ok(proc.stderrText().includes('no capability profile matches'), proc.stderrText());
+  assert.ok(proc.stderrText().includes('no-key'), proc.stderrText());
+});
+
+test('W12 (§ 10.4 derived-set gate): a class withholds only when the adapter declares every one of its ops', async () => {
+  const homeA = join(scratch, 'w12a');
+  await writeWHConfig(homeA, { handoff: { mode: 'forced' } });
+  const procA = startWithhold({
+    home: homeA,
+    env: {
+      WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT,
+      STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS),
+      STUB_LOG: join(homeA, 'stub.log'),
+      JEVW_ADAPTER_OPS: JSON.stringify(OPS_WITHOUT_UPLOAD),
+    },
+  });
+  const { names: namesA } = await listTools(procA);
+  assert.ok(namesA.includes('browser_file_upload'), `without the upload op declared, upload must not be withheld: ${namesA}`);
+  const callA = await callTool(procA, 'browser_file_upload', { paths: ['/tmp/x'] }, 2);
+  assert.notEqual(callA.result.isError, true);
+  procA.endStdin();
+  await procA.waitClose();
+
+  const homeB = join(scratch, 'w12b');
+  await writeWHConfig(homeB, { handoff: { mode: 'forced' } });
+  const procB = startWithhold({
+    home: homeB,
+    env: {
+      WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT,
+      STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS),
+      STUB_LOG: join(homeB, 'stub.log'),
+      JEVW_ADAPTER_OPS: JSON.stringify(WHOLE_OPS),
+    },
+  });
+  const { names: namesB } = await listTools(procB);
+  assert.ok(!namesB.includes('browser_file_upload'), `with the upload op declared, upload must be withheld: ${namesB}`);
+  procB.endStdin();
+  await procB.waitClose();
+});
+
+test('W13: retain — a retained class stays listed even though the adapter declares its ops', async () => {
+  const home = join(scratch, 'w13');
+  await writeWHConfig(home, { handoff: { mode: 'forced', retain: ['navigate'] } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_navigate'), `retain should keep browser_navigate listed: ${names}`);
+  assert.ok(!names.includes('browser_click'), 'unrelated classes stay withheld');
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W14: an argvProfile with endpoint_arg — the arg is appended to the child argv', async () => {
+  const home = join(scratch, 'w14');
+  await writeWHConfig(home, { handoff: { mode: 'optional' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    extraArgv: ['--dummy=chrome-devtools-mcp'],
+    env: { STUB_TOOLS: JSON.stringify(DEVTOOLS_TOOLS), STUB_LOG: stubLog },
+  });
+  const stubText = await waitForLog(stubLog, (t) => t.includes('argv:'));
+  proc.endStdin();
+  await proc.waitClose();
+  const argvLine = stubText.split('\n').find((l) => l.startsWith('argv:'));
+  assert.ok(argvLine, `stub never logged argv: ${stubText}`);
+  const argv = JSON.parse(argvLine!.slice('argv:'.length)) as string[];
+  assert.ok(argv.some((a) => a.startsWith('--browserUrl=')), `endpoint_arg not appended: ${JSON.stringify(argv)}`);
+});
+
+test('W15: forced — argvProfile classifies a call sent before any tools/list', async () => {
+  const home = join(scratch, 'w15');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    extraArgv: ['--dummy=@playwright/mcp'],
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const refusal = await callTool(proc, 'browser_click', {}, 1);
+  assert.equal(refusal.result.isError, true, 'the argvProfile fallback should classify and refuse this call');
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W16: top-level mode off with handoff forced — effective handoff is optional (§ 5.3), unfiltered', async () => {
+  const home = join(scratch, 'w16');
+  await writeWHConfig(home, { topMode: 'off', handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_click'), 'mode off must make the effective handoff optional, so no filtering');
+  const call = await callTool(proc, 'browser_click', {}, 2);
+  assert.notEqual(call.result.isError, true);
+  proc.endStdin();
+  await proc.waitClose();
 });
 
 // The scratch dir (wrapper and child scripts) goes away with the process;

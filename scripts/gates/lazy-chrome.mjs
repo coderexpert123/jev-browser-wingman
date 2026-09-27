@@ -4,13 +4,16 @@
 //
 //   node scripts/gates/lazy-chrome.mjs [--dist <dir>] [--known-bad eager-ensure|tool-call]
 //
-// Starts `main.js with-chrome -- npx -y @playwright/mcp@0.0.80 --browser
+// Starts `main.js with-browser -- npx -y @playwright/mcp@0.0.80 --browser
 // chrome` over the MCP SDK on a temp home, lists tools, and asserts that no
-// Chrome was launched and the debug port never answered: with-chrome must
+// Chrome was launched and the debug port never answered: with-browser must
 // ensure Chrome only when it forwards the first gated tools/call, never at
 // startup or for tools/list. Known-bad modes prove the gate can fail:
 //   eager-ensure — `chrome ensure` before the session (a start-up launch)
-//   tool-call    — one browser_navigate, which legitimately triggers the ensure
+//   tool-call    — one browser_snapshot, which legitimately triggers the ensure
+//                  (a read op, so it forwards whether or not forced handoff
+//                  is in effect for this home — § 5.9 withholding never
+//                  touches the read class)
 // Both must print LAZY-CHROME: FAIL ... answered=true with chrome >= 1.
 // Exit codes: 0 ok, 1 FAIL, 3 harness error. Chrome safety: temp profile, free
 // port found at run time, never 9222; ends with `chrome stop`, a tree kill of
@@ -118,7 +121,7 @@ try {
 
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [mainJs, 'with-chrome', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
+    args: [mainJs, 'with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
     env: childEnv(),
   });
   client = new Client({ name: 'lazy-chrome-gate', version: '0.0.0' });
@@ -138,9 +141,9 @@ try {
   const s1 = await sample();
 
   if (knownBad === 'tool-call') {
-    const call = await client.callTool({ name: 'browser_navigate', arguments: { url: 'about:blank' } });
+    const call = await client.callTool({ name: 'browser_snapshot', arguments: {} });
     if (call.isError) {
-      fail('browser_navigate returned an error result');
+      fail('browser_snapshot returned an error result');
     }
   }
 
