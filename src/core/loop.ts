@@ -4,15 +4,26 @@
 // redacted before any ask, URLs leave without query string or fragment, the
 // sensitive-surface policy runs before every ask, irreversible actions need a
 // confirm token, and the log record never carries page content.
+//
+// Forced handoff (spec 2026-09-26-wingman-forced-handoff): chain mode with
+// per-clause memory (§ 5.5.2), the § 5.5.1 repairing validators, the new verbs
+// and capability negotiation (§ 5.5.3/§ 5.5.6), done-before-error early rules
+// with recover (§ 5.5.4), the forced note table (§ 5.5.5), pick integration
+// (§ 5.6) and the state-size rule (§ 5.5.7).
 
 import {
+  CHAIN_MEMORY_MAX,
   LABEL_MAX,
+  READY_MAX_WAITS,
+  RECOVER_MAX_PER_CLAUSE,
   SETTLE_MAX_MS,
   TAKEOVER_MARGIN_FLOOR,
   TAKEOVER_MARGIN_RATIO,
   THRESHOLDS,
   TIME_FLOOR_MS,
   TWO_STAGE,
+  WAIT_MAX_PER_CALL,
+  WRONG_PAGE_MAX,
 } from '../contract/constants.js';
 import type {
   CheckInput,
@@ -29,13 +40,14 @@ import type {
   Mode,
   Observation,
   Op,
+  PickInput,
   Reason,
   Status,
   WingmanConfig,
   WingmanLogRecord,
   WingmanResult,
 } from '../contract/types.js';
-import { OPS } from '../contract/types.js';
+import { LEGACY_OPS, OPS, PRESS_KEYS, TARGETLESS_OPS } from '../contract/types.js';
 import {
   ActFailedError,
   AttachError,
@@ -45,9 +57,9 @@ import {
 } from '../contract/errors.js';
 import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
-import { gateModeOf, policyModeOf, takeoverOf } from './config.js';
+import { gateModeOf, handoffOf, policyModeOf, takeoverOf } from './config.js';
 import { ConfirmTokenStore, type PendingAction } from './tokens.js';
-import { redactDeep, redactValues } from './withhold.js';
+import { isPathLike, redactDeep, redactValues, typeHint } from './withhold.js';
 import {
   buildCheckRequest,
   buildGroupRequest,
@@ -56,8 +68,10 @@ import {
   buildRoundRequest,
   buildTargetRequest,
   elementCriterion,
+  offeredOps,
   UNTRUSTED_SENTENCE,
 } from './questions.js';
+import { candidateOf, resolvePick, validatePick } from './pick.js';
 import { registrableDomain } from './etld.js';
 
 export interface LoopDeps {
@@ -77,6 +91,15 @@ type Answer = JevChoiceAnswer | { type: 'noul'; noul: number };
 type AnswerMap = Record<string, Answer>;
 
 const BINDING_RE = /^[a-z][a-z0-9_]{0,39}$/;
+
+// § 5.5.1 missing-binding detector: names the steps mention as "value named x"
+// must exist in values. Case-insensitive; captures are lower-cased before the
+// lookup (binding names are lower-case by BINDING_RE).
+const VALUE_NAMED_RE = /\bvalue named ([a-z][a-z0-9_]{0,39})\b/gi;
+
+/** KB proof switch (KB-D b / WP-D Db): composed into the pick obscured check.
+ * Never flip in shipped code. */
+const KB_PICK_OBSCURED = false;
 
 // Result-text steering (2026-09-21): a wingman_do run that ends for any reason
 // other than done carries this static line so the calling model re-calls the
@@ -102,7 +125,8 @@ export const BROWSE_STEP_RESUME_LINE =
 // Tier 1 appends to the bounce's static note; tiers 2 and 3 replace it. Done
 // results carry no escalation; non-bounce non-done results keep the § 3.17
 // static table; wingman_do's CONTINUE_LINE is untouched. Static text only —
-// never page content, so the egress rules are unaffected.
+// never page content, so the egress rules are unaffected. In forced handoff
+// mode (§ 5.5.5 rule 4e) the counter is never touched.
 export const BOUNCE_TIER1_LINE =
   'Retry with a more specific description of the target, or perform this step yourself with your raw browser tools.';
 export const BOUNCE_TIER2_LINE =
@@ -119,137 +143,86 @@ export const BOUNCE_TIER3_LINE =
 export const SENSITIVE_LINE =
   'This page is sensitive under the active policy. Do this step with your own browser tools, then call again once you reach a non-sensitive page.';
 
+// § 5.5.5 forced note table (Q4). In forced mode the caller's action tools are
+// withheld, so a note pointing at them dead-ends; browse_step and wingman_do
+// alike get these lines. wingman_check keeps SENSITIVE_LINE — it only reads.
+// Static text only — never page content.
+export const FORCED_BOUNCE_LINE =
+  'Step returned to you. Call browse_step again with the same goal, steps and values plus pick: { role, name, action } naming the element to use (from step_review.candidates, or from your own snapshot or screenshot), or with a more specific step.';
+export const FORCED_ALREADY_DONE_LINE =
+  'wingman judged this step already done and acted on nothing. Check the page with your own snapshot: if the step is not done, call browse_step again with pick naming the element; otherwise continue with the remaining steps.';
+export const FORCED_RESUME_LINE =
+  'Not finished. Call browse_step again with the same goal, steps and values to resume from progress.';
+export const FORCED_OFFER_LINE =
+  'Takeover available. Call browse_step again with the same arguments and takeover: true to accept.';
+export const FORCED_LOGIN_LINE =
+  'The page asks for sign-in. Ask the user to sign in (including any two-factor step), then call browse_step again with the same arguments.';
+export const FORCED_DIALOG_LINE =
+  'A dialog is open. Answer it with your own browser tools, then call browse_step again with the same arguments.';
+export const FORCED_UNAVAILABLE_LINE =
+  'The wingman cannot act in this setup right now. Tell the user and ask them to run jev-browser-wingman doctor, which names the fix.';
+export const FORCED_TAB_LINE =
+  'Several tabs could be the page. Call browse_step again with the same arguments plus url_match naming the page, or switch or close tabs with your own browser tools.';
+export const FORCED_VALUE_LINE =
+  'A value was missing or unclear. Call browse_step again with the needed value in values and named in the step, or with pick naming the element and the value.';
+export const FORCED_BLOCKED_LINE =
+  'The page is blocked by a captcha, an access notice or a covering overlay. Clear it with the user, or pick the overlay\'s dismiss control, then call browse_step again with the same arguments.';
+export const FORCED_SENSITIVE_LINE =
+  'This page is sensitive under the active policy, so wingman sends nothing from it for a decision. Drive it with browse_step and pick naming each element (a pick makes no decision-service call), or ask the user to do this step.';
+export const FORCED_WRONG_PAGE_LINE =
+  'This page does not fit the current step. Check where you are with your own snapshot, then call browse_step again with pick on the link that leads there, or with the page address in values and a step that opens it.';
+export const FORCED_NOT_READY_LINE =
+  'The page did not finish loading what the step needs. Check it with your own snapshot; call browse_step again with the same arguments once it is ready, or with pick naming the element.';
+export const FORCED_PAGE_ERROR_LINE =
+  'The page shows an error wingman could not recover from. Look at it with your own snapshot, then call browse_step again with pick or a changed step, or ask the user.';
+export const PICK_UNMATCHED_LINE =
+  'The pick matched no single element. Call again with pick using a role and name from candidates, and add nth when several elements share them.';
+export const UNSUPPORTED_OP_LINE =
+  'The active wingman adapter cannot perform this action. Do this step with your own browser tools, then call browse_step again with the remaining steps.';
+export const STATE_TOO_LARGE_LINE =
+  'The page is too large for one decision. Take your own snapshot, then call browse_step again with pick naming the element to use.';
+
 const bounceCounts = new Map<string, number>();
+
+// § 5.5.2 chain memory: deterministic in-process cursor memory keyed on
+// [goal, clauses] (values never enter the key; the key is never logged or
+// returned). A done call deletes its entry; every other end stores the cursor
+// and the accumulated act count. Eviction is oldest-first above
+// CHAIN_MEMORY_MAX.
+interface ChainMemoryEntry { cursor: number; acts: number }
+const chainMemory = new Map<string, ChainMemoryEntry>();
+
+/** Chain state for the current browse_step call, when it runs chain mode
+ * (§ 5.5.2). Created by runBrowse, read by finish() for progress and the
+ * memory write-back. */
+interface ChainState {
+  key: string;
+  clauses: string[];
+  N: number;
+  cursor: number;
+  priorActs: number;
+  clauseRetried: boolean;
+  firstCommitDone: boolean;
+  wrongPageRounds: number;
+  notReadyRounds: number;
+  recoverActs: number;
+}
 
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
-/** § 3.11 wingman_do schema plus the binding-name pattern. */
-export function validateDoInput(x: unknown): { ok: true; input: DoInput } | { ok: false } {
-  if (!isPlainObject(x)) return { ok: false };
-  const o = x as Record<string, unknown>;
-  const allowed = new Set(['goal', 'values', 'url_match', 'confirm_token', 'max_steps', 'max_ms']);
-  for (const key of Object.keys(o)) {
-    if (!allowed.has(key)) return { ok: false };
-  }
-  if (typeof o.goal !== 'string' || o.goal.length > 500) return { ok: false };
-  if (o.values !== undefined) {
-    if (!isPlainObject(o.values)) return { ok: false };
-    const entries = Object.entries(o.values);
-    if (entries.length > 20) return { ok: false };
-    for (const [name, value] of entries) {
-      if (!BINDING_RE.test(name)) return { ok: false };
-      if (typeof value !== 'string' || value.length > 2000) return { ok: false };
-    }
-  }
-  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
-    return { ok: false };
-  }
-  if (o.confirm_token !== undefined && (typeof o.confirm_token !== 'string' || o.confirm_token.length > 64)) {
-    return { ok: false };
-  }
-  if (o.max_steps !== undefined) {
-    const maxStepsRaw = o.max_steps;
-    if (typeof maxStepsRaw !== 'number' || !Number.isInteger(maxStepsRaw) || maxStepsRaw < 1 || maxStepsRaw > 8) {
-      return { ok: false };
-    }
-  }
-  if (o.max_ms !== undefined) {
-    const maxMsRaw = o.max_ms;
-    if (typeof maxMsRaw !== 'number' || !Number.isInteger(maxMsRaw) || maxMsRaw < 1000 || maxMsRaw > 50000) {
-      return { ok: false };
-    }
-  }
-  return { ok: true, input: o as unknown as DoInput };
-}
-
-/** § 3.11 wingman_check schema. */
-export function validateCheckInput(x: unknown): { ok: true; input: CheckInput } | { ok: false } {
-  if (!isPlainObject(x)) return { ok: false };
-  const o = x as Record<string, unknown>;
-  const allowed = new Set(['question', 'url_match']);
-  for (const key of Object.keys(o)) {
-    if (!allowed.has(key)) return { ok: false };
-  }
-  if (typeof o.question !== 'string' || o.question.length > 300) return { ok: false };
-  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
-    return { ok: false };
-  }
-  return { ok: true, input: o as unknown as CheckInput };
-}
-
-/** § 3.17 browse_step schema plus the binding-name pattern. */
-export interface StepInput {
-  goal: string;
-  step?: string;
-  steps?: string[];
-  values?: Record<string, string>;
-  url_match?: string;
-  confirm_token?: string;
-  takeover?: boolean;
-  max_steps?: number;
-  max_ms?: number;
-}
-
-/** § 3.17 browse_step validation: the validateDoInput rules where they
- * overlap, plus goal required, exactly one of step/steps, steps 2–3 non-empty
- * strings ≤ 300, takeover boolean, max_steps 1–24 (the C27 config ceiling,
- * not wingman_do's 8), max_ms 1000–50000. */
-export function validateStepInput(x: unknown): { ok: true; input: StepInput } | { ok: false } {
-  if (!isPlainObject(x)) return { ok: false };
-  const o = x as Record<string, unknown>;
-  const allowed = new Set([
-    'goal', 'step', 'steps', 'values', 'url_match', 'confirm_token', 'takeover', 'max_steps', 'max_ms',
-  ]);
-  for (const key of Object.keys(o)) {
-    if (!allowed.has(key)) return { ok: false };
-  }
-  if (typeof o.goal !== 'string' || o.goal.length > 500) return { ok: false };
-  const hasStep = o.step !== undefined;
-  const hasSteps = o.steps !== undefined;
-  if (hasStep === hasSteps) return { ok: false };
-  if (hasStep) {
-    if (typeof o.step !== 'string' || o.step.length < 1 || o.step.length > 300) return { ok: false };
-  } else {
-    if (!Array.isArray(o.steps) || o.steps.length < 2 || o.steps.length > 3) return { ok: false };
-    for (const s of o.steps) {
-      if (typeof s !== 'string' || s.length < 1 || s.length > 300) return { ok: false };
-    }
-  }
-  if (o.values !== undefined) {
-    if (!isPlainObject(o.values)) return { ok: false };
-    const entries = Object.entries(o.values);
-    if (entries.length > 20) return { ok: false };
-    for (const [name, value] of entries) {
-      if (!BINDING_RE.test(name)) return { ok: false };
-      if (typeof value !== 'string' || value.length > 2000) return { ok: false };
-    }
-  }
-  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
-    return { ok: false };
-  }
-  if (o.confirm_token !== undefined && (typeof o.confirm_token !== 'string' || o.confirm_token.length > 64)) {
-    return { ok: false };
-  }
-  if (o.takeover !== undefined && typeof o.takeover !== 'boolean') return { ok: false };
-  if (o.max_steps !== undefined) {
-    const maxStepsRaw = o.max_steps;
-    if (typeof maxStepsRaw !== 'number' || !Number.isInteger(maxStepsRaw) || maxStepsRaw < 1 || maxStepsRaw > 24) {
-      return { ok: false };
-    }
-  }
-  if (o.max_ms !== undefined) {
-    const maxMsRaw = o.max_ms;
-    if (typeof maxMsRaw !== 'number' || !Number.isInteger(maxMsRaw) || maxMsRaw < 1000 || maxMsRaw > 50000) {
-      return { ok: false };
-    }
-  }
-  return { ok: true, input: o as unknown as StepInput };
-}
-
 function capLabel(s: string): string {
   return s.length > LABEL_MAX ? s.slice(0, LABEL_MAX) : s;
+}
+
+function cut40(s: string): string {
+  return s.length > 40 ? s.slice(0, 40) : s;
+}
+
+/** § 5.5.3: a file input. click/dblclick/press on one convert to upload. */
+function isFileInput(el: ElementRecord): boolean {
+  return el.tag === 'input' && el.type === 'file';
 }
 
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
@@ -263,8 +236,10 @@ function fingerprintMatches(fresh: Fingerprint, pending: Fingerprint): boolean {
   );
 }
 
-/** § 3.7 rule 7 fit check. */
+/** § 5.5.3 fit check (B2-E3). upload only fits a file input; no other verb
+ * fits one; dblclick/hover/scroll_to fit any non-file element. */
 function opFits(verb: Op, el: ElementRecord): boolean {
+  if (isFileInput(el)) return verb === 'upload';
   switch (verb) {
     case 'fill':
       return el.editable;
@@ -275,9 +250,35 @@ function opFits(verb: Op, el: ElementRecord): boolean {
       return el.role === 'checkbox' || el.role === 'radio' || el.role === 'switch';
     case 'press':
       return el.editable || el.role === 'button';
+    case 'dblclick':
+    case 'hover':
+    case 'scroll_to':
+      return true;
     default:
-      return true; // click and scroll fit anything
+      return true; // click and the targetless wheel fit anything else
   }
+}
+
+/** § 5.4 top-candidate margin rule applied to the action (verb) probabilities:
+ * the highest-probability offered op commits when it reaches
+ * TAKEOVER_MARGIN_FLOOR and out-scores every other entry by at least
+ * TAKEOVER_MARGIN_RATIO. */
+function marginCommitOp(probs: Record<string, number>, ops: readonly Op[]): string | null {
+  let top: string | null = null;
+  let topProb = 0;
+  for (const op of ops) {
+    const p = probs[op] ?? 0;
+    if (p > topProb) {
+      top = op;
+      topProb = p;
+    }
+  }
+  if (top === null || topProb < TAKEOVER_MARGIN_FLOOR) return null;
+  for (const [id, p] of Object.entries(probs)) {
+    if (id === top) continue;
+    if (p * TAKEOVER_MARGIN_RATIO > topProb) return null;
+  }
+  return top;
 }
 
 /** § 3.19 top-candidate margin rule (amendment 2026-09-22). Returns the id of
@@ -379,6 +380,212 @@ type OptionOutcome =
   | { kind: 'budget-time' }
   | { kind: 'ask-failed'; error: string };
 
+// ---------------------------------------------------------------------------
+// § 5.5.1 validators. Each returns { ok: false, message } on failure; the
+// caller turns that into error/invalid-input with the note
+// `Invalid input: <message>` (§ 5.5.5 rule 2), for all three tools.
+// ---------------------------------------------------------------------------
+
+/** wingman_do validation: its § 3.11 rules, reported with messages. */
+export function validateDoInput(
+  x: unknown,
+): { ok: true; input: DoInput } | { ok: false; message: string } {
+  if (!isPlainObject(x)) return { ok: false, message: 'arguments must be an object with at least a goal.' };
+  const o = x as Record<string, unknown>;
+  const allowed = new Set(['goal', 'values', 'url_match', 'confirm_token', 'max_steps', 'max_ms']);
+  for (const key of Object.keys(o)) {
+    if (!allowed.has(key)) {
+      return { ok: false, message: `unknown argument ${cut40(key)}; allowed: goal, values, url_match, confirm_token, max_steps, max_ms.` };
+    }
+  }
+  if (typeof o.goal !== 'string' || o.goal.length < 1 || o.goal.length > 500) {
+    return { ok: false, message: 'goal must be a non-empty string of at most 500 characters.' };
+  }
+  if (o.values !== undefined) {
+    if (!isPlainObject(o.values)) return { ok: false, message: 'values must be an object of at most 20 entries.' };
+    const entries = Object.entries(o.values);
+    if (entries.length > 20) return { ok: false, message: 'values must be an object of at most 20 entries.' };
+    for (const [name, value] of entries) {
+      if (!BINDING_RE.test(name)) {
+        return { ok: false, message: `value name ${cut40(name)} is invalid; use lowercase letters, digits and underscores, starting with a letter.` };
+      }
+      if (typeof value !== 'string' || value.length > 2000) {
+        return { ok: false, message: `value ${cut40(name)} must be text of at most 2000 characters.` };
+      }
+    }
+  }
+  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
+    return { ok: false, message: 'url_match must be a string of at most 200 characters.' };
+  }
+  if (o.confirm_token !== undefined && (typeof o.confirm_token !== 'string' || o.confirm_token.length > 64)) {
+    return { ok: false, message: 'confirm_token must be the string returned by needs_confirmation.' };
+  }
+  if (o.max_steps !== undefined) {
+    const maxStepsRaw = o.max_steps;
+    if (typeof maxStepsRaw !== 'number' || !Number.isInteger(maxStepsRaw) || maxStepsRaw < 1 || maxStepsRaw > 8) {
+      return { ok: false, message: 'max_steps must be an integer from 1 to 8.' };
+    }
+  }
+  if (o.max_ms !== undefined) {
+    const maxMsRaw = o.max_ms;
+    if (typeof maxMsRaw !== 'number' || !Number.isInteger(maxMsRaw) || maxMsRaw < 1000 || maxMsRaw > 50000) {
+      return { ok: false, message: 'max_ms must be an integer from 1000 to 50000.' };
+    }
+  }
+  return { ok: true, input: o as unknown as DoInput };
+}
+
+/** wingman_check validation: its § 3.11 rules, reported with messages. */
+export function validateCheckInput(
+  x: unknown,
+): { ok: true; input: CheckInput } | { ok: false; message: string } {
+  if (!isPlainObject(x)) return { ok: false, message: 'arguments must be an object with a question.' };
+  const o = x as Record<string, unknown>;
+  const allowed = new Set(['question', 'url_match']);
+  for (const key of Object.keys(o)) {
+    if (!allowed.has(key)) {
+      return { ok: false, message: `unknown argument ${cut40(key)}; allowed: question, url_match.` };
+    }
+  }
+  if (typeof o.question !== 'string' || o.question.length < 1 || o.question.length > 300) {
+    return { ok: false, message: 'question must be a non-empty string of at most 300 characters.' };
+  }
+  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
+    return { ok: false, message: 'url_match must be a string of at most 200 characters.' };
+  }
+  return { ok: true, input: o as unknown as CheckInput };
+}
+
+/** § 3.17 browse_step schema (§ 5.5.1, B2-E2). */
+export interface StepInput {
+  goal: string;
+  step?: string;
+  steps?: string[];
+  values?: Record<string, string>;
+  pick?: PickInput;
+  url_match?: string;
+  confirm_token?: string;
+  takeover?: boolean;
+  max_steps?: number;
+  max_ms?: number;
+}
+
+/** § 5.5.1 browse_step validation (C1). Forgiving normalisations run before
+ * the checks, in this order: (1) finite numbers and booleans in values become
+ * strings; (2) neither step nor steps → steps = [goal cut to 300]; (3) both →
+ * steps = [step, ...steps], cut to 12. After normalisation `steps` present
+ * means chain mode and `step` alone means legacy mode. */
+export function validateStepInput(
+  x: unknown,
+): { ok: true; input: StepInput } | { ok: false; message: string } {
+  if (!isPlainObject(x)) {
+    return { ok: false, message: 'arguments must be an object with at least a goal.' };
+  }
+  const o = x as Record<string, unknown>;
+  const allowed = new Set([
+    'goal', 'step', 'steps', 'values', 'pick', 'url_match', 'confirm_token', 'takeover', 'max_steps', 'max_ms',
+  ]);
+  for (const key of Object.keys(o)) {
+    if (!allowed.has(key)) {
+      return {
+        ok: false,
+        message: `unknown argument ${cut40(key)}; allowed: goal, steps, step, values, pick, url_match, confirm_token, takeover, max_steps, max_ms.`,
+      };
+    }
+  }
+  if (typeof o.goal !== 'string' || o.goal.length < 1 || o.goal.length > 2000) {
+    return { ok: false, message: 'goal must be a non-empty string of at most 2000 characters; move detail into steps.' };
+  }
+  // Normalisation 1: numbers and booleans in values become strings.
+  if (isPlainObject(o.values)) {
+    for (const [name, value] of Object.entries(o.values)) {
+      if (typeof value === 'number' && Number.isFinite(value)) o.values[name] = String(value);
+      else if (typeof value === 'boolean') o.values[name] = String(value);
+    }
+  }
+  // Normalisation 2: neither step nor steps → steps from the goal.
+  const hasStep = o.step !== undefined;
+  const hasSteps = o.steps !== undefined;
+  if (!hasStep && !hasSteps) {
+    o.steps = [(o.goal as string).slice(0, 300)];
+  } else if (hasStep && hasSteps && Array.isArray(o.steps)) {
+    // Normalisation 3: both present → steps = [step, ...steps], cut to 12.
+    o.steps = [o.step as string, ...(o.steps as unknown[])].slice(0, 12);
+  }
+  const stepsNow = o.steps;
+  if (stepsNow !== undefined) {
+    if (!Array.isArray(stepsNow) || stepsNow.length < 1 || stepsNow.length > 12) {
+      return { ok: false, message: 'steps must be an array of 1 to 12 non-empty strings of at most 300 characters; merge or shorten steps, or send the rest on the next call.' };
+    }
+    for (const s of stepsNow) {
+      if (typeof s !== 'string' || s.length < 1 || s.length > 300) {
+        return { ok: false, message: 'steps must be an array of 1 to 12 non-empty strings of at most 300 characters; merge or shorten steps, or send the rest on the next call.' };
+      }
+    }
+  }
+  if (stepsNow === undefined && hasStep) {
+    if (typeof o.step !== 'string' || o.step.length < 1 || o.step.length > 300) {
+      return { ok: false, message: 'step must be a non-empty string of at most 300 characters.' };
+    }
+  }
+  if (o.values !== undefined) {
+    if (!isPlainObject(o.values)) return { ok: false, message: 'values must be an object of at most 20 entries.' };
+    const entries = Object.entries(o.values);
+    if (entries.length > 20) return { ok: false, message: 'values must be an object of at most 20 entries.' };
+    for (const [name, value] of entries) {
+      if (!BINDING_RE.test(name)) {
+        return { ok: false, message: `value name ${cut40(name)} is invalid; use lowercase letters, digits and underscores, starting with a letter.` };
+      }
+      if (typeof value !== 'string' || value.length > 2000) {
+        return { ok: false, message: `value ${cut40(name)} must be text of at most 2000 characters.` };
+      }
+    }
+  }
+  // § 5.5.1 missing-binding check: every `value named x` the goal or steps
+  // mention must exist in values.
+  const mentioned = `${typeof o.goal === 'string' ? o.goal : ''}\n${
+    Array.isArray(stepsNow) ? (stepsNow as string[]).join('\n') : ''
+  }\n${typeof o.step === 'string' ? o.step : ''}`;
+  for (const match of mentioned.matchAll(VALUE_NAMED_RE)) {
+    const name = match[1].toLowerCase();
+    if (!isPlainObject(o.values) || !(name in o.values)) {
+      return { ok: false, message: `the steps name the value ${name}, which is missing from values; add values.${name}.` };
+    }
+  }
+  // pick
+  const valuesForPick = isPlainObject(o.values) ? (o.values as Record<string, string>) : {};
+  if (o.pick !== undefined) {
+    if (o.confirm_token !== undefined) {
+      return { ok: false, message: 'pick and confirm_token cannot be combined; send confirm_token alone to confirm, or pick alone.' };
+    }
+    if (!validatePick(o.pick, valuesForPick).ok) {
+      return { ok: false, message: 'pick needs action, plus role and name for element actions, and value (the name of a binding in values) for fill, select, navigate and upload.' };
+    }
+  }
+  if (o.url_match !== undefined && (typeof o.url_match !== 'string' || o.url_match.length > 200)) {
+    return { ok: false, message: 'url_match must be a string of at most 200 characters.' };
+  }
+  if (o.confirm_token !== undefined && (typeof o.confirm_token !== 'string' || o.confirm_token.length > 64)) {
+    return { ok: false, message: 'confirm_token must be the string returned by needs_confirmation.' };
+  }
+  if (o.takeover !== undefined && typeof o.takeover !== 'boolean') {
+    return { ok: false, message: 'takeover must be true or false.' };
+  }
+  if (o.max_steps !== undefined) {
+    const maxStepsRaw = o.max_steps;
+    if (typeof maxStepsRaw !== 'number' || !Number.isInteger(maxStepsRaw) || maxStepsRaw < 1 || maxStepsRaw > 24) {
+      return { ok: false, message: 'max_steps must be an integer from 1 to 24.' };
+    }
+  }
+  if (o.max_ms !== undefined) {
+    const maxMsRaw = o.max_ms;
+    if (typeof maxMsRaw !== 'number' || !Number.isInteger(maxMsRaw) || maxMsRaw < 1000 || maxMsRaw > 120000) {
+      return { ok: false, message: 'max_ms must be an integer from 1000 to 120000.' };
+    }
+  }
+  return { ok: true, input: o as unknown as StepInput };
+}
+
 async function runTool(
   tool: 'wingman_do' | 'wingman_check' | 'browse_step',
   input: unknown,
@@ -401,6 +608,14 @@ async function runTool(
   // The browse_step goal text, set by runBrowse (the escalation counter's key;
   // null for wingman_do and wingman_check, which never escalate).
   let activeGoal: string | null = null;
+  // § 5.5.5 note inputs: the validation message and the pick-mismatch flag.
+  let invalidMessage = '';
+  let pickUnmatched = false;
+  // § 5.5.8 log record inputs.
+  let pickRan = false;
+  const actsByOp: Partial<Record<Op, number>> = {};
+  // § 5.5.2 chain state for this call, when browse_step runs chain mode.
+  let chainState: ChainState | null = null;
 
   // Per-phase wall-time capture (ms). Numbers only — never page text.
   // `cur` is the round bucket the current ask/act/settle belongs to.
@@ -442,35 +657,105 @@ async function runTool(
     labels_untrusted: true,
   });
 
+  /** § 5.5.5 forced note table: the first matching row wins, top to bottom. */
+  const forcedNote = (r: WingmanResult): string => {
+    const why = r.step_review?.why;
+    if (r.reason === 'step-uncertain') {
+      if (why === 'already-done') return FORCED_ALREADY_DONE_LINE;
+      if (why === 'wrong-page') return FORCED_WRONG_PAGE_LINE;
+      if (why === 'not-ready') return FORCED_NOT_READY_LINE;
+      return FORCED_BOUNCE_LINE;
+    }
+    if (r.reason === 'target-covered') return FORCED_BOUNCE_LINE;
+    if (r.reason === 'takeover-offered') return FORCED_OFFER_LINE;
+    if (r.status === 'login') return FORCED_LOGIN_LINE;
+    if (r.reason === 'dialog-open') return FORCED_DIALOG_LINE;
+    if (r.reason === 'page-error') return FORCED_PAGE_ERROR_LINE;
+    if (r.reason === 'no-key' || r.reason === 'no-browser' || r.reason === 'breaker-open') {
+      return FORCED_UNAVAILABLE_LINE;
+    }
+    if (r.reason === 'tab-ambiguous') return FORCED_TAB_LINE;
+    if (r.reason === 'no-value') return FORCED_VALUE_LINE;
+    if (r.status === 'blocked' && r.reason !== 'lock-held' && r.reason !== 'busy') {
+      return FORCED_BLOCKED_LINE;
+    }
+    return FORCED_RESUME_LINE;
+  };
+
   // Exactly one log record per call; log errors never mask the tool result.
-  // The continuation note is appended here (the single return path) so it is
-  // the last field of the serialized result: for needs_confirmation the
-  // pending/confirm_token fields stay primary, ahead of it.
+  // Every return path of runTool goes through finish(), so the § 5.5.2 chain
+  // memory write-back (delete on done, store otherwise, including the catch)
+  // lives here too.
   const finish = async (r: WingmanResult): Promise<WingmanResult> => {
+    if (chainState) {
+      // § 5.5.2 progress on every chain-mode result.
+      if (r.progress === undefined) {
+        r.progress = {
+          step_index: Math.min(chainState.cursor + 1, chainState.N),
+          steps_done: chainState.cursor,
+          steps_total: chainState.N,
+        };
+      }
+      // Memory write-back: done deletes, anything else stores.
+      chainMemory.delete(chainState.key);
+      if (r.status !== 'done') {
+        chainMemory.set(chainState.key, {
+          cursor: chainState.cursor,
+          acts: chainState.priorActs + steps,
+        });
+        while (chainMemory.size > CHAIN_MEMORY_MAX) {
+          const oldest = chainMemory.keys().next().value;
+          if (oldest === undefined) break;
+          chainMemory.delete(oldest);
+        }
+      }
+    }
     if (r.status === 'fallback' && (r.reason.startsWith('sensitive-') || r.reason === 'unsupported-page')) {
-      r.note = SENSITIVE_LINE;
+      // § 5.5.5 rule 1 (Q4): forced browse_step AND wingman_do get the forced
+      // line; wingman_check always reads, so it keeps the old line.
+      r.note =
+        tool !== 'wingman_check' && handoffOf(deps.config).mode === 'forced'
+          ? FORCED_SENSITIVE_LINE
+          : SENSITIVE_LINE;
+    } else if (r.reason === 'invalid-input') {
+      // § 5.5.5 rule 2: all three tools name the argument to fix.
+      r.note = `Invalid input: ${invalidMessage}`;
     } else if (tool === 'wingman_do' && r.status !== 'done') {
       r.note = CONTINUE_LINE;
     } else if (tool === 'browse_step' && r.status !== 'done') {
-      // § 3.17 note table (amendment 2026-09-21d): done carries no note;
-      // step-uncertain the caller line; takeover-offered the offer line;
-      // every other non-done status the resume line. Amendment 2026-09-22:
-      // a BOUNCE (step-uncertain, target-covered) escalates by the goal's
-      // prior bounce count — tier 1 appends the retry-or-take-over sentence
-      // to the static note, tiers 2/3 replace it. Offers, loop bounds and
-      // every other non-done end keep the static table unchanged.
-      const base =
-        r.reason === 'step-uncertain'
-          ? BROWSE_STEP_CALLER_LINE
-          : r.reason === 'takeover-offered'
-            ? BROWSE_STEP_OFFER_LINE
-            : BROWSE_STEP_RESUME_LINE;
-      if ((r.reason === 'step-uncertain' || r.reason === 'target-covered') && activeGoal !== null) {
-        const n = (bounceCounts.get(activeGoal) ?? 0) + 1;
-        bounceCounts.set(activeGoal, n);
-        r.note = n === 1 ? `${base} ${BOUNCE_TIER1_LINE}` : n === 2 ? BOUNCE_TIER2_LINE : BOUNCE_TIER3_LINE;
+      // § 5.5.5 rule 4.
+      if (pickUnmatched) {
+        r.note = PICK_UNMATCHED_LINE;
+      } else if (r.reason === 'unsupported-op') {
+        r.note = UNSUPPORTED_OP_LINE;
+      } else if (r.reason === 'state-too-large') {
+        r.note = STATE_TOO_LARGE_LINE;
+      } else if (r.missing_binding !== undefined) {
+        r.note = `the steps name the value ${r.missing_binding}, which is missing from values; add values.${r.missing_binding}.`;
+      } else if (handoffOf(deps.config).mode === 'forced') {
+        // § 5.5.5 rule 4e: the forced table; the bounce counter is untouched.
+        r.note = forcedNote(r);
       } else {
-        r.note = base;
+        // § 3.17 note table (amendment 2026-09-21d): done carries no note;
+        // step-uncertain the caller line; takeover-offered the offer line;
+        // every other non-done status the resume line. Amendment 2026-09-22:
+        // a BOUNCE (step-uncertain, target-covered) escalates by the goal's
+        // prior bounce count — tier 1 appends the retry-or-take-over sentence
+        // to the static note, tiers 2/3 replace it. Offers, loop bounds and
+        // every other non-done end keep the static table unchanged.
+        const base =
+          r.reason === 'step-uncertain'
+            ? BROWSE_STEP_CALLER_LINE
+            : r.reason === 'takeover-offered'
+              ? BROWSE_STEP_OFFER_LINE
+              : BROWSE_STEP_RESUME_LINE;
+        if ((r.reason === 'step-uncertain' || r.reason === 'target-covered') && activeGoal !== null) {
+          const n = (bounceCounts.get(activeGoal) ?? 0) + 1;
+          bounceCounts.set(activeGoal, n);
+          r.note = n === 1 ? `${base} ${BOUNCE_TIER1_LINE}` : n === 2 ? BOUNCE_TIER2_LINE : BOUNCE_TIER3_LINE;
+        } else {
+          r.note = base;
+        }
       }
     }
     try {
@@ -497,6 +782,9 @@ async function runTool(
       output_tokens: r.cost.output_tokens,
       ms: r.cost.ms,
       ...(acc.would ? { would: acc.would } : {}),
+      ...(r.progress ? { progress: r.progress } : {}),
+      ...(pickRan ? { pick: true as const } : {}),
+      ...(Object.keys(actsByOp).length > 0 ? { acts_by_op: actsByOp } : {}),
       phases: {
         ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
         ...(phaseAcc.firstObserveMs !== undefined ? { firstObserveMs: phaseAcc.firstObserveMs } : {}),
@@ -531,6 +819,7 @@ async function runTool(
     goal: string | null,
     values: Record<string, string>,
     step?: string,
+    chain?: { stepNumber: number; stepsTotal: number },
   ): object {
     const raw: Record<string, unknown> = {
       url: scrubUrl(obs.url),
@@ -544,75 +833,160 @@ async function runTool(
     }
     // § 3.19 flow item 4: round 1 of a takeover entry carries the proposed
     // step text (already redacted and cut to 300 by the caller); rounds ≥ 2
-    // never do.
+    // never do. In chain mode every round carries the current clause
+    // (§ 5.5.2 step 5) plus the chain position.
     if (step !== undefined) {
       raw.step = step;
+    }
+    if (chain !== undefined) {
+      raw.step_number = chain.stepNumber;
+      raw.steps_total = chain.stepsTotal;
     }
     return redactDeep(raw, values);
   }
 
+  /** § 5.5.7 state-size sizing (orchestrator decision, 2026-09-27): the size
+   * measured against budgets.max_state_chars is JSON.stringify(state).length
+   * PLUS the serialized length of the single longest question in the built
+   * request — not the bare state alone (which would miss the element list
+   * riding in the target question's criteria) and not the whole request
+   * (whose ~4900 chars of fixed per-round question overhead makes the
+   * documented 2000 floor dead for chain mode). See src/core/CLAUDE.md. */
+  function requestSize(request: JevRequest): number {
+    const stateLen = JSON.stringify(request.state).length;
+    let maxQuestion = 0;
+    for (const q of Object.values(request.questions)) {
+      const qLen = JSON.stringify(q).length;
+      if (qLen > maxQuestion) maxQuestion = qLen;
+    }
+    return stateLen + maxQuestion;
+  }
+
+  /** § 5.5.7 state-size rule (C10): applied to every ask round of wingman_do
+   * and browse_step. Above budgets.max_state_chars the state text is cut to
+   * fit; if the payload still cannot fit (a page whose element table alone is
+   * over the limit) the caller returns fallback/state-too-large with zero
+   * acts. wingman_check is unchanged. `requestOf` extracts the JevRequest
+   * actually sent from `build`'s return value, since the two-stage and
+   * single-round builders return different shapes. */
+  function withStateSize<T>(
+    state0: object,
+    build: (s: object) => T,
+    requestOf: (payload: T) => JevRequest,
+  ): { ok: true; payload: T; state: object } | { ok: false } {
+    const maxSize = deps.config.budgets.max_state_chars;
+    let s = state0;
+    let payload = build(s);
+    const len = requestSize(requestOf(payload));
+    if (len > maxSize) {
+      const excess = len - maxSize;
+      const text = (s as { text?: string }).text ?? '';
+      s = { ...s, text: text.slice(0, Math.max(0, text.length - excess)) };
+      payload = build(s);
+      if (requestSize(requestOf(payload)) > maxSize) return { ok: false };
+    }
+    return { ok: true, payload, state: s };
+  }
+
+  /** § 5.6 / B2-E7: candidate evidence mapped through candidateOf, which
+   * redacts and carries role and name, skipping ids absent from the page. */
   function topTargetCandidates(
     answers: AnswerMap,
     obs: Observation,
     values: Record<string, string>,
-  ): Array<{ label: string }> {
+  ): Array<{ label: string; role?: string; name?: string }> {
     const target = answers['target'] as JevChoiceAnswer | undefined;
     if (!target) return [];
     return Object.entries(target.probabilities)
       .filter(([id]) => id !== 'none' && id !== 'ambiguous')
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
-      .map(([id]) => {
+      .flatMap(([id]) => {
         const el = obs.elements.find((e) => e.id === id);
-        return { label: capLabel(redactValues(el ? elementCriterion(el) : id, values)) };
+        return el ? [candidateOf(el, values)] : [];
       });
   }
 
-  /** § 3.7 rules 1–5, which need only the first request's answers. Null = continue to rules 6–9. */
+  /** § 5.5.1 missing-binding lookup at run time: the first `value named x` in
+   * the current step text that names no supplied binding. */
+  function missingOf(text: string, values: Record<string, string>): string | undefined {
+    for (const m of text.matchAll(VALUE_NAMED_RE)) {
+      const name = m[1].toLowerCase();
+      if (!(name in values)) return name;
+    }
+    return undefined;
+  }
+
+  /** § 3.7 rules 1–5 (§ 5.5.4 amended order: done precedes error, C2), plus
+   * the § 5.5.4 recover read for legacy browse_step. Null = continue to the
+   * decide step. Used by the legacy browse_step entry and wingman_do; chain
+   * mode has its own early rules (§ 5.5.2 step 7). */
   function decideEarly(
     answers: AnswerMap,
     round: number,
     obs: Observation,
     values: Record<string, string>,
-  ): WingmanResult | null {
+    legacyRecoverActs: number,
+    hasOp: (op: Op) => boolean,
+  ): { result: WingmanResult } | { mechanical: Op } | null {
     const noulOf = (id: string): number => {
       const a = answers[id];
       return a && a.type === 'noul' ? a.noul : 0;
     };
     // 1. login
     if (noulOf('login') >= THRESHOLDS.login) {
-      return mk('login', 'login-page');
+      return { result: mk('login', 'login-page') };
     }
     // 2. blocked
     if (noulOf('blocked') >= THRESHOLDS.blocked) {
-      return mk('blocked', 'page-blocked');
+      return { result: mk('blocked', 'page-blocked') };
     }
-    // 3. error (round ≥ 2 only; the question is only asked then)
-    if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
-      return mk('error', 'page-error');
-    }
-    // 4. done
+    // 3. done (C2: done now precedes error)
     if (noulOf('done') >= THRESHOLDS.done) {
-      return mk('done', 'goal-met');
+      return { result: mk('done', 'goal-met') };
+    }
+    // 4. error (round ≥ 2 only; the question is only asked then)
+    if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
+      if (tool !== 'browse_step') {
+        // wingman_do keeps error → page-error and is never asked recover.
+        return { result: mk('error', 'page-error') };
+      }
+      // § 5.5.4 recover, exactly as chain rule 4; the counter is per call.
+      const rec = answers['recover'] as JevChoiceAnswer | undefined;
+      const rc = rec?.choice;
+      const r =
+        rec && typeof rc === 'string' && (rec.probabilities[rc] ?? 0) >= THRESHOLDS.recover ? rc : 'give-up';
+      if (r === 'give-up' || legacyRecoverActs >= RECOVER_MAX_PER_CLAUSE) {
+        return { result: mk('error', 'page-error') };
+      }
+      if (r === 'back' || r === 'reload' || r === 'wait') {
+        if (hasOp(r)) {
+          return { mechanical: r };
+        }
+        return { result: mk('error', 'page-error') };
+      }
+      // 'continue' (and anything unrecognized below threshold) falls through.
+      if (r !== 'continue') {
+        return { result: mk('error', 'page-error') };
+      }
+      return null;
     }
     // 5. action none
     const action = answers['action'] as JevChoiceAnswer | undefined;
     if (action && action.choice === 'none') {
       if (noulOf('done') >= THRESHOLDS.doneNoAction) {
-        return mk('done', 'goal-met');
+        return { result: mk('done', 'goal-met') };
       }
-      return mk('ambiguous', 'no-action', { candidates: topTargetCandidates(answers, obs, values) });
+      return { result: mk('ambiguous', 'no-action', { candidates: topTargetCandidates(answers, obs, values) }) };
     }
     return null;
   }
 
-  /** § 3.7 rules 6–8 plus value resolution for fill/select. `actionAnswers` is
-   * the request that carried the `action` question (request 1 in both shapes;
-   * request 2 never repeats it). Takeover rounds — entry and continuation
-   * alike (§ 3.19 items 3 and 6, amendment 2026-09-22) — are decided here by
-   * the threshold rule or the top-candidate margin rule; the margin rule may
-   * override a meta-answer choice with the dominating listed element. Op fit,
-   * value resolution, the gate and every budget rule still apply unchanged. */
+  /** § 3.7 rules 6–8 plus § 5.5.3: targetless verbs, the navigate/upload
+   * binding answers, the press key answer, the file-input conversion and the
+   * scroll_to → scroll fallback. `actionAnswers` is the request that carried
+   * the `action` question (request 1 in both shapes). `takeover` is true for
+   * every browse_step round; wingman_do rounds use the plain threshold rule. */
   async function decideTarget(
     answers: AnswerMap,
     actionAnswers: AnswerMap,
@@ -622,37 +996,41 @@ async function runTool(
     remaining: () => number,
     anchorBindings: string[] = [],
     takeover = false,
-  ): Promise<{ result?: WingmanResult; bounds?: boolean; el: ElementRecord; verb: Op; binding?: string; optionValue?: string }> {
+    offeredSet?: ReadonlySet<string>,
+  ): Promise<{
+    result?: WingmanResult;
+    bounds?: boolean;
+    el: ElementRecord | null;
+    verb: Op;
+    binding?: string;
+    optionValue?: string;
+    keyMissing?: boolean;
+  }> {
     const action = actionAnswers['action'] as JevChoiceAnswer | undefined;
-    // Answers are untrusted: an out-of-set action choice, a target id that is
-    // not in the observation, or a value choice naming no real binding must
-    // resolve to an ambiguous decision — never to an act on some other element.
-    const uncertain = (): {
-      result: WingmanResult;
-      el: ElementRecord;
-      verb: Op;
-    } => ({
+    // Answers are untrusted: an out-of-set action choice (never offered,
+    // § 5.5.6), a target id that is not in the observation, or a value choice
+    // naming no real binding must resolve to an ambiguous decision — never to
+    // an act on some other element.
+    const uncertain = (keyMissing = false) => ({
+      ...(keyMissing ? { keyMissing: true as const } : {}),
       result: mk('ambiguous', 'target-uncertain', { candidates: topTargetCandidates(answers, obs, values) }),
-      el: obs.elements[0],
-      verb: 'click',
+      el: obs.elements[0] ?? null,
+      verb: 'click' as Op,
     });
     const rawVerb = action?.choice;
-    const verb: Op | null =
+    const verbInOps: Op | null =
       typeof rawVerb === 'string' && (OPS as readonly string[]).includes(rawVerb) ? (rawVerb as Op) : null;
-    if (verb === null) {
+    if (verbInOps === null || (offeredSet !== undefined && !offeredSet.has(verbInOps))) {
       return uncertain();
     }
+    let verb: Op = verbInOps;
     const target = answers['target'] as JevChoiceAnswer | undefined;
     const targetId = target?.choice ?? 'none';
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
-    // 6. target uncertainty (action ≠ scroll). Takeover round (§ 3.19 items 3
-    // and 6, amendment 2026-09-22 — entry and continuation share this one
-    // implementation): act at the configured takeover threshold on the answer's
-    // chosen element, or on the margin rule's dominating element (which may
-    // override an `ambiguous`/`none` meta-answer choice); otherwise
-    // target-uncertain as below.
-    let elId = targetId;
-    if (verb !== 'scroll') {
+    // 6. target uncertainty — skipped for targetless verbs (§ 5.5.3).
+    let el: ElementRecord | null = null;
+    if (!(TARGETLESS_OPS as readonly string[]).includes(verb)) {
+      let elId = targetId;
       if (takeover) {
         const threshold = takeoverOf(deps.config).threshold;
         const chosenElement =
@@ -660,20 +1038,33 @@ async function runTool(
         if (!(chosenElement && targetProb >= threshold)) {
           const marginId = marginCommitTarget(target?.probabilities ?? {}, obs.elements);
           if (marginId === null) {
+            // § 5.4 scroll_to row: a non-committing scroll_to target becomes a
+            // targetless scroll down — never a non-commit.
+            if (verb === 'scroll_to') {
+              return { el: null, verb: 'scroll' };
+            }
             return uncertain();
           }
           elId = marginId;
         }
       } else if (targetId === 'none' || targetId === 'ambiguous' || targetProb < THRESHOLDS.target) {
+        if (verb === 'scroll_to') {
+          return { el: null, verb: 'scroll' };
+        }
         return uncertain();
       }
+      const found = obs.elements.find((e) => e.id === elId);
+      if (!found) {
+        return uncertain();
+      }
+      el = found;
     }
-    const el = obs.elements.find((e) => e.id === elId);
-    if (!el) {
-      return uncertain();
+    // 7. file-input conversion (§ 5.5.3) runs before the fit check; a click
+    // therefore never opens the OS file chooser (P9).
+    if (el !== null && (verb === 'click' || verb === 'dblclick' || verb === 'press') && isFileInput(el)) {
+      verb = 'upload';
     }
-    // 7. op fit
-    if (!opFits(verb, el)) {
+    if (el !== null && !opFits(verb, el)) {
       return uncertain();
     }
     // 8. value
@@ -695,12 +1086,18 @@ async function runTool(
       } else if (anchorBindings.length > 0) {
         binding = anchorBindings[0];
       } else {
-        return { result: mk('ambiguous', 'no-value'), el, verb };
+        const missing = missingOf(activeStepText, values);
+        return {
+          result: mk('ambiguous', 'no-value', missing !== undefined ? { missing_binding: missing } : {}),
+          el,
+          verb,
+        };
       }
       if (!(binding in values)) {
         return { result: mk('ambiguous', 'no-value'), el, verb };
       }
     } else if (verb === 'select') {
+        if (el === null) return uncertain();
       const valueAnswer = answers['value'] as JevChoiceAnswer | undefined;
       if (
         valueAnswer &&
@@ -710,7 +1107,7 @@ async function runTool(
       ) {
         binding = valueAnswer.choice;
         const wanted = values[binding] ?? '';
-        const local = (el.options ?? []).find(
+        const local = (el?.options ?? []).find(
           (o) => o.label.toLowerCase() === wanted.toLowerCase() || o.value.toLowerCase() === wanted.toLowerCase(),
         );
         if (local) {
@@ -728,6 +1125,58 @@ async function runTool(
         } else {
           return { result: mk('fallback', askFailReason(outcome)), bounds: true, el, verb };
         }
+      }
+    } else if (verb === 'navigate') {
+      // § 5.5.3: the binding comes from the url answer — a url-typed binding
+      // at ≥ THRESHOLDS.url whose value is an http(s) address.
+      const urlAnswer = answers['url'] as JevChoiceAnswer | undefined;
+      const c = urlAnswer?.choice;
+      if (
+        urlAnswer &&
+        typeof c === 'string' &&
+        c !== 'none' &&
+        c in values &&
+        (urlAnswer.probabilities[c] ?? 0) >= THRESHOLDS.url &&
+        typeHint(values[c]) === 'url' &&
+        /^https?:\/\//i.test(values[c])
+      ) {
+        binding = c;
+      } else {
+        return { result: mk('ambiguous', 'no-value'), el, verb };
+      }
+    } else if (verb === 'upload') {
+      // § 5.5.3: the binding comes from the file answer — a path-typed
+      // binding at ≥ THRESHOLDS.file.
+      const fileAnswer = answers['file'] as JevChoiceAnswer | undefined;
+      const c = fileAnswer?.choice;
+      if (
+        fileAnswer &&
+        typeof c === 'string' &&
+        c !== 'none' &&
+        c in values &&
+        (fileAnswer.probabilities[c] ?? 0) >= THRESHOLDS.file &&
+        isPathLike(values[c])
+      ) {
+        binding = c;
+      } else {
+        return { result: mk('ambiguous', 'no-value'), el, verb };
+      }
+    } else if (verb === 'press') {
+      // § 5.5.3: press takes the key answer (∈ PRESS_KEYS, ≥ THRESHOLDS.key);
+      // wingman_do falls back to 'Enter', browse_step reports the missing key.
+      const keyAnswer = answers['key'] as JevChoiceAnswer | undefined;
+      const c = keyAnswer?.choice;
+      if (
+        keyAnswer &&
+        typeof c === 'string' &&
+        (PRESS_KEYS as readonly string[]).includes(c) &&
+        (keyAnswer.probabilities[c] ?? 0) >= THRESHOLDS.key
+      ) {
+        optionValue = c;
+      } else if (takeover) {
+        return { ...uncertain(true), keyMissing: true };
+      } else {
+        optionValue = 'Enter';
       }
     }
     return {
@@ -781,7 +1230,10 @@ async function runTool(
     return finalValue !== undefined ? { kind: 'value', value: finalValue } : { kind: 'no-value' };
   }
 
-  /** The one fixed confirm-token point (§ WP-C7 item 3). */
+  /** The one fixed confirm-token point (§ WP-C7 item 3). § 5.5.6: a token
+   * whose verb is not in driverOps is a typed unsupported-op, zero acts, and
+   * in the token path `upload` takes `values[binding]` and `press` its key
+   * from PendingAction.optionValue. */
   async function runTokenAction(
     pageId: string,
     driver: Driver,
@@ -791,10 +1243,14 @@ async function runTool(
     maxSteps: number,
     remaining: () => number,
     history: Array<{ verb: Op; label: string }>,
+    driverOps: readonly Op[],
   ): Promise<{ result: WingmanResult | null; history: Array<{ verb: Op; label: string }> }> {
     const action = deps.tokens.consume(token);
     if (!action) {
       return { result: mk('error', 'confirm-token-invalid'), history };
+    }
+    if (!(driverOps as readonly string[]).includes(action.verb)) {
+      return { result: mk('fallback', 'unsupported-op'), history };
     }
     if (urlKey(action.url) !== urlKey(obs.url)) {
       return { result: mk('error', 'confirm-token-invalid'), history };
@@ -812,10 +1268,16 @@ async function runTool(
         return { result: mk('error', 'invalid-input'), history };
       }
       actValue = v;
-    } else if (action.verb === 'select') {
+    } else if (action.verb === 'select' || action.verb === 'press') {
       actValue = action.optionValue;
+    } else if (action.verb === 'upload' || action.verb === 'navigate') {
+      const v = action.binding !== undefined ? values[action.binding] : undefined;
+      if (v === undefined) {
+        return { result: mk('error', 'invalid-input'), history };
+      }
+      actValue = v;
     }
-    if (steps >= maxSteps) {
+    if (action.verb !== 'wait' && steps >= maxSteps) {
       return { result: mk('fallback', 'budget-steps'), history };
     }
     if (remaining() < TIME_FLOOR_MS) {
@@ -824,7 +1286,12 @@ async function runTool(
     const tAct0 = now();
     await driver.act(pageId, el.id, action.verb, actValue);
     if (cur) cur.actMs += now() - tAct0;
-    steps += 1;
+    if (action.verb === 'wait') {
+      // never counts as a step (§ 5.5.3)
+    } else {
+      steps += 1;
+    }
+    actsByOp[action.verb] = (actsByOp[action.verb] ?? 0) + 1;
     // Result labels are redacted against the call's bindings and capped (§ WP-C7 item 5).
     lastAction = { verb: action.verb, label: capLabel(redactValues(el.name, values)) };
     // § 3.7 rule 11.
@@ -850,6 +1317,7 @@ async function runTool(
         ? validateStepInput(input)
         : validateCheckInput(input);
   if (!validated.ok) {
+    invalidMessage = validated.message;
     return finish(mk('error', 'invalid-input'));
   }
 
@@ -859,6 +1327,11 @@ async function runTool(
 
   let attached = false;
   let driver: Driver | null = null;
+  // § 5.5.6: read after attach; absent = LEGACY_OPS.
+  let driverOps: readonly Op[] = LEGACY_OPS;
+  // The step text the missing-binding detector reads this round; set per round
+  // by runDoRounds (the chain clause, the legacy step, or '' for wingman_do).
+  let activeStepText = '';
 
   try {
     if (mode === 'off') {
@@ -892,6 +1365,8 @@ async function runTool(
       }
       throw e;
     }
+
+    driverOps = driver.ops ?? LEGACY_OPS;
 
     const allPages = await driver.pages();
     let visiblePages = allPages.filter((p) => p.visible);
@@ -976,29 +1451,13 @@ async function runTool(
     return mk('done', 'answered', { answer: round2(noul) });
   }
 
-  // ---- browse_step: first-round-decides entry (§ 3.19, amendment 2026-09-21d) ----
-  // No fork: the entry rides runDoRounds' existing gated rounds. There is no
-  // routing pre-pass and no ask before round 1's ask: the tool enters the
-  // normal machinery directly and the first round's target answer decides the
-  // call (threshold rule, top-candidate margin rule, one self-retry,
-  // evidence-based bounce — all inside runDoRounds' entry decision).
+  // ---- browse_step entry (§ 3.19, § 5.5.2, § 5.5.4) ----
+  // Chain mode (steps present after § 5.5.1 normalisation) carries the clause
+  // list and the per-clause memory; legacy mode keeps the first-round-decides
+  // entry. Both ride runDoRounds' rounds; the pick (§ 5.6) rides round 1.
   async function runBrowse(pageId: string, driver: Driver, stepInput: StepInput): Promise<WingmanResult> {
     const values = stepInput.values ?? {};
-    const proposals = stepInput.steps ?? [stepInput.step as string];
     activeGoal = stepInput.goal; // the bounce-escalation counter's key
-
-    // Token continuation (§ 3.19 flow item 1): the token is handled at the
-    // existing fixed point inside runDoRounds; no entry machinery, no
-    // step_review.
-    if (stepInput.confirm_token !== undefined) {
-      return runDoRounds(pageId, driver, {
-        goal: stepInput.goal,
-        values,
-        confirm_token: stepInput.confirm_token,
-        ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
-        ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
-      });
-    }
 
     // Participation (§ 3.19 flow item 5): the call's `takeover` field
     // overrides the config mode, resolved once here and carried by the entry.
@@ -1011,6 +1470,64 @@ async function runTool(
             ? 'offer'
             : 'execute';
 
+    const chain = stepInput.steps !== undefined;
+    if (chain) {
+      // § 5.5.2 memory: keyed on [goal, clauses]; values never enter the key.
+      const clauses = stepInput.steps as string[];
+      const key = JSON.stringify([stepInput.goal, clauses]);
+      const mem = chainMemory.get(key);
+      chainState = {
+        key,
+        clauses,
+        N: clauses.length,
+        cursor: mem?.cursor ?? 0,
+        priorActs: mem?.acts ?? 0,
+        clauseRetried: false,
+        firstCommitDone: false,
+        wrongPageRounds: 0,
+        notReadyRounds: 0,
+        recoverActs: 0,
+      };
+    }
+
+    const pick = stepInput.pick;
+    const entry =
+      chain
+        ? {
+            kind: 'chain' as const,
+            clauses: stepInput.steps as string[],
+            participation,
+            ...(pick ? { pick } : {}),
+          }
+        : stepInput.step !== undefined
+          ? {
+              kind: 'legacy' as const,
+              step: stepInput.step,
+              participation,
+              ...(pick ? { pick } : {}),
+            }
+          : undefined;
+
+    // Token continuation (§ 3.19 flow item 1): the token is handled at the
+    // existing fixed point inside runDoRounds. Legacy keeps no entry (today's
+    // path); chain keeps the clause list so the memory cursor applies.
+    if (stepInput.confirm_token !== undefined) {
+      return runDoRounds(
+        pageId,
+        driver,
+        {
+          goal: stepInput.goal,
+          values,
+          confirm_token: stepInput.confirm_token,
+          ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
+          ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
+        },
+        chain
+          ? { kind: 'chain' as const, clauses: stepInput.steps as string[], participation }
+          : undefined,
+      );
+    }
+
     return runDoRounds(
       pageId,
       driver,
@@ -1020,17 +1537,27 @@ async function runTool(
         ...(stepInput.max_steps !== undefined ? { max_steps: stepInput.max_steps } : {}),
         ...(stepInput.max_ms !== undefined ? { max_ms: stepInput.max_ms } : {}),
       },
-      { step: proposals[0], participation },
+      entry,
     );
   }
 
   // ---- wingman_do rounds (§ 3.7, in order) plus the browse_step entry
-  // decision (§ 3.19, amendment 2026-09-21d) ----
+  // decision (§ 3.19) and chain mode (§ 5.5.2) ----
   async function runDoRounds(
     pageId: string,
     driver: Driver,
     doInput: DoInput,
-    entry?: { step: string; participation: 'execute' | 'offer' },
+    entry?: {
+      kind: 'chain';
+      clauses: string[];
+      participation: 'execute' | 'offer';
+      pick?: PickInput;
+    } | {
+      kind: 'legacy';
+      step: string;
+      participation: 'execute' | 'offer';
+      pick?: PickInput;
+    },
   ): Promise<WingmanResult> {
     const values = doInput.values ?? {};
     const maxSteps = Math.min(doInput.max_steps ?? Number.POSITIVE_INFINITY, deps.config.budgets.max_steps);
@@ -1041,47 +1568,89 @@ async function runTool(
     const token = doInput.confirm_token;
     let tokenHandled = false;
     let round = 0;
+    const hasOp = (op: Op): boolean => (driverOps as readonly string[]).includes(op);
+    const isBrowse = entry !== undefined;
+    const participation = entry?.participation ?? 'execute';
+    // § 5.5.6: the offered action set is always intersected with driverOps, so
+    // Jev is never asked about an undeclared op.
+    const offered: readonly Op[] = offeredOps({
+      tool: isBrowse ? 'browse_step' : 'wingman_do',
+      bindings: values,
+    }).filter((op) => hasOp(op));
+    const offeredSet = new Set<string>(offered);
+    // Waits this call has executed (§ 5.5.2 / § 5.4 wait caps).
+    let waits = 0;
+    // § 5.5.4 recover acts for legacy browse_step (per call).
+    let legacyRecoverActs = 0;
 
-    // Entry state: `entryPending` is true while the next round's entry
-    // decision is still due (round 1, plus round 2 when it is the one
-    // self-retry). `retried` pins the at-most-one retry of § 3.19 item 4.
-    const entryStep = entry !== undefined ? redactValues(entry.step, values).slice(0, 300) : undefined;
-    // Browse-origin flag (§ 3.7 rule 8, amendment 2026-09-21e): the same
-    // entry signal that marks this call a takeover. When the proposal's step
-    // text names a supplied binding, the value question is anchored for every
-    // round of the call.
-    const entryBindings = entry !== undefined ? bindingsInStep(entry.step, values) : [];
+    /** A committed decision about to pass the gate and the act site. */
+    interface Decision {
+      el: ElementRecord | null;
+      verb: Op;
+      binding?: string;
+      optionValue?: string;
+      gate: boolean;
+    }
+
+    // Legacy entry state: `entryPending` is true while the next round's entry
+    // decision is still due. `retried` pins the at-most-one retry of § 3.19.
+    const entryStep = entry?.kind === 'legacy' ? redactValues(entry.step, values).slice(0, 300) : undefined;
+    const entryBindings = entry?.kind === 'legacy' ? bindingsInStep(entry.step, values) : [];
     let entryPending = entry !== undefined;
     let retried = false;
-    const retryAllowed = entry !== undefined && takeoverOf(deps.config).retry;
-    const entryReview = (
-      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered',
-      candidates: Array<{ label: string }>,
-    ): Partial<WingmanResult> => ({
+    const retryAllowed = entry?.kind === 'legacy' && takeoverOf(deps.config).retry;
+    type ReviewWhy = 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
+      | 'already-done' | 'wrong-page' | 'not-ready';
+    const entryReview = (why: ReviewWhy, candidates: Array<{ label: string; role?: string; name?: string }>) => ({
       step_review: { step: capLabel(entryStep ?? ''), why, candidates },
     });
-    const bounce = (
-      why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value',
-      candidates: Array<{ label: string }>,
-    ): WingmanResult => mk('fallback', 'step-uncertain', entryReview(why, candidates));
+    const bounce = (why: ReviewWhy, candidates: Array<{ label: string; role?: string; name?: string }>) =>
+      mk('fallback', 'step-uncertain', entryReview(why, candidates));
     const canRetry = () => retryAllowed && !retried && remaining() >= TIME_FLOOR_MS;
-    /** § 3.19 item 3: null = the entry round commits (threshold rule or
-     * top-candidate margin rule), else the bounce `why`. */
-    function entryUncertainty(
+
+    // Chain state (§ 5.5.2), created by runBrowse.
+    const chain = entry?.kind === 'chain' ? chainState : null;
+    const N = chain?.N ?? 0;
+    const clauseText = (i: number): string => redactValues(chain!.clauses[i], values).slice(0, 300);
+    const clauseReviewStep = () => capLabel(clauseText(Math.min(chain!.cursor, N - 1)));
+    /** A wrong-page / not-ready bounce: no retry (§ 5.5.2 rules 5–6). */
+    const chainBounce = (why: 'wrong-page' | 'not-ready'): WingmanResult =>
+      mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why, candidates: [] } });
+    /** § 5.5.2 rule 9: one retry per clause, then the bounce with evidence. */
+    const chainNonCommit = (
+      why: ReviewWhy,
+      candidates: Array<{ label: string; role?: string; name?: string }>,
+    ): WingmanResult | null => {
+      if (takeoverOf(deps.config).retry && !chain!.clauseRetried && remaining() >= TIME_FLOOR_MS) {
+        chain!.clauseRetried = true;
+        return null; // the next round retries the clause
+      }
+      return mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why, candidates } });
+    };
+    /** § 5.5.2 end of chain. */
+    const endOfChain = (): WingmanResult => {
+      if (steps + chain!.priorActs > 0) {
+        return mk('done', 'goal-met');
+      }
+      return mk('fallback', 'step-uncertain', {
+        step_review: { step: capLabel(clauseText(N - 1)), why: 'already-done', candidates: [] },
+      });
+    };
+
+    /** § 3.19 threshold-or-margin rule over the target answer (§ 5.5.2 rule 8
+     * and § 3.19 item 3 share it): null = the round commits; else the `why` a
+     * failed target commit reports. The threshold rule needs a real listed
+     * element as the answer's choice; the top-candidate margin rule
+     * (amendment 2026-09-22) does not — it commits on the dominating listed
+     * element even when the answer chose the `ambiguous` or `none`
+     * meta-answer. */
+    function targetUncertainty(
       answers: AnswerMap,
       obs: Observation,
     ): 'no-match' | 'multi-match' | 'low-confidence' | null {
-      const action = answers['action'] as JevChoiceAnswer | undefined;
-      if (!action || action.choice === 'none' || !(OPS as readonly string[]).includes(action.choice)) {
-        return 'no-match';
-      }
       const target = answers['target'] as JevChoiceAnswer | undefined;
       const choice = target?.choice;
       if (!target || typeof choice !== 'string') return 'no-match';
-      // The threshold rule needs a real listed element as the answer's choice;
-      // the top-candidate margin rule (§ 3.19 item 3, amendment 2026-09-22)
-      // does not — it commits on the dominating listed element even when the
-      // answer chose the `ambiguous` or `none` meta-answer.
       const probs = target.probabilities ?? {};
       if (choice !== 'none' && choice !== 'ambiguous') {
         const el = obs.elements.find((e) => e.id === choice);
@@ -1094,8 +1663,156 @@ async function runTool(
       return 'low-confidence';
     }
 
+    /** § 3.19 item 3: null = the entry round commits (threshold rule or
+     * top-candidate margin rule), else the bounce `why`. § 5.4 Verb row / § 5.5.3:
+     * a targetless verb commits on the ACTION probabilities; an action outside
+     * the offered set is a no-match. */
+    function entryUncertainty(
+      answers: AnswerMap,
+      obs: Observation,
+    ): 'no-match' | 'multi-match' | 'low-confidence' | null {
+      const action = answers['action'] as JevChoiceAnswer | undefined;
+      const choice = action?.choice;
+      if (!action || typeof choice !== 'string' || choice === 'none' || !offeredSet.has(choice)) {
+        return 'no-match';
+      }
+      const probs = action.probabilities ?? {};
+      if ((TARGETLESS_OPS as readonly string[]).includes(choice)) {
+        if ((probs[choice] ?? 0) >= takeoverOf(deps.config).threshold) return null;
+        return marginCommitOp(probs, offered) !== null ? null : 'low-confidence';
+      }
+      return targetUncertainty(answers, obs);
+    }
+
+    /** § 5.5.2 step 7 early answers, in order: login → blocked → advance →
+     * error+recover → ready → right_page → action none. The first rule that
+     * returns or moves to the next round wins; the whole-goal `done` is never
+     * read in chain mode. */
+    function runChainEarly(answers: AnswerMap, round: number, obs: Observation):
+      | { kind: 'result'; result: WingmanResult }
+      | { kind: 'advance' }
+      | { kind: 'mechanical'; verb: Op }
+      | { kind: 'settleOnly' }
+      | { kind: 'nonCommit'; why: 'no-match'; candidates: Array<{ label: string; role?: string; name?: string }> }
+      | { kind: 'bounceNotReady' }
+      | { kind: 'bounceWrongPage' }
+      | null {
+      const noulOf = (id: string): number => {
+        const a = answers[id];
+        return a && a.type === 'noul' ? a.noul : 0;
+      };
+      // 1. login
+      if (noulOf('login') >= THRESHOLDS.login) {
+        return { kind: 'result', result: mk('login', 'login-page') };
+      }
+      // 2. blocked
+      if (noulOf('blocked') >= THRESHOLDS.blocked) {
+        return { kind: 'result', result: mk('blocked', 'page-blocked') };
+      }
+      // 3. advance (before the error rule, C2)
+      const action = answers['action'] as JevChoiceAnswer | undefined;
+      const stepDone = noulOf('step_done');
+      if (stepDone >= THRESHOLDS.stepDone || (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction)) {
+        return { kind: 'advance' };
+      }
+      // 4. error and recover (round ≥ 2; the question rides only then)
+      if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
+        const rec = answers['recover'] as JevChoiceAnswer | undefined;
+        const rc = rec?.choice;
+        const r =
+          rec && typeof rc === 'string' && (rec.probabilities[rc] ?? 0) >= THRESHOLDS.recover ? rc : 'give-up';
+        if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE) {
+          return { kind: 'result', result: mk('error', 'page-error') };
+        }
+        if (r === 'back' || r === 'reload' || r === 'wait') {
+          if (!hasOp(r)) {
+            return { kind: 'result', result: mk('error', 'page-error') };
+          }
+          chain!.recoverActs += 1;
+          return { kind: 'mechanical', verb: r };
+        }
+        // 'continue' (and anything unrecognized) goes on as if no error fired.
+        if (r !== 'continue') {
+          return { kind: 'result', result: mk('error', 'page-error') };
+        }
+      }
+      // 5. ready (Q5)
+      if (noulOf('ready') < THRESHOLDS.ready) {
+        if (chain!.notReadyRounds >= READY_MAX_WAITS || waits >= WAIT_MAX_PER_CALL) {
+          return { kind: 'bounceNotReady' };
+        }
+        chain!.notReadyRounds += 1;
+        if (!hasOp('wait')) {
+          return { kind: 'settleOnly' };
+        }
+        return { kind: 'mechanical', verb: 'wait' };
+      }
+      chain!.notReadyRounds = 0;
+      // 6. right page (Q5): below WRONG_PAGE_MAX the round continues to rule 7
+      // and the decide step unchanged, so Jev may still choose back/navigate.
+      if (noulOf('right_page') < THRESHOLDS.rightPage) {
+        chain!.wrongPageRounds += 1;
+        if (chain!.wrongPageRounds >= WRONG_PAGE_MAX) {
+          return { kind: 'bounceWrongPage' };
+        }
+      } else {
+        chain!.wrongPageRounds = 0;
+      }
+      // 7. action none without an advance → non-commit no-match.
+      if (action?.choice === 'none') {
+        return { kind: 'nonCommit', why: 'no-match', candidates: topTargetCandidates(answers, obs, values) };
+      }
+      return null;
+    }
+
+    /** Applies a chain early outcome. */
+    async function applyChainEarly(
+      early: ReturnType<typeof runChainEarly>,
+      bucket: PhaseRound,
+    ): Promise<{ t: 'result'; result: WingmanResult } | { t: 'continue' } | { t: 'decision'; decision: Decision } | { t: 'proceed' }> {
+      if (early === null) return { t: 'proceed' };
+      if (early.kind === 'result') return { t: 'result', result: early.result };
+      if (early.kind === 'advance') {
+        chain!.cursor += 1;
+        chain!.clauseRetried = false;
+        chain!.wrongPageRounds = 0;
+        chain!.notReadyRounds = 0;
+        chain!.recoverActs = 0;
+        if (chain!.cursor === N) {
+          return { t: 'result', result: endOfChain() };
+        }
+        return { t: 'continue' };
+      }
+      if (early.kind === 'mechanical') {
+        // § 5.5.2 rules 4–5: straight to the act site — no gate, no
+        // participation check.
+        return { t: 'decision', decision: { el: null, verb: early.verb, gate: false } };
+      }
+      if (early.kind === 'settleOnly') {
+        const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
+        if (settleBudget > 0) {
+          const tSettle = now();
+          // Verifier fix: this was `void driver.settle(...)` — a fire-and-
+          // forget call that let the loop advance to the next round's observe
+          // before settle actually finished, unlike every other settle call
+          // site in this file (all awaited).
+          await driver.settle(pageId, settleBudget);
+          bucket.settleMs += now() - tSettle;
+        }
+        return { t: 'continue' };
+      }
+      if (early.kind === 'bounceNotReady') return { t: 'result', result: chainBounce('not-ready') };
+      if (early.kind === 'bounceWrongPage') return { t: 'result', result: chainBounce('wrong-page') };
+      const r = chainNonCommit(early.why, early.candidates);
+      return r !== null ? { t: 'result', result: r } : { t: 'continue' };
+    }
+
     while (true) {
       round += 1;
+      // § 5.5.2 step 1: the chain round cap.
+      if (chain && round > maxSteps + 2 * N + WAIT_MAX_PER_CALL + 2) {
+        return mk('fallback', 'budget-steps');
+      }
       if (remaining() < TIME_FLOOR_MS) {
         return mk('fallback', 'budget-time');
       }
@@ -1110,11 +1827,23 @@ async function runTool(
       if (obs.signals.captcha) {
         return mk('blocked', 'captcha');
       }
-      const policy = evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
+      // § 5.6 prelude (Q4): a pick round sends nothing to the decision
+      // service, so the policy part is skipped on it; every later round runs
+      // it. (One evaluatePolicy call site, guarded on the same line.)
+      const pickRound = round === 1 && entry?.pick !== undefined;
+      const policy = pickRound
+        ? ({ sensitive: false } as ReturnType<typeof evaluatePolicy>)
+        : evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
       if (policy.sensitive) {
         // A policy hit leaves a confirm token unconsumed.
         return mk('fallback', policy.reason as Reason);
       }
+      // The missing-binding detector reads this round's step text.
+      activeStepText = chain
+        ? chain.clauses[chain.cursor]
+        : entry?.kind === 'legacy'
+          ? entry.step
+          : '';
 
       // The confirm token is handled at one fixed point: after tab
       // resolution, the first observe and the policy check, before any ask.
@@ -1122,7 +1851,7 @@ async function runTool(
       if (token !== undefined && !tokenHandled) {
         tokenHandled = true;
         if (mode !== 'shadow') {
-          const outcome = await runTokenAction(pageId, driver, obs, token, values, maxSteps, remaining, history);
+          const outcome = await runTokenAction(pageId, driver, obs, token, values, maxSteps, remaining, history, driverOps);
           if (outcome.result) {
             return outcome.result;
           }
@@ -1131,263 +1860,548 @@ async function runTool(
         }
       }
 
-      const state = buildState(
-        obs,
-        history,
-        doInput.goal,
-        values,
-        entryStep !== undefined && round === 1 ? entryStep : undefined,
-      );
-      // Time rule: before every ask.
-      if (remaining() < TIME_FLOOR_MS) {
-        return mk('fallback', 'budget-time');
-      }
-      const twoStage = obs.elements.length > deps.config.budgets.max_elements;
-      let primary: AnswerMap;
-      let secondary: AnswerMap | null = null;
+      let decision: Decision | null = null;
+      let decisionAnswers: AnswerMap = {};
 
-      if (twoStage) {
-        const built = buildGroupRequest({ state, elements: obs.elements, bindings: values, round });
-        const r1 = await askWithCost(built.request, 'wingman_do', remaining);
-        if (!r1.ok) {
-          return mk('fallback', askFailReason(r1));
+      // ---- § 5.6 pick round (round 1, no ask) ----
+      if (pickRound) {
+        if (mode === 'shadow') {
+          // Shadow never acts; a pick neither asks nor acts in shadow.
+          return shadowResult();
         }
-        primary = r1.answers as AnswerMap;
-        const early = decideEarly(primary, round, obs, values);
-        if (early) {
-          if (mode === 'shadow') return shadowResult();
-          // An entry round that proposed no action is a non-commit
-          // (§ 3.19 item 3, 'no-match'): retry once, else bounce.
-          if (entryPending && early.reason === 'no-action') {
-            if (canRetry()) {
-              retried = true;
-              continue;
-            }
-            return bounce('no-match', early.candidates ?? []);
-          }
-          return early;
-        }
-        const groupAnswer = primary['group'] as JevChoiceAnswer | undefined;
-        const topIds = groupAnswer
-          ? Object.entries(groupAnswer.probabilities)
-              .filter(([id]) => id !== 'none' && id !== 'ambiguous')
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, TWO_STAGE.topGroups)
-              .map(([id]) => id)
-          : [];
-        const targetElements = topIds.flatMap((id) => {
-          const index = Number(id.slice(1)) - 1;
-          return index >= 0 && index < built.groups.length ? built.groups[index] : [];
-        });
-        if (targetElements.length === 0) {
-          return mode === 'shadow' ? shadowResult() : mk('ambiguous', 'target-uncertain', { candidates: [] });
-        }
-        const r2 = await (async () => {
-          if (remaining() < TIME_FLOOR_MS) {
-            return { ok: false as const, error: 'budget-time' as const };
-          }
-          return await askWithCost(
-            (() => {
-              const req = buildTargetRequest({ state, elements: targetElements, bindings: values, round });
-              if (entryBindings.length > 0) anchorValueQuestion(req);
-              return req;
-            })(),
-            'wingman_do',
-            remaining,
-          );
-        })();
-        if (!r2.ok) {
-          return mk('fallback', r2.error === 'budget-time' ? 'budget-time' : askFailReason(r2));
-        }
-        secondary = r2.answers as AnswerMap;
-      } else {
-        const built = buildRoundRequest({ state, elements: obs.elements, bindings: values, round });
-        if (entryBindings.length > 0) anchorValueQuestion(built);
-        const r = await askWithCost(built, 'wingman_do', remaining);
-        if (!r.ok) {
-          return mk('fallback', askFailReason(r));
-        }
-        primary = r.answers as AnswerMap;
-        const early = decideEarly(primary, round, obs, values);
-        if (early) {
-          if (mode === 'shadow') return shadowResult();
-          // An entry round that proposed no action is a non-commit
-          // (§ 3.19 item 3, 'no-match'): retry once, else bounce.
-          if (entryPending && early.reason === 'no-action') {
-            if (canRetry()) {
-              retried = true;
-              continue;
-            }
-            return bounce('no-match', early.candidates ?? []);
-          }
-          return early;
-        }
-      }
-
-      // § 3.7 rules 6–9 from the answers that carry target/value/irreversible;
-      // the verb comes from the answers that carried `action` (request 1).
-      const decisionAnswers = (secondary ?? primary) as AnswerMap;
-      // Entry decision (§ 3.19 item 3, amendment 2026-09-21d; margin rule per
-      // amendment 2026-09-22): commit via the threshold rule or the
-      // top-candidate margin rule, else retry once, else bounce with evidence.
-      // Evaluated before decideTarget so a non-commit never reaches the act
-      // path; decideTarget applies the same rule and resolves the element.
-      const wasEntryRound = entryPending;
-      let entryCommit = false;
-      if (entryPending) {
+        pickRan = true;
+        // After the pick, legacy continues as a committed takeover (§ 5.6).
         entryPending = false;
-        // Amendment 2026-09-21h (two-stage action carry): on a dense page the
-        // verb lives in request 1's answers while the target lives in request
-        // 2's, and request 2 never repeats the action question. The entry
-        // decision reads both, so it gets request 1 merged under request 2.
-        const uncertainty = entryUncertainty({ ...primary, ...decisionAnswers }, obs);
-        if (uncertainty !== null) {
-          if (canRetry()) {
-            retried = true;
-            entryPending = true; // the retry round carries the entry decision
-            continue;
-          }
-          return bounce(uncertainty, topTargetCandidates(decisionAnswers, obs, values));
+        const pick = entry!.pick!;
+        // § 5.5.6 verb check: before any ask, zero acts.
+        if (!hasOp(pick.action)) {
+          return mk('fallback', 'unsupported-op');
         }
-        entryCommit = true;
-        // Amendment 2026-09-21h (obstruction gate): an entry target the
-        // enumerate-time probe reports covered never acts — acting into an
-        // overlay is never right. Bounce target-covered with the criterion
-        // and the cover as evidence; no self-retry, because retrying the
-        // same ask cannot change the page — the caller dismisses the overlay
-        // and re-proposes. The committed element is the answer's choice, or
-        // the margin rule's dominating element when the choice was a
-        // meta-answer (amendment 2026-09-22).
-        const targetAnswer = decisionAnswers['target'] as JevChoiceAnswer | undefined;
-        const chosenId =
-          targetAnswer !== undefined &&
-          targetAnswer.choice !== 'none' &&
-          targetAnswer.choice !== 'ambiguous' &&
-          obs.elements.some((e) => e.id === targetAnswer.choice)
-            ? targetAnswer.choice
-            : marginCommitTarget(targetAnswer?.probabilities ?? {}, obs.elements);
-        const chosen = chosenId !== null ? obs.elements.find((e) => e.id === chosenId) : undefined;
-        if (chosen?.obscured) {
-          const evidence = topTargetCandidates(decisionAnswers, obs, values);
-          if (chosen.coveredBy) {
-            evidence.push({ label: capLabel(redactValues(chosen.coveredBy, values)) });
+        const res = resolvePick(obs, pick);
+        if (!res.ok) {
+          pickUnmatched = true;
+          return mk('ambiguous', 'target-uncertain', {
+            candidates: res.matches.map((m) => candidateOf(m, values)),
+          });
+        }
+        const pickEl = res.el;
+        let pickVerb: Op = pick.action;
+        // § 5.5.3 file-input conversion: a pick click on a file input converts
+        // the same way and, carrying no value, ends ambiguous/no-value.
+        if (
+          pickEl !== null &&
+          (pickVerb === 'click' || pickVerb === 'dblclick' || pickVerb === 'press') &&
+          isFileInput(pickEl)
+        ) {
+          pickVerb = 'upload';
+        }
+        let pickBinding: string | undefined;
+        let pickOption: string | undefined;
+        if (pickVerb === 'fill' || pickVerb === 'select' || pickVerb === 'navigate' || pickVerb === 'upload') {
+          pickBinding = pick.value;
+          const v = pickBinding !== undefined ? values[pickBinding] : undefined;
+          if (pickVerb === 'fill') {
+            if (v === undefined) return mk('ambiguous', 'no-value');
+          } else if (pickVerb === 'navigate') {
+            if (v === undefined || !/^https?:\/\//i.test(v)) return mk('ambiguous', 'no-value');
+          } else if (pickVerb === 'upload') {
+            if (v === undefined || !isPathLike(v)) return mk('ambiguous', 'no-value');
+          } else {
+            // select: a local option match, else ambiguous/no-value (§ 5.6).
+            const wanted = v ?? '';
+            const local = (pickEl?.options ?? []).find(
+              (o) => o.label.toLowerCase() === wanted.toLowerCase() || o.value.toLowerCase() === wanted.toLowerCase(),
+            );
+            if (!local) return mk('ambiguous', 'no-value');
+            pickOption = local.value;
+          }
+        } else if (pickVerb === 'press') {
+          pickOption = 'Enter'; // a pick press uses 'Enter' (§ 5.6)
+        }
+        if (pickEl !== null && !opFits(pickVerb, pickEl)) {
+          return mk('ambiguous', 'target-uncertain', { candidates: [candidateOf(pickEl, values)] });
+        }
+        if (!KB_PICK_OBSCURED && pickEl !== null && pickEl.obscured) {
+          const evidence: Array<{ label: string; role?: string; name?: string }> = [candidateOf(pickEl, values)];
+          if (pickEl.coveredBy) {
+            evidence.push({ label: capLabel(redactValues(pickEl.coveredBy, values)) });
           }
           return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
         }
+        // The pick uses the shared gate (heuristic only) and the shared act
+        // site; participation is always execute (§ 5.6).
+        decision = {
+          el: pickEl,
+          verb: pickVerb,
+          ...(pickBinding !== undefined ? { binding: pickBinding } : {}),
+          ...(pickOption !== undefined ? { optionValue: pickOption } : {}),
+          gate: pickEl !== null,
+        };
       }
-      const decide = await decideTarget(
-        decisionAnswers,
-        primary,
-        obs,
-        values,
-        state,
-        remaining,
-        entryBindings,
-        entry !== undefined,
-      );
 
-      if (mode === 'shadow') {
-        // Rule 10: shadow overrides steps 1–9 — after the first round's
-        // answers the call returns fallback/shadow, whatever they decided.
-        // Loop bounds (budget-time, a failed ask) are not steps 1–9 decisions.
-        if (decide.result && decide.bounds) {
-          return decide.result;
+      // ---- build the state, ask, and decide (§ 3.7 / § 5.5.2) ----
+      if (decision === null) {
+        const state0 = chain
+          ? buildState(
+              obs,
+              history,
+              doInput.goal,
+              values,
+              clauseText(chain.cursor),
+              { stepNumber: Math.min(chain.cursor + 1, N), stepsTotal: N },
+            )
+          : buildState(obs, history, doInput.goal, values, entryStep !== undefined && round === 1 ? entryStep : undefined);
+        const anchorBindings = chain ? bindingsInStep(chain.clauses[chain.cursor], values) : entryBindings;
+        const twoStage = obs.elements.length > deps.config.budgets.max_elements;
+        let primary: AnswerMap;
+        let secondary: AnswerMap | null = null;
+        let sizedState: object = state0;
+
+
+        if (twoStage) {
+          const sized = withStateSize(
+            state0,
+            (s) =>
+              buildGroupRequest({
+                state: s,
+                elements: obs.elements,
+                bindings: values,
+                round,
+                ops: offered,
+                chain: chain !== null,
+                recover: isBrowse,
+              }),
+            (p) => p.request,
+          );
+          if (!sized.ok) {
+            return mk('fallback', 'state-too-large');
+          }
+          sizedState = sized.state;
+          // Time rule: before every ask.
+          if (remaining() < TIME_FLOOR_MS) {
+            return mk('fallback', 'budget-time');
+          }
+          const r1 = await askWithCost(sized.payload.request, isBrowse ? 'browse_step' : 'wingman_do', remaining);
+          if (!r1.ok) {
+            return mk('fallback', askFailReason(r1));
+          }
+          primary = r1.answers as AnswerMap;
+          decisionAnswers = primary;
+          if (chain) {
+            // § 5.5.2 step 6: in shadow mode return after this ask.
+            if (mode === 'shadow') return shadowResult();
+            const early = runChainEarly(primary, round, obs);
+            const stop = await applyChainEarly(early, bucket);
+            if (stop.t === 'result') return stop.result;
+            if (stop.t === 'continue') continue;
+            if (stop.t === 'decision') decision = stop.decision;
+          } else {
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
+            if (early) {
+              if (mode === 'shadow') return shadowResult();
+              if ('mechanical' in early) {
+                legacyRecoverActs += 1;
+                decision = { el: null, verb: early.mechanical, gate: false };
+              } else {
+                const e = early.result;
+                // § 5.5.4 zero-step entry done (defence, C4): a non-commit.
+                if (entryPending && e.reason === 'goal-met' && steps === 0) {
+                  if (canRetry()) {
+                    retried = true;
+                    continue;
+                  }
+                  return bounce('already-done', []);
+                }
+                // An entry round that proposed no action is a non-commit
+                // (§ 3.19 item 3, 'no-match'): retry once, else bounce.
+                if (entryPending && e.reason === 'no-action') {
+                  if (canRetry()) {
+                    retried = true;
+                    continue;
+                  }
+                  return bounce('no-match', e.candidates ?? []);
+                }
+                return e;
+              }
+            }
+          }
+          if (decision === null) {
+            // Request 2 runs only when a targeted decision still needs its
+            // target (§ 5.5.2 step 6 two-stage skip; § 5.5.4 applies it to the
+            // legacy entry too).
+            const actionAns = primary['action'] as JevChoiceAnswer | undefined;
+            const actionChoice = typeof actionAns?.choice === 'string' ? actionAns.choice : undefined;
+            const targetlessChoice =
+              actionChoice !== undefined && (TARGETLESS_OPS as readonly string[]).includes(actionChoice);
+            if (!targetlessChoice) {
+              const groupAnswer = primary['group'] as JevChoiceAnswer | undefined;
+              const topIds = groupAnswer
+                ? Object.entries(groupAnswer.probabilities)
+                    .filter(([id]) => id !== 'none' && id !== 'ambiguous')
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, TWO_STAGE.topGroups)
+                    .map(([id]) => id)
+                : [];
+              const groups = sized.payload.groups;
+              const targetElements = topIds.flatMap((id) => {
+                const index = Number(id.slice(1)) - 1;
+                return index >= 0 && index < groups.length ? groups[index] : [];
+              });
+              if (targetElements.length === 0) {
+                if (chain) {
+                  const r = chainNonCommit('no-match', topTargetCandidates(primary, obs, values));
+                  if (r !== null) return r;
+                  continue;
+                }
+                return mk('ambiguous', 'target-uncertain', { candidates: [] });
+              }
+              const r2 = await (async () => {
+                if (remaining() < TIME_FLOOR_MS) {
+                  return { ok: false as const, error: 'budget-time' as const };
+                }
+                const req = buildTargetRequest({
+                  state: sizedState,
+                  elements: targetElements,
+                  bindings: values,
+                  round,
+                  chain: chain !== null,
+                });
+                if (anchorBindings.length > 0) anchorValueQuestion(req);
+                return await askWithCost(req, isBrowse ? 'browse_step' : 'wingman_do', remaining);
+              })();
+              if (!r2.ok) {
+                return mk('fallback', r2.error === 'budget-time' ? 'budget-time' : askFailReason(r2));
+              }
+              secondary = r2.answers as AnswerMap;
+            }
+          }
+        } else {
+          const sized = withStateSize(
+            state0,
+            (s) =>
+              buildRoundRequest({
+                state: s,
+                elements: obs.elements,
+                bindings: values,
+                round,
+                ops: offered,
+                chain: chain !== null,
+                recover: isBrowse,
+              }),
+            (p) => p,
+          );
+          if (!sized.ok) {
+            return mk('fallback', 'state-too-large');
+          }
+          sizedState = sized.state;
+          // Time rule: before every ask.
+          if (remaining() < TIME_FLOOR_MS) {
+            return mk('fallback', 'budget-time');
+          }
+          const built = sized.payload;
+          if (anchorBindings.length > 0) anchorValueQuestion(built);
+          const r = await askWithCost(built, isBrowse ? 'browse_step' : 'wingman_do', remaining);
+          if (!r.ok) {
+            return mk('fallback', askFailReason(r));
+          }
+          primary = r.answers as AnswerMap;
+          decisionAnswers = primary;
+          if (chain) {
+            if (mode === 'shadow') return shadowResult();
+            const early = runChainEarly(primary, round, obs);
+            const stop = await applyChainEarly(early, bucket);
+            if (stop.t === 'result') return stop.result;
+            if (stop.t === 'continue') continue;
+            if (stop.t === 'decision') decision = stop.decision;
+          } else {
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
+            if (early) {
+              if (mode === 'shadow') return shadowResult();
+              if ('mechanical' in early) {
+                legacyRecoverActs += 1;
+                decision = { el: null, verb: early.mechanical, gate: false };
+              } else {
+                const e = early.result;
+                if (entryPending && e.reason === 'goal-met' && steps === 0) {
+                  if (canRetry()) {
+                    retried = true;
+                    continue;
+                  }
+                  return bounce('already-done', []);
+                }
+                if (entryPending && e.reason === 'no-action') {
+                  if (canRetry()) {
+                    retried = true;
+                    continue;
+                  }
+                  return bounce('no-match', e.candidates ?? []);
+                }
+                return e;
+              }
+            }
+          }
         }
-        if (!decide.result) {
-          // Steps 1–8 chose an act.
-          const gate = gateHeuristic(decide.el, decide.el.form >= 0 ? obs.forms[decide.el.form] : undefined, decide.verb);
+
+        if (decision === null) {
+          const merged = (secondary ? { ...primary, ...secondary } : primary) as AnswerMap;
+          decisionAnswers = merged;
+          if (chain) {
+            // § 5.5.2 step 8.
+            const cands = () => topTargetCandidates(merged, obs, values);
+            const actionAns = merged['action'] as JevChoiceAnswer | undefined;
+            const choice = actionAns?.choice;
+            if (!actionAns || typeof choice !== 'string' || !offeredSet.has(choice)) {
+              const r = chainNonCommit('no-match', cands());
+              if (r !== null) return r;
+              continue;
+            }
+            if (choice === 'wait' && waits >= WAIT_MAX_PER_CALL) {
+              const r = chainNonCommit('no-match', cands());
+              if (r !== null) return r;
+              continue;
+            }
+            if ((TARGETLESS_OPS as readonly string[]).includes(choice)) {
+              const probs = actionAns.probabilities ?? {};
+              const commits =
+                (probs[choice] ?? 0) >= takeoverOf(deps.config).threshold ||
+                marginCommitOp(probs, offered) !== null;
+              if (!commits) {
+                const r = chainNonCommit('low-confidence', cands());
+                if (r !== null) return r;
+                continue;
+              }
+            } else {
+              // § 5.5.2 rule 8: a targeted verb uses the § 3.19
+              // threshold-or-margin rule; failure is a non-commit with its
+              // why — except scroll_to, whose non-committing target becomes a
+              // targetless scroll down and acts (never a non-commit).
+              const tWhy = targetUncertainty(merged, obs);
+              if (tWhy !== null && choice !== 'scroll_to') {
+                const r = chainNonCommit(tWhy, cands());
+                if (r !== null) return r;
+                continue;
+              }
+            }
+            let chainDecision: Decision | null =
+              choice === 'scroll_to' && targetUncertainty(merged, obs) !== null
+                ? { el: null, verb: 'scroll', gate: false }
+                : null;
+            if (chainDecision === null) {
+            const decide = await decideTarget(merged, primary, obs, values, sizedState, remaining, anchorBindings, true, offeredSet);
+            if (decide.result) {
+              if (decide.bounds) return decide.result;
+              if (decide.keyMissing) {
+                const r = chainNonCommit('low-confidence', cands());
+                if (r !== null) return r;
+                continue;
+              }
+              if (decide.result.reason === 'no-value') {
+                const r = chainNonCommit('no-value', cands());
+                if (r !== null) return r;
+                continue;
+              }
+              const r = chainNonCommit('no-match', cands());
+              if (r !== null) return r;
+              continue;
+            }
+            // § 5.5.2 step 8 bullet 4: a committed element the enumerate-time
+            // probe reports covered never acts — fallback/target-covered with
+            // evidence, no retry (verifier fix: this bullet was applied only
+            // to the pick round and the legacy entry round; chain mode's
+            // ordinary Jev-decided commits skipped it and relied solely on
+            // the adapter's live act-time CoveredTargetError check, which
+            // loses the candidate evidence and can miss elements the
+            // enumerate-time probe already knows are covered).
+            if (decide.el !== null && decide.el.obscured) {
+              const evidence: Array<{ label: string; role?: string; name?: string }> = [
+                candidateOf(decide.el, values),
+              ];
+              if (decide.el.coveredBy) {
+                evidence.push({ label: capLabel(redactValues(decide.el.coveredBy, values)) });
+              }
+              return mk('fallback', 'target-covered', {
+                step_review: { step: clauseReviewStep(), why: 'target-covered', candidates: evidence },
+              });
+            }
+            // § 5.5.2 step 10: the first commit of the call under offer.
+            if (participation === 'offer' && !chain.firstCommitDone) {
+              chain.firstCommitDone = true;
+              return mk('fallback', 'takeover-offered', {
+                step_review: { step: clauseReviewStep(), why: 'offered', candidates: cands() },
+              });
+            }
+            chainDecision = {
+              el: decide.el,
+              verb: decide.verb,
+              ...(decide.binding !== undefined ? { binding: decide.binding } : {}),
+              ...(decide.optionValue !== undefined ? { optionValue: decide.optionValue } : {}),
+              gate: decide.el !== null,
+            };
+            }
+            decision = chainDecision;
+          } else {
+            // Legacy decide (§ 3.7 rules 6–9, amendment 2026-09-21d/2026-09-22).
+            const wasEntryRound = entryPending;
+            let entryCommit = false;
+            if (entryPending) {
+              entryPending = false;
+              // Amendment 2026-09-21h (two-stage action carry): the entry
+              // decision reads request 1 merged under request 2.
+              const uncertainty = entryUncertainty(merged, obs);
+              if (uncertainty !== null) {
+                if (canRetry()) {
+                  retried = true;
+                  entryPending = true; // the retry round carries the entry decision
+                  continue;
+                }
+                return bounce(uncertainty, topTargetCandidates(merged, obs, values));
+              }
+              entryCommit = true;
+              // Amendment 2026-09-21h (obstruction gate): a committed entry
+              // target the enumerate-time probe reports covered never acts.
+              const targetAnswer = merged['target'] as JevChoiceAnswer | undefined;
+              const chosenId =
+                targetAnswer !== undefined &&
+                targetAnswer.choice !== 'none' &&
+                targetAnswer.choice !== 'ambiguous' &&
+                obs.elements.some((e) => e.id === targetAnswer.choice)
+                  ? targetAnswer.choice
+                  : marginCommitTarget(targetAnswer?.probabilities ?? {}, obs.elements);
+              const chosen = chosenId !== null ? obs.elements.find((e) => e.id === chosenId) : undefined;
+              if (chosen?.obscured) {
+                const evidence = topTargetCandidates(merged, obs, values);
+                if (chosen.coveredBy) {
+                  evidence.push({ label: capLabel(redactValues(chosen.coveredBy, values)) });
+                }
+                return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
+              }
+            }
+            const decide = await decideTarget(merged, primary, obs, values, sizedState, remaining, entryBindings, entry !== undefined, offeredSet);
+            if (mode === 'shadow') {
+              // Rule 10: shadow overrides steps 1–9 — after the first round's
+              // answers the call returns fallback/shadow, whatever they decided.
+              // Loop bounds (budget-time, a failed ask) are not steps 1–9.
+              if (decide.result && decide.bounds) {
+                return decide.result;
+              }
+              if (!decide.result) {
+                const gate = decide.el
+                  ? gateHeuristic(decide.el, decide.el.form >= 0 ? obs.forms[decide.el.form] : undefined, decide.verb)
+                  : { hit: false as const };
+                const irreversibleAnswer = merged['irreversible'];
+                const irreversibleP =
+                  decide.el && irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
+                if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
+                  acc.gateHits = 1;
+                }
+                acc.would = { verb: decide.verb, role: decide.el ? decide.el.role : '' };
+              }
+              return shadowResult();
+            }
+            if (decide.result) {
+              if (wasEntryRound && entryCommit && !decide.bounds) {
+                // A committed entry round that still could not finish its
+                // decision: value resolution failed (`no-value`), the chosen
+                // element does not fit the verb, or the key answer was missing
+                // (§ 5.5.3: a press keyMissing becomes low-confidence).
+                const cands = topTargetCandidates(merged, obs, values);
+                if (decide.keyMissing) return bounce('low-confidence', cands);
+                if (decide.result.reason === 'no-value') return bounce('no-value', cands);
+                return bounce('no-match', cands);
+              }
+              return decide.result;
+            }
+            // § 5.4 wait row, off-chain: over the wait cap it is a no-action.
+            if (decide.verb === 'wait' && waits >= WAIT_MAX_PER_CALL) {
+              return mk('ambiguous', 'no-action', { candidates: topTargetCandidates(merged, obs, values) });
+            }
+            // Participation (§ 3.19 item 5): a committed entry round under
+            // offer participation reports the offer instead of acting.
+            if (wasEntryRound && entryCommit && participation === 'offer') {
+              return mk('fallback', 'takeover-offered', entryReview('offered', topTargetCandidates(merged, obs, values)));
+            }
+            decision = {
+              el: decide.el,
+              verb: decide.verb,
+              ...(decide.binding !== undefined ? { binding: decide.binding } : {}),
+              ...(decide.optionValue !== undefined ? { optionValue: decide.optionValue } : {}),
+              gate: decide.el !== null,
+            };
+          }
+        }
+      }
+
+      // ---- shared gate + act tail (§ 5.5.3) ----
+      if (decision !== null) {
+        // Rule 9 gate: targeted verbs only; targetless verbs never gate.
+        // With gate.mode 'off' (§ 3.8) the gate heuristic and the Jev
+        // irreversible probability never produce needs_confirmation: the act
+        // proceeds exactly as a non-gated action would and no token is minted.
+        if (decision.gate && gateModeOf(deps.config) !== 'off') {
+          const gate = decision.el
+            ? gateHeuristic(decision.el, decision.el.form >= 0 ? obs.forms[decision.el.form] : undefined, decision.verb)
+            : { hit: false as const };
           const irreversibleAnswer = decisionAnswers['irreversible'];
           const irreversibleP =
-            irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
+            decision.el && irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
           if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
-            acc.gateHits = 1;
+            const pending: PendingAction = {
+              url: obs.url,
+              elementPath: decision.el!.path,
+              fingerprint: decision.el!.fingerprint,
+              verb: decision.verb,
+              ...(decision.binding !== undefined ? { binding: decision.binding } : {}),
+              ...(decision.optionValue !== undefined ? { optionValue: decision.optionValue } : {}),
+              label: decision.el!.name,
+            };
+            const confirmToken = deps.tokens.mint(pending);
+            return mk('needs_confirmation', gate.hit ? 'irreversible-heuristic' : 'irreversible-jev', {
+              pending: { verb: decision.verb, label: capLabel(redactValues(decision.el!.name, values)) },
+              confirm_token: confirmToken,
+            });
           }
-          acc.would = { verb: decide.verb, role: decide.el.role };
         }
-        return shadowResult();
-      }
-
-      if (decide.result) {
-        if (wasEntryRound && entryCommit && !decide.bounds) {
-          // A committed entry round that still could not finish its decision:
-          // value resolution failed (`no-value`) or the chosen element does
-          // not fit the verb (`target-uncertain`). Bounce with evidence —
-          // loop bounds keep their own reasons.
-          if (decide.result.reason === 'no-value') {
-            return bounce('no-value', topTargetCandidates(decisionAnswers, obs, values));
-          }
-          return bounce('no-match', topTargetCandidates(decisionAnswers, obs, values));
+        // Rule 11: act — the one round act site (§ 5.5.3). The steps budget
+        // skips wait; wait never counts as a step.
+        if (decision.verb !== 'wait' && steps >= maxSteps) {
+          return mk('fallback', 'budget-steps');
         }
-        return decide.result;
-      }
-      // Participation (§ 3.19 item 5): a committed entry round under offer
-      // participation reports the offer instead of acting.
-      if (wasEntryRound && entryCommit && entry?.participation === 'offer') {
-        return mk('fallback', 'takeover-offered', {
-          ...entryReview('offered', topTargetCandidates(decisionAnswers, obs, values)),
-        });
-      }
-      const { el, verb, binding, optionValue } = decide;
-
-      // Rule 9 gate, then act — the gate call always precedes the act call.
-      // With gate.mode 'off' (§ 3.8) the gate heuristic and the Jev
-      // irreversible probability never produce needs_confirmation: the act
-      // proceeds exactly as a non-gated action would and no token is minted.
-      if (gateModeOf(deps.config) !== 'off') {
-        const gate = gateHeuristic(el, el.form >= 0 ? obs.forms[el.form] : undefined, verb);
-        const irreversibleAnswer = decisionAnswers['irreversible'];
-        const irreversibleP = irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
-        if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
-          const pending: PendingAction = {
-            url: obs.url,
-            elementPath: el.path,
-            fingerprint: el.fingerprint,
-            verb,
-            ...(binding !== undefined ? { binding } : {}),
-            ...(optionValue !== undefined ? { optionValue } : {}),
-            label: el.name,
-          };
-          const confirmToken = deps.tokens.mint(pending);
-          return mk('needs_confirmation', gate.hit ? 'irreversible-heuristic' : 'irreversible-jev', {
-            pending: { verb, label: capLabel(redactValues(el.name, values)) },
-            confirm_token: confirmToken,
-          });
+        if (remaining() < TIME_FLOOR_MS) {
+          return mk('fallback', 'budget-time');
         }
+        const actValue =
+          decision.verb === 'fill' || decision.verb === 'navigate' || decision.verb === 'upload'
+            ? decision.binding !== undefined
+              ? values[decision.binding]
+              : undefined
+            : decision.verb === 'select' || decision.verb === 'press'
+              ? decision.optionValue
+              : undefined;
+        const tAct = now();
+        await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue);
+        bucket.actMs += now() - tAct;
+        if (decision.verb === 'wait') {
+          waits += 1;
+        } else {
+          steps += 1;
+        }
+        actsByOp[decision.verb] = (actsByOp[decision.verb] ?? 0) + 1;
+        const actLabel = decision.el ? decision.el.name : (decision.binding ?? '');
+        lastAction = { verb: decision.verb, label: capLabel(redactValues(actLabel, values)) };
+        if (dialogEvents.some((e) => e.pageId === pageId)) {
+          return mk('blocked', 'dialog-open');
+        }
+        const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
+        if (settleBudget > 0) {
+          const tSettle = now();
+          await driver.settle(pageId, settleBudget);
+          bucket.settleMs += now() - tSettle;
+        }
+        if (dialogEvents.some((e) => e.pageId === pageId)) {
+          return mk('blocked', 'dialog-open');
+        }
+        history = [...history, { verb: decision.verb, label: decision.el ? decision.el.name : (decision.binding ?? '') }];
       }
-
-      // Rule 11: act, then dialog, settle, dialog again, history.
-      if (steps >= maxSteps) {
-        return mk('fallback', 'budget-steps');
-      }
-      if (remaining() < TIME_FLOOR_MS) {
-        return mk('fallback', 'budget-time');
-      }
-      const actValue =
-        verb === 'fill'
-          ? binding !== undefined
-            ? values[binding]
-            : undefined
-          : verb === 'select'
-            ? optionValue
-            : undefined;
-      const tAct = now();
-      await driver.act(pageId, el.id, verb, actValue);
-      bucket.actMs += now() - tAct;
-      steps += 1;
-      lastAction = { verb, label: capLabel(redactValues(el.name, values)) };
-      if (dialogEvents.some((e) => e.pageId === pageId)) {
-        return mk('blocked', 'dialog-open');
-      }
-      const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
-      if (settleBudget > 0) {
-        const tSettle = now();
-        await driver.settle(pageId, settleBudget);
-        bucket.settleMs += now() - tSettle;
-      }
-      if (dialogEvents.some((e) => e.pageId === pageId)) {
-        return mk('blocked', 'dialog-open');
-      }
-      history = [...history, { verb, label: el.name }];
       // next round
     }
   }

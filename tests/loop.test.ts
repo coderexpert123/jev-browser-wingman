@@ -391,6 +391,7 @@ test('done carries no continuation line; needs_confirmation keeps the token and 
   const h2 = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
     script: [S({ irreversible: 0.9 })],
+    config: { gate: { mode: 'confirm' } },
   });
   const r2 = await h2.call({ goal: 'g' });
   assert.equal(r2.status, 'needs_confirmation');
@@ -623,16 +624,17 @@ test('gate off with Jev p(irreversible) 0.9 still acts', async () => {
   assert.equal(h.driver.actCalls().length, 1);
 });
 
-test('default (absent) gate config keeps needs_confirmation', async () => {
+test('default (absent) gate config acts without needs_confirmation (Q6)', async () => {
   const h = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
     script: [S({ irreversible: 0.9 })],
   });
-  const r = await h.call({ goal: 'g' });
-  assert.equal(r.status, 'needs_confirmation');
-  assert.equal(r.reason, 'irreversible-jev');
-  assert.match(r.confirm_token ?? '', /^wct_/);
-  assert.equal(h.driver.actCalls().length, 0);
+  const r = await h.call({ goal: 'g', max_steps: 1 });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'budget-steps');
+  assert.equal(r.confirm_token, undefined);
+  assert.equal(r.pending, undefined);
+  assert.equal(h.driver.actCalls().length, 1);
 });
 
 // § 3.7 rule 8, amendment 2026-09-21e: the value-question anchor is

@@ -164,7 +164,7 @@ function harness(opts: {
   pages?: PageInfo[];
   observations: Record<string, Observation[]>;
   script: SeqEntry[];
-  config?: Partial<WingmanConfig>;
+  config?: Partial<WingmanConfig> & { gate?: { mode: 'confirm' | 'off' } };
   forceMode?: 'shadow';
   lockCheck?: () => Promise<{ ok: true } | { ok: false; reason: 'lock-held' }>;
 }): Harness {
@@ -267,6 +267,7 @@ test('an irreversible heuristic returns needs_confirmation and never acts', asyn
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [S()],
+    config: { gate: { mode: 'confirm' } },
   });
   const r = await h.call({ goal: 'Order' });
   assert.equal(r.status, 'needs_confirmation');
@@ -280,6 +281,7 @@ test('an irreversible noul returns needs_confirmation and never acts', async () 
   const h = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
     script: [S({ irreversible: 0.9 })],
+    config: { gate: { mode: 'confirm' } },
   });
   const r = await h.call({ goal: 'g' });
   assert.equal(r.status, 'needs_confirmation');
@@ -288,7 +290,11 @@ test('an irreversible noul returns needs_confirmation and never acts', async () 
 });
 
 test('a confirm token executes exactly the pending action once', async () => {
-  const h = harness({ observations: { p1: [observation()] }, script: [S({ irreversible: 0.9 }), { done: 0.9 }] });
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [S({ irreversible: 0.9 }), { done: 0.9 }],
+    config: { gate: { mode: 'confirm' } },
+  });
   const r1 = await h.call({ goal: 'g', values: {} });
   assert.equal(r1.status, 'needs_confirmation');
   const token = r1.confirm_token as string;
@@ -305,7 +311,11 @@ test('a confirm token executes exactly the pending action once', async () => {
 });
 
 test('a reused confirm token is confirm-token-invalid', async () => {
-  const h = harness({ observations: { p1: [observation()] }, script: [S({ irreversible: 0.9 }), { done: 0.9 }] });
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [S({ irreversible: 0.9 }), { done: 0.9 }],
+    config: { gate: { mode: 'confirm' } },
+  });
   const r1 = await h.call({ goal: 'g' });
   const token = r1.confirm_token as string;
   await h.call({ goal: 'g', confirm_token: token });
@@ -323,6 +333,7 @@ test('a token on a different URL is confirm-token-invalid', async () => {
   const h = harness({
     observations: { p1: [observation({ url: 'https://example.com/list?keep=1' })] },
     script: [S({ irreversible: 0.9 })],
+    config: { gate: { mode: 'confirm' } },
   });
   const r1 = await h.call({ goal: 'g' });
   const token = r1.confirm_token as string;
@@ -421,6 +432,7 @@ test('result labels are redacted and at most 80 chars', async () => {
       p1: [observation({ elements: [el({ name: `SecretValue ${'y'.repeat(100)}` })] })],
     },
     script: [S({ irreversible: 0.9 })],
+    config: { gate: { mode: 'confirm' } },
   });
   const r = await h.call({ goal: 'g', values: { q: 'SecretValue' } });
   assert.equal(r.status, 'needs_confirmation');

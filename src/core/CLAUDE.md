@@ -1,9 +1,11 @@
 # src/core — page-scripts gotchas
 
-- **The irreversible gate is config-switchable** (2026-09-20): `config.json`
-  `gate.mode` accepts `"confirm"` (default, today's behaviour) and `"off"` (the
-  heuristic and Jev p(irreversible) never mint a token; the act proceeds). The
-  operator's own machine runs `"off"`; the public default stays `"confirm"`.
+- **The irreversible gate is config-switchable** (2026-09-20; Q6 flip
+  2026-09-26): `config.json` `gate.mode` accepts `"off"` (default since 0.3.0)
+  and `"confirm"` (opt-in). Read it only through `gateModeOf()`, which returns
+  `'confirm'` iff the config says so explicitly — a hand-built config without a
+  `gate` key now runs off, and every test that wants a token writes
+  `gate: { mode: 'confirm' }` itself.
 
 - **The sensitive-surface policy is config-switchable, and OFF by default**
   (2026-09-21, flipped 2026-09-22 by operator decision): `config.json`
@@ -75,6 +77,80 @@
   before trusting the final gate line.
 
 
+- **Chain mode, its memory, and its early-rule order** (forced-handoff spec
+  § 5.5, 2026-09-26): `browse_step` with `steps` (after the § 5.5.1
+  normalisation, goal-only included) runs chain mode; `step` alone runs the
+  legacy takeover entry. The chain carries ONE clause per round
+  (`clauseText(cursor)`), advances on `step_done`, and resumes from a
+  module-level `chainMemory` keyed `[goal, clauses]` (values never in the key,
+  key never logged) — a done call deletes its entry, every other end stores
+  `{cursor, acts}`; this is why every chain test needs a unique goal text.
+  The early rules run advance → error+recover → ready → right_page →
+  action-none, and the whole-goal `done` Noul is NEVER read in chain mode. The
+  `recover`/`ready` mechanical decisions (`back`/`reload`/`wait`) and the
+  `scroll_to` → `scroll` fallback go straight to the single shared act site —
+  no gate, no participation check. `finish()` is the single write-back point
+  for the memory and for `progress`, so a result built anywhere still carries
+  both.
+
+- **The zero-step done guard is a defence, not a feature** (C4): a legacy
+  entry round whose early `done` fires with `steps === 0` non-commits (retry
+  once, then bounce `already-done`). The chain analogue is end-of-chain with
+  zero acts. Round-1-done test harnesses must act first (`[S(), {done: .9}]`),
+  or they hit this guard — the 2026-09-26 bounce-escalation edits did exactly
+  that.
+
+- **Capability negotiation is at two layers** (§ 5.5.6): the offered op set is
+  `offeredOps(...) ∩ driverOps` (`driver.ops ?? LEGACY_OPS`), so an undeclared
+  op is never ASKED; and a pick/token/Jev verb still not declared after the
+  file-input conversion returns typed `fallback/unsupported-op` with zero
+  acts, never a throw. Tests simulate a legacy driver by setting
+  `driver.ops = LEGACY_OPS` on the FakeDriver.
+
+- **Loop act/gate/policy/act call sites are pinned by grep** (§ 6 WP-B2 DONE):
+  `grep -c "gateHeuristic(" src/core/loop.ts` = 2 (shadow + shared tail, both
+  guarded `el ? gateHeuristic(…) : {hit:false}`), `evaluatePolicy(` = 2
+  (runCheck + the round line guarded `pickRound ?`), `driver.act(` = 2
+  (runTokenAction + the shared tail). A third call site of any of these is a
+  fork of a pinned mechanism — extend the shared site instead.
+
+- **Chain mode's obscured check was missing outside pick/entry rounds**
+  (verifier fix, 2026-09-27): § 5.5.2 step 8 bullet 4 requires a committed
+  element the enumerate-time probe already flags `obscured` to bounce
+  `fallback/target-covered` (`why: 'target-covered'`, evidence, no retry)
+  BEFORE any act is attempted. The original WP-B2 landing applied this only
+  to the pick round and the legacy takeover-entry round; an ordinary
+  (non-pick) chain-mode commit fell straight through to `decideTarget` and
+  the shared act site, relying solely on the adapter's own live act-time
+  `CoveredTargetError` check (status `blocked`/reason `covered-target`,
+  which the § 5.5.5 table does correctly map to `FORCED_BLOCKED_LINE` — that
+  part was fine) — but that check can miss elements the enumerate-time probe
+  already knows are covered (different heuristics, different timing) and
+  never returns the candidate evidence the caller needs to retry with
+  `pick`. Fixed in the chain merge-decide block right after `decideTarget`
+  returns a non-bounds result, before the offer/first-commit check (§ 5.5.2
+  step 8 precedes step 10). Regression test: `T6b` in `chain.test.ts` (proven
+  to fail with the check disabled via a temporary flag flip, per the
+  KB-proof discipline).
+- **`applyChainEarly`'s not-ready `settleOnly` branch used to fire-and-forget
+  `driver.settle`** (verifier fix, 2026-09-27): `void driver.settle(...)` let
+  the loop start the next round's observe before settle actually finished —
+  the only unaWaited settle call site in the file. `applyChainEarly` is now
+  `async` and both its call sites `await` it; the settle call itself is
+  `await`ed like every other settle site.
+- **§ 5.5.7 state-size sizing measures `JSON.stringify(state).length` PLUS the
+  serialized length of the single longest question in the built request**
+  (orchestrator decision, 2026-09-27, resolving the earlier flagged
+  deviation): TypeSafe documents Jev's real limit as "32k tokens for `state`
+  plus the longest question" (docs.typesafe.ai/models.md), so that is what
+  `withStateSize`/`requestSize` in `loop.ts` measure against
+  `budgets.max_state_chars` — not bare `state` alone (misses the element list
+  riding in the target question's criteria) and not the whole request (whose
+  ~4900 chars of fixed per-round question overhead made the documented 2000
+  floor dead for chain mode). `tests/chain.test.ts` T22's cut leg now pins the
+  spec's `max_state_chars: 2000` with the exact arithmetic in a comment; T22b
+  pins the regression both ways (fixed overhead alone never flags; state +
+  longest question over the limit still does).
 - **`jev-error` is a catch-all — timeouts read like API defects** (2026-09-21,
   diagnosis of 2026-09-21-1311 browse fallbacks): `askFailReason`
   (src/core/loop.ts:274) maps every ask error except `no-key`/`circuit-open`

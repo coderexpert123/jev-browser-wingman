@@ -8,7 +8,14 @@ export function gateHeuristic(
   form: FormRecord | undefined,
   op: Op,
 ): { hit: boolean; rule?: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' } {
-  if (op === 'scroll') return { hit: false };
+  // § 5.5.3 (B2-E13): targetless and non-committal verbs never gate — the
+  // gate keys on an element-directed, potentially irreversible act.
+  if (
+    op === 'scroll' || op === 'scroll_up' || op === 'scroll_to' || op === 'hover' ||
+    op === 'wait' || op === 'navigate' || op === 'back' || op === 'reload'
+  ) {
+    return { hit: false };
+  }
 
   if (
     op === 'click' &&

@@ -2,25 +2,30 @@
 // scripted per page, every call is recorded, and a dialog, a stale element or
 // a covered target can be raised on demand.
 
-import type {
-  AttachTarget,
-  DialogEvent,
-  Driver,
-  Observation,
-  Op,
-  PageInfo,
+import {
+  OPS,
+  type AttachTarget,
+  type DialogEvent,
+  type Driver,
+  type Observation,
+  type Op,
+  type PageInfo,
 } from '../../src/contract/types.js';
 
 export interface FakeDriverEvent {
   kind: 'attach' | 'pages' | 'observe' | 'act' | 'settle' | 'detach';
   pageId?: string;
-  elementId?: string;
+  elementId?: string | null;
   op?: Op;
   value?: string;
 }
 
 export class FakeDriver implements Driver {
   readonly name = 'fake';
+
+  /** § 5.5.6 op declaration: the ops this driver executes; settable so tests
+   * can simulate a legacy driver. The loop reads it as `driver.ops ?? LEGACY_OPS`. */
+  ops: readonly Op[] = OPS;
 
   /** Every driver call, in order. */
   events: FakeDriverEvent[] = [];
@@ -80,7 +85,7 @@ export class FakeDriver implements Driver {
     return queue.length > 1 ? (queue.shift() as Observation) : queue[0];
   }
 
-  async act(pageId: string, elementId: string, op: Op, value?: string): Promise<void> {
+  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
     this.events.push({ kind: 'act', pageId, elementId, op, value });
     if (this.dialogOnNextAct) {
       const d = this.dialogOnNextAct;

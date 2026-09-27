@@ -121,6 +121,9 @@ type NoulAnswers = {
   login?: number;
   error?: number;
   irreversible?: number;
+  step_done?: number;
+  right_page?: number;
+  ready?: number;
 };
 type ChoiceAnswers = {
   action?: [string, Record<string, number>];
@@ -148,7 +151,7 @@ function S(over: SeqEntry = {}): SeqEntry {
   };
 }
 
-const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible'] as const;
+const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible', 'step_done', 'right_page', 'ready'] as const;
 const CHOICE_KEYS = ['action', 'target', 'value', 'group', 'option'] as const;
 
 function scriptedAsk(seq: SeqEntry[]): { ask: JevAsk; requests: JevRequest[] } {
@@ -443,16 +446,22 @@ test('a non-committing retry round is final', async () => {
   assert.equal(h.driver.actCalls().length, 0);
 });
 
-// 11. A batch enters on step 1 only; steps 2–n are absorbed by the continuation.
+// 11. A batch enters on step 1 only; steps 2–n are absorbed by the
+// continuation. (Traced edit, § 5.5.2: `steps` now runs chain mode, so the
+// script answers the chain Nouls and advances per clause; the round-1 state
+// still carries only clause 1's text.)
 test('a batch enters on step 1 and absorbs steps 2–n', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [S(), { done: 0.9 }],
+    script: [
+      S({ ready: 0.95, right_page: 0.95 }),
+      { done: 0.05, blocked: 0.05, login: 0.05, irreversible: 0.05, step_done: 0.95, ready: 0.95, right_page: 0.95 },
+    ],
   });
   const r = await h.call({ goal: 'g', steps: ['s1', 's2', 's3'] });
   assert.equal(r.status, 'done');
   assert.ok(h.driver.actCalls().length >= 1);
-  // Round 1's state carries the redacted proposals[0] and never the others.
+  // Round 1's state carries the redacted clause 1 and never the others.
   const state = JSON.stringify(h.requests[0].state);
   assert.ok(state.includes('s1'), 'entry step text in round-1 state');
   assert.ok(!state.includes('"s2"') && !state.includes('"s3"'), 'steps 2–n never enter the state');
@@ -463,6 +472,7 @@ test('takeover pauses at a gate fire with needs_confirmation, a token and the pe
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [S()],
+    config: { gate: { mode: 'confirm' } },
   });
   const r = await h.call({ goal: 'Order', step: 'click Place order' });
   assert.equal(r.status, 'needs_confirmation');
@@ -616,28 +626,40 @@ test('gate mode off lets a takeover act on a submit button without needs_confirm
   assert.equal(h.driver.actCalls().length, 1);
 });
 
-// 21. Exactly one of step/steps.
-test('an input with both step and steps is invalid-input; an input with neither is invalid-input', async () => {
-  const h1 = harness({ observations: { p1: [observation()] }, script: [] });
+// 21. step/steps normalisation (traced edit, § 5.5.1: goal-only and merged
+// inputs are now valid; neither step nor steps derives steps from the goal).
+test('an input with both step and steps runs chain mode; goal-only derives one clause', async () => {
+  const h1 = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({ ready: 0.95, right_page: 0.95 }),
+      { done: 0.05, blocked: 0.05, login: 0.05, irreversible: 0.05, step_done: 0.95, ready: 0.95, right_page: 0.95 },
+    ],
+  });
   const r1 = await h1.call({ goal: 'g', step: 's', steps: ['a', 'b'] });
-  assert.equal(r1.status, 'error');
-  assert.equal(r1.reason, 'invalid-input');
+  assert.equal(r1.status, 'done', 'both present: steps = [step, ...steps] and chain mode runs');
 
-  const h2 = harness({ observations: { p1: [observation()] }, script: [] });
+  const h2 = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({ ready: 0.95, right_page: 0.95 }),
+      { done: 0.05, blocked: 0.05, login: 0.05, irreversible: 0.05, step_done: 0.95, ready: 0.95, right_page: 0.95 },
+    ],
+  });
   const r2 = await h2.call({ goal: 'g' });
-  assert.equal(r2.status, 'error');
-  assert.equal(r2.reason, 'invalid-input');
+  assert.equal(r2.status, 'done', 'goal-only: steps = [goal cut to 300] and chain mode runs');
 });
 
-// 22. Batch size bounds.
-test('an empty steps array or a 4-step batch is invalid-input', async () => {
+// 22. Batch size bounds (traced edit, § 5.5.1: 1 to 12 clauses; an empty
+// steps array and a 13-clause batch are invalid-input).
+test('an empty steps array or a 13-step batch is invalid-input', async () => {
   const h1 = harness({ observations: { p1: [observation()] }, script: [] });
   const r1 = await h1.call({ goal: 'g', steps: [] });
   assert.equal(r1.status, 'error');
   assert.equal(r1.reason, 'invalid-input');
 
   const h2 = harness({ observations: { p1: [observation()] }, script: [] });
-  const r2 = await h2.call({ goal: 'g', steps: ['a', 'b', 'c', 'd'] });
+  const r2 = await h2.call({ goal: 'g', steps: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm'] });
   assert.equal(r2.status, 'error');
   assert.equal(r2.reason, 'invalid-input');
 });

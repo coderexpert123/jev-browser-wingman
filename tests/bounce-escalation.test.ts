@@ -291,7 +291,9 @@ test('a different goal text starts the ladder again at tier 1', async () => {
 // ---- done results carry no escalation and do not move the counter ----
 
 test('a done result carries no note, and bounces after it resume the ladder, not restart it', async () => {
-  const done = harness({ observations: { p1: [observation()] }, script: [{ done: 0.9 }] });
+  // (B2-E15, C2: the round-1 done harness acts first — a zero-act done is now
+  // the § 5.5.4 already-done non-commit, not a done.)
+  const done = harness({ observations: { p1: [observation()] }, script: [COMMIT(), { done: 0.9 }] });
   const rDone = await done.call({ goal: 'esc-done-goal', step: 's' });
   assert.equal(rDone.status, 'done');
   assert.equal(rDone.note, undefined);
@@ -302,7 +304,7 @@ test('a done result carries no note, and bounces after it resume the ladder, not
   const r1 = await b1.call({ goal: 'esc-done-goal', step: 's' });
   assert.equal(r1.note, `${CALLER_LINE} ${TIER1}`);
 
-  const doneAgain = harness({ observations: { p1: [observation()] }, script: [{ done: 0.9 }] });
+  const doneAgain = harness({ observations: { p1: [observation()] }, script: [COMMIT(), { done: 0.9 }] });
   const rDone2 = await doneAgain.call({ goal: 'esc-done-goal', step: 's' });
   assert.equal(rDone2.note, undefined);
 

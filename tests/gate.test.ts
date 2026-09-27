@@ -80,6 +80,22 @@ test('scroll never hits', () => {
   assert.equal(r.hit, false);
 });
 
+// § 5.5.3 (B2-E13): targetless and non-committal verbs never gate — the gate
+// needs an element-directed, potentially irreversible act. On a button named
+// "Delete" (a word hit for click/press), the eight exempt ops must NOT hit,
+// while dblclick still does.
+test('the exempt ops never hit and dblclick still hits on a Delete button', () => {
+  const del = (): ElementRecord => el({ tag: 'button', type: 'button', name: 'Delete' });
+  const exempt: Op[] = ['scroll', 'scroll_up', 'scroll_to', 'hover', 'wait', 'navigate', 'back', 'reload'];
+  for (const op of exempt) {
+    const r = hit(del(), undefined, op);
+    assert.equal(r.hit, false, `op ${op} must never gate`);
+  }
+  const r = hit(del(), undefined, 'dblclick');
+  assert.equal(r.hit, true);
+  assert.equal(r.rule, 'word');
+});
+
 test('fill into a field labelled Send to hits word', () => {
   const r = hit(el({ tag: 'input', type: 'text', ariaLabel: 'Send to' }), undefined, 'fill');
   assert.equal(r.hit, true);
