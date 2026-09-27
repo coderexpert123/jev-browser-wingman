@@ -1,0 +1,4 @@
+{
+  "playwright": {"type":"stdio","command":"jev-browser-wingman","args":["with-browser","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}},
+  "jev-browser-wingman": {"type":"stdio","command":"jev-browser-wingman","args":["mcp"],"env":{}}
+}

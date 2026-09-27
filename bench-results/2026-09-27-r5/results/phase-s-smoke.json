@@ -1,0 +1,262 @@
+{
+  "date": "2026-09-27-1752.json",
+  "purpose": "experiment",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 4,
+  "phase_cap_usd": 15.421024,
+  "aborted": null,
+  "total_usd": 0.954031,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 209841,
+      "browser_tool_calls": 26,
+      "per_step_ms": 8071,
+      "llm": {
+        "input_tokens": 58,
+        "output_tokens": 13501,
+        "cache_read_tokens": 2172421,
+        "cache_write_tokens": 23600,
+        "usd": 0.942915,
+        "cli_reported_usd": 0.6652222000000003
+      },
+      "typesafe": {
+        "calls": 17,
+        "input_tokens": 264671,
+        "output_tokens": 60965,
+        "usd": 0.011116
+      },
+      "wingman": {
+        "calls": 17,
+        "fallback": 8,
+        "needs_confirmation": 6
+      },
+      "wingman_phases": {
+        "attach_ms": 322,
+        "first_observe_ms": 16,
+        "observe_ms": 7,
+        "jev_ms": 208,
+        "act_ms": 22,
+        "settle_ms": 221,
+        "rounds": 110
+      },
+      "usd": 0.954031,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 2,
+          "rounds": 5,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 7
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "budget-steps",
+          "steps": 24,
+          "rounds": 25,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "budget-steps",
+          "steps": 24,
+          "rounds": 25,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 5
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 5
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 5
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "budget-steps",
+          "steps": 24,
+          "rounds": 25,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 4
+          }
+        },
+        {
+          "status": "error",
+          "reason": "invalid-input",
+          "steps": 0,
+          "rounds": 0
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-jev",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 0,
+          "rounds": 1,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          }
+        },
+        {
+          "status": "error",
+          "reason": "page-error",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 0,
+          "rounds": 1,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 3,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 1,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 17,
+      "picks": 9,
+      "wingman_acts": 90,
+      "nav_by_wingman": 6,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 2,
+        "mcp__jev-browser-wingman__browse_step": 17,
+        "mcp__playwright__browser_snapshot": 9
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 209841,
+      "median_usd": 0.954031,
+      "fallback_rate": 1
+    }
+  }
+}
