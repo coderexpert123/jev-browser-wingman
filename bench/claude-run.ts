@@ -3,6 +3,7 @@
 // reads the usage and cost from the final `result` event. A run that
 // outlives timeoutMs has its process tree killed and is reported as killed.
 
+import fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { quoteCmdLine } from '../src/browser/chrome.js';
 import { killTree } from '../src/browser/process-list.js';
@@ -21,6 +22,8 @@ export interface ClaudeRunResult {
   browserToolCalls: number;
   usage: ClaudeUsage | null;
   cliReportedUsd: number | null;
+  // WP-F F4: every tool_use block tallied by its full name (§ 6 WP-F F3/F4).
+  toolUseCounts: Record<string, number>;
 }
 
 const BROWSER_TOOL_PREFIXES = ['mcp__playwright__', 'mcp__jev-browser-wingman__'];
@@ -36,6 +39,20 @@ interface StreamEvent {
   total_cost_usd?: unknown;
 }
 
+// WP-F F4: pure tally of one stream-json event's tool_use blocks, by full
+// name, into `counts`. Ignores every other event shape (result, non-object,
+// null, malformed content).
+export function tallyToolUse(event: unknown, counts: Record<string, number>): void {
+  if (!event || typeof event !== 'object') return;
+  const ev = event as StreamEvent;
+  if (ev.type !== 'assistant' || !Array.isArray(ev.message?.content)) return;
+  for (const block of ev.message.content) {
+    if (block?.type === 'tool_use' && typeof block.name === 'string') {
+      counts[block.name] = (counts[block.name] ?? 0) + 1;
+    }
+  }
+}
+
 export async function runClaude(a: {
   prompt: string;
   mcpConfigPath: string;
@@ -44,6 +61,12 @@ export async function runClaude(a: {
   maxTurns: number;
   timeoutMs: number;
   cwd: string;
+  // A/B rerun (2026-09-26, harness-only instrumentation for the per-handoff
+  // breakdown; WP-F F1): when set, every raw stream-json line is appended
+  // here verbatim, so a later pass can join tool_use/tool_result pairs for
+  // the browser MCP tools. Optional and additive; omitted callers see no
+  // change. It stays uncommitted output (never checked in by a builder).
+  transcriptPath?: string;
 }): Promise<ClaudeRunResult> {
   const argv = [
     '-p',
@@ -90,6 +113,7 @@ export async function runClaude(a: {
   let usage: ClaudeUsage | null = null;
   let cliReportedUsd: number | null = null;
   let stdoutText = '';
+  const toolUseCounts: Record<string, number> = {};
 
   const killTimer = setTimeout(() => {
     killed = true;
@@ -112,6 +136,13 @@ export async function runClaude(a: {
       const line = stdoutText.slice(0, idx);
       stdoutText = stdoutText.slice(idx + 1);
       if (!line.trim()) continue;
+      if (a.transcriptPath) {
+        try {
+          fs.appendFileSync(a.transcriptPath, line + '\n');
+        } catch {
+          // best-effort capture only
+        }
+      }
       let ev: StreamEvent;
       try {
         ev = JSON.parse(line) as StreamEvent;
@@ -123,6 +154,7 @@ export async function runClaude(a: {
           if (block?.type === 'tool_use' && isBrowserTool(block.name)) browserToolCalls += 1;
         }
       }
+      tallyToolUse(ev, toolUseCounts);
       if (ev.type === 'result') {
         usage = ev.usage ?? null;
         cliReportedUsd = typeof ev.total_cost_usd === 'number' && Number.isFinite(ev.total_cost_usd) ? ev.total_cost_usd : null;
@@ -143,5 +175,6 @@ export async function runClaude(a: {
     browserToolCalls,
     usage,
     cliReportedUsd,
+    toolUseCounts,
   };
 }

@@ -7,5 +7,6 @@
   "routes": ["playwright", "wingman", "browse"],
   "repeats": 1,
   "gate_off": false,
-  "policy_off": false
+  "policy_off": false,
+  "route_max_turns": { "forced": 30 }
 }

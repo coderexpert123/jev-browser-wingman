@@ -26,6 +26,9 @@ import { ensureChrome, stopChrome } from '../src/browser/chrome.js';
 import { expandHome } from '../src/contract/home.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
 import { packageRoot } from '../src/package-root.js';
+import { OPS } from '../src/contract/types.js';
+import { loadProfiles, withheldClasses, type Profile } from '../src/core/profiles.js';
+import type { WithholdableClass } from '../src/contract/constants.js';
 
 export interface BenchTask {
   id: string;
@@ -35,9 +38,9 @@ export interface BenchTask {
   oracle: string;
 }
 
-export type BenchRoute = 'playwright' | 'wingman' | 'browse';
+export type BenchRoute = 'playwright' | 'wingman' | 'browse' | 'forced';
 
-const KNOWN_ROUTES: BenchRoute[] = ['playwright', 'wingman', 'browse'];
+const KNOWN_ROUTES: BenchRoute[] = ['playwright', 'wingman', 'browse', 'forced'];
 
 export interface BenchAppConfig {
   cli: string;
@@ -51,6 +54,9 @@ export interface BenchAppConfig {
   // stance is injected per run through BENCH_GATE_OFF / BENCH_POLICY_OFF.
   gate_off?: boolean;
   policy_off?: boolean;
+  // WP-F: per-route max-turns override (spec § 6 WP-F F2); falls back to
+  // max_turns when the route is absent from the map.
+  route_max_turns?: Partial<Record<BenchRoute, number>>;
 }
 
 export interface BenchRunRecord {
@@ -84,6 +90,28 @@ export interface BenchRunRecord {
     rounds: number;
   } | null;
   usd: number;
+  // WP-F (forced-handoff spec § 6 WP-F F3): per-run handoff/raw-act records.
+  // Populated for every route; empty/zero on routes that never call
+  // browse_step.
+  handoff_records?: Array<Partial<HandoffRecord>>;
+  handoffs?: number;
+  picks?: number;
+  wingman_acts?: number;
+  nav_by_wingman?: number;
+  raw_acts?: number;
+  raw_script?: number;
+  tool_use_counts?: Record<string, number>;
+  first_call_invalid?: number;
+}
+
+/** One `browse_step` handoff, parsed from a run's fresh log lines (F3). */
+export interface HandoffRecord {
+  status: string;
+  reason?: string;
+  steps: number;
+  rounds: number;
+  pick?: true;
+  progress?: { step_index: number; steps_done: number; steps_total: number };
 }
 
 export interface BenchResultsFile {
@@ -113,7 +141,7 @@ export interface BenchDeps {
 
 const PKG_ROOT = packageRoot();
 const BENCH_HOME = path.join(PKG_ROOT, 'bench', '.home');
-const HARNESS_VERSION = 1;
+const HARNESS_VERSION = 2;
 
 function readTasks(): BenchTask[] {
   return JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'bench', 'tasks.json'), 'utf8')) as BenchTask[];
@@ -173,6 +201,11 @@ function readSecretsKey(secretsFile: string | null): string | null {
 export const BROWSE_ENGAGEMENT_LINE =
   "For this browsing task, use the wingman browse_step tool: propose the WHOLE remaining outcome as the goal (e.g. 'complete the form and submit'), not single actions - it continues autonomously across pages. If it bounces a step, perform that step yourself with your raw browser tools and continue.";
 
+// WP-F (forced-handoff spec § 6 WP-F F2): the forced route's engagement line.
+// Literal, ASCII, one line (same win32 cmd-spawn constraint as the browse line).
+export const FORCED_ENGAGEMENT_LINE =
+  'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments.';
+
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
   // Route-neutral for 'playwright' (WP-T3): base + goal + values + DONE, no
   // routing rules, no wingman mention. The 'wingman' route carries the
@@ -187,6 +220,8 @@ export function buildPrompt(task: BenchTask, route: BenchRoute): string {
   let prompt = 'Use the browser tools on the page that is already open. Stay on this site.';
   if (route === 'browse') {
     prompt += ` ${BROWSE_ENGAGEMENT_LINE}`;
+  } else if (route === 'forced') {
+    prompt += ` ${FORCED_ENGAGEMENT_LINE}`;
   }
   prompt += ` Your goal: ${task.goal}`;
   if (route === 'wingman') {
@@ -258,23 +293,31 @@ async function resetPages(ctx: RunContext, startUrl: string): Promise<void> {
 
 export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
   const servers: Record<string, unknown> = {
-    playwright: {
-      command: 'npx',
-      args: ['-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
-      env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint },
-    },
+    // WP-F: the forced route wraps the caller's own playwright registration
+    // through `with-browser` (spec § 6 WP-F F2) so its withholdable-class
+    // tools are proxied away; every other route registers it plain. The
+    // bench names the product in its own config; it is a measurement
+    // harness, not product code.
+    playwright:
+      route === 'forced'
+        ? {
+            command: 'node',
+            args: [ctx.mainJsPath, 'with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
+            env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint, WINGMAN_HOME: ctx.home },
+          }
+        : {
+            command: 'npx',
+            args: ['-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
+            env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint },
+          },
   };
-  // 'wingman' and 'browse' (WP-T3 front door) both register the wingman
-  // server alongside Playwright MCP.
+  // 'wingman', 'browse' and 'forced' all register the wingman server
+  // alongside Playwright MCP, in its plain (un-wrapped) shape.
   if (route !== 'playwright') {
-    // OG-9 bench-only isolation: forward WINGMAN_BROWSE_ONLY so the spawned
-    // server lists browse_step without the legacy wingman_do/wingman_check.
-    // Unset (the default) leaves the server env exactly as before.
-    const browseOnly = process.env.WINGMAN_BROWSE_ONLY === '1' ? { WINGMAN_BROWSE_ONLY: '1' } : {};
     servers['jev-browser-wingman'] = {
       command: 'node',
       args: [ctx.mainJsPath, 'mcp'],
-      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint, ...browseOnly },
+      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint },
     };
   }
   return { mcpServers: servers };
@@ -284,26 +327,122 @@ export function allowedToolsFor(route: BenchRoute): string[] {
   return route === 'playwright' ? ['mcp__playwright'] : ['mcp__playwright', 'mcp__jev-browser-wingman'];
 }
 
+// WP-F F1: transcript capture path, one per wingman-touching run; `playwright`
+// never records one (it never calls a wingman tool). `<home>/transcript-<task>-<route>-<ts>.ndjson`.
+export function transcriptPathFor(home: string, taskId: string, route: BenchRoute): string | null {
+  if (route === 'playwright') return null;
+  return path.join(home, `transcript-${taskId}-${route}-${Date.now()}.ndjson`);
+}
+
+// WP-F F2: the per-route max-turns override, else the configured default.
+export function maxTurnsFor(app: BenchAppConfig, route: BenchRoute): number {
+  return app.route_max_turns?.[route] ?? app.max_turns;
+}
+
+interface LoggedRecord {
+  tool?: unknown;
+  status?: unknown;
+  reason?: unknown;
+  steps?: unknown;
+  pick?: unknown;
+  progress?: unknown;
+  phases?: { rounds?: unknown[] };
+  acts_by_op?: Record<string, unknown>;
+}
+
+// WP-F F3: parse a run's fresh log lines into `browse_step` handoff records
+// only (`wingman_do`/`wingman_check` lines and unparsable lines are skipped).
+export function handoffRecordsFromLog(lines: string[]): HandoffRecord[] {
+  const records: HandoffRecord[] = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let rec: LoggedRecord;
+    try {
+      rec = JSON.parse(line) as LoggedRecord;
+    } catch {
+      continue;
+    }
+    if (rec.tool !== 'browse_step') continue;
+    const record: HandoffRecord = {
+      status: typeof rec.status === 'string' ? rec.status : 'unknown',
+      reason: typeof rec.reason === 'string' ? rec.reason : undefined,
+      steps: typeof rec.steps === 'number' ? rec.steps : 0,
+      rounds: Array.isArray(rec.phases?.rounds) ? rec.phases!.rounds!.length : 0,
+    };
+    if (rec.pick === true) record.pick = true;
+    if (rec.progress && typeof rec.progress === 'object') {
+      record.progress = rec.progress as HandoffRecord['progress'];
+    }
+    records.push(record);
+  }
+  return records;
+}
+
+// WP-F F3: the LEADING run of `invalid-input` records only (a later one, once
+// a real handoff has already succeeded, does not count).
+export function firstInvalidRun(records: HandoffRecord[]): number {
+  let n = 0;
+  for (const r of records) {
+    if (r.reason === 'invalid-input') n += 1;
+    else break;
+  }
+  return n;
+}
+
+function bareToolName(name: string): string {
+  const idx = name.lastIndexOf('__');
+  return idx === -1 ? name : name.slice(idx + 2);
+}
+
+// WP-F F3: derive raw_acts/raw_script from a run's tool_use tally, via the
+// playwright profile's tool→class map and the derived withheld set
+// `withheldClasses(OPS, [])` (§ 10.4: every withholdable class the wingman
+// contract can in principle do, i.e. every class whose ops are a subset of
+// the full OPS enumeration).
+export function deriveRawCounts(counts: Record<string, number>, profile: Profile | null): { raw_acts: number; raw_script: number } {
+  if (!profile) return { raw_acts: 0, raw_script: 0 };
+  const withheld = new Set<WithholdableClass>(withheldClasses(OPS, []));
+  let raw_acts = 0;
+  let raw_script = 0;
+  for (const [rawName, n] of Object.entries(counts)) {
+    const cls = profile.tools[bareToolName(rawName)];
+    if (cls === undefined) continue;
+    if (withheld.has(cls as WithholdableClass)) raw_acts += n;
+    else if (cls === 'script') raw_script += n;
+  }
+  return { raw_acts, raw_script };
+}
+
 const START_BASE = 'https://the-internet.herokuapp.com';
 
 function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['runOne'] {
+  // WP-F: the playwright profile is loaded once; it drives the raw_acts/
+  // raw_script derivation for every run (§ 6 WP-F F3, § 5.8a).
+  const playwrightProfile: Profile | null = loadProfiles(ctx.home).find((p) => p.id === 'playwright-mcp') ?? null;
+
   return async (task, route) => {
     const logPath = path.join(ctx.home, 'log.jsonl');
     const before = fs.existsSync(logPath) ? fs.statSync(logPath).size : 0;
+
+    // WP-F: config.json is rewritten per run, because `handoff` differs by
+    // route (forced/browse-only for `forced`, else optional/all).
+    fs.writeFileSync(path.join(ctx.home, 'config.json'), benchConfigText(ctx.app, secretsFile, route));
 
     const mcpConfigPath = path.join(ctx.home, `mcp-${route}.json`);
     fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfigFor(ctx, route), null, 2));
 
     await resetPages(ctx, START_BASE + task.path);
 
+    const transcriptPath = transcriptPathFor(ctx.home, task.id, route);
     const res = await runClaude({
       prompt: buildPrompt(task, route),
       mcpConfigPath,
       allowedTools: allowedToolsFor(route),
       model: ctx.app.model,
-      maxTurns: ctx.app.max_turns,
+      maxTurns: maxTurnsFor(ctx.app, route),
       timeoutMs: ctx.app.per_run_timeout_ms,
       cwd: path.join(PKG_ROOT, 'bench', '.home'),
+      ...(transcriptPath ? { transcriptPath } : {}),
     });
 
     const ok = await evaluateOracle(ctx.observer, ctx.keptTargetId, task.oracle);
@@ -316,17 +455,22 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     let confirmCount = 0;
     let attachSum = 0;
     let firstObserveMax = 0;
+    let wingmanActs = 0;
+    let navByWingman = 0;
     const roundPhases: Array<{ observeMs: number; jevMs: number; actMs: number; settleMs: number }> = [];
+    const freshLines: string[] = [];
     if (fs.existsSync(logPath)) {
       const fresh = fs.readFileSync(logPath, 'utf8').slice(before);
       for (const line of fresh.split('\n')) {
         if (!line.trim()) continue;
+        freshLines.push(line);
         let rec: {
           jev_calls?: unknown;
           input_tokens?: unknown;
           output_tokens?: unknown;
           status?: unknown;
           phases?: { attachMs?: unknown; firstObserveMs?: unknown; rounds?: Array<Record<string, unknown>> };
+          acts_by_op?: Record<string, unknown>;
         };
         try {
           rec = JSON.parse(line);
@@ -339,6 +483,13 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
         if (rec.status === 'fallback') fallbackCount += 1;
         if (rec.status === 'needs_confirmation') confirmCount += 1;
         const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+        if (rec.acts_by_op && typeof rec.acts_by_op === 'object') {
+          for (const [op, n] of Object.entries(rec.acts_by_op)) {
+            if (typeof n !== 'number') continue;
+            wingmanActs += n;
+            if (op === 'navigate') navByWingman += n;
+          }
+        }
         if (rec.phases) {
           if (num(rec.phases.attachMs)) attachSum += rec.phases.attachMs;
           if (num(rec.phases.firstObserveMs)) firstObserveMax = Math.max(firstObserveMax, rec.phases.firstObserveMs);
@@ -365,6 +516,11 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
             rounds: roundPhases.length,
           }
         : null;
+
+    // WP-F F3: handoff records and the raw-act/script derivation.
+    const handoffRecords = handoffRecordsFromLog(freshLines);
+    const toolUseCounts = res.toolUseCounts ?? {};
+    const { raw_acts, raw_script } = deriveRawCounts(toolUseCounts, playwrightProfile);
 
     const usage = res.usage;
     const llmUsage = {
@@ -401,16 +557,27 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
           : { calls: 0, fallback: 0, needs_confirmation: 0 },
       ...(route !== 'playwright' ? { wingman_phases: wingmanPhases } : {}),
       usd,
+      handoff_records: handoffRecords,
+      handoffs: handoffRecords.length,
+      picks: handoffRecords.filter((r) => r.pick === true).length,
+      wingman_acts: wingmanActs,
+      nav_by_wingman: navByWingman,
+      raw_acts,
+      raw_script,
+      tool_use_counts: toolUseCounts,
+      first_call_invalid: firstInvalidRun(handoffRecords),
     };
     return { record, usd };
   };
 }
 
-// WP-T3: the pure renderer for the bench home's config.json. The gate/policy
-// off stance appears only when the run's flags are set; the committed
-// bench/config.json ships gate_off/policy_off false, so the default stance
-// always enforces.
-export function benchConfigText(app: BenchAppConfig, secretsFile: string | null): string {
+// WP-T3/WP-F: the pure renderer for the bench home's config.json. Q6
+// (operator, 2026-09-26): the gate default is now 'off', so `gate` and
+// `policy` are ALWAYS written explicitly (never left absent) — `confirm`/
+// `enforce` unless the run's off-stance flags are set. `handoff` is written
+// forced/browse-only for the `forced` route, else optional/all (§ 6 WP-F F2).
+// `defaultRunOne` calls this per run, so config.json is rewritten per route.
+export function benchConfigText(app: BenchAppConfig, secretsFile: string | null, route?: BenchRoute): string {
   const config: Record<string, unknown> = {
     mode: 'on',
     adapter: 'playwright',
@@ -418,13 +585,13 @@ export function benchConfigText(app: BenchAppConfig, secretsFile: string | null)
     port: app.port,
     profile_dir: path.join(BENCH_HOME, 'profile'),
     secrets_file: secretsFile ? path.resolve(expandHome(secretsFile)) : null,
+    gate: app.gate_off === true ? { mode: 'off' } : { mode: 'confirm' },
+    policy: app.policy_off === true ? { mode: 'off' } : { mode: 'enforce' },
+    handoff:
+      route === 'forced'
+        ? { mode: 'forced', tools: 'browse-only', retain: [] }
+        : { mode: 'optional', tools: 'all', retain: [] },
   };
-  if (app.gate_off === true) {
-    config.gate = { mode: 'off' };
-  }
-  if (app.policy_off === true) {
-    config.policy = { mode: 'off' };
-  }
   return JSON.stringify(config, null, 2);
 }
 
@@ -438,6 +605,9 @@ function defaultPrepareBrowser(
   const profileDir = path.join(home, 'profile');
   const prepare = async (): Promise<void> => {
     fs.mkdirSync(home, { recursive: true });
+    // WP-F: config.json is now rewritten per run (defaultRunOne), because its
+    // `handoff` key differs by route. Seed it here too so the wingman/browser
+    // home is valid before the first run's write.
     fs.writeFileSync(path.join(home, 'config.json'), benchConfigText(app, secretsFile));
     const ensured = await ensureChrome({
       port: app.port,
@@ -491,11 +661,12 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   let routesFilter: BenchRoute[] | null = null;
   let secretsFile: string | null = null;
   let purpose: 'cap-proof' | 'measure' | 'experiment' = 'measure';
+  let repeatsFilter: number | null = null;
 
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const value = argv[i + 1];
-    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--routes' || flag === '--secrets-file' || flag === '--purpose') {
+    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--routes' || flag === '--secrets-file' || flag === '--purpose' || flag === '--repeats') {
       if (value === undefined) {
         process.stderr.write(`BENCH-REFUSED: ${flag} needs a value\n`);
         return 2;
@@ -512,7 +683,14 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
           }
         }
       } else if (flag === '--secrets-file') secretsFile = value;
-      else if (value === 'cap-proof' || value === 'measure' || value === 'experiment') purpose = value;
+      else if (flag === '--repeats') {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 1 || n > 5) {
+          process.stderr.write(`BENCH-REFUSED: --repeats must be an integer from 1 to 5\n`);
+          return 2;
+        }
+        repeatsFilter = n;
+      } else if (value === 'cap-proof' || value === 'measure' || value === 'experiment') purpose = value;
       else {
         process.stderr.write(`BENCH-REFUSED: --purpose must be cap-proof, measure or experiment\n`);
         return 2;
@@ -541,6 +719,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   }
   if (routesFilter) {
     app.routes = routesFilter;
+  }
+  if (repeatsFilter !== null) {
+    app.repeats = repeatsFilter;
   }
 
   let prices: BenchPrices | null = null;
