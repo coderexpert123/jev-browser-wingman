@@ -103,100 +103,84 @@ test('attaches to the default context and lists the page', async () => {
   }
 });
 
-// Font rendering (and therefore box geometry: rect x/y/w/h and the fingerprint's
-// x/y) is OS-specific — the same fixture measures differently on Linux than on
-// the Windows box this suite was pinned on (e.g. w: 185 vs pinned 177, x: 257 vs
-// pinned 249). Every semantic field (role, name, htmlId, placeholder, obscured,
-// type, attrName, state, editable, inViewport, form, options, ...) still asserts
-// exact equality; only the pixel-geometry fields get a tolerance, and even those
-// are still checked, not skipped: each must be within a few px of the pinned
-// value and stay sane (non-negative, matching between rect and fingerprint).
+// Box geometry (rect x/y/w/h and the fingerprint's x/y) is a function of
+// viewport width and font rendering, both of which vary across machines: the
+// same fixture wrapped its two buttons to a second row at the 780px-wide
+// window this suite was originally pinned on (Windows), but lays out as one
+// row at the 1280x800 window the ephemeral Chrome now launches with (commit
+// c7a6436) — e.g. "Continue" pinned at x=8,y=122 (row 2) is observed at
+// x=780 on row 1 on Linux. No absolute-pin tolerance, gap-relative or
+// otherwise, survives a reflow like that: the pin itself encodes a specific
+// viewport/font combination, not a portable expectation.
 //
-// A flat per-field tolerance on absolute x was too strict for a wide row: each
-// text control's width drifts a few px with the font, and those per-element
-// drifts accumulate along the row (element 3 in form.html's row 1 measured
-// x=677 on Linux against a pinned 647 — 30px off a 20px budget — while each
-// individual control's width was within tolerance). w/h keep the flat
-// tolerance; x is checked relative to the previous element on the same line
-// (gap = x - (prev.x + prev.w), within tolerance of the pinned gap) so a
-// width drift doesn't compound, with the first element's x checked absolute
-// (there is no previous element to gap from). y is checked the same way, as a
-// delta from the previous element's y, which also catches a wrap to a new
-// line: a wrapped element's y jumps by roughly a full row height, so its
-// delta from the previous element no longer matches the pinned delta, and the
-// tolerance check fails. A genuine pinned row break (its pinned gap-from-prev
-// at or below -GEOMETRY_TOLERANCE_PX, e.g. form.html's Country -> Continue)
-// gets the SAME absolute check as element 0 instead: a gap-relative check
-// there would inherit the whole previous row's accumulated drift into the
-// new row's first element, reproducing the exact compounding bug one element
-// downstream (verifier fix, 2026-09-27).
-const GEOMETRY_TOLERANCE_PX = 20;
+// So geometry is no longer checked against a pinned value at all: it is
+// checked against the SAME page's own live geometry, read straight from the
+// DOM via each element's `path` selector (`querySelector(path).getBoundingClientRect()`).
+// Every semantic field (role, name, htmlId, placeholder, obscured, type,
+// attrName, state, editable, inViewport, form, options, ...) keeps its exact
+// pinned-equality check; only geometry moves to a live comparison, and the
+// check still can't be satisfied by nothing: rect.x/y/w/h must equal the
+// live rect exactly (src/core/page-scripts.ts rounds rect fields with
+// `Math.round`, and reading the same static page moments later reproduces
+// the identical rounded values), and fingerprint.x/y must equal rect.x/y
+// (page-scripts.ts sets `fingerprint = { ..., x: rect.x, y: rect.y }` at
+// enumerate time).
+type PinnedElementSemantics = Omit<ElementRecord, 'rect' | 'fingerprint'> & {
+  fingerprint: Omit<ElementRecord['fingerprint'], 'x' | 'y'>;
+};
 
-function assertElementsMatchWithGeometryTolerance(actual: ElementRecord[], expected: ElementRecord[]): void {
+interface LiveRect { x: number; y: number; w: number; h: number }
+
+// Reads every element's live getBoundingClientRect() in one round trip,
+// keyed by the same `path` selector page-scripts.ts used to build `rect`.
+async function readLiveRects(rig: Rig, paths: string[]): Promise<Record<string, LiveRect | null>> {
+  const expression = `
+    (function () {
+      var paths = ${JSON.stringify(paths)};
+      var out = {};
+      for (var i = 0; i < paths.length; i++) {
+        var el = document.querySelector(paths[i]);
+        if (!el) { out[paths[i]] = null; continue; }
+        var r = el.getBoundingClientRect();
+        out[paths[i]] = {
+          x: Math.round(r.left + window.scrollX),
+          y: Math.round(r.top + window.scrollY),
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        };
+      }
+      return out;
+    })()
+  `;
+  return evalMain(rig, expression);
+}
+
+function assertElementsMatchLiveGeometry(
+  actual: ElementRecord[],
+  expected: PinnedElementSemantics[],
+  liveRectsByPath: Record<string, LiveRect | null>,
+): void {
   assert.equal(actual.length, expected.length, 'element count mismatch');
   for (let i = 0; i < expected.length; i++) {
     const a = actual[i];
     const e = expected[i];
     const { rect: aRect, fingerprint: aFp, ...aRest } = a as any;
-    const { rect: eRect, fingerprint: eFp, ...eRest } = e as any;
+    const { fingerprint: eFp, ...eRest } = e as any;
     assert.deepEqual(aRest, eRest, `element ${i} (${e.name}) semantic fields differ`);
-    const { x: eFpX, y: eFpY, ...eFpRest } = eFp;
     const { x: aFpX, y: aFpY, ...aFpRest } = aFp;
-    assert.deepEqual(aFpRest, eFpRest, `element ${i} (${e.name}) fingerprint non-geometric fields differ`);
-    for (const key of ['w', 'h'] as const) {
-      const av = aRect[key];
-      const ev = eRect[key];
-      assert.ok(av >= 0, `element ${i} (${e.name}) rect.${key}=${av} is negative`);
-      assert.ok(
-        Math.abs(av - ev) <= GEOMETRY_TOLERANCE_PX,
-        `element ${i} (${e.name}) rect.${key}=${av} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${ev}`,
-      );
-    }
-    assert.ok(aRect.x >= 0, `element ${i} (${e.name}) rect.x=${aRect.x} is negative`);
-    assert.ok(aRect.y >= 0, `element ${i} (${e.name}) rect.y=${aRect.y} is negative`);
-    // A gap-from-previous check only makes sense when i and i-1 sit on the
-    // same pinned line: a genuine row break (e.g. form.html's Country ->
-    // Continue, whose pinned gap is -742) otherwise inherits the entire
-    // previous row's accumulated font-width drift into the first element of
-    // the new row, reproducing the exact compounding failure this tolerance
-    // was written to remove — just one element downstream (verifier fix,
-    // 2026-09-27: caught by a scratch harness modelling realistic reflow,
-    // where a widened row-1 pushed the row-2 gap out by ~24px). Row
-    // membership is decided from the PINNED gap (stable, known at pin time):
-    // a pinned gap at or below -GEOMETRY_TOLERANCE_PX means the next element
-    // starts a new line, so it gets the same absolute check as element 0
-    // (its own position never depends on the previous row's drift); anything
-    // less negative is treated as the same line and gets the relative check.
-    const prevE = i > 0 ? (expected[i - 1] as any) : null;
-    const pinnedGapFromPrev = prevE ? eRect.x - (prevE.rect.x + prevE.rect.w) : null;
-    const rowBreak = i === 0 || (pinnedGapFromPrev as number) <= -GEOMETRY_TOLERANCE_PX;
-    if (rowBreak) {
-      assert.ok(
-        Math.abs(aRect.x - eRect.x) <= GEOMETRY_TOLERANCE_PX,
-        `element ${i} (${e.name}) rect.x=${aRect.x} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eRect.x}`,
-      );
-      assert.ok(
-        Math.abs(aRect.y - eRect.y) <= GEOMETRY_TOLERANCE_PX,
-        `element ${i} (${e.name}) rect.y=${aRect.y} not within ${GEOMETRY_TOLERANCE_PX}px of pinned ${eRect.y}`,
-      );
-    } else {
-      const prevA = actual[i - 1] as any;
-      const actualGap = aRect.x - (prevA.rect.x + prevA.rect.w);
-      const pinnedGap = pinnedGapFromPrev as number;
-      assert.ok(
-        Math.abs(actualGap - pinnedGap) <= GEOMETRY_TOLERANCE_PX,
-        `element ${i} (${e.name}) x-gap from the previous element=${actualGap} not within ${GEOMETRY_TOLERANCE_PX}px of pinned gap ${pinnedGap}`,
-      );
-      const actualRowDelta = aRect.y - prevA.rect.y;
-      const pinnedRowDelta = eRect.y - prevE.rect.y;
-      assert.ok(
-        Math.abs(actualRowDelta - pinnedRowDelta) <= GEOMETRY_TOLERANCE_PX,
-        `element ${i} (${e.name}) y-delta from the previous element=${actualRowDelta} not within ${GEOMETRY_TOLERANCE_PX}px of pinned delta ${pinnedRowDelta} (row membership mismatch, e.g. a wrap to a new line)`,
+    assert.deepEqual(aFpRest, eFp, `element ${i} (${e.name}) fingerprint non-geometric fields differ`);
+    const live = liveRectsByPath[a.path];
+    assert.ok(live, `element ${i} (${e.name}) path ${a.path} not found live on the page`);
+    for (const key of ['x', 'y', 'w', 'h'] as const) {
+      assert.equal(
+        aRect[key],
+        (live as LiveRect)[key],
+        `element ${i} (${e.name}) rect.${key}=${aRect[key]} does not equal live ${key}=${(live as LiveRect)[key]}`,
       );
     }
     // fingerprint.x/y are captured from the same rect at enumerate time
     // (src/core/page-scripts.ts: `fingerprint = { ..., x: rect.x, y: rect.y }`),
-    // so they must equal the actual rect exactly, not just the pin.
+    // so they must equal the actual rect exactly.
     assert.equal(aFpX, aRect.x, `element ${i} (${e.name}) fingerprint.x=${aFpX} does not equal rect.x=${aRect.x}`);
     assert.equal(aFpY, aRect.y, `element ${i} (${e.name}) fingerprint.y=${aFpY} does not equal rect.y=${aRect.y}`);
   }
@@ -209,7 +193,8 @@ test('observe matches the pinned form.html table', async () => {
     assert.equal(observation.title, 'Fixture form');
     assert.match(observation.url, /\/form\.html$/);
     assert.equal(observation.truncated, false);
-    assertElementsMatchWithGeometryTolerance(observation.elements, PINNED_FORM_ELEMENTS);
+    const liveRects = await readLiveRects(rig, observation.elements.map((el) => el.path));
+    assertElementsMatchLiveGeometry(observation.elements, PINNED_FORM_ELEMENTS, liveRects);
     assert.equal(observation.forms.length, 1);
     assert.equal(observation.forms[0].id, 'details');
     assert.equal(observation.forms[0].method, 'post');
@@ -343,7 +328,14 @@ test('attach retries a cold endpoint within its budget', async () => {
 // `obscured` (amendment 2026-09-21h, enumerate-time occlusion probe). Nothing
 // covers any control on this fixture, so every row is `obscured: false` with
 // no `coveredBy`; only the textarea carries a placeholder.
-const PINNED_FORM_ELEMENTS: ElementRecord[] = [
+//
+// `rect` and `fingerprint.x/y` were removed 2026-09-27: they used to carry
+// absolute pixel geometry recorded on Windows in a 780px-wide viewport (the
+// two buttons wrapped to a second row there); that geometry is not portable
+// across viewport widths or font rendering (see the comment above
+// `assertElementsMatchLiveGeometry`), so geometry is now checked against the
+// live page instead of a pin.
+const PINNED_FORM_ELEMENTS: PinnedElementSemantics[] = [
   {
     id: 'e1',
     path: '#fullname',
@@ -359,9 +351,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false, filled: false },
     editable: true,
     inViewport: true,
-    rect: { x: 72, y: 101, w: 177, h: 21 },
     form: 0,
-    fingerprint: { tag: 'input', role: 'textbox', name: 'Full name', x: 72, y: 101 },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'Full name' },
     obscured: false,
   },
   {
@@ -379,9 +370,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false, filled: false },
     editable: true,
     inViewport: true,
-    rect: { x: 249, y: 101, w: 177, h: 21 },
     form: 0,
-    fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 249, y: 101 },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'Email' },
     obscured: false,
   },
   {
@@ -399,9 +389,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false, filled: true },
     editable: true,
     inViewport: true,
-    rect: { x: 426, y: 80, w: 168, h: 36 },
     form: 0,
-    fingerprint: { tag: 'textarea', role: 'textbox', name: 'Notes', x: 426, y: 80 },
+    fingerprint: { tag: 'textarea', role: 'textbox', name: 'Notes' },
     obscured: false,
   },
   {
@@ -419,9 +408,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false, selected: 'Choose' },
     editable: false,
     inViewport: true,
-    rect: { x: 647, y: 102, w: 103, h: 19 },
     form: 0,
-    fingerprint: { tag: 'select', role: 'combobox', name: 'Country', x: 647, y: 102 },
+    fingerprint: { tag: 'select', role: 'combobox', name: 'Country' },
     obscured: false,
     options: [
       { value: '', label: 'Choose' },
@@ -444,9 +432,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false },
     editable: false,
     inViewport: true,
-    rect: { x: 8, y: 122, w: 69, h: 21 },
     form: 0,
-    fingerprint: { tag: 'button', role: 'button', name: 'Continue', x: 8, y: 122 },
+    fingerprint: { tag: 'button', role: 'button', name: 'Continue' },
     obscured: false,
   },
   {
@@ -464,9 +451,8 @@ const PINNED_FORM_ELEMENTS: ElementRecord[] = [
     state: { disabled: false },
     editable: false,
     inViewport: true,
-    rect: { x: 77, y: 122, w: 84, h: 21 },
     form: 0,
-    fingerprint: { tag: 'button', role: 'button', name: 'Place order', x: 77, y: 122 },
+    fingerprint: { tag: 'button', role: 'button', name: 'Place order' },
     obscured: false,
   },
 ];
