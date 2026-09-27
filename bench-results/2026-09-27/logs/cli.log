@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: --version prints jev-browser-wingman <package.json version>
+ok 1 - --version prints jev-browser-wingman <package.json version>
+  ---
+  duration_ms: 572.781705
+  type: 'test'
+  ...
+# Subtest: an unknown subcommand exits 2
+ok 2 - an unknown subcommand exits 2
+  ---
+  duration_ms: 641.685501
+  type: 'test'
+  ...
+# Subtest: run with mode off prints fallback mode-off
+ok 3 - run with mode off prints fallback mode-off
+  ---
+  duration_ms: 563.206379
+  type: 'test'
+  ...
+# Subtest: run rejects values on argv
+ok 4 - run rejects values on argv
+  ---
+  duration_ms: 580.127051
+  type: 'test'
+  ...
+# Subtest: chrome show dispatches into chrome-cmd (no-browser JSON, not the usage exit)
+ok 5 - chrome show dispatches into chrome-cmd (no-browser JSON, not the usage exit)
+  ---
+  duration_ms: 599.245112
+  type: 'test'
+  ...
+# Subtest: guide exits 1 when the contract file is missing
+ok 6 - guide exits 1 when the contract file is missing
+  ---
+  duration_ms: 602.933116
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3666.783027
+RUN-TESTS: files=1 tests=6 pass=6 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,1 @@
+invalid-response Q=done,blocked,login,irreversible,action,target,value,key,step_done,right_page,ready A=done,blocked,login,irreversible,step_done,right_page,ready,action,target {"action":{"type":"choice","choice":"fill","probabilities":{"fill":0.9},"confidence":0.9},"target":{"type":"choice","choice":"ambiguous","probabilities":{"e1":0.3,"ambiguous":0.4},"confidence":0.4}}

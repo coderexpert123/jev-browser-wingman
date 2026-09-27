@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: state carries origin and path but no query or fragment
+ok 1 - state carries origin and path but no query or fragment
+  ---
+  duration_ms: 2.224957
+  type: 'test'
+  ...
+# Subtest: state never contains a binding value even when page text echoes it
+ok 2 - state never contains a binding value even when page text echoes it
+  ---
+  duration_ms: 0.689717
+  type: 'test'
+  ...
+# Subtest: text is cut to max_text_chars
+ok 3 - text is cut to max_text_chars
+  ---
+  duration_ms: 0.279672
+  type: 'test'
+  ...
+# Subtest: an oversized state shrinks text first then reports ok false
+ok 4 - an oversized state shrinks text first then reports ok false
+  ---
+  duration_ms: 0.284804
+  type: 'test'
+  ...
+# Subtest: log record has exactly the WingmanLogRecord keys
+ok 5 - log record has exactly the WingmanLogRecord keys
+  ---
+  duration_ms: 1.50263
+  type: 'test'
+  ...
+# Subtest: log record carries no path, title, label, value or page text
+ok 6 - log record carries no path, title, label, value or page text
+  ---
+  duration_ms: 0.199963
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92.945036
+RUN-TESTS: files=1 tests=6 pass=6 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

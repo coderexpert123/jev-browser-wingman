@@ -1,0 +1,168 @@
+TAP version 13
+# Subtest: stdout carries only the child bytes, in each branch
+ok 1 - stdout carries only the child bytes, in each branch
+  ---
+  duration_ms: 148.037847
+  type: 'test'
+  ...
+# Subtest: the stdout purity assertion fails on a wrapper that prints first
+ok 2 - the stdout purity assertion fails on a wrapper that prints first
+  ---
+  duration_ms: 86.999571
+  type: 'test'
+  ...
+# Subtest: a matched profile sets its own endpoint_env on the child (§ 5.9; product env is data-driven, not hardcoded)
+ok 3 - a matched profile sets its own endpoint_env on the child (§ 5.9; product env is data-driven, not hardcoded)
+  ---
+  duration_ms: 75.880118
+  type: 'test'
+  ...
+# Subtest: a preset endpoint env skips ensure
+ok 4 - a preset endpoint env skips ensure
+  ---
+  duration_ms: 73.868095
+  type: 'test'
+  ...
+# Subtest: {cdp} placeholders are replaced
+ok 5 - {cdp} placeholders are replaced
+  ---
+  duration_ms: 76.244324
+  type: 'test'
+  ...
+# Subtest: the child exit code propagates
+ok 6 - the child exit code propagates
+  ---
+  duration_ms: 69.273886
+  type: 'test'
+  ...
+# Subtest: a session with no tool call never ensures Chrome
+ok 7 - a session with no tool call never ensures Chrome
+  ---
+  duration_ms: 91.821907
+  type: 'test'
+  ...
+# Subtest: the no-ensure assertion fails on an eager wrapper
+ok 8 - the no-ensure assertion fails on an eager wrapper
+  ---
+  duration_ms: 137.436386
+  type: 'test'
+  ...
+# Subtest: the first tool call ensures Chrome once before the child receives it
+ok 9 - the first tool call ensures Chrome once before the child receives it
+  ---
+  duration_ms: 115.633339
+  type: 'test'
+  ...
+# Subtest: an ensure failure answers the tool call with isError and never forwards it
+ok 10 - an ensure failure answers the tool call with isError and never forwards it
+  ---
+  duration_ms: 81.081552
+  type: 'test'
+  ...
+# Subtest: W1: forced + preset + a playwright-named tool set — withheld names absent, retained present
+ok 11 - W1: forced + preset + a playwright-named tool set — withheld names absent, retained present
+  ---
+  duration_ms: 80.613368
+  type: 'test'
+  ...
+# Subtest: W2: forced — browser_click is refused inline and never reaches the stub; browser_snapshot forwards
+ok 12 - W2: forced — browser_click is refused inline and never reaches the stub; browser_snapshot forwards
+  ---
+  duration_ms: 84.884609
+  type: 'test'
+  ...
+# Subtest: W3: devtools-named stub — click withheld, navigate_page argument-ruled by type
+ok 13 - W3: devtools-named stub — click withheld, navigate_page argument-ruled by type
+  ---
+  duration_ms: 88.922427
+  type: 'test'
+  ...
+# Subtest: W4: optional + preset — unfiltered, byte path inherited
+ok 14 - W4: optional + preset — unfiltered, byte path inherited
+  ---
+  duration_ms: 81.070133
+  type: 'test'
+  ...
+# Subtest: W5: forced, no preset — a refused call does not ensure; a forwarded call ensures once
+ok 15 - W5: forced, no preset — a refused call does not ensure; a forwarded call ensures once
+  ---
+  duration_ms: 86.383089
+  type: 'test'
+  ...
+# Subtest: W6: forced — a raw notification line from the child arrives byte-identical
+ok 16 - W6: forced — a raw notification line from the child arrives byte-identical
+  ---
+  duration_ms: 65.827625
+  type: 'test'
+  ...
+# Subtest: W7: forced — a batch array with a withheld call gets an array of refusals; nothing forwarded
+ok 17 - W7: forced — a batch array with a withheld call gets an array of refusals; nothing forwarded
+  ---
+  duration_ms: 75.067632
+  type: 'test'
+  ...
+# Subtest: W8: preset + config failure — stderr line, unfiltered
+ok 18 - W8: preset + config failure — stderr line, unfiltered
+  ---
+  duration_ms: 80.129137
+  type: 'test'
+  ...
+# Subtest: W9 (agnosticism gate): a user profile classifies foreign-named tools
+ok 19 - W9 (agnosticism gate): a user profile classifies foreign-named tools
+  ---
+  duration_ms: 88.372541
+  type: 'test'
+  ...
+# Subtest: W10: same foreign stub, no profile — injected classifyToolsFn yields the same result as W9
+ok 20 - W10: same foreign stub, no profile — injected classifyToolsFn yields the same result as W9
+  ---
+  duration_ms: 95.920691
+  type: 'test'
+  ...
+# Subtest: W11: classifyToolsFn returns no-key — every tool stays listed and forwarded, plus the stderr line
+ok 21 - W11: classifyToolsFn returns no-key — every tool stays listed and forwarded, plus the stderr line
+  ---
+  duration_ms: 87.513814
+  type: 'test'
+  ...
+# Subtest: W12 (§ 10.4 derived-set gate): a class withholds only when the adapter declares every one of its ops
+ok 22 - W12 (§ 10.4 derived-set gate): a class withholds only when the adapter declares every one of its ops
+  ---
+  duration_ms: 148.102408
+  type: 'test'
+  ...
+# Subtest: W13: retain — a retained class stays listed even though the adapter declares its ops
+ok 23 - W13: retain — a retained class stays listed even though the adapter declares its ops
+  ---
+  duration_ms: 86.320397
+  type: 'test'
+  ...
+# Subtest: W14: an argvProfile with endpoint_arg — the arg is appended to the child argv
+ok 24 - W14: an argvProfile with endpoint_arg — the arg is appended to the child argv
+  ---
+  duration_ms: 114.208609
+  type: 'test'
+  ...
+# Subtest: W15: forced — argvProfile classifies a call sent before any tools/list
+ok 25 - W15: forced — argvProfile classifies a call sent before any tools/list
+  ---
+  duration_ms: 81.46893
+  type: 'test'
+  ...
+# Subtest: W16: top-level mode off with handoff forced — effective handoff is optional (§ 5.3), unfiltered
+ok 26 - W16: top-level mode off with handoff forced — effective handoff is optional (§ 5.3), unfiltered
+  ---
+  duration_ms: 80.487881
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2597.543698
+RUN-TESTS: files=1 tests=26 pass=26 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

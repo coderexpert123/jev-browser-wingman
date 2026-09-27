@@ -1,0 +1,2 @@
+DIAG [{"type":"text","text":"jev-browser-wingman with-chrome: Chrome did not answer on port 41989 within 10 s."}]
+lazy-chrome: browser_snapshot returned an error result

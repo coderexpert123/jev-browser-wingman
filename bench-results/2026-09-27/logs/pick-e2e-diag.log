@@ -1,0 +1,59 @@
+TAP version 13
+# Subtest: P1: ambiguous target bounces with candidates, then pick fills and finishes done
+not ok 1 - P1: ambiguous target bounces with candidates, then pick fills and finishes done
+  ---
+  duration_ms: 1010.127624
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/pick-e2e.test.js:160:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'jev-error'
+    - 'step-uncertain'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'step-uncertain'
+  actual: 'jev-error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/pick-e2e.test.js:174:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: P2: a pick onto an obscured element returns target-covered with no act and no ask
+not ok 2 - P2: a pick onto an obscured element returns target-covered with no act and no ask
+  ---
+  duration_ms: 701.527892
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/pick-e2e.test.js:208:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    the covered button was not clicked; the log is unchanged
+    
+    '' !== null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: ''
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/pick-e2e.test.js:225:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2580.800307
+RUN-TESTS: files=1 tests=2 pass=0 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

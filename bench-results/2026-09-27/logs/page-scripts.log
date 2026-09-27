@@ -1,0 +1,232 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+not ok 1 - form.html element table matches the pinned table
+  ---
+  duration_ms: 20.2002
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:28:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+not ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  duration_ms: 0.648697
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:54:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+not ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  duration_ms: 0.074511
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:84:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+not ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  duration_ms: 0.112775
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:101:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+not ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  duration_ms: 0.071115
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:111:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+not ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  duration_ms: 0.040055
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:137:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: password.html sets password and currentPassword signals
+not ok 7 - password.html sets password and currentPassword signals
+  ---
+  duration_ms: 0.069475
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:151:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+not ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  duration_ms: 0.055993
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:163:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+not ok 9 - big-select.html carries 300 options on the select element
+  ---
+  duration_ms: 0.215576
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:174:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: verify returns mismatch after the button text changes
+not ok 10 - verify returns mismatch after the button text changes
+  ---
+  duration_ms: 0.14235
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:186:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: hit test reports covered on overlay.html
+not ok 11 - hit test reports covered on overlay.html
+  ---
+  duration_ms: 0.044333
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:209:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+not ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  duration_ms: 0.033422
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:224:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+not ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  duration_ms: 0.027108
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:248:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+not ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  duration_ms: 0.025956
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:268:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+not ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  duration_ms: 0.037404
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:288:1'
+  failureType: 'hookFailed'
+  error: |-
+    browserType.launch: Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome
+    Run "npx playwright install chrome"
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    TestContext.<anonymous> (/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:13:30)
+  ...
+not ok 16 - /home/user/jev-browser-wingman/dist/tests/page-scripts.test.js
+  ---
+  duration_ms: 0.376078
+  location: '/home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:15:6'
+  failureType: 'hookFailed'
+  error: "Cannot read properties of undefined (reading 'close')"
+  code: 'ERR_TEST_FAILURE'
+  name: 'TypeError'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/page-scripts.test.js:16:19)
+    TestHook.runInAsyncScope (node:async_hooks:214:14)
+    TestHook.run (node:internal/test_runner/test:1047:25)
+    TestHook.run (node:internal/test_runner/test:1354:18)
+    TestHook.run (node:internal/util:569:20)
+    Test.runHook (node:internal/test_runner/test:965:20)
+    after (node:internal/test_runner/test:1005:20)
+    Test.run (node:internal/test_runner/test:1070:13)
+  ...
+RUN-TESTS: zero tests registered
+RUN-TESTS: files=1 tests=0 pass=0 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

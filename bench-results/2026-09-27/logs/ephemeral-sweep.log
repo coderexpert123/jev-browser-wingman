@@ -1,0 +1,54 @@
+TAP version 13
+# Subtest: (a) dead-owner tagged chrome is killed and its dir removed
+ok 1 - (a) dead-owner tagged chrome is killed and its dir removed
+  ---
+  duration_ms: 2.506868
+  type: 'test'
+  ...
+# Subtest: (b) live-owner tagged chrome is untouched
+ok 2 - (b) live-owner tagged chrome is untouched
+  ---
+  duration_ms: 0.360159
+  type: 'test'
+  ...
+# Subtest: (c) legacy untagged chrome (still running) is untouched
+ok 3 - (c) legacy untagged chrome (still running) is untouched
+  ---
+  duration_ms: 0.354279
+  type: 'test'
+  ...
+# Subtest: (d) legacy dir: older than 24h + unreferenced is removed, younger is kept
+ok 4 - (d) legacy dir: older than 24h + unreferenced is removed, younger is kept
+  ---
+  duration_ms: 0.445446
+  type: 'test'
+  ...
+# Subtest: (e) dir referenced by a live chrome cmdline is kept even if stale legacy
+ok 5 - (e) dir referenced by a live chrome cmdline is kept even if stale legacy
+  ---
+  duration_ms: 0.29574
+  type: 'test'
+  ...
+# Subtest: (f) owner-pid tag parses correctly with and without a run token, token before pid
+ok 6 - (f) owner-pid tag parses correctly with and without a run token, token before pid
+  ---
+  duration_ms: 0.476007
+  type: 'test'
+  ...
+# Subtest: never throws even when every injected dependency rejects
+ok 7 - never throws even when every injected dependency rejects
+  ---
+  duration_ms: 0.302864
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 90.527196
+RUN-TESTS: files=1 tests=7 pass=7 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,84 @@
+TAP version 13
+# Subtest: tools/list in shadow mode lists three tools in the pinned order
+ok 1 - tools/list in shadow mode lists three tools in the pinned order
+  ---
+  duration_ms: 925.211726
+  type: 'test'
+  ...
+# Subtest: browse_step carries the pinned description
+ok 2 - browse_step carries the pinned description
+  ---
+  duration_ms: 565.939139
+  type: 'test'
+  ...
+# Subtest: browse_step schema matches the pinned schema
+ok 3 - browse_step schema matches the pinned schema
+  ---
+  duration_ms: 613.730152
+  type: 'test'
+  ...
+# Subtest: the default config lists only browse_step
+ok 4 - the default config lists only browse_step
+  ---
+  duration_ms: 620.010634
+  type: 'test'
+  ...
+# Subtest: a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+not ok 5 - a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+  ---
+  duration_ms: 599.967942
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/browse-step-surface.test.js:247:1'
+  failureType: 'testCodeFailure'
+  error: 'the t9 first call was rejected: {"status":"error","reason":"invalid-input","steps":0,"cost":{"jev_calls":0,"input_tokens":0,"output_tokens":0,"ms":1},"labels_untrusted":true,"note":"Invalid input: the steps name the value email, which is missing from values; add values.email."}'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/browse-step-surface.test.js:263:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: browse_step dispatches a committed takeover result through tools/call
+not ok 6 - browse_step dispatches a committed takeover result through tools/call
+  ---
+  duration_ms: 2750.551171
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/browse-step-surface.test.js:269:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/browse-step-surface.test.js:286:20)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Wingman.step validates input and returns error invalid-input
+ok 7 - Wingman.step validates input and returns error invalid-input
+  ---
+  duration_ms: 3.793143
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 5
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7013.285105
+RUN-TESTS: files=1 tests=7 pass=5 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

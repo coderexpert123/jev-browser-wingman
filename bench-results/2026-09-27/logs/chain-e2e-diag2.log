@@ -1,0 +1,181 @@
+TAP version 13
+# Subtest: E1: the four-clause chain completes in one call
+not ok 1 - E1: the four-clause chain completes in one call
+  ---
+  duration_ms: 1020.942741
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:287:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:298:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+not ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  duration_ms: 762.469001
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:313:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'jev-error'
+    - 'budget-steps'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'budget-steps'
+  actual: 'jev-error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:326:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E3: navigate works from a url binding and bounces no-value otherwise
+not ok 3 - E3: navigate works from a url binding and bounces no-value otherwise
+  ---
+  duration_ms: 588.794255
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:342:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:354:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E4: the delay page waits for Finish and finishes
+not ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  duration_ms: 577.883738
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:381:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:391:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  duration_ms: 734.339917
+  type: 'test'
+  ...
+# Subtest: E6: a broken link recovers with back and then opens Form
+not ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  duration_ms: 640.555021
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:427:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:437:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+not ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  duration_ms: 731.883866
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:450:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:460:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+not ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  duration_ms: 698.601889
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:477:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: jev-error
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist-diag/tests/chain-e2e.test.js:487:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 1
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6273.201071
+RUN-TESTS: files=1 tests=8 pass=1 fail=7
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

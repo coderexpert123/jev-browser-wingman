@@ -1,0 +1,132 @@
+TAP version 13
+# Subtest: validatePick rejects non-objects, arrays and scalars
+ok 1 - validatePick rejects non-objects, arrays and scalars
+  ---
+  duration_ms: 0.801425
+  type: 'test'
+  ...
+# Subtest: validatePick rejects unknown keys
+ok 2 - validatePick rejects unknown keys
+  ---
+  duration_ms: 0.242657
+  type: 'test'
+  ...
+# Subtest: validatePick requires action to be a member of OPS
+ok 3 - validatePick requires action to be a member of OPS
+  ---
+  duration_ms: 0.089433
+  type: 'test'
+  ...
+# Subtest: validatePick requires role and name for a targeted action
+ok 4 - validatePick requires role and name for a targeted action
+  ---
+  duration_ms: 0.086969
+  type: 'test'
+  ...
+# Subtest: validatePick enforces role typing: string, 1..40 characters
+ok 5 - validatePick enforces role typing: string, 1..40 characters
+  ---
+  duration_ms: 0.162421
+  type: 'test'
+  ...
+# Subtest: validatePick enforces name typing: string, 0..200 characters
+ok 6 - validatePick enforces name typing: string, 0..200 characters
+  ---
+  duration_ms: 0.124159
+  type: 'test'
+  ...
+# Subtest: validatePick makes role and name optional but typed for targetless actions
+ok 7 - validatePick makes role and name optional but typed for targetless actions
+  ---
+  duration_ms: 0.18011
+  type: 'test'
+  ...
+# Subtest: validatePick enforces nth: integer 1..PICK_NTH_MAX
+ok 8 - validatePick enforces nth: integer 1..PICK_NTH_MAX
+  ---
+  duration_ms: 0.109946
+  type: 'test'
+  ...
+# Subtest: validatePick requires value exactly for PICK_VALUE_OPS
+ok 9 - validatePick requires value exactly for PICK_VALUE_OPS
+  ---
+  duration_ms: 0.229982
+  type: 'test'
+  ...
+# Subtest: validatePick requires value to match BINDING_RE and name a binding
+ok 10 - validatePick requires value to match BINDING_RE and name a binding
+  ---
+  duration_ms: 1.198922
+  type: 'test'
+  ...
+# Subtest: validatePick returns the typed pick on success
+ok 11 - validatePick returns the typed pick on success
+  ---
+  duration_ms: 0.982996
+  type: 'test'
+  ...
+# Subtest: resolvePick is case- and whitespace-insensitive
+ok 12 - resolvePick is case- and whitespace-insensitive
+  ---
+  duration_ms: 0.309496
+  type: 'test'
+  ...
+# Subtest: resolvePick with nth returns the nth match
+ok 13 - resolvePick with nth returns the nth match
+  ---
+  duration_ms: 0.085363
+  type: 'test'
+  ...
+# Subtest: resolvePick with an out-of-range nth returns no-match with up to 3 matches
+ok 14 - resolvePick with an out-of-range nth returns no-match with up to 3 matches
+  ---
+  duration_ms: 0.070518
+  type: 'test'
+  ...
+# Subtest: resolvePick without nth returns multi-match with the first 3
+ok 15 - resolvePick without nth returns multi-match with the first 3
+  ---
+  duration_ms: 0.050752
+  type: 'test'
+  ...
+# Subtest: resolvePick returns no-match with the first 3 same-role elements on zero matches
+ok 16 - resolvePick returns no-match with the first 3 same-role elements on zero matches
+  ---
+  duration_ms: 0.056805
+  type: 'test'
+  ...
+# Subtest: resolvePick matches a single element exactly
+ok 17 - resolvePick matches a single element exactly
+  ---
+  duration_ms: 0.036788
+  type: 'test'
+  ...
+# Subtest: resolvePick resolves a targetless action to el null
+ok 18 - resolvePick resolves a targetless action to el null
+  ---
+  duration_ms: 0.050183
+  type: 'test'
+  ...
+# Subtest: candidateOf redacts a planted value in the name and the label
+ok 19 - candidateOf redacts a planted value in the name and the label
+  ---
+  duration_ms: 0.301868
+  type: 'test'
+  ...
+# Subtest: candidateOf caps label and name at 80 characters
+ok 20 - candidateOf caps label and name at 80 characters
+  ---
+  duration_ms: 0.228485
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 93.910841
+RUN-TESTS: files=1 tests=20 pass=20 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

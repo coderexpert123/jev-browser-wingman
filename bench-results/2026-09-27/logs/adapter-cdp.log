@@ -1,0 +1,565 @@
+TAP version 13
+# Subtest: attaches to the default context and lists the page
+ok 1 - attaches to the default context and lists the page
+  ---
+  duration_ms: 652.15896
+  type: 'test'
+  ...
+# Subtest: observe matches the pinned form.html table
+not ok 2 - observe matches the pinned form.html table
+  ---
+  duration_ms: 644.071342
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/adapter-cdp.test.js:80:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        {
+          ariaLabel: '',
+          attrName: 'fullname',
+          autocomplete: '',
+    ...
+            h: 21,
+    +       w: 185,
+    -       w: 177,
+            x: 72,
+            y: 101
+          },
+          role: 'textbox',
+          state: {
+    ...
+            tag: 'input',
+    +       x: 257,
+    -       x: 249,
+            y: 101
+          },
+          form: 0,
+          htmlId: 'email',
+          id: 'e2',
+    ...
+            h: 21,
+    +       w: 185,
+    +       x: 257,
+    -       w: 177,
+    -       x: 249,
+            y: 101
+          },
+          role: 'textbox',
+          state: {
+            disabled: false,
+    ...
+            tag: 'textarea',
+    +       x: 442,
+    -       x: 426,
+            y: 80
+          },
+          form: 0,
+          htmlId: 'notes',
+          id: 'e3',
+    ...
+            h: 36,
+    +       w: 182,
+    +       x: 442,
+    -       w: 168,
+    -       x: 426,
+            y: 80
+          },
+          role: 'textbox',
+          state: {
+            disabled: false,
+    ...
+            tag: 'select',
+    +       x: 8,
+    +       y: 123
+    -       x: 647,
+    -       y: 102
+          },
+          form: 0,
+          htmlId: 'country',
+          id: 'e4',
+          inViewport: true,
+    ...
+            w: 103,
+    +       x: 8,
+    +       y: 123
+    -       x: 647,
+    -       y: 102
+          },
+          role: 'combobox',
+          state: {
+            disabled: false,
+            selected: 'Choose'
+    ...
+            tag: 'button',
+    +       x: 111,
+    -       x: 8,
+            y: 122
+          },
+          form: 0,
+          htmlId: 'continue',
+          id: 'e5',
+    ...
+            w: 69,
+    +       x: 111,
+    -       x: 8,
+            y: 122
+          },
+          role: 'button',
+          state: {
+            disabled: false
+    ...
+            tag: 'button',
+    +       x: 180,
+    -       x: 77,
+            y: 122
+          },
+          form: 0,
+          htmlId: 'place',
+          id: 'e6',
+    ...
+            w: 84,
+    +       x: 180,
+    -       x: 77,
+            y: 122
+          },
+          role: 'button',
+          state: {
+            disabled: false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0:
+      id: 'e1'
+      path: '#fullname'
+      tag: 'input'
+      role: 'textbox'
+      name: 'Full name'
+      type: 'text'
+      attrName: 'fullname'
+      placeholder: ''
+      htmlId: 'fullname'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: false
+      editable: true
+      inViewport: true
+      rect:
+        x: 72
+        y: 101
+        w: 177
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'input'
+        role: 'textbox'
+        name: 'Full name'
+        x: 72
+        y: 101
+      obscured: false
+    1:
+      id: 'e2'
+      path: '#email'
+      tag: 'input'
+      role: 'textbox'
+      name: 'Email'
+      type: 'email'
+      attrName: 'email'
+      placeholder: ''
+      htmlId: 'email'
+      ariaLabel: 'Email'
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: false
+      editable: true
+      inViewport: true
+      rect:
+        x: 249
+        y: 101
+        w: 177
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'input'
+        role: 'textbox'
+        name: 'Email'
+        x: 249
+        y: 101
+      obscured: false
+    2:
+      id: 'e3'
+      path: '#notes'
+      tag: 'textarea'
+      role: 'textbox'
+      name: 'Notes'
+      type: ''
+      attrName: 'notes'
+      placeholder: 'Notes'
+      htmlId: 'notes'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: true
+      editable: true
+      inViewport: true
+      rect:
+        x: 426
+        y: 80
+        w: 168
+        h: 36
+      form: 0
+      fingerprint:
+        tag: 'textarea'
+        role: 'textbox'
+        name: 'Notes'
+        x: 426
+        y: 80
+      obscured: false
+    3:
+      id: 'e4'
+      path: '#country'
+      tag: 'select'
+      role: 'combobox'
+      name: 'Country'
+      type: ''
+      attrName: 'country'
+      placeholder: ''
+      htmlId: 'country'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        selected: 'Choose'
+      editable: false
+      inViewport: true
+      rect:
+        x: 647
+        y: 102
+        w: 103
+        h: 19
+      form: 0
+      fingerprint:
+        tag: 'select'
+        role: 'combobox'
+        name: 'Country'
+        x: 647
+        y: 102
+      obscured: false
+      options:
+        0:
+          value: ''
+          label: 'Choose'
+        1:
+          value: 'in'
+          label: 'India'
+        2:
+          value: 'us'
+          label: 'United States'
+    4:
+      id: 'e5'
+      path: '#continue'
+      tag: 'button'
+      role: 'button'
+      name: 'Continue'
+      type: 'button'
+      attrName: ''
+      placeholder: ''
+      htmlId: 'continue'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+      editable: false
+      inViewport: true
+      rect:
+        x: 8
+        y: 122
+        w: 69
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'button'
+        role: 'button'
+        name: 'Continue'
+        x: 8
+        y: 122
+      obscured: false
+    5:
+      id: 'e6'
+      path: '#place'
+      tag: 'button'
+      role: 'button'
+      name: 'Place order'
+      type: 'submit'
+      attrName: ''
+      placeholder: ''
+      htmlId: 'place'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+      editable: false
+      inViewport: true
+      rect:
+        x: 77
+        y: 122
+        w: 84
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'button'
+        role: 'button'
+        name: 'Place order'
+        x: 77
+        y: 122
+      obscured: false
+  actual:
+    0:
+      id: 'e1'
+      path: '#fullname'
+      tag: 'input'
+      role: 'textbox'
+      name: 'Full name'
+      type: 'text'
+      attrName: 'fullname'
+      placeholder: ''
+      htmlId: 'fullname'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: false
+      editable: true
+      inViewport: true
+      rect:
+        x: 72
+        y: 101
+        w: 185
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'input'
+        role: 'textbox'
+        name: 'Full name'
+        x: 72
+        y: 101
+      obscured: false
+    1:
+      id: 'e2'
+      path: '#email'
+      tag: 'input'
+      role: 'textbox'
+      name: 'Email'
+      type: 'email'
+      attrName: 'email'
+      placeholder: ''
+      htmlId: 'email'
+      ariaLabel: 'Email'
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: false
+      editable: true
+      inViewport: true
+      rect:
+        x: 257
+        y: 101
+        w: 185
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'input'
+        role: 'textbox'
+        name: 'Email'
+        x: 257
+        y: 101
+      obscured: false
+    2:
+      id: 'e3'
+      path: '#notes'
+      tag: 'textarea'
+      role: 'textbox'
+      name: 'Notes'
+      type: ''
+      attrName: 'notes'
+      placeholder: 'Notes'
+      htmlId: 'notes'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        filled: true
+      editable: true
+      inViewport: true
+      rect:
+        x: 442
+        y: 80
+        w: 182
+        h: 36
+      form: 0
+      fingerprint:
+        tag: 'textarea'
+        role: 'textbox'
+        name: 'Notes'
+        x: 442
+        y: 80
+      obscured: false
+    3:
+      id: 'e4'
+      path: '#country'
+      tag: 'select'
+      role: 'combobox'
+      name: 'Country'
+      type: ''
+      attrName: 'country'
+      placeholder: ''
+      htmlId: 'country'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+        selected: 'Choose'
+      editable: false
+      inViewport: true
+      rect:
+        x: 8
+        y: 123
+        w: 103
+        h: 19
+      form: 0
+      fingerprint:
+        tag: 'select'
+        role: 'combobox'
+        name: 'Country'
+        x: 8
+        y: 123
+      options:
+        0:
+          value: ''
+          label: 'Choose'
+        1:
+          value: 'in'
+          label: 'India'
+        2:
+          value: 'us'
+          label: 'United States'
+      obscured: false
+    4:
+      id: 'e5'
+      path: '#continue'
+      tag: 'button'
+      role: 'button'
+      name: 'Continue'
+      type: 'button'
+      attrName: ''
+      placeholder: ''
+      htmlId: 'continue'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+      editable: false
+      inViewport: true
+      rect:
+        x: 111
+        y: 122
+        w: 69
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'button'
+        role: 'button'
+        name: 'Continue'
+        x: 111
+        y: 122
+      obscured: false
+    5:
+      id: 'e6'
+      path: '#place'
+      tag: 'button'
+      role: 'button'
+      name: 'Place order'
+      type: 'submit'
+      attrName: ''
+      placeholder: ''
+      htmlId: 'place'
+      ariaLabel: ''
+      autocomplete: ''
+      state:
+        disabled: false
+      editable: false
+      inViewport: true
+      rect:
+        x: 180
+        y: 122
+        w: 84
+        h: 21
+      form: 0
+      fingerprint:
+        tag: 'button'
+        role: 'button'
+        name: 'Place order'
+        x: 180
+        y: 122
+      obscured: false
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/adapter-cdp.test.js:87:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: click Continue writes continued
+ok 3 - click Continue writes continued
+  ---
+  duration_ms: 644.116518
+  type: 'test'
+  ...
+# Subtest: fill never leaves the value in observe output
+ok 4 - fill never leaves the value in observe output
+  ---
+  duration_ms: 688.212438
+  type: 'test'
+  ...
+# Subtest: dialog is reported and stays open
+ok 5 - dialog is reported and stays open
+  ---
+  duration_ms: 14153.010208
+  type: 'test'
+  ...
+# Subtest: detach leaves the browser answering
+ok 6 - detach leaves the browser answering
+  ---
+  duration_ms: 600.730419
+  type: 'test'
+  ...
+# Subtest: act surfaces an operation failure
+ok 7 - act surfaces an operation failure
+  ---
+  duration_ms: 657.539273
+  type: 'test'
+  ...
+# Subtest: attach retries a cold endpoint within its budget
+ok 8 - attach retries a cold endpoint within its budget
+  ---
+  duration_ms: 995.222014
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19171.566801
+RUN-TESTS: files=1 tests=8 pass=7 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

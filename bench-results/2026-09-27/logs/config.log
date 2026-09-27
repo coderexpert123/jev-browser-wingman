@@ -1,0 +1,192 @@
+TAP version 13
+# Subtest: missing file loads defaults
+ok 1 - missing file loads defaults
+  ---
+  duration_ms: 3.435131
+  type: 'test'
+  ...
+# Subtest: mode absent means off
+ok 2 - mode absent means off
+  ---
+  duration_ms: 2.594217
+  type: 'test'
+  ...
+# Subtest: malformed JSON fails
+ok 3 - malformed JSON fails
+  ---
+  duration_ms: 0.977894
+  type: 'test'
+  ...
+# Subtest: an unknown key fails
+ok 4 - an unknown key fails
+  ---
+  duration_ms: 0.797118
+  type: 'test'
+  ...
+# Subtest: a relative profile_dir fails
+ok 5 - a relative profile_dir fails
+  ---
+  duration_ms: 0.697969
+  type: 'test'
+  ...
+# Subtest: ~ paths expand and absolute paths pass
+ok 6 - ~ paths expand and absolute paths pass
+  ---
+  duration_ms: 1.574089
+  type: 'test'
+  ...
+# Subtest: a max_steps override of 24 (the default) is accepted
+ok 7 - a max_steps override of 24 (the default) is accepted
+  ---
+  duration_ms: 1.167606
+  type: 'test'
+  ...
+# Subtest: a budget outside BUDGET_LIMITS fails
+ok 8 - a budget outside BUDGET_LIMITS fails
+  ---
+  duration_ms: 1.141795
+  type: 'test'
+  ...
+# Subtest: a window value outside offscreen, normal, minimized and headless fails
+ok 9 - a window value outside offscreen, normal, minimized and headless fails
+  ---
+  duration_ms: 2.012242
+  type: 'test'
+  ...
+# Subtest: an unknown sensitive_hosts category fails
+ok 10 - an unknown sensitive_hosts category fails
+  ---
+  duration_ms: 1.158658
+  type: 'test'
+  ...
+# Subtest: gate.mode accepts confirm and off and defaults to off
+ok 11 - gate.mode accepts confirm and off and defaults to off
+  ---
+  duration_ms: 3.752773
+  type: 'test'
+  ...
+# Subtest: an unknown gate.mode fails on the mode, not on the gate key
+ok 12 - an unknown gate.mode fails on the mode, not on the gate key
+  ---
+  duration_ms: 0.828831
+  type: 'test'
+  ...
+# Subtest: an unknown key inside gate fails
+ok 13 - an unknown key inside gate fails
+  ---
+  duration_ms: 0.778975
+  type: 'test'
+  ...
+# Subtest: policy.mode accepts enforce and off and defaults to off
+ok 14 - policy.mode accepts enforce and off and defaults to off
+  ---
+  duration_ms: 1.814285
+  type: 'test'
+  ...
+# Subtest: policy.mode "maybe" fails with a policy-specific error
+ok 15 - policy.mode "maybe" fails with a policy-specific error
+  ---
+  duration_ms: 1.005636
+  type: 'test'
+  ...
+# Subtest: an unknown key inside policy fails
+ok 16 - an unknown key inside policy fails
+  ---
+  duration_ms: 1.438137
+  type: 'test'
+  ...
+# Subtest: policyModeOf defaults to off and honours an explicit enforce
+ok 17 - policyModeOf defaults to off and honours an explicit enforce
+  ---
+  duration_ms: 2.409182
+  type: 'test'
+  ...
+# Subtest: (1) handoff key absent loads { mode: forced, tools: browse-only, retain: [] }
+ok 18 - (1) handoff key absent loads { mode: forced, tools: browse-only, retain: [] }
+  ---
+  duration_ms: 3.016395
+  type: 'test'
+  ...
+# Subtest: (2) handoff.mode given, tools absent, derives tools from mode
+ok 19 - (2) handoff.mode given, tools absent, derives tools from mode
+  ---
+  duration_ms: 1.907879
+  type: 'test'
+  ...
+# Subtest: (3) handoff.tools or handoff.retain given, mode absent, defaults mode to forced
+ok 20 - (3) handoff.tools or handoff.retain given, mode absent, defaults mode to forced
+  ---
+  duration_ms: 1.342301
+  type: 'test'
+  ...
+# Subtest: (4) handoff.retain accepts withholdable classes and rejects an unknown class
+ok 21 - (4) handoff.retain accepts withholdable classes and rejects an unknown class
+  ---
+  duration_ms: 1.08851
+  type: 'test'
+  ...
+# Subtest: (5) the five handoff error strings
+ok 22 - (5) the five handoff error strings
+  ---
+  duration_ms: 3.348425
+  type: 'test'
+  ...
+# Subtest: (6) forced + policy.mode enforce is not a config error and handoffOf reads forced (Q4)
+ok 23 - (6) forced + policy.mode enforce is not a config error and handoffOf reads forced (Q4)
+  ---
+  duration_ms: 2.271545
+  type: 'test'
+  ...
+# Subtest: (7) handoffOf on a hand-built object with no handoff key returns optional
+ok 24 - (7) handoffOf on a hand-built object with no handoff key returns optional
+  ---
+  duration_ms: 0.338135
+  type: 'test'
+  ...
+# Subtest: (8) handoffOf reads retain from a loaded config
+ok 25 - (8) handoffOf reads retain from a loaded config
+  ---
+  duration_ms: 1.195829
+  type: 'test'
+  ...
+# Subtest: (9) handoffOf on a hand-built forced object with top-level mode on returns forced
+ok 26 - (9) handoffOf on a hand-built forced object with top-level mode on returns forced
+  ---
+  duration_ms: 0.291357
+  type: 'test'
+  ...
+# Subtest: (10) handoffOf returns optional whenever top-level mode is not on, whatever handoff says
+ok 27 - (10) handoffOf returns optional whenever top-level mode is not on, whatever handoff says
+  ---
+  duration_ms: 0.270684
+  type: 'test'
+  ...
+# Subtest: (11) gateModeOf on a hand-built config: absent gate is off, explicit confirm is confirm
+ok 28 - (11) gateModeOf on a hand-built config: absent gate is off, explicit confirm is confirm
+  ---
+  duration_ms: 0.172567
+  type: 'test'
+  ...
+# Subtest: (12) DEFAULT_GATE deep-equals { mode: off }
+ok 29 - (12) DEFAULT_GATE deep-equals { mode: off }
+  ---
+  duration_ms: 0.579443
+  type: 'test'
+  ...
+# Subtest: resolveKey prefers env then secrets_file and never returns a key for an empty value
+ok 30 - resolveKey prefers env then secrets_file and never returns a key for an empty value
+  ---
+  duration_ms: 0.826455
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 162.947706
+RUN-TESTS: files=1 tests=30 pass=30 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
