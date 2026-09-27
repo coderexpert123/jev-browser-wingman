@@ -12,6 +12,8 @@ import {
   ACT_TIMEOUT_MS,
   EVAL_TIMEOUT_MS,
   MAX_ENUMERATED,
+  NAV_TIMEOUT_MS,
+  WAIT_OP_MS,
 } from '../contract/constants.js';
 import {
   ActFailedError,
@@ -31,6 +33,8 @@ import type {
   PageInfo,
   AttachTarget,
 } from '../contract/types.js';
+import { TARGETLESS_OPS } from '../contract/types.js';
+import { ADAPTER_OPS } from './capabilities.js';
 import { ensureChrome } from '../browser/chrome.js';
 import { killTree } from '../browser/process-list.js';
 import {
@@ -52,6 +56,66 @@ const cap = (s: unknown, n: number): string => String(s ?? '').slice(0, n);
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The fixed PRESS_KEYS enumeration as CDP Input.dispatchKeyEvent field sets
+// (spec § 6 WP-A A4). `modifiers` rides both events; `commands` rides the
+// key-down only and is added by the caller. SelectAll is Meta on macOS, Ctrl
+// elsewhere. A key outside the enumeration is ActFailedError, never silence.
+function cdpKeyEvents(key: string): Array<Record<string, unknown>> {
+  const darwin = process.platform === 'darwin';
+  let base: Record<string, unknown>;
+  switch (key) {
+    case 'Enter':
+      base = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' };
+      break;
+    case 'Tab':
+      base = { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 };
+      break;
+    case 'Escape':
+      base = { key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 };
+      break;
+    case 'Space':
+      base = { key: ' ', code: 'Space', windowsVirtualKeyCode: 32, text: ' ' };
+      break;
+    case 'Backspace':
+      base = { key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 };
+      break;
+    case 'ArrowUp':
+      base = { key: 'ArrowUp', code: 'ArrowUp', windowsVirtualKeyCode: 38 };
+      break;
+    case 'ArrowDown':
+      base = { key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40 };
+      break;
+    case 'ArrowLeft':
+      base = { key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 };
+      break;
+    case 'ArrowRight':
+      base = { key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39 };
+      break;
+    case 'ShiftTab':
+      base = { key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: 8 };
+      break;
+    case 'SelectAll':
+      base = {
+        key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65,
+        modifiers: darwin ? 4 : 2, commands: ['selectAll'],
+      };
+      break;
+    default:
+      throw new ActFailedError(`unsupported press key ${key}`);
+  }
+  const down: Record<string, unknown> = { type: 'text' in base ? 'keyDown' : 'rawKeyDown', ...base };
+  const up: Record<string, unknown> = {
+    type: 'keyUp',
+    key: base.key,
+    code: base.code,
+    windowsVirtualKeyCode: base.windowsVirtualKeyCode,
+  };
+  if (base.modifiers !== undefined) {
+    up.modifiers = base.modifiers;
+  }
+  return [down, up];
+}
+
 interface TargetInfo {
   targetId: string;
   type: string;
@@ -62,6 +126,8 @@ interface TargetInfo {
 
 class CdpDriver implements Driver {
   readonly name = 'cdp';
+
+  readonly ops = ADAPTER_OPS.cdp;
 
   private conn: CdpConnection | null = null;
   private nonDefaultContexts = new Set<string>();
@@ -322,26 +388,101 @@ class CdpDriver implements Driver {
 
   private async performOp(
     pageId: string,
-    el: ElementRecord,
+    el: ElementRecord | null,
     op: Op,
     value: string | undefined,
-    point: { x: number; y: number },
+    point: { x: number; y: number } | null,
   ): Promise<void> {
     const conn = this.requireConn();
     const sessionId = await this.ensureSession(pageId);
+
+    // Targetless ops (spec § 6 WP-A A4): no element, no hit point. Everything
+    // still runs inside act()'s dialog race.
+    if (!el) {
+      switch (op) {
+        case 'scroll':
+        case 'scroll_up': {
+          const viewport = await this.evalIsolated(pageId, '({ w: window.innerWidth, h: window.innerHeight })');
+          const w = Number(viewport?.w ?? 0);
+          const h = Number(viewport?.h ?? 0);
+          const deltaY = Math.round(h * 0.8) * (op === 'scroll_up' ? -1 : 1);
+          await conn.send(
+            'Input.dispatchMouseEvent',
+            {
+              type: 'mouseWheel',
+              x: Math.round(w / 2),
+              y: Math.round(h / 2),
+              deltaX: 0,
+              deltaY,
+            },
+            sessionId,
+          );
+          return;
+        }
+        case 'wait': {
+          await sleep(WAIT_OP_MS);
+          return;
+        }
+        case 'navigate': {
+          if (value === undefined || !/^https?:\/\//i.test(value)) {
+            throw new ActFailedError('navigate requires an http(s) URL');
+          }
+          const r = await conn.send<{ errorText?: string }>(
+            'Page.navigate',
+            { url: value },
+            sessionId,
+            NAV_TIMEOUT_MS,
+          );
+          if (r && r.errorText) {
+            throw new ActFailedError(cap(r.errorText, 200));
+          }
+          return;
+        }
+        case 'back': {
+          const hist = await conn.send<{ currentIndex: number; entries: Array<{ id: string }> }>(
+            'Page.getNavigationHistory',
+            {},
+            sessionId,
+            NAV_TIMEOUT_MS,
+          );
+          if (!hist || typeof hist.currentIndex !== 'number' || hist.currentIndex <= 0 || !hist.entries?.length) {
+            throw new ActFailedError('no previous page');
+          }
+          const entry = hist.entries[hist.currentIndex - 1];
+          await conn.send(
+            'Page.navigateToHistoryEntry',
+            { entryId: entry.id },
+            sessionId,
+            NAV_TIMEOUT_MS,
+          );
+          return;
+        }
+        case 'reload': {
+          await conn.send('Page.reload', {}, sessionId, NAV_TIMEOUT_MS);
+          return;
+        }
+        default: {
+          throw new ActFailedError(`op ${op} needs an element`);
+        }
+      }
+    }
+
     switch (op) {
       case 'click': {
-        await this.mouseClick(sessionId, point);
+        await this.mouseClick(sessionId, point as { x: number; y: number });
         return;
       }
       case 'fill': {
         if (value === undefined) {
           throw new ActFailedError('fill requires a value');
         }
-        await this.mouseClick(sessionId, point);
+        await this.mouseClick(sessionId, point as { x: number; y: number });
+        // P9 fix: select the element's text when it can (inputs, textareas),
+        // else select its whole content when it is contenteditable — the
+        // browser then replaces on insert instead of appending.
         await this.evalIsolated(
           pageId,
-          `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.focus(); if (el.select) el.select(); return true; })()`,
+          `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.focus(); if (typeof el.select === 'function') el.select(); else if (el.isContentEditable) { const s = window.getSelection(); if (s) s.selectAllChildren(el); } return true; })()`,
         );
         await conn.send('Input.insertText', { text: value }, sessionId);
         return;
@@ -364,18 +505,17 @@ class CdpDriver implements Driver {
         if (state && state.checked === wanted) {
           return;
         }
-        await this.mouseClick(sessionId, point);
+        await this.mouseClick(sessionId, point as { x: number; y: number });
         return;
       }
       case 'press': {
+        const [down, up] = cdpKeyEvents(value ?? 'Enter');
         await this.evalIsolated(
           pageId,
           `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.focus(); return true; })()`,
         );
-        const keyDown = { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' };
-        const keyUp = { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 };
-        await conn.send('Input.dispatchKeyEvent', keyDown, sessionId);
-        await conn.send('Input.dispatchKeyEvent', keyUp, sessionId);
+        await conn.send('Input.dispatchKeyEvent', down, sessionId);
+        await conn.send('Input.dispatchKeyEvent', up, sessionId);
         return;
       }
       case 'scroll': {
@@ -395,13 +535,94 @@ class CdpDriver implements Driver {
         );
         return;
       }
+      case 'hover': {
+        await conn.send(
+          'Input.dispatchMouseEvent',
+          { type: 'mouseMoved', x: (point as { x: number; y: number }).x, y: (point as { x: number; y: number }).y },
+          sessionId,
+        );
+        return;
+      }
+      case 'dblclick': {
+        const p = point as { x: number; y: number };
+        await conn.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }, sessionId);
+        await conn.send(
+          'Input.dispatchMouseEvent',
+          { type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 1 },
+          sessionId,
+        );
+        await conn.send(
+          'Input.dispatchMouseEvent',
+          { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', clickCount: 1 },
+          sessionId,
+        );
+        await conn.send(
+          'Input.dispatchMouseEvent',
+          { type: 'mousePressed', x: p.x, y: p.y, button: 'left', clickCount: 2 },
+          sessionId,
+        );
+        await conn.send(
+          'Input.dispatchMouseEvent',
+          { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', clickCount: 2 },
+          sessionId,
+        );
+        return;
+      }
+      case 'upload': {
+        if (value === undefined) {
+          throw new ActFailedError('upload requires a value');
+        }
+        const doc = await conn.send<{ root?: { nodeId?: number } }>(
+          'DOM.getDocument',
+          { depth: 0 },
+          sessionId,
+        );
+        const rootNodeId = doc?.root?.nodeId;
+        if (rootNodeId === undefined) {
+          throw new ActFailedError('upload could not resolve the document');
+        }
+        const q = await conn.send<{ nodeId?: number }>(
+          'DOM.querySelector',
+          { nodeId: rootNodeId, selector: el.path },
+          sessionId,
+        );
+        if (!q || !q.nodeId) {
+          throw new ActFailedError(`upload could not resolve ${el.path}`);
+        }
+        await conn.send('DOM.setFileInputFiles', { files: [value], nodeId: q.nodeId }, sessionId);
+        return;
+      }
+      case 'scroll_to': {
+        // Deliberately skips the hit test: the hit test itself calls
+        // scrollIntoView({block:'center'}), so proving scroll_to through it
+        // would prove nothing. The verify step already ran in act().
+        await this.evalIsolated(
+          pageId,
+          `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.scrollIntoView({ block: 'center', inline: 'nearest' }); return true; })()`,
+        );
+        return;
+      }
       default: {
         throw new ActFailedError(`unsupported op ${op}`);
       }
     }
   }
 
-  async act(pageId: string, elementId: string, op: Op, value?: string): Promise<void> {
+  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
+    if (!(ADAPTER_OPS.cdp as readonly Op[]).includes(op)) {
+      throw new ActFailedError(`unsupported op ${op}`);
+    }
+
+    // Targetless ops (spec § 6 WP-A A4): no cached element, no verify, no hit
+    // test — straight into the dialog race.
+    if (elementId === null) {
+      if (!(TARGETLESS_OPS as readonly Op[]).includes(op)) {
+        throw new ActFailedError(`op ${op} needs an element`);
+      }
+      await this.actRaced(pageId, null, op, value, null);
+      return;
+    }
+
     const el = await this.cachedElement(pageId, elementId);
 
     const verified = await this.evalIsolated(pageId, buildVerifyExpression(el.path, el.fingerprint as Fingerprint));
@@ -410,26 +631,41 @@ class CdpDriver implements Driver {
     }
 
     // No auto-wait exists here: retry the hit test until ACT_TIMEOUT_MS.
-    const deadline = Date.now() + ACT_TIMEOUT_MS;
+    // `scroll_to` skips it on purpose — the hit test itself scrolls the
+    // element into view, so it can never fail for a scroll_to that works, and
+    // using it would prove nothing (spec § 6 WP-A A4).
     let point: { x: number; y: number } | null = null;
-    for (;;) {
-      const hit = await this.evalIsolated(pageId, buildHitTestExpression(el.path));
-      if (hit && hit.ok === true) {
-        point = { x: Number(hit.x), y: Number(hit.y) };
-        break;
+    if (op !== 'scroll_to') {
+      const deadline = Date.now() + ACT_TIMEOUT_MS;
+      for (;;) {
+        const hit = await this.evalIsolated(pageId, buildHitTestExpression(el.path));
+        if (hit && hit.ok === true) {
+          point = { x: Number(hit.x), y: Number(hit.y) };
+          break;
+        }
+        if (Date.now() >= deadline) {
+          throw new CoveredTargetError(`element ${elementId} is covered`);
+        }
+        await sleep(100);
       }
-      if (Date.now() >= deadline) {
-        throw new CoveredTargetError(`element ${elementId} is covered`);
-      }
-      await sleep(100);
     }
 
-    // Dialog rule: an Input.* sequence or evaluation whose page handler opens a
-    // dialog does not answer until the dialog closes. Race the operation against
-    // the page's next javascriptDialogOpening; when the dialog wins, resolve
-    // normally and discard the orphaned command's later reply or timeout. When
-    // the operation itself fails, the error surfaces — an act that did nothing
-    // must never resolve as success.
+    await this.actRaced(pageId, el, op, value, point);
+  }
+
+  // Dialog rule: an Input.* sequence or evaluation whose page handler opens a
+  // dialog does not answer until the dialog closes. Race the operation against
+  // the page's next javascriptDialogOpening; when the dialog wins, resolve
+  // normally and discard the orphaned command's later reply or timeout. When
+  // the operation itself fails, the error surfaces — an act that did nothing
+  // must never resolve as success. Targetless ops take the same race.
+  private async actRaced(
+    pageId: string,
+    el: ElementRecord | null,
+    op: Op,
+    value: string | undefined,
+    point: { x: number; y: number } | null,
+  ): Promise<void> {
     const dialogPromise = this.dialogWait(pageId);
     let opError: unknown = null;
     const opPromise = this.performOp(pageId, el, op, value, point).then(

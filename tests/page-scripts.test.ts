@@ -306,3 +306,23 @@ test('enumeration emits placeholder and htmlId on form controls', async () => {
     await close();
   }
 });
+
+test('a labelled file input enumerates as button and verifies (A1)', async () => {
+  // The 0.3.0 upload op targets file inputs, and Jev picks targets by role:
+  // both implicitRole copies must classify input[type=file] as 'button', so
+  // enumerate's fingerprint and verify agree (a 'textbox' copy fails verify).
+  const { page, close } = await withPage('/ops.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const doc = obs.elements.find((e) => e.name === 'Document');
+    assert.ok(doc, 'expected the labelled file input');
+    assert.strictEqual(doc!.tag, 'input');
+    assert.strictEqual(doc!.type, 'file');
+    assert.strictEqual(doc!.role, 'button');
+    const fp = doc!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+    const result = await page.evaluate(buildVerifyExpression(doc!.path as string, fp));
+    assert.deepStrictEqual(result, { ok: true });
+  } finally {
+    await close();
+  }
+});

@@ -6,13 +6,14 @@
 // and never opens pages, closes contexts or closes targets.
 
 import { chromium as defaultChromium, type Browser, type BrowserContext, type CDPSession, type Dialog, type Page } from 'playwright-core';
-import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED } from '../contract/constants.js';
+import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED, NAV_TIMEOUT_MS, WAIT_OP_MS } from '../contract/constants.js';
 import {
   ActFailedError,
   AttachError,
   CoveredTargetError,
   DialogOpenError,
   StaleElementError,
+  WingmanError,
 } from '../contract/errors.js';
 import type {
   AttachTarget,
@@ -22,7 +23,9 @@ import type {
   Observation,
   PageInfo,
   Op,
+  PressKey,
 } from '../contract/types.js';
+import { PRESS_KEYS, TARGETLESS_OPS } from '../contract/types.js';
 import {
   buildControlStateExpression,
   buildEnumerateExpression,
@@ -32,6 +35,7 @@ import {
   buildVisibilityExpression,
 } from '../core/page-scripts.js';
 import { settleByProbe } from '../core/settle.js';
+import { ADAPTER_OPS } from './capabilities.js';
 import { ensureChrome } from '../browser/chrome.js';
 import { killTree } from '../browser/process-list.js';
 import { wingmanHome } from '../contract/home.js';
@@ -47,6 +51,24 @@ interface PageRecord {
 function cap(text: string, max: number): string {
   return text.slice(0, max);
 }
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// PRESS_KEYS → Playwright key names (spec § 6 WP-A A3): everything maps to
+// itself except Shift+Tab and select-all, which need modifiers.
+const PW_KEYS: Record<PressKey, string> = {
+  Enter: 'Enter',
+  Tab: 'Tab',
+  ShiftTab: 'Shift+Tab',
+  Escape: 'Escape',
+  Space: 'Space',
+  Backspace: 'Backspace',
+  SelectAll: 'ControlOrMeta+A',
+  ArrowUp: 'ArrowUp',
+  ArrowDown: 'ArrowDown',
+  ArrowLeft: 'ArrowLeft',
+  ArrowRight: 'ArrowRight',
+};
 
 // Cold start: `connectOverCDP` measured 6–19 s against a Chrome that is still
 // coming up (WP-D1, 2026-09-19) — far over the 5 s per-attempt pin, so a plain
@@ -190,37 +212,47 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
   }
 
   // Races one act operation against the page's next dialog event AND against
-  // its own ACT_TIMEOUT_MS budget: Playwright's internal action timeout never
-  // fires while its per-page bootstrap evaluate is wedged on a stalled
-  // renderer (measured 2026-09-19), so the driver enforces the bound itself.
-  // When the dialog wins, act resolves normally and the abandoned operation's
-  // later rejection is caught and discarded, never surfaced or left unhandled.
-  async function raceAgainstDialog(rec: PageRecord, op: () => Promise<unknown>): Promise<void> {
+  // its own time budget: Playwright's internal action timeout never fires
+  // while its per-page bootstrap evaluate is wedged on a stalled renderer
+  // (measured 2026-09-19), so the driver enforces the bound itself. When the
+  // dialog wins, act resolves normally and the abandoned operation's later
+  // rejection is caught and discarded, never surfaced or left unhandled.
+  // Navigation ops pass a larger bound (their own NAV_TIMEOUT_MS plus slack);
+  // when the dialog wins, the returned value is undefined — a `back` that
+  // raced a dialog therefore never reads as `no previous page`.
+  async function raceAgainstDialog<T>(
+    rec: PageRecord,
+    op: () => Promise<T>,
+    boundMs: number = ACT_TIMEOUT_MS + 2_000,
+  ): Promise<T | undefined> {
     const dialogWon = new Promise<'dialog'>((resolve) => {
       rec.dialogWaiters.push(() => resolve('dialog'));
     });
     const pending = op();
     const opRaced = Promise.race([
       pending.then(
-        () => 'op' as const,
+        (v) => ({ kind: 'op' as const, v }),
         (e) => {
           throw e;
         },
       ),
       new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new ActFailedError('operation timed out')), ACT_TIMEOUT_MS + 2_000);
+        setTimeout(() => reject(new ActFailedError('operation timed out')), boundMs);
       }),
     ]);
     const winner = await Promise.race([opRaced, dialogWon]);
     if (winner === 'dialog') {
       opRaced.catch(() => {});
       pending.catch(() => {});
-      return;
+      return undefined;
     }
+    return winner.v;
   }
 
   return {
     name: 'playwright',
+
+    ops: ADAPTER_OPS.playwright,
 
     async attach(target: AttachTarget): Promise<void> {
       let endpoint: string;
@@ -302,8 +334,72 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
       return obs;
     },
 
-    async act(pageId: string, elementId: string, op: Op, value?: string): Promise<void> {
+    async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
+      if (!(ADAPTER_OPS.playwright as readonly Op[]).includes(op)) {
+        throw new ActFailedError(`unsupported op ${op}`);
+      }
       const rec = recordOfPageId(pageId);
+
+      // Targetless ops (spec § 6 WP-A A3): no lookup, no verify, no hit test.
+      // `scroll` with an element id keeps the legacy verified-element path
+      // below unchanged.
+      if (elementId === null) {
+        if (!(TARGETLESS_OPS as readonly Op[]).includes(op)) {
+          throw new ActFailedError(`op ${op} needs an element`);
+        }
+        try {
+          switch (op) {
+            case 'scroll':
+            case 'scroll_up': {
+              const innerHeight = Number(
+                (await evaluateOnPage(rec, 'window.innerHeight')) ?? 0,
+              );
+              const delta = Math.round(innerHeight * 0.8) * (op === 'scroll_up' ? -1 : 1);
+              await raceAgainstDialog(rec, () => rec.page.mouse.wheel(0, delta));
+              break;
+            }
+            case 'wait':
+              await sleep(WAIT_OP_MS);
+              break;
+            case 'navigate': {
+              if (value === undefined || !/^https?:\/\//i.test(value)) {
+                throw new ActFailedError('navigate requires an http(s) URL');
+              }
+              await raceAgainstDialog(
+                rec,
+                () => rec.page.goto(value, { waitUntil: 'commit', timeout: NAV_TIMEOUT_MS }),
+                NAV_TIMEOUT_MS + 2_000,
+              );
+              break;
+            }
+            case 'back': {
+              const wentBack = await raceAgainstDialog(
+                rec,
+                () => rec.page.goBack({ waitUntil: 'commit', timeout: NAV_TIMEOUT_MS }),
+                NAV_TIMEOUT_MS + 2_000,
+              );
+              if (wentBack === null) {
+                throw new ActFailedError('no previous page');
+              }
+              break;
+            }
+            case 'reload':
+              await raceAgainstDialog(
+                rec,
+                () => rec.page.reload({ waitUntil: 'commit', timeout: NAV_TIMEOUT_MS }),
+                NAV_TIMEOUT_MS + 2_000,
+              );
+              break;
+            default:
+              throw new ActFailedError(`op ${op} needs an element`);
+          }
+        } catch (e) {
+          if (e instanceof WingmanError) throw e;
+          throw new ActFailedError(e instanceof Error ? e.message : String(e));
+        }
+        return;
+      }
+
       const elements = elementsByPage.get(pageId);
       const el = elements?.find((e) => e.id === elementId);
       if (!el) throw new StaleElementError(`element ${elementId} is not in the cached observation of page ${pageId}`);
@@ -352,9 +448,14 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
             }
             break;
           }
-          case 'press':
-            await raceAgainstDialog(rec, () => rec.page.locator(el.path).press('Enter', timeout));
+          case 'press': {
+            const key = value ?? 'Enter';
+            if (!(PRESS_KEYS as readonly string[]).includes(key)) {
+              throw new ActFailedError(`unsupported press key ${key}`);
+            }
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).press(PW_KEYS[key as PressKey], timeout));
             break;
+          }
           case 'scroll': {
             const innerHeight = Number(
               (await evaluateOnPage(rec, 'window.innerHeight')) ?? 0,
@@ -362,6 +463,24 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
             await raceAgainstDialog(rec, () => rec.page.mouse.wheel(0, Math.round(innerHeight * 0.8)));
             break;
           }
+          case 'dblclick':
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).dblclick(timeout));
+            break;
+          case 'hover':
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).hover(timeout));
+            break;
+          case 'upload': {
+            if (value === undefined) {
+              throw new ActFailedError('upload requires a value');
+            }
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).setInputFiles(value, timeout));
+            break;
+          }
+          case 'scroll_to':
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).scrollIntoViewIfNeeded(timeout));
+            break;
+          default:
+            throw new ActFailedError(`unsupported op ${op}`);
         }
       } catch (e) {
         if (e instanceof StaleElementError || e instanceof CoveredTargetError || e instanceof DialogOpenError) {

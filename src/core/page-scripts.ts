@@ -59,6 +59,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
       if (type === 'search') return 'searchbox';
       if (type === 'number') return 'spinbutton';
       if (type === 'range') return 'slider';
+      if (type === 'file') return 'button'; // A1: Jev picks upload targets by role; a file input acts like a button
       return 'textbox';
     }
     if (tag === 'summary') return 'button';
@@ -441,6 +442,7 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
       if (type === 'search') return 'searchbox';
       if (type === 'number') return 'spinbutton';
       if (type === 'range') return 'slider';
+      if (type === 'file') return 'button'; // A1: mirrors enumerate's implicitRole
       return 'textbox';
     }
     if (tag === 'summary') return 'button';
