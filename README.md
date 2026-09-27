@@ -4,7 +4,7 @@ Agents installing this package: read [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.
 
 ## What it does
 
-jev-browser-wingman carries out ONE bounded step on the browser page that is already open and visible. A TypeSafe Jev decision picks the element and the op; the calling agent keeps planning and all text generation. It attaches to a real, logged-in Chrome beside Playwright MCP and never navigates, opens tabs, or signs in.
+jev-browser-wingman carries out the in-page steps of a browsing goal on the page that is already open and visible. A TypeSafe Jev decision picks each element and op from what is on the page; the calling agent keeps planning, all text generation, and its own view of the page. It attaches to a real, logged-in Chromium-family browser beside your own browser tools, navigates only to web addresses the caller passes as values, and never opens tabs or signs in.
 
 ## How it differs
 
@@ -12,7 +12,7 @@ Positioning, from the design evaluation:
 
 - Safe attach to a real logged-in Chrome beside Playwright MCP.
 - Values are never sent to TypeSafe.
-- A code-enforced irreversible gate with confirmation tokens.
+- An optional, code-enforced irreversible-action gate with confirmation tokens (off by default; turn it on with gate.mode "confirm").
 
 Added by this design:
 
@@ -28,18 +28,28 @@ jev-browser-wingman is not affiliated with TypeSafe.
 
 Installing agents follow [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.md) alone. It covers detection, approval, registration, and the doctor checks that verify the install.
 
+## Integrate with your agent
+
+Follow INSTALL-FOR-AGENTS.md; run `jev-browser-wingman doctor --plan` first and `doctor` last.
+
+Plan the steps, hand them to `browse_step`, and `pick` when it returns a step.
+
+What stays with the caller: planning, values, vision (own snapshot or screenshot, then `pick`), sign-in and two-factor with the user, tabs, dialogs, dragging, screen-position clicks.
+
 ## Tools
 
 `wingman_do` carries out one bounded goal on the already-open page: pick the right row, fill a form from values you pass, or click through a short wizard. It never navigates to URLs, opens or closes tabs, signs in, or reads pages for you. Pass text in `values`; values are typed locally and never sent to the decision service.
 
+`browse_step` takes the goal and its ordered remaining steps and runs them across pages: clicks, typing, selects, keys, hovers, scrolling, waits, going back, file attachments and opening supplied web addresses. When it cannot decide an element it returns the step with candidate elements, and the caller re-calls with `pick` naming the element by role and name. Unfinished results carry `progress`, and a re-call with the same arguments resumes from there.
+
 `wingman_check` answers one yes/no question about the visible page as a probability in `answer`. It is read-only and never clicks or types.
 
-Both tools return these statuses:
+All three tools return these statuses:
 
 | status | meaning |
 |---|---|
 | done | goal judged achieved (done ≥ 0.85, or ≥ 0.5 with no further action) |
-| needs_confirmation | next action tripped the irreversible gate; nothing executed |
+| needs_confirmation | the optional irreversible gate (gate.mode "confirm") stopped the next action; nothing executed |
 | blocked | captcha, access denied, dialog open, or covered target |
 | login | page asks for sign-in; tool stops before any credential surface |
 | ambiguous | target probability below threshold; candidates returned |
@@ -70,7 +80,7 @@ Machine-local config at `<wingmanHome>/config.json` (default `~/.jev-browser-win
 | `plugin` | string or null | null | as `profile_dir`; path to a module exporting `wingmanPlugin` |
 | `sensitive_hosts` | object | `{}` | keys from `SENSITIVE_HOST_CATEGORIES`; values are arrays of host suffixes |
 | `budgets` | object | `DEFAULT_BUDGETS` | each key optional; each value within `BUDGET_LIMITS` |
-| `gate` | object | `{ mode: "confirm" }` | only key `mode`: `"confirm"` (default) or `"off"`; `off` disables the irreversible gate |
+| `gate` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"confirm"`; `confirm` turns on the irreversible-action gate |
 | `policy` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"enforce"`; `enforce` fails closed on sensitive pages |
 
 Unknown top-level keys fail. The config is never synced across machines.
@@ -87,8 +97,8 @@ Unknown top-level keys fail. The config is never synced across machines.
 | `chrome stop` | stop a Chrome this package started |
 | `chrome show` | move the shared Chrome window on-screen over CDP, for when the operator must act (e.g. a login code) |
 | `chrome hide` | move the shared Chrome window back off-screen |
-| `with-chrome -- <command> [args...]` | proxy that ensures Chrome just before the first `tools/call`, then forwards |
-| `doctor [--json] [--detect] [--client <claude\|codex\|opencode\|agy\|devin\|cursor>]` | nine read-only checks and a verdict |
+| `with-browser -- <command> [args...]` | proxy that ensures Chrome just before the first `tools/call`, then forwards (`with-chrome` is a deprecated alias) |
+| `doctor [--json] [--detect] [--plan] [--client <claude\|codex\|opencode\|agy\|devin\|cursor>]` | ten read-only checks and a verdict; `--plan` prints an offline install plan instead |
 | `guide` | print INSTALL-FOR-AGENTS.md |
 | `--version`, `--help` | version and usage |
 

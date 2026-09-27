@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,8 +25,10 @@ import { createCdpDriver } from '../src/adapters/cdp.js';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { closePageOnDetach, injectGlobal, createContextOnAttach } from './helpers/known-bad-drivers.js';
-import { runDoctor, type DoctorDeps } from '../src/cli/doctor.js';
+import { runDoctor, type DoctorDeps, type ClientSettingsResult } from '../src/cli/doctor.js';
 import type { RegistrationEntry } from '../src/cli/registrations.js';
+import { loadProfiles, withheldClasses, denyEntries } from '../src/core/profiles.js';
+import { adapterOps } from '../src/adapters/capabilities.js';
 
 const buildRoot = join(fileURLToPath(import.meta.url), '..', '..');
 
@@ -342,7 +344,7 @@ test('jev-round fails against a stub answering 500', async () => {
   }
 });
 
-test('all nine checks pass on a clean ephemeral setup', async () => {
+test('all ten checks pass on a clean ephemeral setup', async () => {
   const stub = await startTypeSafeStub((body) => {
     const questions = body.questions ?? {};
     if (questions['answer']) {
@@ -402,8 +404,278 @@ test('json output is one parseable line with the pinned check order', async () =
   assert.ok(['PASS', 'FAIL'].includes(report.verdict));
 });
 
+// ---------------------------------------------------------------------------
+// I6: the `handoff` check (§ 5.10) and the config-loaded gate suffix (Q6).
+// ---------------------------------------------------------------------------
+
+type ConfigWithExtras = WingmanConfig & Record<string, unknown>;
+
+function forcedConfig(overrides: Record<string, unknown> = {}): { ok: true; config: WingmanConfig; source: 'file' } {
+  const config = {
+    mode: 'on',
+    adapter: 'cdp',
+    window: 'offscreen',
+    profile_dir: join(tmpdir(), 'wingman-doctor-profile-stub'),
+    port: 59999,
+    chrome_path: null,
+    secrets_file: null,
+    plugin: null,
+    sensitive_hosts: {},
+    budgets: { ...DEFAULT_BUDGETS },
+    handoff: { mode: 'forced', tools: 'browse-only', retain: [] },
+    ...overrides,
+  } as ConfigWithExtras;
+  return { ok: true, config: config as WingmanConfig, source: 'file' };
+}
+
+function entry(server: string, command: string, args: string[]): RegistrationEntry {
+  return { client: 'claude', server, command, args, env: {}, raw: null };
+}
+
+const PLAYWRIGHT_ENTRY = entry('playwright', 'npx', ['-y', '@playwright/mcp@0.0.80', '--browser', 'chrome']);
+const WRAPPED_PLAYWRIGHT_ENTRY = entry('playwright', 'jev-browser-wingman', [
+  'with-browser',
+  '--',
+  'npx',
+  '-y',
+  '@playwright/mcp@0.0.80',
+  '--browser',
+  'chrome',
+]);
+const WINGMAN_ENTRY = entry('jev-browser-wingman', 'jev-browser-wingman', ['mcp']);
+const FOREIGN_WRAPPED_ENTRY = entry('some-other-browser', 'jev-browser-wingman', [
+  'with-browser',
+  '--',
+  'npx',
+  '-y',
+  'some-other-browser-mcp',
+]);
+
+function noSettings(): Promise<ClientSettingsResult> {
+  return Promise.resolve({ exists: false, denyList: [] });
+}
+
+test('handoff PASSes optional when the config has no handoff key (hand-built object)', async () => {
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({ readSettingsFn: noSettings }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'PASS');
+  assert.match(check.detail, /^optional: nothing withheld$/);
+});
+
+test('handoff PASSes optional with the mode-off suffix when wingman mode is not on', async () => {
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      loadConfigFn: async () => forcedConfig({ mode: 'off' }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'PASS');
+  assert.match(check.detail, /^optional: nothing withheld \(wingman mode is off; forced needs mode on\)$/);
+});
+
+test('handoff SKIPs when no browsing tool is registered', async () => {
+  const home = await tempDir('wingman-doctor-handoff-none-');
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [WINGMAN_ENTRY] }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'SKIP');
+  assert.equal(check.detail, 'no browsing tool registered');
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff PASSes "enforced by proxy" for a wrapped, profile-matched server', async () => {
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [WINGMAN_ENTRY, WRAPPED_PLAYWRIGHT_ENTRY] }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'PASS');
+  assert.match(check.detail, /enforced by proxy: playwright \(playwright-mcp\)/);
+  assert.match(check.detail, /withheld classes: /);
+});
+
+test('handoff PASSes "enforced by proxy after auto-classification" for a wrapped, unmatched server', async () => {
+  const home = await tempDir('wingman-doctor-handoff-auto-');
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [FOREIGN_WRAPPED_ENTRY] }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'PASS');
+  assert.match(check.detail, /enforced by proxy after auto-classification: some-other-browser \(first session classifies; needs a TypeSafe key\)/);
+  assert.match(check.detail, /not yet classified/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff appends the unclassified tool names once an auto profile exists', async () => {
+  const home = await tempDir('wingman-doctor-handoff-autolist-');
+  const autoDir = join(home, 'profiles-auto');
+  await mkdir(autoDir, { recursive: true });
+  await writeFile(
+    join(autoDir, 'auto-abc123.json'),
+    JSON.stringify({
+      id: 'auto-abc123',
+      auto: true,
+      description: 'auto-classified',
+      detect: { args_contain: [], extension_flags: [], endpoint_flags: [] },
+      launch: { endpoint_env: null, endpoint_arg: null, strip_args: [] },
+      match_tools: ['weird_tool'],
+      tools: { weird_tool: 'unknown' },
+      arg_rules: [],
+    }),
+  );
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [FOREIGN_WRAPPED_ENTRY] }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.match(check.detail, /left with the caller \(unclassified\): weird_tool/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff PASSes "enforced by deny config" when the client settings list every withheld tool', async () => {
+  const home = await tempDir('wingman-doctor-handoff-deny-');
+  const profiles = loadProfiles(home);
+  const profile = profiles.find((p) => p.id === 'playwright-mcp')!;
+  const withheld = withheldClasses(adapterOps('cdp'), []);
+  const deny = denyEntries('claude', 'playwright', profile, withheld)!;
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [PLAYWRIGHT_ENTRY] }),
+      readSettingsFn: async () => ({ exists: true, denyList: deny.entries }),
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'PASS');
+  assert.match(check.detail, /enforced by deny config: playwright/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff FAILs a proxiable, unwrapped server with no deny entries', async () => {
+  const home = await tempDir('wingman-doctor-handoff-nowrap-');
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [PLAYWRIGHT_ENTRY] }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'FAIL');
+  assert.match(check.detail, /not enforced: wrap playwright with with-browser \(doctor --plan prints the entry\)/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff aggregates: one enforced + one unenforced server yields FAIL with both details', async () => {
+  const home = await tempDir('wingman-doctor-handoff-agg-');
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig(),
+      readRegistrationsFn: async () => ({
+        file: 'f',
+        exists: true,
+        entries: [WRAPPED_PLAYWRIGHT_ENTRY, entry('devtools', 'npx', ['-y', 'chrome-devtools-mcp@1.10.1'])],
+      }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  assert.equal(check.status, 'FAIL');
+  assert.match(check.detail, /enforced by proxy: playwright \(playwright-mcp\)/);
+  assert.match(check.detail, /not enforced: wrap devtools with with-browser/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('handoff Q4: forced + policy.mode enforce appends the WARNING, status unchanged', async () => {
+  const home = await tempDir('wingman-doctor-handoff-q4-');
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      env: { WINGMAN_HOME: home },
+      loadConfigFn: async () => forcedConfig({ policy: { mode: 'enforce' } }),
+      readSettingsFn: noSettings,
+    }),
+  );
+  const check = checkOf(report, 'handoff');
+  // No browsing server is registered here (SKIP), and the warning still rides.
+  assert.equal(check.status, 'SKIP');
+  assert.match(
+    check.detail,
+    /; WARNING: policy\.mode enforce with forced handoff: sensitive pages come back for pick or the user$/,
+  );
+  await rm(home, { recursive: true, force: true });
+});
+
+test('registration-portable counts a with-browser-wrapped entry as relevant', async () => {
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({
+      readRegistrationsFn: async () => ({ file: 'f', exists: true, entries: [WRAPPED_PLAYWRIGHT_ENTRY] }),
+    }),
+  );
+  const check = checkOf(report, 'registration-portable');
+  assert.notEqual(check.status, 'SKIP', 'a with-browser-wrapped entry must be counted relevant');
+});
+
+test('config-loaded ends with the off gate suffix by default (Q6)', async () => {
+  const report = await runDoctor({ json: false, offlineOnly: true }, baseDeps());
+  const check = checkOf(report, 'config-loaded');
+  assert.match(
+    check.detail,
+    /; gate: off \(optional toggle; set gate\.mode "confirm" to require confirmation of irreversible actions\)$/,
+  );
+});
+
+test('config-loaded ends with the confirm gate suffix when gate.mode is confirm (Q6)', async () => {
+  const report = await runDoctor(
+    { json: false, offlineOnly: true },
+    baseDeps({ loadConfigFn: async () => forcedConfig({ gate: { mode: 'confirm' }, handoff: undefined }) }),
+  );
+  const check = checkOf(report, 'config-loaded');
+  assert.match(check.detail, /; gate: confirm$/);
+});
+
+// KB-Ic and KB-Id (§ 6 WP-I) are proved at gate time by flipping doctor.ts's
+// source (dropping the gate suffix / the Q4 WARNING append) and confirming
+// the two tests just above — "config-loaded ends with the confirm gate
+// suffix…" and "handoff Q4: forced + policy.mode enforce appends the
+// WARNING…" — FAIL, then restoring. See the report for the recorded run.
+
 // The scratch dir (the doctor output-capture wrapper) goes away with the
-// process; a synchronous best-effort removal keeps the gate at 13 tests.
+// process; a synchronous best-effort removal keeps the gate clean.
 process.on('exit', () => {
   try {
     rmSync(scratch, { recursive: true, force: true });

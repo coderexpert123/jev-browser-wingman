@@ -2,20 +2,9 @@
 
 ## Audience
 
-Any installing agent, on any client, beside whatever browser tooling the user already has. Read this whole file before running anything. Run only `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
+Any installing agent or human, on any client, beside whatever browser tooling the user already has. Read this whole file before running anything. Run only `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
 
-## Invariants
-
-These must not be broken under any circumstance:
-
-- One browser process per profile dir.
-- Never close or relaunch a browser it did not start.
-- The existing browser tool stays the default.
-- The TypeSafe key goes in the client's secret or env store, never in committed or synced config, and is never echoed.
-- No absolute machine paths in config that is synced across machines.
-- Show a diff and get the user's approval before editing any existing MCP or client config.
-- `profile_dir` is never Chrome's default user-data dir.
-- Attach reuses the browser's default context and never creates one.
+After installing the command (below), start with `jev-browser-wingman doctor --plan`: it prints, per outcome, the exact steps this setup still needs. Finish with `jev-browser-wingman doctor`: green means done.
 
 ## Install the command
 
@@ -25,7 +14,32 @@ From a source checkout, run `npm ci`, then `npm run build`, then `npm link` in t
 
 Verify with `jev-browser-wingman --version`. It must print a version and exit 0.
 
-## Detect
+## Invariants
+
+These must not be broken under any circumstance:
+
+- One browser process per profile dir.
+- Never close or relaunch a browser it did not start.
+- The existing browser tool stays registered and owns tabs, reading, dialogs and screen-position clicks; page actions and navigation go through wingman in forced mode.
+- The TypeSafe key goes in the client's secret or env store, never in committed or synced config, and is never echoed.
+- No absolute machine paths in config that is synced across machines.
+- Show a diff and get the user's approval before editing any existing MCP or client config.
+- `profile_dir` is never Chrome's default user-data dir.
+- Attach reuses the browser's default context and never creates one.
+
+## Outcomes
+
+| Outcome | Why it matters | How doctor checks it | Known ways to reach it |
+|---|---|---|---|
+| O1 wingman is registered with the agent's MCP client and its config sets `"mode": "on"` | Forced handoff applies only while the top-level mode is `on` | `registration-portable`, `config-loaded` | Add the wingman server entry (Register per client) and set `"mode": "on"` in `<wingmanHome>/config.json` |
+| O2 the caller's in-page action tools are withheld | Without withholding, forced handoff is instruction-only and the caller keeps acting on the page directly | `handoff` | Proxy wrap, deny config, or instruction-only with the reason stated |
+| O3 the caller's browsing tool and wingman share one debuggable Chromium-family browser | One shared browser keeps the logged-in session and avoids a second browser process | `adapter-attach`, `default-context`, `coexistence` | Let wingman launch the shared browser, or attach to the browsing tool's own debugging endpoint |
+| O4 a TypeSafe key is available | Every Jev decision needs it | `key-present` | Set the env var in the client's secret or env store, or point `secrets_file` at a KEY=VALUE file |
+| O5 `doctor` passes | Green means done | all checks | Run `jev-browser-wingman doctor` and fix each FAIL with the table in Verify |
+
+Any environment not covered by `doctor --plan` is supported by reaching these outcomes by whatever route fits; doctor green means done.
+
+## Detect and plan
 
 Run `jev-browser-wingman doctor --detect`. It is read-only and prints one report per client.
 
@@ -34,13 +48,15 @@ Read each server's `kind` and `mode`:
 - `kind`: `playwright-mcp`, `chrome-devtools-mcp`, `jev-browser-wingman`, or `other`.
 - `mode`: `launch`, `cdp-endpoint`, `extension`, `wrapped`, or `n/a`.
 
-## Decide
+Run `jev-browser-wingman doctor --plan [--client <id>]` to print the same setup as concrete steps, one block per outcome. `--plan` never launches a browser and never sends data anywhere; an unrecognised client id prints a generic plan, not an error.
 
-Map each detected setup to an action. Every row keeps the existing tool as the default.
+Wingman maps each browsing tool's calls to capability classes through profile files. Shipped profiles cover the common browsing servers; a user profile at `<wingmanHome>/profiles/<id>.json` with the same `id` replaces a shipped one, and `<wingmanHome>/profiles-auto/` holds profiles wingman writes itself after classifying an unknown tool's descriptions on its first session. To cover a new tool, copy a shipped profile, change `id`, `detect.args_contain` and the `tools` map, and drop it in the user profiles directory.
+
+Map each detected setup to an action. Every row keeps the existing tool registered.
 
 | Detected setup | Action |
 |---|---|
-| Playwright MCP, mode `launch` | Wrap its registration with `with-chrome` after approval; if the user declines edits, run jev-browser-wingman on its own separate profile. |
+| Playwright MCP, mode `launch` | Wrap its registration with `with-browser` after approval; if the user declines edits, run jev-browser-wingman on its own separate profile. |
 | Playwright MCP, mode `cdp-endpoint` | Attach to that endpoint; never launch. |
 | Chrome DevTools MCP with `--browserUrl` | Attach to that endpoint; never launch. |
 | A running debuggable Chrome (its `/json/version` answers) | Attach to that endpoint; never launch. |
@@ -55,6 +71,26 @@ Ask before configuring; never guess these:
 - Where the TypeSafe key lives: an env var, or a KEY=VALUE file. Never echo its value.
 - Whether a host application provides a wingman plugin, and its path.
 - Which clients to change now.
+
+## Shared browser
+
+By default wingman launches its own shared browser on `profile_dir` and `port` at the first tool call. Alternatively it attaches to the browsing tool's own browser through that tool's debugging endpoint.
+
+Extension case: the browsing tool drives the browser through an extension and exposes no endpoint. Start a Chromium-family browser on a dedicated profile dir with `--remote-debugging-port=<port>` (Chrome 136+ ignores that flag on the default profile), install the extension in that profile, and set `port` and `profile_dir` in wingman's config to match.
+
+Supported browsers: Chrome, Edge, Brave, Chromium, Opera and Vivaldi, found automatically in that order.
+
+## Handoff mode
+
+Wingman classes every call to the caller's browsing tools into capability classes. In `forced` mode (the default) the classes the active adapter can do are withheld from the caller, minus any classes listed in `handoff.retain`; the caller's own script tool is never withheld. In `optional` mode nothing is withheld.
+
+Which classes are withheld is derived from the adapter, so every withheld call has a wingman path. The classes that always stay with the caller: `pointer-xy`, `drag`, `tabs`, `dialog`, `read`, `wait`, `script`, `session`.
+
+Right-clicks, modifier-held clicks and keys outside the wingman key set (Enter, Tab, Shift+Tab, Escape, Space, Backspace, Ctrl/Cmd+A, arrows) stay reachable through the caller's own script tool, which forced mode never withholds.
+
+With `policy.mode: "enforce"` in forced mode, a sensitive page comes back to the caller, who drives it with `pick` (a pick sends nothing to the decision service) or asks the user. `doctor` warns about the pairing. Forced handoff applies only while the top-level `mode` is `on`.
+
+Opt out with `"handoff": {"mode": "optional"}` in config.
 
 ## Configure
 
@@ -72,11 +108,12 @@ Config lives at `<wingmanHome>/config.json`, by default `~/.jev-browser-wingman/
 | `plugin` | string or null | null | as `profile_dir`; path to a module exporting `wingmanPlugin` |
 | `sensitive_hosts` | object | `{}` | keys from `SENSITIVE_HOST_CATEGORIES`; values are arrays of host suffixes |
 | `budgets` | object | `DEFAULT_BUDGETS` | each key optional; each value within `BUDGET_LIMITS` |
-| `gate` | object | `{ mode: "confirm" }` | only key `mode`: `"confirm"` (default) or `"off"`; `off` disables the irreversible gate |
+| `gate` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"confirm"`; `confirm` turns on the irreversible-action gate |
+| `handoff` | object | `{ mode: "forced" }` | keys `mode`: `"forced"` (default) or `"optional"`; `tools`: `"browse-only"` or `"all"`; `retain`: array of capability class names kept with the caller |
 
 Unknown top-level keys fail.
 
-When the user approves the Playwright wrap, set `profile_dir` to the existing Playwright `--user-data-dir`, so logged-in state carries over. Paths under the user's home are written with `~/`.
+When the user approves the wrap, set `profile_dir` to the existing browsing tool's `--user-data-dir`, so logged-in state carries over. Paths under the user's home are written with `~/`.
 
 ## Back up before editing
 
@@ -84,7 +121,7 @@ Save the exact existing entry to `~/.jev-browser-wingman/backups/<client>-<serve
 
 Show the user the before and after entries. Edit only after approval. Use the client's own `mcp` command where it has one.
 
-## Register
+## Register per client
 
 Add the wingman server entry per client:
 
@@ -118,20 +155,28 @@ codex, in `~/.codex/config.toml`:
 [mcp_servers.jev-browser-wingman]
 command = "jev-browser-wingman"
 args = ["mcp"]
-tool_timeout_sec = 90
+tool_timeout_sec = 150
 ```
 
-## Wrap Playwright MCP
+### Wrap the browsing tool's entry
 
-Given an entry with `command` C and `args` A, the wrapped entry has `command: "jev-browser-wingman"` and `args: ["with-chrome", "--", C, ...A']`. A' is A with every `--user-data-dir <v>` pair and every `--user-data-dir=<v>` token removed. Every other key of the entry is kept, and keys keep their original order. opencode's array form `[C, ...A]` becomes `["jev-browser-wingman", "with-chrome", "--", C, ...A']`.
+Given an entry with `command` C and `args` A, the wrapped entry has `command: "jev-browser-wingman"` and `args: ["with-browser", "--", C, ...A']`. A' is A with every launch flag the tool's profile names (for the common cases `--user-data-dir`/`--userDataDir`) removed, in both the `--x <v>` pair form and the `--x=<v>` token form. Every other key of the entry is kept, and keys keep their original order. opencode's array form `[C, ...A]` becomes `["jev-browser-wingman", "with-browser", "--", C, ...A']`.
 
-For a typical Claude Code Playwright entry the output is exactly:
+For a typical Claude Code entry of the common browsing server the output is exactly:
 
 ```json
-{"type":"stdio","command":"jev-browser-wingman","args":["with-chrome","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}}
+{"type":"stdio","command":"jev-browser-wingman","args":["with-browser","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}}
 ```
 
-The shared Chrome then starts at the first browser tool call, not at session start, in the `window` mode of the config. Codex's wrapped table also adds `startup_timeout_sec = 60`.
+The shared browser then starts at the first browser tool call, not at session start, in the `window` mode of the config. Codex's wrapped table also adds `startup_timeout_sec = 60`.
+
+`with-chrome` is a deprecated alias for `with-browser` that still works; prefer `with-browser`.
+
+## Optional toggles
+
+`gate`, `policy` and `takeover` are optional toggles; `gate` and `policy` are off by default.
+
+`gate.mode: "confirm"` opts in to the irreversible-action gate: a submit, delete, pay or send action returns `needs_confirmation` and a token instead of acting. Since 0.3.0 the gate is off unless you set it.
 
 ## Verify
 
@@ -146,6 +191,7 @@ Each check id maps to a fix:
 | `registration-portable` | Remove absolute paths from the registration and move secret-shaped env values to the client's env or secret store. |
 | `policy-loaded` | Restore a non-empty host list for every `sensitive_hosts` category present in config. |
 | `profile-safe` | Set `profile_dir` to a dedicated directory away from Chrome's default user-data dir; stop the holder without a debug port or pick another port. |
+| `handoff` | Wrap the browsing tool's registration with `with-browser`, or add the deny entries the check prints (`doctor --plan` prints them); set `"handoff": {"mode": "optional"}` if nothing should be withheld. |
 | `adapter-attach` | Run `jev-browser-wingman chrome ensure`, or set the endpoint env var if an endpoint already exists. |
 | `default-context` | Use an attach path that reuses the browser's default context; never create one. |
 | `coexistence` | Stop the interfering tool around attach, or switch to the other adapter. |
@@ -154,3 +200,13 @@ Each check id maps to a fix:
 ## Roll back
 
 Restore the backed-up entry with the client's own command. Then run `jev-browser-wingman doctor` again and confirm the affected checks pass.
+
+## What was tested
+
+- The cloud Linux fresh install with Claude Code and a Playwright-family MCP server.
+- The same with a second, differently named browsing tool.
+- A stub browsing tool with foreign tool names.
+- The Windows registration smokes for Claude Code, opencode, agy and devin.
+- A Windows `doctor --plan` dry run.
+- Other environments: supported by these outcomes and `doctor`, not tested.
+- Opera and Vivaldi: discovered by path, not launch-tested.

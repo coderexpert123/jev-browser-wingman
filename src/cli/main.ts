@@ -17,10 +17,11 @@ import { runMcpServer } from '../surfaces/mcp-server.js';
 import { chromeCommand } from './chrome-cmd.js';
 import { detect } from './detect.js';
 import { guideCommand } from './guide.js';
-import { runDoctor } from './doctor.js';
+import { defaultClient, runDoctor } from './doctor.js';
+import { buildSetupPlan, printSetupPlan } from './setup-plan.js';
 import type { ClientId } from './registrations.js';
 import { checkCommand, runCommand, USAGE_CHECK, USAGE_RUN } from './run-cmd.js';
-import { runWithChrome } from './with-chrome.js';
+import { runWithBrowser } from './with-chrome.js';
 
 const CLIENTS: readonly ClientId[] = ['claude', 'codex', 'opencode', 'agy', 'devin', 'cursor'];
 
@@ -30,8 +31,9 @@ const USAGE = [
   USAGE_CHECK,
   'usage: jev-browser-wingman mcp',
   'usage: jev-browser-wingman chrome ensure|status|stop|show|hide',
-  'usage: jev-browser-wingman with-chrome -- <command> [args...]',
-  'usage: jev-browser-wingman doctor [--json] [--detect] [--client <claude|codex|opencode|agy|devin|cursor>]',
+  'usage: jev-browser-wingman with-browser -- <command> [args...]',
+  'usage: jev-browser-wingman with-chrome -- <command> [args...]  (deprecated alias)',
+  'usage: jev-browser-wingman doctor [--json] [--detect] [--plan] [--client <id>]',
   'usage: jev-browser-wingman guide',
   'usage: jev-browser-wingman --version | --help',
 ].join('\n');
@@ -69,23 +71,40 @@ async function main(argv: string[]): Promise<number | null> {
       }
       return chromeCommand(sub);
     }
+    case 'with-browser':
     case 'with-chrome': {
       const dd = rest.indexOf('--');
       if (dd === -1) {
-        process.stderr.write('usage: jev-browser-wingman with-chrome -- <command> [args...]\n');
+        process.stderr.write(`usage: jev-browser-wingman ${cmd} -- <command> [args...]\n`);
         return 2;
       }
-      return runWithChrome(rest.slice(dd + 1));
+      return runWithBrowser(rest.slice(dd + 1));
     }
     case 'doctor': {
       const json = rest.includes('--json');
       const doDetect = rest.includes('--detect');
+      const doPlan = rest.includes('--plan');
       const clientIndex = rest.indexOf('--client');
+      const rawClient = clientIndex !== -1 ? rest[clientIndex + 1] : undefined;
+
+      if (doPlan) {
+        // I1: --plan accepts any --client string and never exits 2; an
+        // unrecognised id yields a known:false plan, exit 0 (I3).
+        const client = rawClient ?? defaultClient(process.env);
+        const plan = await buildSetupPlan({ client });
+        if (json) {
+          process.stdout.write(`${JSON.stringify(plan)}\n`);
+        } else {
+          process.stdout.write(printSetupPlan(plan));
+        }
+        return 0;
+      }
+
       let client: ClientId | undefined;
       if (clientIndex !== -1) {
-        const value = rest[clientIndex + 1] as ClientId;
+        const value = rawClient as ClientId;
         if (!value || !CLIENTS.includes(value)) {
-          process.stderr.write(`unknown client: ${String(rest[clientIndex + 1])}\n`);
+          process.stderr.write(`unknown client: ${String(rawClient)}\n`);
           return 2;
         }
         client = value;

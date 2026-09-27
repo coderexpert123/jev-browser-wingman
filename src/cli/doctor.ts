@@ -1,8 +1,11 @@
-// WP-F2: `doctor` (§ 3.10). Nine read-only checks in DOCTOR_CHECK_IDS order;
+// WP-F2: `doctor` (§ 3.10). Ten read-only checks in DOCTOR_CHECK_IDS order;
 // never edits anything and never launches the shared Chrome. The only launch
-// is the ephemeral headless Chrome inside `jev-round`.
+// is the ephemeral headless Chrome inside `jev-round`. `handoff` (§ 5.10,
+// forced-handoff spec) is offline: it never spawns or attaches to a browser
+// and never calls TypeSafe, so `--plan` (setup-plan.ts) can reuse it.
 
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readdir, readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { PACKAGE_VERSION } from '../contract/constants.js';
 import {
@@ -17,7 +20,7 @@ import {
   type WingmanConfig,
   type WingmanPlugin,
 } from '../contract/types.js';
-import { loadConfig, resolveKey } from '../core/config.js';
+import { loadConfig, resolveKey, handoffOf, policyModeOf, gateModeOf } from '../core/config.js';
 import { loadPlugin } from '../core/plugin.js';
 import { createMutex } from '../core/mutex.js';
 import { ConfirmTokenStore } from '../core/tokens.js';
@@ -36,12 +39,97 @@ import { launchEphemeralChrome } from '../browser/ephemeral.js';
 import { startFixtureServer } from '../fixture-server.js';
 import { CdpConnection } from '../adapters/cdp-connection.js';
 import { createDriver } from '../adapters/index.js';
+import { wingmanHome } from '../contract/home.js';
+import { loadProfiles, profileForArgv, withheldClasses, denyEntries } from '../core/profiles.js';
+import { adapterOps } from '../adapters/capabilities.js';
 import {
+  clientConfigPath,
   portabilityProblems,
   readRegistrations,
   type ClientId,
+  type RegistrationEntry,
 } from './registrations.js';
 import { fingerprint, onlyUrlsChanged } from './coexistence-probe.js';
+
+/** An extension/endpoint flag entry matches an argument equal to the flag or
+ * starting with <flag>= (§ 5.8a; mirrors detect.ts's own copy — that file is
+ * WP-H's, this one is WP-I's). */
+function flagPresent(args: readonly string[], flags: readonly string[]): boolean {
+  return flags.some((f) => args.some((a) => a === f || a.startsWith(`${f}=`)));
+}
+
+/** The result of reading a client's own settings/config for layer-2 (tool
+ * deny list) enforcement (§ 5.10). `denyList` entries are in the same shape
+ * `denyEntries()` produces (`mcp__<server>__<tool>` for claude,
+ * `<server>_<tool>` for opencode). */
+export interface ClientSettingsResult {
+  exists: boolean;
+  denyList: string[];
+}
+
+/** Best-effort default reader for the two clients with a known tool-deny
+ * shape. Any other client, or any read/parse failure, reports no deny list
+ * (never throws): the `handoff` check then falls through to its other rows. */
+async function defaultReadSettings(
+  client: ClientId,
+  env: NodeJS.ProcessEnv,
+): Promise<ClientSettingsResult> {
+  try {
+    if (client === 'claude') {
+      const raw = JSON.parse(await readFile(join(homedir(), '.claude', 'settings.json'), 'utf8')) as {
+        permissions?: { deny?: unknown };
+      };
+      const deny = raw.permissions?.deny;
+      return { exists: true, denyList: Array.isArray(deny) ? deny.filter((d): d is string => typeof d === 'string') : [] };
+    }
+    if (client === 'opencode') {
+      const p = clientConfigPath('opencode', env);
+      // opencode.jsonc allows line comments; a JSON parse of most real files
+      // still succeeds, and a best-effort comment strip covers the rest.
+      const text = (await readFile(p, 'utf8')).replace(/^\s*\/\/.*$/gm, '');
+      const raw = JSON.parse(text) as { mcp?: Record<string, { tools?: Record<string, unknown> }> };
+      const denyList: string[] = [];
+      for (const [server, serverCfg] of Object.entries(raw.mcp ?? {})) {
+        for (const [tool, enabled] of Object.entries(serverCfg.tools ?? {})) {
+          if (enabled === false) denyList.push(`${server}_${tool}`);
+        }
+      }
+      return { exists: true, denyList };
+    }
+  } catch {
+    // no settings file, or it does not parse: report no deny list.
+  }
+  return { exists: false, denyList: [] };
+}
+
+/** Tool names an auto-classification profile left `unknown` (§ 10.2): every
+ * `<home>/profiles-auto/*.json`'s `tools` map entries whose class is
+ * `'unknown'`. `null` when the directory does not exist or holds no files
+ * (nothing auto-classified yet). */
+async function unclassifiedToolNames(home: string): Promise<string[] | null> {
+  const dir = join(home, 'profiles-auto');
+  let names: string[];
+  try {
+    names = await readdir(dir);
+  } catch {
+    return null;
+  }
+  const jsonNames = names.filter((n) => n.endsWith('.json'));
+  if (jsonNames.length === 0) return null;
+  const out: string[] = [];
+  for (const name of jsonNames) {
+    try {
+      const raw = JSON.parse(await readFile(join(dir, name), 'utf8')) as { tools?: Record<string, string> };
+      for (const [tool, cls] of Object.entries(raw.tools ?? {})) {
+        if (cls === 'unknown') out.push(tool);
+      }
+    } catch {
+      // an invalid auto profile contributes no names; loadProfiles itself
+      // already reports it with its own stderr line.
+    }
+  }
+  return out;
+}
 
 export interface DoctorDeps {
   env?: NodeJS.ProcessEnv;
@@ -60,9 +148,13 @@ export interface DoctorDeps {
   readRegistrationsFn?: typeof readRegistrations;
   /** Replaces the built-in host lists wholesale; the known-bad injection point. */
   policyLists?: () => Record<SensitiveHostCategory, readonly string[]>;
+  loadProfilesFn?: typeof loadProfiles;
+  readSettingsFn?: typeof defaultReadSettings;
 }
 
-function defaultClient(env: NodeJS.ProcessEnv): ClientId {
+/** `defaultClient` is exported for `setup-plan.ts` (I3), which picks the same
+ * client `doctor` would when the caller passes none. */
+export function defaultClient(env: NodeJS.ProcessEnv): ClientId {
   if (env.CLAUDECODE) return 'claude';
   if (env.CODEX_CLI_PATH || env.CODEX_HOME) return 'codex';
   if (env.OPENCODE) return 'opencode';
@@ -83,7 +175,7 @@ function mergeLists(
 }
 
 export async function runDoctor(
-  opts: { client?: ClientId; json: boolean },
+  opts: { client?: ClientId; json: boolean; offlineOnly?: boolean; print?: boolean },
   deps: DoctorDeps = {},
 ): Promise<DoctorReport> {
   const env = deps.env ?? process.env;
@@ -120,6 +212,11 @@ export async function runDoctor(
   // 2. config-loaded
   let plugin: WingmanPlugin | null = null;
   {
+    // § 5.10 Q6: the PASS detail always ends with the gate mode in force.
+    const gateSuffix = (config: WingmanConfig): string =>
+      gateModeOf(config) === 'confirm'
+        ? '; gate: confirm'
+        : '; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)';
     if (!loaded.ok) {
       add('config-loaded', 'FAIL', loaded.error);
     } else if (loaded.config.plugin) {
@@ -128,10 +225,14 @@ export async function runDoctor(
         add('config-loaded', 'FAIL', p.error);
       } else {
         plugin = p.plugin;
-        add('config-loaded', 'PASS', 'config and plugin loaded');
+        add('config-loaded', 'PASS', `config and plugin loaded${gateSuffix(loaded.config)}`);
       }
     } else {
-      add('config-loaded', 'PASS', loaded.source === 'defaults' ? 'defaults (no config file)' : 'config loaded');
+      add(
+        'config-loaded',
+        'PASS',
+        `${loaded.source === 'defaults' ? 'defaults (no config file)' : 'config loaded'}${gateSuffix(loaded.config)}`,
+      );
     }
   }
 
@@ -142,7 +243,11 @@ export async function runDoctor(
       add('registration-portable', 'FAIL', rr.error);
     } else {
       const relevant = rr.entries.filter(
-        (e) => e.server === 'jev-browser-wingman' || e.command === 'jev-browser-wingman' || e.args.includes('with-chrome'),
+        (e) =>
+          e.server === 'jev-browser-wingman' ||
+          e.command === 'jev-browser-wingman' ||
+          e.args.includes('with-chrome') ||
+          e.args.includes('with-browser'),
       );
       if (relevant.length === 0) {
         add('registration-portable', 'SKIP', 'no jev-browser-wingman or with-chrome registration exists');
@@ -206,7 +311,9 @@ export async function runDoctor(
 
   // 6. adapter-attach
   let endpoint: string | null = null;
-  if (failed.has('config-loaded')) {
+  if (opts.offlineOnly) {
+    add('adapter-attach', 'SKIP', 'not run: doctor --plan is offline only');
+  } else if (failed.has('config-loaded')) {
     skip('adapter-attach', 'config-loaded');
   } else {
     const c = cfg();
@@ -233,7 +340,9 @@ export async function runDoctor(
   }
 
   // 7. default-context
-  if (failed.has('config-loaded')) {
+  if (opts.offlineOnly) {
+    add('default-context', 'SKIP', 'not run: doctor --plan is offline only');
+  } else if (failed.has('config-loaded')) {
     skip('default-context', 'config-loaded');
   } else if (failed.has('adapter-attach')) {
     skip('default-context', 'adapter-attach');
@@ -308,7 +417,9 @@ export async function runDoctor(
   }
 
   // 8. coexistence
-  if (failed.has('config-loaded')) {
+  if (opts.offlineOnly) {
+    add('coexistence', 'SKIP', 'not run: doctor --plan is offline only');
+  } else if (failed.has('config-loaded')) {
     skip('coexistence', 'config-loaded');
   } else if (failed.has('adapter-attach')) {
     skip('coexistence', 'adapter-attach');
@@ -339,8 +450,87 @@ export async function runDoctor(
     }
   }
 
-  // 9. jev-round
+  // 9. handoff (§ 5.10; offline: no attach, no launch, no TypeSafe call, so
+  // it runs the same whether or not offlineOnly is set).
   if (failed.has('config-loaded')) {
+    skip('handoff', 'config-loaded');
+  } else {
+    const c = cfg();
+    const handoff = handoffOf(c);
+    if (handoff.mode !== 'forced') {
+      const suffix = c.mode !== 'on' ? ` (wingman mode is ${c.mode}; forced needs mode on)` : '';
+      add('handoff', 'PASS', `optional: nothing withheld${suffix}`);
+    } else {
+      const profiles = (deps.loadProfilesFn ?? loadProfiles)(wingmanHome(env));
+      const withheld = withheldClasses(adapterOps(c.adapter), handoff.retain);
+      const rr = await (deps.readRegistrationsFn ?? readRegistrations)(client, { env });
+      const entries: RegistrationEntry[] = 'entries' in rr ? rr.entries : [];
+      const settings = await (deps.readSettingsFn ?? defaultReadSettings)(client, env);
+
+      const rows: Array<{ status: 'PASS' | 'FAIL'; detail: string }> = [];
+      for (const e of entries) {
+        const wrapped = e.args[0] === 'with-browser' || e.args[0] === 'with-chrome';
+        const profile = profileForArgv(profiles, e.command, e.args);
+        if (!wrapped && !profile) continue; // not a browsing server (§ 5.10)
+
+        let status: 'PASS' | 'FAIL';
+        let detail: string;
+        if (wrapped) {
+          if (profile) {
+            status = 'PASS';
+            detail = `enforced by proxy: ${e.server} (${profile.id})`;
+          } else {
+            status = 'PASS';
+            detail = `enforced by proxy after auto-classification: ${e.server} (first session classifies; needs a TypeSafe key)`;
+          }
+        } else {
+          const deny = denyEntries(client, e.server, profile!, withheld);
+          const denyPresent = deny !== null && deny.entries.every((x) => settings.denyList.includes(x));
+          const extensionMode = flagPresent(e.args, profile!.detect.extension_flags);
+          if (deny !== null && denyPresent) {
+            status = 'PASS';
+            detail = `enforced by deny config: ${e.server}`;
+          } else if (extensionMode) {
+            if (deny !== null) {
+              status = 'FAIL';
+              detail = `not enforced: ${e.server} is a browser extension; add the deny entries printed by doctor --plan`;
+            } else {
+              status = 'PASS';
+              detail = `NOT ENFORCED: ${e.server} is a browser extension and ${client} has no tool deny list; handoff is instruction-only`;
+            }
+          } else {
+            status = 'FAIL';
+            detail = `not enforced: wrap ${e.server} with with-browser (doctor --plan prints the entry)`;
+          }
+        }
+        detail += `; withheld classes: ${withheld.join(', ')}`;
+        if (wrapped && !profile) {
+          const names = await unclassifiedToolNames(wingmanHome(env));
+          detail += names === null ? '; not yet classified' : `; left with the caller (unclassified): ${names.join(', ')}`;
+        }
+        rows.push({ status, detail });
+      }
+
+      let status: DoctorCheck['status'];
+      let detail: string;
+      if (rows.length === 0) {
+        status = 'SKIP';
+        detail = 'no browsing tool registered';
+      } else {
+        status = rows.some((r) => r.status === 'FAIL') ? 'FAIL' : 'PASS';
+        detail = rows.map((r) => r.detail).join('; ');
+      }
+      if (policyModeOf(c) === 'enforce') {
+        detail += '; WARNING: policy.mode enforce with forced handoff: sensitive pages come back for pick or the user';
+      }
+      add('handoff', status, detail);
+    }
+  }
+
+  // 10. jev-round
+  if (opts.offlineOnly) {
+    add('jev-round', 'SKIP', 'not run: doctor --plan is offline only');
+  } else if (failed.has('config-loaded')) {
     skip('jev-round', 'config-loaded');
   } else if (failed.has('key-present') && !plugin?.ask && !deps.ask) {
     skip('jev-round', 'key-present');
@@ -434,13 +624,19 @@ export async function runDoctor(
 
   const verdict: DoctorReport['verdict'] = checks.some((c) => c.status === 'FAIL') ? 'FAIL' : 'PASS';
   const report: DoctorReport = { verdict, version: PACKAGE_VERSION, client, checks };
-  if (opts.json) {
-    process.stdout.write(JSON.stringify(report) + '\n');
-  } else {
-    for (const c of checks) {
-      process.stdout.write(`${c.status} ${c.id}  ${c.detail}\n`);
+  // `print` defaults to true for the `doctor` CLI command's own stdout
+  // contract; `setup-plan.ts` (I3) calls runDoctor as a pure data source for
+  // its offline checks and sets it false, so `doctor --plan [--json]` prints
+  // exactly one object/block instead of leaking this inner report first.
+  if (opts.print ?? true) {
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(report) + '\n');
+    } else {
+      for (const c of checks) {
+        process.stdout.write(`${c.status} ${c.id}  ${c.detail}\n`);
+      }
+      process.stdout.write(`verdict: ${verdict}\n`);
     }
-    process.stdout.write(`verdict: ${verdict}\n`);
   }
   return report;
 }

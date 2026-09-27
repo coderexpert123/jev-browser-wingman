@@ -1,62 +1,61 @@
 ---
 name: jev-browser-wingman
-description: When to delegate a whole browser goal to wingman_do instead of driving raw browser tools, how to phrase the goal, and what each result status means.
+description: Hand a browsing goal to the wingman via browse_step: ordered steps, pick when it returns a step, resume from progress, what stays with you, and what each status means.
 ---
 
-# Delegating browser goals to jev-browser-wingman
+# Handing browser work to jev-browser-wingman
 
-jev-browser-wingman adds two MCP tools, `wingman_do` and `wingman_check`, that
-run a browser loop for you. One call observes the page, picks the next element,
-acts, and repeats until the goal is met or a limit is hit. One call returns one
-compact result instead of a snapshot and a decision per step.
+jev-browser-wingman runs the in-page part of a browsing goal for you. One `browse_step` call observes the page,
+decides each action, acts, and moves through your ordered steps until they are done or a limit is hit. It returns
+one compact result instead of a snapshot and a decision per action.
 
-## When to delegate
+## How to call browse_step
 
-DEFAULT: delegate any browsing goal that will take more than 3 clicks or page
-loads. Call `wingman_do` once with the whole goal instead of paging through
-the site with raw browser tools.
+Pass the goal and the ordered remaining steps, with every web address, file path and text in `values`:
 
-Drive the raw browser tools directly when the goal needs navigation to a new
-URL or tab, needs credentials typed, or spans several unrelated goals.
-`wingman_do` never navigates and never opens or closes tabs. The server
-enforces the active sensitive-page policy itself; when a result's note tells
-you to do a step with your own browser tools, do that.
+    browse_step({ goal: "Finish the order", steps: ["open Shipping", "type the value named zip into ZIP", "go back to the cart", "click Checkout"], values: { zip: "..." } })
 
-Use `wingman_check` for a single yes/no question about the open page when one
-probability answers it. Do not use it to read or extract content.
+Keep secrets out of `goal` and `steps`. Bindings are typed locally and never sent to the decision service.
+Name a binding in the step that types it; a missing binding is reported by name.
 
-## Phrasing the goal
+## When it returns a step to you
 
-State one outcome, and pass variable text as bindings:
+A `step_review` result names your step, up to three candidate elements with their `role` and `name`, and why it
+did not act. Look at the page with your own snapshot or screenshot if you need to. Then call again with the same
+goal, steps and values plus `pick`:
 
-    wingman_do({ goal: "Add the cheapest flight Rome to Oslo in June to the cart", values: { last_name: "..." } })
+    pick: { role: "textbox", name: "ZIP", action: "fill", value: "zip" }
 
-Bindings are typed locally and never sent to the decision service. Keep
-secrets out of `goal`; put text the page must receive into `values`.
+Add `nth` when several elements share the role and name. The wingman acts on exactly that element, then continues.
 
-The same applies to `browse_step`: propose the whole remaining outcome as the
-goal (e.g. `complete the form and submit`), not single actions (`click
-Continue`) — the tool continues autonomously across pages until the outcome is
-done, which is several times faster than one action per call.
+## What stays with you
+
+You plan the goal and steps and supply every value. You read the page with your own tools when you need to see it.
+Sign-in and two-factor steps need the user.
+
+Tabs, pop-ups, dialogs, dragging and clicks at screen positions stay with your own browser tools. A page too large
+for one decision comes back for a snapshot and a `pick`. Right-clicks, modifier-held clicks and keys outside the
+wingman's set stay with your own browser tools' script tool.
+
+## Handoff mode
+
+In `forced` mode, the default, your browser tools keep reading, tabs, waits, dialogs and screen-position actions.
+Their page actions and navigation are withheld when the wingman can do them, so those go through `browse_step`.
+In `optional` mode both paths stay open, and a result's note may tell you to do a step with your own browser tools.
 
 ## What each status means
 
 | Status | Meaning | What to do |
 | --- | --- | --- |
-| done | Goal met | Report the result; do not re-verify with raw tools |
-| fallback | Loop ended early (budget, no browser, no key) | Call `wingman_do` again with the same goal to continue |
-| blocked | Page refused the loop (captcha, dialog, overlay) | Clear the obstruction, then call again |
-| ambiguous | The choice was unclear | Narrow the goal, pass `url_match`, or take one raw snapshot |
+| done | Every step is done | Report the result; do not re-verify with raw tools |
+| fallback | Returned early: a step it could not decide (`step_review`), a budget limit, an action this setup cannot do, or no browser or key | With `step_review`, re-call with `pick`; otherwise follow the note, or re-call with the same arguments to resume from `progress` |
+| blocked | Captcha, open dialog or covering overlay | Clear it (answer a dialog with your own tools, or `pick` the overlay's dismiss button), then call again |
+| ambiguous | An element or value was unclear | Re-call with `pick`, a more specific step, the missing value, or `url_match` |
 | login | A sign-in wall | Ask the user to sign in, then call again |
-| error | Tool or decision fault | Retry once; if it repeats, drive the raw tools |
-| needs_confirmation | An irreversible action is pending | Ask the user, then re-call with the same goal, values and confirm_token |
+| error | Tool or decision fault; `invalid-input` names the argument to fix | Fix what the note names, or retry once |
+| needs_confirmation | An irreversible action is pending (only when the optional gate is on) | Ask the user, then re-call with the same arguments and the confirm_token |
 
-A `fallback` or `blocked` result means the goal is not finished. Call
-`wingman_do` again with the same goal (and the same values) to continue from
-where it stopped.
+## wingman_do and wingman_check
 
-## Do not interleave
-
-After calling `wingman_do`, do not perform the remaining steps with raw browser
-tools. Continue via `wingman_do` until it returns done. Interleaving defeats
-the point of delegation and multiplies snapshots.
+In `optional` mode two more tools are listed. `wingman_do` runs one bounded goal on the open page and never
+navigates. `wingman_check` answers one yes/no question about the open page as a probability.
