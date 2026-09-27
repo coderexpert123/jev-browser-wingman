@@ -1,0 +1,77 @@
+TAP version 13
+# Subtest: E1: the four-clause chain completes in one call
+ok 1 - E1: the four-clause chain completes in one call
+  ---
+  duration_ms: 5386.186097
+  type: 'test'
+  ...
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  duration_ms: 4419.697223
+  type: 'test'
+  ...
+# Subtest: E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+not ok 3 - E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+  ---
+  duration_ms: 8784.730385
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-d/tests/chain-e2e.test.js:363:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: budget-steps
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-d/tests/chain-e2e.test.js:375:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: E4: the delay page waits for Finish and finishes
+ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  duration_ms: 5897.491498
+  type: 'test'
+  ...
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  duration_ms: 3374.787907
+  type: 'test'
+  ...
+# Subtest: E6: a broken link recovers with back and then opens Form
+ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  duration_ms: 3592.06948
+  type: 'test'
+  ...
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  duration_ms: 5844.313576
+  type: 'test'
+  ...
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  duration_ms: 3371.79567
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 41276.205973
+RUN-TESTS: files=1 tests=8 pass=7 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

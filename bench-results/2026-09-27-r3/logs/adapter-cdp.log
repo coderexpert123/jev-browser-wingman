@@ -1,0 +1,73 @@
+TAP version 13
+# Subtest: attaches to the default context and lists the page
+ok 1 - attaches to the default context and lists the page
+  ---
+  duration_ms: 795.019598
+  type: 'test'
+  ...
+# Subtest: observe matches the pinned form.html table
+not ok 2 - observe matches the pinned form.html table
+  ---
+  duration_ms: 729.026276
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/dist/tests/adapter-cdp.test.js:110:1'
+  failureType: 'testCodeFailure'
+  error: 'element 3 (Country) rect.x=677 not within 20px of pinned 647'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    assertElementsMatchWithGeometryTolerance (file:///home/user/jev-browser-wingman/dist/tests/adapter-cdp.test.js:104:20)
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/adapter-cdp.test.js:117:9)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: click Continue writes continued
+ok 3 - click Continue writes continued
+  ---
+  duration_ms: 737.454882
+  type: 'test'
+  ...
+# Subtest: fill never leaves the value in observe output
+ok 4 - fill never leaves the value in observe output
+  ---
+  duration_ms: 843.002547
+  type: 'test'
+  ...
+# Subtest: dialog is reported and stays open
+ok 5 - dialog is reported and stays open
+  ---
+  duration_ms: 14235.868592
+  type: 'test'
+  ...
+# Subtest: detach leaves the browser answering
+ok 6 - detach leaves the browser answering
+  ---
+  duration_ms: 700.566935
+  type: 'test'
+  ...
+# Subtest: act surfaces an operation failure
+ok 7 - act surfaces an operation failure
+  ---
+  duration_ms: 688.750164
+  type: 'test'
+  ...
+# Subtest: attach retries a cold endpoint within its budget
+ok 8 - attach retries a cold endpoint within its budget
+  ---
+  duration_ms: 1043.022372
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19932.50038
+RUN-TESTS: files=1 tests=8 pass=7 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
