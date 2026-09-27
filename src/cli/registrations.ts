@@ -408,28 +408,34 @@ export function portabilityProblems(e: RegistrationEntry): string[] {
   return problems;
 }
 
-function stripUserDataDirArgs(args: string[]): string[] {
+function stripArgs(args: string[], flags: readonly string[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--user-data-dir') {
+    if (flags.includes(args[i])) {
       i++; // drop the value token too
       continue;
     }
-    if (args[i].startsWith('--user-data-dir=')) continue;
+    const eq = args[i].indexOf('=');
+    if (eq !== -1 && flags.includes(args[i].slice(0, eq))) continue;
     out.push(args[i]);
   }
   return out;
 }
 
-export function wrapPlaywrightEntry(
+/** The wrapped-entry rule (§ 5.11 item 8): the browsing tool's entry is proxied
+ * through `with-browser`; the profile's `launch.strip_args` flags (which the
+ * proxy replaces with its own shared-browser launch) are stripped in both the
+ * `--x v` and `--x=v` forms. */
+export function wrapBrowsingEntry(
   entry: { command?: string; args?: string[] } | string[],
   client: ClientId,
+  profile: { launch: { strip_args: readonly string[] } },
 ): unknown {
   const isArray = Array.isArray(entry);
   const command = isArray ? (entry[0] ?? '') : (entry.command ?? '');
   const args = isArray ? entry.slice(1) : (entry.args ?? []);
-  const stripped = stripUserDataDirArgs(args);
-  const wrappedArgs = ['with-chrome', '--', command, ...stripped];
+  const stripped = stripArgs(args, profile.launch.strip_args);
+  const wrappedArgs = ['with-browser', '--', command, ...stripped];
   if (isArray) {
     return ['jev-browser-wingman', ...wrappedArgs];
   }
@@ -441,6 +447,18 @@ export function wrapPlaywrightEntry(
   return result;
 }
 
+/** Deprecated alias: `with-chrome` remains accepted as a spelling of
+ * `with-browser`; new callers use `wrapBrowsingEntry` with the profile the
+ * registration matched. */
+export function wrapPlaywrightEntry(
+  entry: { command?: string; args?: string[] } | string[],
+  client: ClientId,
+): unknown {
+  return wrapBrowsingEntry(entry, client, {
+    launch: { strip_args: ['--user-data-dir'] },
+  });
+}
+
 export function wingmanServerEntry(client: ClientId): unknown {
   switch (client) {
     case 'claude':
@@ -449,7 +467,10 @@ export function wingmanServerEntry(client: ClientId): unknown {
     case 'cursor':
       return { type: 'stdio', command: 'jev-browser-wingman', args: ['mcp'], env: {} };
     case 'codex':
-      return { command: 'jev-browser-wingman', args: ['mcp'], tool_timeout_sec: 90 };
+      // 150 s: a browse_step budget can run to the 120 s max_ms ceiling plus
+      // startup, so the default 60/90 s codex tool timeout would kill a legal
+      // call (§ 0.1 D8).
+      return { command: 'jev-browser-wingman', args: ['mcp'], tool_timeout_sec: 150 };
     case 'opencode':
       return { type: 'local', command: ['jev-browser-wingman', 'mcp'], enabled: true };
     case 'agy':

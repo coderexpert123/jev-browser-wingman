@@ -5,8 +5,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { PACKAGE_NAME, PACKAGE_VERSION } from '../contract/constants.js';
-import { loadConfig } from '../core/config.js';
+import { HANDOFF_OPTIONAL, PACKAGE_NAME, PACKAGE_VERSION } from '../contract/constants.js';
+import { handoffOf, loadConfig } from '../core/config.js';
 import { createWingman } from '../lib.js';
 import {
   BROWSE_STEP_DESCRIPTION,
@@ -23,21 +23,21 @@ const TOOLS = [
   { name: 'browse_step', description: BROWSE_STEP_DESCRIPTION, inputSchema: BROWSE_STEP_SCHEMA },
 ];
 
+// browse-only (the forced default) lists and serves browse_step only; the
+// legacy tools are refused at call time (§ 5.10).
+const BROWSE_ONLY_TOOLS = [TOOLS[2]];
+
 export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promise<void> {
-  // Config is read at start (for the tool list's mode) and again at every
-  // tools/call. A start failure is one stderr line and an empty tool list.
+  // Config is read at start (for the tool list's mode and handoff) and again
+  // at every tools/call. A start failure is one stderr line and an empty tool
+  // list.
   const startConfig = await loadConfig(env);
   const startMode = startConfig.ok ? startConfig.config.mode : 'off';
+  const handoff = startConfig.ok ? handoffOf(startConfig.config) : HANDOFF_OPTIONAL;
   if (!startConfig.ok) {
     process.stderr.write(`jev-browser-wingman: config: ${startConfig.error}\n`);
   }
-  // Bench-only isolation (OG-9): with WINGMAN_BROWSE_ONLY=1 the legacy
-  // wingman_do/wingman_check tools are hidden from the tool list and refused
-  // at call time, leaving browse_step as the only wingman path (raw Playwright
-  // MCP stays available for its do-not-use cases). The default tool list is
-  // unchanged when the env is unset.
-  const browseOnly = env.WINGMAN_BROWSE_ONLY === '1';
-  const listedTools = browseOnly ? TOOLS.filter((t) => t.name === 'browse_step') : TOOLS;
+  const listedTools = handoff.tools === 'browse-only' ? BROWSE_ONLY_TOOLS : TOOLS;
 
   const server = new Server({ name: PACKAGE_NAME, version: PACKAGE_VERSION }, { capabilities: { tools: {} } });
 
@@ -48,7 +48,7 @@ export async function runMcpServer(env: NodeJS.ProcessEnv = process.env): Promis
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const name = request.params.name;
-    if (browseOnly && (name === 'wingman_do' || name === 'wingman_check')) {
+    if (handoff.tools === 'browse-only' && (name === 'wingman_do' || name === 'wingman_check')) {
       return { content: [{ type: 'text', text: `unknown tool: ${String(name)}` }], isError: true };
     }
     if (name !== 'wingman_do' && name !== 'wingman_check' && name !== 'browse_step') {

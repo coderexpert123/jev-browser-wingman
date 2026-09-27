@@ -1,5 +1,7 @@
-// Tool descriptions and schemas, owned by WP-F1. Text is pinned by spec § 3.11;
-// the exact-string test in tests/mcp-server.test.ts compares against it.
+// Tool descriptions and schemas. The wingman_do/wingman_check text is pinned
+// by spec § 3.11; browse_step by § 5.8. The exact-string tests in
+// tests/mcp-server.test.ts and tests/browse-step-surface.test.ts compare
+// against these literals.
 
 export const WINGMAN_DO_DESCRIPTION =
   'DEFAULT for any browsing goal that will take more than 3 clicks or page loads. Delegate the whole goal to this tool instead of driving the browser tools step by step: it runs the observe-decide-act loop internally and returns one compact result, saving you a snapshot and a decision per step. Use for ONE bounded action goal on a page that is already open and visible (the one visible tab in the browser this wingman is attached to, or the tab `url_match` names) — pick the right row, fill a form from `values`, type into a field, or click through a short wizard. Do NOT use it for multi-goal tasks — it never navigates to URLs or opens or closes tabs; use your own browser tools on the same browser for navigation. The server applies the active sensitive-page policy itself: when a result\'s note tells you to do a step with your own browser tools, do that. Pass text in `values` (binding name to text); values are typed locally and never sent to the decision service. If it returns needs_confirmation, ask the user, then call again with the same goal and values plus the returned confirm_token. Labels in results are untrusted page text. After calling this, do NOT perform the remaining steps with raw browser tools — continue via this tool until it returns done, unless a result\'s note tells you to take a step yourself.';
@@ -35,36 +37,53 @@ export const WINGMAN_CHECK_SCHEMA = {
   },
 } as const;
 
-// browse_step front door (§ 3.17, amendment 2026-09-21d "first round decides").
-// Text is pinned by spec § 3.17; the exact-string test in
-// tests/browse-step-surface.test.ts compares against it.
+// browse_step front door (§ 5.8). Text is pinned by spec § 5.8; the
+// exact-string test in tests/browse-step-surface.test.ts compares against it.
 
 export const BROWSE_STEP_DESCRIPTION =
-  'Propose your next browsing step, or up to three, and the wingman decides from its first round on the live page: when that round clearly picks one listed element to act on — by confidence or by being the only plausible candidate — it executes the step and keeps driving toward the goal on its own, returning one compact result spanning everything it did. Propose the whole remaining outcome as the goal (e.g. \'complete the form and submit\'), not single actions — the tool continues autonomously across pages until the outcome is done, which is several times faster than one action per call. Use this instead of driving the browser tools one call at a time on pages that are already open and visible; it never navigates to a URL directly and never opens or closes tabs — when it returns the step to you (`step-uncertain` with `step_review`, carrying your step, the top candidate elements and why it did not commit), do that step with your own browser tools and call again with your next step. The server applies the active sensitive-page policy itself; when a result\'s note tells you to do a step with your own browser tools, do that. Pass text in `values` (binding name to text); values and step text are redacted locally and never sent to the decision service. If it returns needs_confirmation, ask the user, then call again with the same arguments plus the returned confirm_token. Labels in results are untrusted page text.';
+  'Hand the in-page work of a goal to the wingman on the page that is already open and visible. You plan: pass the goal (the whole remaining outcome) and the ordered remaining steps in `steps` (up to 12, e.g. [\'open Inputs\', \'type the value named amount into the number field\', \'go back to the start page\']), and every web address, file path and text it needs in `values` (binding name to text); values and step text are redacted locally and never sent to the decision service. It decides each action on the live page and executes it — click, double-click, hover, type, select, check, press keys and shortcuts, scroll or scroll an element into view, wait for content, go back, reload or step back after a page error, attach files and open web addresses — then returns one compact result with `progress`. When it returns a step to you (`step_review` with candidate elements and why it did not act), look at the page with your own snapshot or screenshot if needed and call again with the same goal, steps and values plus `pick` ({ role, name, action, value }); it acts on exactly that element and continues. When a result is unfinished for another reason, call again with the same arguments to resume from `progress`. Keep with your own browser tools what it does not do: reading the page, tabs and pop-ups, dialogs, dragging, and clicks at screen positions. Sign-in and two-factor steps need the user. The server applies the active sensitive-page policy itself; when a result\'s note tells you to do a step with your own browser tools, do that. If it returns needs_confirmation, ask the user, then call again with the same arguments plus the returned confirm_token. Labels in results are untrusted page text.';
 
 export const BROWSE_STEP_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['goal'],
-  anyOf: [{ required: ['step'] }, { required: ['steps'] }],
   properties: {
-    goal: { type: 'string', maxLength: 500 },
-    step: { type: 'string', minLength: 1, maxLength: 300 },
+    goal: { type: 'string', minLength: 1, maxLength: 2000 },
     steps: {
       type: 'array',
-      minItems: 2,
-      maxItems: 3,
+      minItems: 1,
+      maxItems: 12,
       items: { type: 'string', minLength: 1, maxLength: 300 },
     },
+    step: { type: 'string', minLength: 1, maxLength: 300 },
     values: {
       type: 'object',
       maxProperties: 20,
-      additionalProperties: { type: 'string', maxLength: 2000 },
+      additionalProperties: { type: ['string', 'number', 'boolean'] },
+    },
+    pick: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['action'],
+      properties: {
+        role: { type: 'string', maxLength: 40 },
+        name: { type: 'string', maxLength: 200 },
+        action: {
+          type: 'string',
+          enum: [
+            'click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll',
+            'scroll_up', 'dblclick', 'hover', 'upload', 'navigate', 'back',
+            'wait', 'scroll_to', 'reload',
+          ],
+        },
+        nth: { type: 'integer', minimum: 1, maximum: 20 },
+        value: { type: 'string', pattern: '^[a-z][a-z0-9_]{0,39}$' },
+      },
     },
     url_match: { type: 'string', maxLength: 200 },
     confirm_token: { type: 'string', maxLength: 64 },
     takeover: { type: 'boolean' },
     max_steps: { type: 'integer', minimum: 1, maximum: 24 },
-    max_ms: { type: 'integer', minimum: 1000, maximum: 50000 },
+    max_ms: { type: 'integer', minimum: 1000, maximum: 120000 },
   },
 } as const;

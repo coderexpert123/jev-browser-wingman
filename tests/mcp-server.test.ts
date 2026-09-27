@@ -220,7 +220,7 @@ test('mode off lists no tools', async () => {
 });
 
 test('mode shadow lists all three tools with the pinned descriptions', async () => {
-  const home = mkHome('shadow');
+  const home = mkHome('shadow', { handoff: { mode: 'optional' } });
   const s = await startServer(serverEnv(home));
   try {
     const tools = await s.client.listTools();
@@ -240,9 +240,12 @@ test('mode shadow lists all three tools with the pinned descriptions', async () 
   }
 });
 
-test('WINGMAN_BROWSE_ONLY=1 lists only browse_step and refuses the legacy tools', async () => {
-  const home = mkHome('shadow');
-  const s = await startServer(serverEnv(home, { WINGMAN_BROWSE_ONLY: '1' }));
+// M1–M4 (§ 6 WP-E E5): the tool list follows the config's handoff, not an env
+// flag; WINGMAN_BROWSE_ONLY is gone.
+
+test('the default config lists only browse_step and refuses wingman_do', async () => {
+  const home = mkHome('on'); // no handoff key: forced defaults to browse-only
+  const s = await startServer(serverEnv(home));
   try {
     const tools = await s.client.listTools();
     assert.deepEqual(
@@ -251,18 +254,51 @@ test('WINGMAN_BROWSE_ONLY=1 lists only browse_step and refuses the legacy tools'
       'browse-only tool list must contain exactly browse_step',
     );
     const res = (await s.client.callTool({
-      name: 'wingman_check',
-      arguments: { question: 'Anything here?', url_match: 'doctor.html' },
+      name: 'wingman_do',
+      arguments: { goal: 'Click Continue', url_match: 'form.html' },
     })) as { isError?: boolean; content: Array<{ type: string; text: string }> };
     assert.equal(res.isError, true, 'hidden legacy tool must be refused at call time');
-    assert.match(res.content[0].text, /unknown tool: wingman_check/);
+    assert.match(res.content[0].text, /unknown tool: wingman_do/);
+  } finally {
+    await s.close();
+  }
+});
+
+test('handoff optional lists all three tools', async () => {
+  const home = mkHome('on', { handoff: { mode: 'optional' } });
+  const s = await startServer(serverEnv(home));
+  try {
+    const tools = await s.client.listTools();
+    assert.deepEqual(tools.tools.map((t) => t.name).sort(), ['browse_step', 'wingman_check', 'wingman_do']);
+  } finally {
+    await s.close();
+  }
+});
+
+test('forced handoff with tools all lists all three tools', async () => {
+  const home = mkHome('on', { handoff: { mode: 'forced', tools: 'all' } });
+  const s = await startServer(serverEnv(home));
+  try {
+    const tools = await s.client.listTools();
+    assert.deepEqual(tools.tools.map((t) => t.name).sort(), ['browse_step', 'wingman_check', 'wingman_do']);
+  } finally {
+    await s.close();
+  }
+});
+
+test('WINGMAN_BROWSE_ONLY is ignored', async () => {
+  const home = mkHome('on', { handoff: { mode: 'optional' } });
+  const s = await startServer(serverEnv(home, { WINGMAN_BROWSE_ONLY: '1' }));
+  try {
+    const tools = await s.client.listTools();
+    assert.deepEqual(tools.tools.map((t) => t.name).sort(), ['browse_step', 'wingman_check', 'wingman_do']);
   } finally {
     await s.close();
   }
 });
 
 test('shadow wingman_check returns fallback shadow with one jev call', async () => {
-  const home = mkHome('shadow');
+  const home = mkHome('shadow', { handoff: { mode: 'optional' } });
   const stub = await startScriptedStub([{ answer: 0.87 }]);
   stubUrl = stub.url;
   const s = await startServer(serverEnv(home));
@@ -287,7 +323,7 @@ test('shadow wingman_check returns fallback shadow with one jev call', async () 
 });
 
 test('wingman_do clicks Continue and returns done', async () => {
-  const home = mkHome('on');
+  const home = mkHome('on', { handoff: { mode: 'optional' } });
   // Round 2 must not act again: verb 'none' plus done 0.9 ends the goal.
   const stub = await startScriptedStub([
     { targetName: 'Continue' },
@@ -316,7 +352,7 @@ test('wingman_do clicks Continue and returns done', async () => {
 });
 
 test('wingman_do on Remove item returns needs_confirmation and nothing happens', async () => {
-  const home = mkHome('on');
+  const home = mkHome('on', { handoff: { mode: 'optional' }, gate: { mode: 'confirm' } });
   const stub = await startScriptedStub([{ targetName: 'Remove item' }]);
   stubUrl = stub.url;
   const s = await startServer(serverEnv(home));
@@ -342,7 +378,7 @@ test('wingman_do on Remove item returns needs_confirmation and nothing happens',
 });
 
 test('the confirm token executes the action and the dialog leaves it blocked dialog-open', async () => {
-  const home = mkHome('on');
+  const home = mkHome('on', { handoff: { mode: 'optional' }, gate: { mode: 'confirm' } });
   const stub = await startScriptedStub([{ targetName: 'Remove item' }]);
   stubUrl = stub.url;
   const s = await startServer(serverEnv(home));
@@ -373,7 +409,7 @@ test('the confirm token executes the action and the dialog leaves it blocked dia
 });
 
 test('a second concurrent call returns blocked busy', async () => {
-  const home = mkHome('on');
+  const home = mkHome('on', { handoff: { mode: 'optional' } });
   // The stub delays its answers so the first call holds the mutex.
   const stub = await startScriptedStub([
     { targetName: 'Continue', delayMs: 1500 },
@@ -419,7 +455,7 @@ test('startup and tools/list never contact the browser endpoint; the first tool 
   const stub = await startScriptedStub([{ answer: 0.5 }]);
   stubUrl = stub.url;
   try {
-    const home = mkHome('shadow');
+    const home = mkHome('shadow', { handoff: { mode: 'optional' } });
     const s = await startServer(serverEnv(home, { WINGMAN_CDP_ENDPOINT: recorderUrl }));
     try {
       await s.client.listTools();
@@ -436,7 +472,7 @@ test('startup and tools/list never contact the browser endpoint; the first tool 
 });
 
 test('stdout carries only protocol frames', async () => {
-  const home = mkHome('shadow');
+  const home = mkHome('shadow', { handoff: { mode: 'optional' } });
   // A temp ESM plugin whose log writes to stdout through console.log. Without
   // main.js's console.log→stderr reroute this corrupts the protocol stream.
   const pluginFile = path.join(home, 'noisy-plugin.mjs');
@@ -452,6 +488,7 @@ test('stdout carries only protocol frames', async () => {
       window: 'headless',
       profile_dir: path.join(home, 'profile'),
       port: chrome.port,
+      handoff: { mode: 'optional' },
       plugin: pluginFile,
     }),
   );

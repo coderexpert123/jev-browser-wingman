@@ -2,13 +2,18 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   portabilityProblems,
   readRegistrations,
+  wrapBrowsingEntry,
   wrapPlaywrightEntry,
+  wingmanServerEntry,
   type RegistrationEntry,
 } from '../src/cli/registrations.js';
+import { BUDGET_LIMITS } from '../src/contract/constants.js';
+import { loadProfiles } from '../src/core/profiles.js';
 import { packageRoot } from '../src/package-root.js';
 
 // The compiled test lives under <root>/.build/<x>/tests (or <root>/dist/tests);
@@ -73,7 +78,7 @@ test('wrapPlaywrightEntry output for the claude fixture equals the pinned JSON',
   const wrapped = wrapPlaywrightEntry(pw, 'claude');
   assert.equal(
     JSON.stringify(wrapped),
-    '{"type":"stdio","command":"jev-browser-wingman","args":["with-chrome","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}}',
+    '{"type":"stdio","command":"jev-browser-wingman","args":["with-browser","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}}',
   );
 });
 
@@ -82,20 +87,20 @@ test('wrapPlaywrightEntry drops --user-data-dir in both forms', () => {
     { command: 'npx', args: ['-y', '@playwright/mcp@0.0.80', '--user-data-dir', 'C:/Users/example/prof', '--browser', 'chrome'] },
     'claude',
   ) as { args: string[] };
-  assert.deepEqual(pair.args, ['with-chrome', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome']);
+  assert.deepEqual(pair.args, ['with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome']);
 
   const inline = wrapPlaywrightEntry(
     { command: 'npx', args: ['-y', '@playwright/mcp@0.0.80', '--user-data-dir=C:/Users/example/prof', '--browser', 'chrome'] },
     'claude',
   ) as { args: string[] };
-  assert.deepEqual(inline.args, ['with-chrome', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome']);
+  assert.deepEqual(inline.args, ['with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome']);
 
   // opencode's array form
   const array = wrapPlaywrightEntry(
     ['npx', '-y', '@playwright/mcp@0.0.80', '--user-data-dir', 'C:/Users/example/prof'],
     'opencode',
   ) as string[];
-  assert.deepEqual(array, ['jev-browser-wingman', 'with-chrome', '--', 'npx', '-y', '@playwright/mcp@0.0.80']);
+  assert.deepEqual(array, ['jev-browser-wingman', 'with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80']);
 });
 
 test('codex wrapped table gains startup_timeout_sec 60', () => {
@@ -105,10 +110,40 @@ test('codex wrapped table gains startup_timeout_sec 60', () => {
   ) as Record<string, unknown>;
   assert.equal(wrapped.startup_timeout_sec, 60);
   assert.equal(wrapped.command, 'jev-browser-wingman');
-  assert.equal((wrapped.args as string[])[0], 'with-chrome');
+  assert.equal((wrapped.args as string[])[0], 'with-browser');
 
   const claude = wrapPlaywrightEntry({ command: 'npx', args: [] }, 'claude') as Record<string, unknown>;
   assert.equal(claude.startup_timeout_sec, undefined);
+});
+
+test('wrapBrowsingEntry with the devtools profile strips --userDataDir in both forms and emits with-browser', () => {
+  // The user-profile dirs stay empty (a fresh temp dir), so only the shipped
+  // profiles load.
+  const devtools = loadProfiles(tmpdir()).find((p) => p.id === 'chrome-devtools-mcp');
+  assert.ok(devtools, 'the shipped chrome-devtools-mcp profile was not found');
+
+  const inline = wrapBrowsingEntry(
+    { command: 'npx', args: ['-y', 'chrome-devtools-mcp@1.10.1', '--userDataDir=C:/Users/example/prof', '--browserUrl=http://127.0.0.1:9222'] },
+    'claude',
+    devtools,
+  ) as { args: string[] };
+  assert.deepEqual(
+    inline.args,
+    ['with-browser', '--', 'npx', '-y', 'chrome-devtools-mcp@1.10.1', '--browserUrl=http://127.0.0.1:9222'],
+  );
+
+  const pair = wrapBrowsingEntry(
+    { command: 'npx', args: ['-y', 'chrome-devtools-mcp@1.10.1', '--user-data-dir', 'C:/Users/example/prof'] },
+    'claude',
+    devtools,
+  ) as { args: string[] };
+  assert.deepEqual(pair.args, ['with-browser', '--', 'npx', '-y', 'chrome-devtools-mcp@1.10.1']);
+});
+
+test('codex wingman entry sets tool_timeout_sec 150, above the max_ms ceiling', () => {
+  const entry = wingmanServerEntry('codex') as Record<string, unknown>;
+  assert.equal(entry.tool_timeout_sec, 150);
+  assert.ok((entry.tool_timeout_sec as number) * 1000 > BUDGET_LIMITS.max_ms[1]);
 });
 
 test('portabilityProblems flags an absolute path', () => {
