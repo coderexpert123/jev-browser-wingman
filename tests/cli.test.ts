@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,10 +57,28 @@ function mkHome(mode: string): string {
 
 // ---- required tests ----
 
-test('--version prints jev-browser-wingman 0.1.0', () => {
+// The package's own package.json version, found by walking up from this build
+// (dist/ and scoped .build/ outputs sit at different depths).
+function packageJsonVersion(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    const candidate = path.join(dir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      const pkg = JSON.parse(fs.readFileSync(candidate, 'utf8')) as { name?: string; version?: string };
+      if (pkg.name === 'jev-browser-wingman' && typeof pkg.version === 'string') return pkg.version;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error('package.json for jev-browser-wingman not found');
+    dir = parent;
+  }
+}
+
+test('--version prints jev-browser-wingman <package.json version>', () => {
+  // --version must track package.json (`npm version` bumps only that file;
+  // prebuild's sync-version.js carries it into PACKAGE_VERSION).
   const r = runCli(['--version']);
   assert.equal(r.status, 0);
-  assert.equal(r.stdout, 'jev-browser-wingman 0.1.0\n');
+  assert.equal(r.stdout, `jev-browser-wingman ${packageJsonVersion()}\n`);
 });
 
 test('an unknown subcommand exits 2', () => {
@@ -84,20 +103,42 @@ test('run rejects values on argv', () => {
   assert.match(r.stderr as string, /values/);
 });
 
-test('chrome show dispatches into chrome-cmd (no-browser JSON, not the usage exit)', () => {
-  // Dispatch-level: chrome-cmd tolerates a missing config.json (defaults
-  // apply), so wired `chrome show` proceeds to its port probe and prints its
-  // own `no-browser` JSON line (exit 1) without launching anything. Unwired,
-  // `chrome show` never reaches chrome-cmd: the CLI prints usage on stderr
-  // and exits 2.
+// A loopback port nothing is listening on: bind an OS-assigned port, read it,
+// release it.
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as net.AddressInfo;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+test('chrome show dispatches into chrome-cmd (no-browser JSON, not the usage exit)', async () => {
+  // Dispatch-level: wired `chrome show` proceeds to chrome-cmd's port probe
+  // and prints its own `no-browser` JSON line (exit 1) without launching
+  // anything. Unwired, `chrome show` never reaches chrome-cmd: the CLI prints
+  // usage on stderr and exits 2.
+  //
+  // The config pins a port nothing listens on. Under the key-absent default
+  // (9222) the result depended on the machine: a Chrome already serving CDP
+  // on 9222 answered the probe, so `chrome show` moved that real window
+  // on-screen and exited 0.
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-cli-show-'));
   try {
+    const port = await freePort();
+    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ port }));
     const r = runCli(['chrome', 'show'], { WINGMAN_HOME: home });
     assert.equal(r.status, 1);
     const result = JSON.parse((r.stdout as string).trim()) as { ok: boolean; code: string; error: string };
     assert.equal(result.ok, false);
     assert.equal(result.code, 'no-browser');
-    assert.match(result.error, /run jev-browser-wingman chrome ensure first\.$/);
+    assert.equal(
+      result.error,
+      `No Chrome is answering on port ${port}; run jev-browser-wingman chrome ensure first.`,
+    );
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
