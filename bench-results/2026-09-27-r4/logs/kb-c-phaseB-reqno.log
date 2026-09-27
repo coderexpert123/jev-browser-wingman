@@ -1,0 +1,41 @@
+TAP version 13
+# Subtest: P1: ambiguous target bounces with candidates, then pick fills and finishes done
+not ok 1 - P1: ambiguous target bounces with candidates, then pick fills and finishes done
+  ---
+  duration_ms: 3355.280677
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-c/tests/pick-e2e.test.js:180:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    call 2 contacted the stub exactly once
+    
+    2 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-c/tests/pick-e2e.test.js:218:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: P2: a pick onto an obscured element returns target-covered with no act and no ask
+ok 2 - P2: a pick onto an obscured element returns target-covered with no act and no ask
+  ---
+  duration_ms: 817.443693
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5092.259955
+RUN-TESTS: files=1 tests=2 pass=1 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

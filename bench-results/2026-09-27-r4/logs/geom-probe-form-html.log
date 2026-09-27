@@ -1,0 +1,3 @@
+layoutMetrics.cssVisualViewport: {"offsetX":0,"offsetY":0,"pageX":0,"pageY":0,"clientWidth":1280,"clientHeight":660,"scale":1,"zoom":1}
+layoutMetrics.cssLayoutViewport: {"pageX":0,"pageY":0,"clientWidth":1280,"clientHeight":660}
+page eval: {"innerWidth":1280,"innerHeight":660,"bodyMarginLeft":"8px","rects":[{"id":"fullname","x":72.4375,"y":100.875,"w":185,"h":21},{"id":"email","x":257.4375,"y":100.875,"w":185,"h":21},{"id":"notes","x":442.4375,"y":79.875,"w":182,"h":36},{"id":"country","x":676.890625,"y":101.875,"w":103,"h":19},{"id":"continue","x":779.890625,"y":100.875,"w":69.359375,"h":21},{"id":"place","x":849.25,"y":100.875,"w":84.171875,"h":21}]}
