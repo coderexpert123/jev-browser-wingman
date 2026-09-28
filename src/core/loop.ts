@@ -266,6 +266,11 @@ interface HistoryEntry {
  * page-level signal so a targetless act never gets a false "unchanged". */
 const ELEMENT_STATE_VERBS: ReadonlySet<Op> = new Set(['fill', 'select', 'check', 'uncheck']);
 
+/** § WP-count: the click-family verbs, matching every other click-family
+ * classification in this file (isFileInput's conversion check, the pick
+ * gate). A repeat-count step ("click X twice") only ever means one of these. */
+const CLICK_FAMILY_OPS: ReadonlySet<Op> = new Set(['click', 'dblclick', 'press']);
+
 /** § outcome evidence fix (2026-09-28, r6 Finding 2 / diagnosis 3): the
  * targetless verbs whose whole point is to leave the current page. They get
  * a page-level before/result like click-family (pageSignal with no `el`,
@@ -443,6 +448,79 @@ function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boole
     default:
       return false;
   }
+}
+
+/** § WP-count word-form counts: "N times" with N spelled out, two..ten.
+ * once/twice/thrice have no digit form and are matched separately below. */
+const REPEAT_WORD_COUNTS: Readonly<Record<string, number>> = {
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+/** § WP-count deterministic repeat-count evidence (operator-approved,
+ * 2026-09-28 — see the click-count dispatch): a step naming an explicit
+ * count ("click the Add button twice") is its own evidence bar, independent
+ * of Jev's stepDoneP/done Noul, which never fires reliably on a repeated
+ * click (hasStepEvidence above deliberately excludes click-family). Only
+ * explicit count WORDS count — no attempt at general-purpose number parsing:
+ * once=1, twice=2, thrice=3, or "<N> times" with N a digit string 1..50 or a
+ * spelled-out word two..ten (case-insensitive, word-bounded throughout). A
+ * step naming MORE THAN ONE count expression is ambiguous by construction
+ * (which one governs?) and returns undefined rather than guess — e.g. "click
+ * it twice, then submit 2 times" never resolves to either 2. */
+export function parseRepeatCount(step: string): number | undefined {
+  let count: number | undefined;
+  let matches = 0;
+  const onceCount = (step.match(/\bonce\b/gi) ?? []).length;
+  if (onceCount > 0) { matches += onceCount; count = 1; }
+  const twiceCount = (step.match(/\btwice\b/gi) ?? []).length;
+  if (twiceCount > 0) { matches += twiceCount; count = 2; }
+  const thriceCount = (step.match(/\bthrice\b/gi) ?? []).length;
+  if (thriceCount > 0) { matches += thriceCount; count = 3; }
+  for (const m of step.matchAll(/\b(\d{1,2})\s+times\b/gi)) {
+    const n = Number(m[1]);
+    if (n >= 1 && n <= 50) { matches += 1; count = n; }
+  }
+  for (const m of step.matchAll(/\b(two|three|four|five|six|seven|eight|nine|ten)\s+times\b/gi)) {
+    matches += 1;
+    count = REPEAT_WORD_COUNTS[m[1].toLowerCase()];
+  }
+  return matches === 1 ? count : undefined;
+}
+
+/** § WP-count: true when the trailing CONTIGUOUS run of history entries
+ * (walking back from the most recent act) are all: this step
+ * (`stepKey === currentStepKey`), a click-family verb, an OBSERVED page
+ * change (`result === 'page changed'` — an entry not yet annotated, or
+ * annotated 'no visible change'/'element gone', never counts), and the SAME
+ * target as the very last entry (`path` when present, else `label`) — and
+ * that run is at least `count` long. An intervening act that breaks any of
+ * these (a different verb, a different target, a step boundary, a click that
+ * had no visible effect) ends the run at that point; entries before the
+ * break are never counted even if they'd otherwise qualify. Residual,
+ * accepted risk (matches hasStepEvidence's own disclaimer above): a count
+ * met by clicks on the right label but on a page where the click's effect
+ * wasn't the step's intended one is not mechanically detectable — this
+ * checks that N clicks on the same target each visibly did something, never
+ * that the something was correct. */
+function hasRepeatCountEvidence(history: HistoryEntry[], currentStepKey: string, count: number): boolean {
+  if (history.length === 0) return false;
+  const last = history[history.length - 1];
+  const sameTarget = (h: HistoryEntry): boolean =>
+    last.path !== undefined ? h.path === last.path : h.label === last.label;
+  let run = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    if (
+      h.stepKey !== currentStepKey ||
+      !CLICK_FAMILY_OPS.has(h.verb) ||
+      h.result !== 'page changed' ||
+      !sameTarget(h)
+    ) {
+      break;
+    }
+    run += 1;
+  }
+  return run >= count;
 }
 
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
@@ -851,6 +929,11 @@ async function runTool(
     // question was asked this round (§ CLAUDE.md round-shape gotcha — never
     // assign an optional telemetry field from a possibly-undefined source).
     doneP?: number; stepDoneP?: number; readyP?: number; rightPageP?: number; errorP?: number;
+    // § WP-count: set only on the round where a deterministic repeat-count
+    // advance/done fired (runChainEarly rule 3 / decideEarly rule 3b), to the
+    // count that was satisfied. Guarded like every other optional field here
+    // — never assigned when the branch didn't fire.
+    countEvidence?: number;
   };
   const phaseAcc: {
     attachMs?: number;
@@ -1218,6 +1301,8 @@ async function runTool(
     values: Record<string, string>,
     legacyRecoverActs: number,
     hasOp: (op: Op) => boolean,
+    history: HistoryEntry[],
+    stepText: string | undefined,
   ): { result: WingmanResult } | { mechanical: Op } | { recovered: true } | null {
     const noulOf = (id: string): number => {
       const a = answers[id];
@@ -1234,6 +1319,18 @@ async function runTool(
     // 3. done (C2: done now precedes error)
     if (noulOf('done') >= THRESHOLDS.done) {
       return { result: mk('done', 'goal-met') };
+    }
+    // 3b. § WP-count deterministic repeat-count evidence: the browse_step
+    // step text (or the wingman_do goal, which is this call's only step) names
+    // an explicit count ("click it twice") that the acted-on history already
+    // satisfies — this ends the call as done regardless of Jev's done Noul,
+    // which (like stepDoneP) never fires reliably on a repeated click.
+    if (stepText !== undefined) {
+      const repeatCount = parseRepeatCount(stepText);
+      if (repeatCount !== undefined && hasRepeatCountEvidence(history, 'single', repeatCount)) {
+        if (cur) cur.countEvidence = repeatCount;
+        return { result: mk('done', 'goal-met') };
+      }
     }
     // 4. error (round ≥ 2 only; the question is only asked then)
     if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
@@ -1911,6 +2008,23 @@ async function runTool(
     // decision is still due. `retried` pins the at-most-one retry of § 3.19.
     const entryStep = entry?.kind === 'legacy' ? redactValues(entry.step, values).slice(0, 300) : undefined;
     const entryBindings = entry?.kind === 'legacy' ? bindingsInStep(entry.step, values) : [];
+    // § WP-count: the one step text decideEarly's repeat-count rule checks —
+    // the browse_step legacy step ONLY, never the wingman_do goal (verifier
+    // fix, 2026-09-28: a wingman_do goal is a whole-task description that
+    // may legitimately name several actions — e.g. bench t9-long-chain's
+    // "...click the Add Element button twice; open Inputs and type the
+    // amount..." run via a single wingman_do call per the wingman_do route
+    // prompt, "call it ONCE with the full goal". Reading a count word
+    // anywhere in that text and applying it against the whole call's history
+    // (stepKey 'single') ended the ENTIRE goal done/goal-met the moment the
+    // embedded "twice" clause's two clicks landed, abandoning every clause
+    // after it, even though Jev's own `done` noul never crossed threshold.
+    // A legacy browse_step `step` has no such multi-clause risk — chain mode
+    // already scopes this correctly per clause via `steps`/`clauses`, and a
+    // single `step` is documented as one atomic instruction). Raw (never
+    // redacted or capped) since this is parsed internally only, never
+    // returned or logged.
+    const legacyStepText = entry?.kind === 'legacy' ? entry.step : undefined;
     let entryPending = entry !== undefined;
     let retried = false;
     const retryAllowed = entry?.kind === 'legacy' && takeoverOf(deps.config).retry;
@@ -2042,13 +2156,25 @@ async function runTool(
       // still reads as count ≤ 1 and is not caught by this guard — closing
       // that gap needs semantic parsing of the step text, out of scope here.
       const stepBindingCount = bindingsInStep(chain!.clauses[chain!.cursor], values).length;
+      // § WP-count: a step naming an explicit repeat count ("click it
+      // twice") is its own evidence bar — no Jev threshold at all, since the
+      // observed count IS the evidence (Jev's stepDoneP never reliably
+      // crosses THRESHOLDS.stepDone on a repeated click; see the click-count
+      // dispatch evidence). Must be checked, and fire, before any FURTHER act
+      // in this step — it lives in this same rule-3 early-return, ahead of
+      // the decide step that would otherwise perform click count+1.
+      const repeatCount = parseRepeatCount(chain!.clauses[chain!.cursor]);
+      const repeatCountMet =
+        repeatCount !== undefined && hasRepeatCountEvidence(history, `c${chain!.cursor}`, repeatCount);
       if (
         stepDone >= THRESHOLDS.stepDone ||
         (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
         (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
           stepBindingCount <= 1 &&
-          hasStepEvidence(history, `c${chain!.cursor}`))
+          hasStepEvidence(history, `c${chain!.cursor}`)) ||
+        repeatCountMet
       ) {
+        if (repeatCountMet && cur) cur.countEvidence = repeatCount;
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
@@ -2383,7 +2509,7 @@ async function runTool(
             if (stop.t === 'continue') continue;
             if (stop.t === 'decision') decision = stop.decision;
           } else {
-            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText);
             if (early) {
               if (mode === 'shadow') return shadowResult();
               if ('recovered' in early) {
@@ -2508,7 +2634,7 @@ async function runTool(
             if (stop.t === 'continue') continue;
             if (stop.t === 'decision') decision = stop.decision;
           } else {
-            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp);
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText);
             if (early) {
               if (mode === 'shadow') return shadowResult();
               if ('recovered' in early) {

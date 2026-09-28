@@ -16,7 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runStep, runDo, type LoopDeps } from '../src/core/loop.js';
+import { runStep, runDo, parseRepeatCount, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -886,4 +886,154 @@ test('WP-evidence-h: a compound step naming two bindings does not advance on the
   );
   const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
   assert.ok(fillActs.length >= 1, 'at least the first (name) fill must land');
+});
+
+// ---- WP-count: deterministic repeat-count evidence (click-count dispatch,
+// 2026-09-28). A step naming an explicit count ("click it twice") is its own
+// evidence bar — Jev's stepDoneP/done Noul never fires reliably on a
+// repeated click (see WP-evidence-c above), so a fixed, never-crossing
+// stepDoneP is scripted throughout: if these tests only pass because the
+// script eventually crosses THRESHOLDS.stepDone, they're not proving the
+// count bar fired at all. ----
+
+function addButton2(): ElementRecord {
+  return el({
+    id: 'e2',
+    path: '#add2',
+    tag: 'button',
+    role: 'button',
+    name: 'Add Element 2',
+    type: 'button',
+    editable: false,
+    state: { disabled: false },
+    fingerprint: { tag: 'button', role: 'button', name: 'Add Element 2', x: 0, y: 0 },
+  });
+}
+
+/** Both buttons always present; only `text` varies round to round, so a
+ * click on EITHER one registers as a page change (pageSignal picks up the
+ * text hash) without needing the delete-button-count shape. */
+function twoButtonsObs(n: number): Observation {
+  return observation({ elements: [addButton(), addButton2()], text: `${n} clicks so far` });
+}
+
+/** Always proposes click on e1, at a FIXED step_done that never reaches
+ * THRESHOLDS.stepDone (0.85) or THRESHOLDS.stepDoneWithEvidence — click is
+ * never evidence-backed by hasStepEvidence either (click-family is excluded
+ * there by design), so the ONLY way a chain call built on this ask can ever
+ * advance is the repeat-count branch. */
+function clickStepDoneAsk(fixedP: number): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: fixedP },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+}
+
+/** Strictly alternates e1/e2 every round — never two consecutive rounds on
+ * the same target, so the trailing contiguous run is always length 1. */
+function alternatingTargetAsk(): JevAsk {
+  let round = 0;
+  return async () => {
+    round += 1;
+    const onE1 = round % 2 === 1;
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.3 },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice(onE1 ? 'e1' : 'e2', {
+        e1: onE1 ? 0.9 : 0.05,
+        e2: onE1 ? 0.05 : 0.9,
+        none: 0.02,
+        ambiguous: 0.02,
+      }),
+    });
+  };
+}
+
+test('WP-count-a: chain step "click the Add button twice" advances after exactly 2 clicks (count evidence, no threshold)', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-count goal a', steps: ['click the Add button twice'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 2, 'exactly 2 clicks must land — count evidence, not stepDoneP 0.3, must end the step');
+});
+
+test('WP-count-b: chain step "click the Add button 3 times" advances after exactly 3 clicks', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2), addElementsObs(3)] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 6 } },
+  });
+  const r = await h.call({ goal: 'WP-count goal b', steps: ['click the Add button 3 times'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 3, 'exactly 3 clicks must land — count evidence, not stepDoneP 0.3, must end the step');
+});
+
+test('WP-count-c: a step with no count word never advances on count evidence (falls back to the ordinary stepDone bar)', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 3 } },
+  });
+  const r = await h.call({ goal: 'WP-count goal c', steps: ['click the Add button'] });
+  assert.notEqual(r.status, 'done', `no count word in the step must never trigger a count-evidence advance, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'budget-steps', `expected budget-steps (no count, stepDoneP never crosses 0.85), got ${r.reason}`);
+});
+
+test('WP-count-d: clicks that produce no visible change do not count toward the repeat count', async () => {
+  const inert = observation({ elements: [addButton()], text: 'nothing happens' });
+  const h = harness({
+    observations: { p1: [inert] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-count goal d', steps: ['click the Add button twice'] });
+  assert.notEqual(r.status, 'done', `a click with no observed page change must never satisfy the repeat count, got ${r.status}/${r.reason}`);
+});
+
+test('WP-count-e: two clicks on DIFFERENT targets for a "twice" step do not satisfy the count', async () => {
+  const h = harness({
+    observations: { p1: [twoButtonsObs(0), twoButtonsObs(1), twoButtonsObs(2), twoButtonsObs(3)] },
+    ask: alternatingTargetAsk(),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 3 } },
+  });
+  const r = await h.call({
+    goal: 'WP-count goal e',
+    steps: ['click the Add button twice'],
+    values: {},
+  });
+  assert.notEqual(r.status, 'done', `clicks on two different targets must never satisfy a "twice" step, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'budget-steps', `expected budget-steps (count never satisfied across targets), got ${r.reason}`);
+});
+
+test('WP-count-f: legacy/single browse_step "click the Add button twice" ends done/goal-met after exactly 2 clicks', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-count goal f', step: 'click the Add button twice' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  assert.equal(r.reason, 'goal-met');
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 2, 'exactly 2 clicks must land — count evidence, not the whole-goal done Noul, must end the call');
+});
+
+test('parseRepeatCount: explicit count words, digit/word "N times", and ambiguity', () => {
+  assert.equal(parseRepeatCount('click it once'), 1);
+  assert.equal(parseRepeatCount('click it twice'), 2);
+  assert.equal(parseRepeatCount('click it thrice'), 3);
+  assert.equal(parseRepeatCount('click it 3 times'), 3);
+  assert.equal(parseRepeatCount('click it three times'), 3);
+  assert.equal(parseRepeatCount('click it twice, then submit 2 times'), undefined, 'more than one count expression is ambiguous');
+  assert.equal(parseRepeatCount('click it at times'), undefined, '"at" is not a count word');
+  assert.equal(parseRepeatCount('click it 51 times'), undefined, 'out of the 1..50 digit range');
 });

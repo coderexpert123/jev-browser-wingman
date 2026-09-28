@@ -193,6 +193,10 @@ export interface WingmanLogRecord {
       // none of the five ever appear there. Probabilities only, never the
       // underlying value.
       doneP?: number; stepDoneP?: number; readyP?: number; rightPageP?: number; errorP?: number;
+      // WP-count: present only on the round where a deterministic
+      // repeat-count advance/done fired, set to the count that was
+      // satisfied (a number, never the step text or any page-derived label).
+      countEvidence?: number;
     }>;
   };
 }

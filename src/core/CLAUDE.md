@@ -327,3 +327,50 @@
   future code that wants to verify "did the act land on what was asked" for a
   `select` must go through this same label lookup, never compare `optionValue`
   directly against `result`.
+
+- **Deterministic repeat-count evidence, WP-count (2026-09-28, r8 click-count
+  fix):** a step naming an explicit count ("click the Add button twice") now
+  has its OWN evidence bar, independent of `hasStepEvidence`/stepDoneP —
+  click-family is deliberately excluded from `hasStepEvidence` (see above),
+  and Jev's `stepDoneP`/`done` Noul never crosses threshold reliably on a
+  repeated click (r8 evidence: 24 clicks/call, stepDoneP stuck 0.11-0.71,
+  `historyResult` always 'page changed'). `parseRepeatCount` (loop.ts, exported
+  for unit testing only) parses once/twice/thrice/"N times" (digit 1-50 or
+  word two..ten), returning `undefined` on zero or MORE THAN ONE count
+  expression in the text (ambiguous) — no general number parsing.
+  `hasRepeatCountEvidence` walks the trailing CONTIGUOUS run of history
+  entries backward from the last act: same `stepKey`, click-family verb
+  (`click`/`dblclick`/`press`, `CLICK_FAMILY_OPS`), `result === 'page
+  changed'`, and the SAME target (`path`, else `label`) as the last entry —
+  any break ends the run, so an intervening different act or target resets
+  the count to zero, never partial credit. Wired as an extra OR branch in
+  chain mode's rule 3 (`runChainEarly`, no threshold at all on this branch —
+  the observed count IS the evidence) and as a new rule 3b in legacy/
+  wingman_do's `decideEarly`, which needed two new parameters (`history`,
+  `stepText`) since it is a SIBLING of `runDoRounds` inside `runTool`, not
+  nested inside it, so it has no closure access to either — `stepText` is
+  `entry.step` for legacy browse_step ONLY, and `undefined` for wingman_do
+  (verifier fix, 2026-09-28: `doInput.goal` is a whole-task description that
+  may legitimately name several actions in sequence — bench t9-long-chain's
+  goal embeds "...click the Add Element button twice; open Inputs and type
+  the amount..." and is run via a single wingman_do call per the wingman_do
+  route prompt, "call it ONCE with the full goal". Reading a count word
+  anywhere in that whole-goal text and checking it against
+  `HistoryEntry.stepKey`'s `'single'` — the entire call's history — ended the
+  WHOLE goal done/goal-met the moment the embedded "twice" clause's two
+  clicks landed, abandoning every clause after it, even though Jev's own
+  `done` noul never crossed threshold. A legacy browse_step `step` has no
+  such multi-clause risk: it is documented as one atomic instruction, and
+  chain mode already scopes the same rule correctly per clause via
+  `steps`/`clauses`.). Telemetry:
+  `PhaseRound.countEvidence`/`WingmanLogRecord.phases.rounds[].countEvidence`
+  (optional, set only on the firing round, to the count) — mirrored in both
+  `loop.ts` and `contract/types.ts`; `phaseAcc.rounds` is passed straight
+  through into the log record, so no separate log-record field mapping was
+  needed. **Test-fixture trap found while proving WP-count-e** (two clicks on
+  different targets must NOT satisfy a count): an ask that clicks e1 on round
+  1 and e2 on every later round still produces two CONSECUTIVE e2 clicks by
+  round 3, trivially satisfying `hasRepeatCountEvidence` for the wrong reason
+  — the alternation must be strict (`round % 2`), not "first round differs
+  from the rest," or the test passes for a reason unrelated to what it claims
+  to prove.
