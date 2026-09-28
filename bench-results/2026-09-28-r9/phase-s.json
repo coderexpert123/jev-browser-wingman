@@ -1,0 +1,268 @@
+{
+  "date": "2026-09-28-0629.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 20.814594,
+  "aborted": null,
+  "total_usd": 1.020644,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 178505,
+      "browser_tool_calls": 25,
+      "per_step_ms": 7140,
+      "llm": {
+        "input_tokens": 58,
+        "output_tokens": 16440,
+        "cache_read_tokens": 2221675,
+        "cache_write_tokens": 27411,
+        "usd": 1.016068,
+        "cli_reported_usd": 0.719707
+      },
+      "typesafe": {
+        "calls": 17,
+        "input_tokens": 108968,
+        "output_tokens": 28680,
+        "usd": 0.004577
+      },
+      "wingman": {
+        "calls": 17,
+        "fallback": 7,
+        "needs_confirmation": 7
+      },
+      "wingman_phases": {
+        "attach_ms": 259,
+        "first_observe_ms": 17,
+        "observe_ms": 7,
+        "jev_ms": 162,
+        "act_ms": 55,
+        "settle_ms": 215,
+        "rounds": 57
+      },
+      "usd": 1.020644,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 2,
+          "rounds": 5,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 7
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          },
+          "why": "low-confidence",
+          "candidates": 3
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 3,
+          "rounds": 5,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 4
+          },
+          "why": "wrong-page",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 8
+          },
+          "why": "no-match",
+          "candidates": 2
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 3,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 8
+          },
+          "why": "no-match",
+          "candidates": 2
+        },
+        {
+          "status": "error",
+          "reason": "invalid-input",
+          "steps": 0,
+          "rounds": 0
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-jev",
+          "steps": 1,
+          "rounds": 3,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "error",
+          "reason": "page-error",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 2,
+          "rounds": 5,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 4
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 8,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 1
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 4,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 17,
+      "picks": 1,
+      "wingman_acts": 31,
+      "nav_by_wingman": 6,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 3,
+        "mcp__jev-browser-wingman__browse_step": 17,
+        "mcp__playwright__browser_snapshot": 8
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 178505,
+      "median_usd": 1.020644,
+      "fallback_rate": 1
+    }
+  }
+}
