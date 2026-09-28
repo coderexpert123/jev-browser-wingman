@@ -92,6 +92,15 @@ With `policy.mode: "enforce"` in forced mode, a sensitive page comes back to the
 
 Opt out with `"handoff": {"mode": "optional"}` in config.
 
+## Step phrasing and recovery
+
+`browse_step` decides each action from the step text you pass. Two phrasing rules prevent the most common failure:
+
+- **Repeat counts stay inside one step.** When a step repeats an action a fixed number of times (e.g. "click the Add button twice"), keep the count word inside that single step entry. Splitting it into separate bare "click the Add button" steps loses the count — the decision service cannot tell when to stop and may over-act, producing real side effects on the page (e.g. dozens of extra clicks).
+- **Fallback while progressing.** `browse_step` can report `fallback`/`budget-steps` while making continuous, real, observable progress on a click-family step. Each retry compounds real side effects. When a result reports fallback after making progress, take a snapshot with your own browser tools to see the current page state before calling `browse_step` again.
+
+Self-correcting an over-executed step is done with another `browse_step` call (e.g. "delete the extra elements"), never with the raw click tool — it is withheld in forced mode, and using `script` to bypass handoff defeats the purpose of the wrap.
+
 ## Configure
 
 Config lives at `<wingmanHome>/config.json`, by default `~/.jev-browser-wingman/config.json`.
