@@ -42,7 +42,11 @@ export const TAKEOVER_MARGIN_RATIO = 2 as const;
 export const THRESHOLDS = {
   done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
   stepDone: 0.85, stepDoneNoAction: 0.5, key: 0.5, url: 0.5, file: 0.5, toolClass: 0.8,
-  rightPage: 0.5, ready: 0.5, recover: 0.6,
+  // ready 0.5 -> 0.3 (2026-09-28, r10, from the r9 distribution): readyP
+  // median was 0.50 over 163 rounds and all 17 not-ready bounces had readyP
+  // 0.34-0.47 with errorP <= 0.18, so the 0.5 bar was uninformative. 0.3 lets
+  // genuinely-ready rounds proceed while still bouncing truly-not-ready ones.
+  rightPage: 0.5, ready: 0.3, recover: 0.6,
   // Evidence-backed step_done bar (operator-approved tuning, 2026-09-28,
   // cloud round 7: bench-results/2026-09-28-r7/results.md telemetry + Part 3).
   // stepDoneP undershoots THRESHOLDS.stepDone even after a verified outcome

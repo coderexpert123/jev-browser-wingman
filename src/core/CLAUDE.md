@@ -374,3 +374,32 @@
   — the alternation must be strict (`round % 2`), not "first round differs
   from the rest," or the test passes for a reason unrelated to what it claims
   to prove.
+
+- **Bare-click evidence + same-target repeat guard, WP-click (2026-09-28,
+  r10):** a click step with NO count word (where `parseRepeatCount` returns
+  `undefined`, so `hasRepeatCountEvidence` can't fire) now has its own
+  evidence bar. `hasBareClickEvidence(history, currentStepKey)` is true when
+  the LAST history entry is on the current step, has a click-family verb
+  (`CLICK_FAMILY_OPS`), and `result === 'page changed'` — one observed change
+  is enough. Advance bar: chain mode's `runChainEarly` rule 3 gets an extra
+  OR branch, `stepDoneP >= THRESHOLDS.stepDoneWithEvidence (0.5) &&
+  bareClickEvidence`. Legacy browse_step: `decideEarly` rule 3b gets a
+  sibling branch on the `done` noul `>= THRESHOLDS.stepDoneWithEvidence`
+  (0.5; NOT `THRESHOLDS.done`, which is 0.85 and already rule 3). Repeat
+  guard (act site, right after the no-progress guard): on a count-less step
+  that already has bare-click evidence, a decision to click the SAME target
+  again (`path`, else `label`) hands back `fallback`/`step-uncertain` with
+  `step_review.why: 'repeat'` instead of acting — exempt on a
+  recovered-this-round round like the no-progress guard. Scope: chain clause
+  and legacy browse_step `step` only, never the wingman_do goal (same
+  multi-clause reason as WP-count's rule 3b scoping). Telemetry:
+  `PhaseRound.clickEvidence` (firing round only), `PhaseRound.step_text`
+  (every browse_step round, redacted via `redactValues`, capped 300), and
+  `WingmanLogRecord.step_texts_start` (chain mode, redacted first clause) —
+  mirrored in `contract/types.ts`; chain.test T17's log-key allowlist
+  includes `step_texts_start`. Same ready-gate change in this batch:
+  `THRESHOLDS.ready` 0.5 -> 0.3 (r9 distribution, see constants.ts). **Test
+  trap:** any test that clicks the same target on two consecutive rounds of
+  a count-less browse_step with a page-changing observation now trips the
+  repeat guard by construction (chain.test T23 was moved to a second target
+  for this reason).

@@ -1045,7 +1045,7 @@ test('T17: the chain log record carries only § 5.1 fields plus progress and act
   const allowed = new Set([
     'ts', 'tool', 'mode', 'adapter', 'status', 'reason', 'steps', 'host', 'gate_hits',
     'jev_calls', 'input_tokens', 'output_tokens', 'ms', 'would', 'phases',
-    'progress', 'pick', 'acts_by_op',
+    'progress', 'pick', 'acts_by_op', 'step_texts_start',
   ]);
   for (const key of Object.keys(h.records[0])) {
     assert.ok(allowed.has(key), `unexpected log key ${key}`);
@@ -1276,9 +1276,17 @@ test('T23: right_page low then high does not bounce, and an advance resets the c
   // one (§ outcome evidence WP-B); a truly static fixture would make round
   // 2's identical click a correct no-progress match instead of exercising
   // the counter.
+  // Round 2 clicks a DIFFERENT element (e2): a same-target re-click after a
+  // page-changing click on a count-less step is a WP-click repeat handback,
+  // which is not what this test exercises.
+  const two = [el(), el({ id: 'e2', path: '#e2', name: 'Other', fingerprint: { tag: 'button', role: 'button', name: 'Other', x: 0, y: 0 } })];
   const h = harness({
-    observations: { p1: [observation(), observation({ text: 'plain page text, now settled' })] },
-    script: [CS({ right_page: 0.2 }), CS({ right_page: 0.9 }), ADV()],
+    observations: { p1: [observation({ elements: two }), observation({ elements: two, text: 'plain page text, now settled' })] },
+    script: [
+      CS({ right_page: 0.2 }),
+      CS({ right_page: 0.9, target: ['e2', { e2: 0.9, e1: 0.05, none: 0.02, ambiguous: 0.02 }] }),
+      ADV(),
+    ],
   });
   const r = await h.call({ goal: 'chain-t23 recover goal', steps: ['r1', 'r2'] });
   assert.equal(r.status, 'done');

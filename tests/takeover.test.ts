@@ -796,8 +796,10 @@ test('a continuation round with a lone candidate in [floor, threshold) acts', as
         observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
       ],
     },
+    // Round 1 clicks e2 so round 2's e1 click is not a same-target
+    // re-click on a count-less step (the WP-click repeat guard).
     script: [
-      S(),
+      S({ target: ['e2', { e2: 0.9, e1: 0.05, none: 0.03, ambiguous: 0.02 }] }),
       S({ target: ['e1', { e1: 0.6, e2: 0.1, none: 0.2, ambiguous: 0.1 }] }),
       { done: 0.9 },
     ],
@@ -839,8 +841,10 @@ test('a continuation round at the threshold or above acts regardless of candidat
         observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
       ],
     },
+    // Round 1 clicks e2 so round 2's e1 click is not a same-target
+    // re-click on a count-less step (the WP-click repeat guard).
     script: [
-      S(),
+      S({ target: ['e2', { e2: 0.9, e1: 0.05, none: 0.03, ambiguous: 0.02 }] }),
       S({ target: ['e1', { e1: 0.8, e2: 0.55, none: 0.0, ambiguous: 0.0 }] }),
       { done: 0.9 },
     ],
@@ -1019,8 +1023,10 @@ test('a continuation round with an ambiguous choice and a dominating element act
         observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })], text: 'plain page text, now settled' }),
       ],
     },
+    // Round 1 clicks e2 so round 2's e1 click is not a same-target
+    // re-click on a count-less step (the WP-click repeat guard).
     script: [
-      S(),
+      S({ target: ['e2', { e2: 0.9, e1: 0.05, none: 0.03, ambiguous: 0.02 }] }),
       S({ target: ['ambiguous', { e1: 0.66, ambiguous: 0.25, e2: 0.07, none: 0.02 }] }),
       { done: 0.9 },
     ],

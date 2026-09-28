@@ -128,7 +128,7 @@ export interface WingmanResult {
   step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
     step: string;                    // the redacted proposed step text, capped to LABEL_MAX
     why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
-       | 'already-done' | 'wrong-page' | 'not-ready' | 'no-progress';
+       | 'already-done' | 'wrong-page' | 'not-ready' | 'no-progress' | 'repeat';
     candidates: Array<{ label: string; role?: string; name?: string }>;   // top 3 target candidates: redacted criteria labels
   };
   progress?: { step_index: number; steps_done: number; steps_total: number };
@@ -167,6 +167,8 @@ export interface WingmanLogRecord {
   // candidate labels themselves — those are page text, kept out of log.jsonl
   // like every other field here.
   step_review?: { why: string; candidates: number };
+  // WP-click: the redacted first chain clause (chain mode only, capped to 300 chars).
+  step_texts_start?: string;
   // Per-phase wall-time breakdown, ms. Numbers only — never page text.
   // attachMs/firstObserveMs are once per invocation; rounds is one entry per
   // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
@@ -197,6 +199,11 @@ export interface WingmanLogRecord {
       // repeat-count advance/done fired, set to the count that was
       // satisfied (a number, never the step text or any page-derived label).
       countEvidence?: number;
+      // WP-click: the redacted current step text (chain clause or legacy
+      // step, capped to 300 chars), browse_step only; clickEvidence is set
+      // only on the round where bare-click evidence fired.
+      step_text?: string;
+      clickEvidence?: true;
     }>;
   };
 }

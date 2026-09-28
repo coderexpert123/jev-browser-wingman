@@ -523,6 +523,23 @@ function hasRepeatCountEvidence(history: HistoryEntry[], currentStepKey: string,
   return run >= count;
 }
 
+/** § WP-click: true when the last history entry is a click-family act on
+ * the current step that produced a visible page change. This is the
+ * evidence bar for a click step with NO explicit count word (where
+ * hasRepeatCountEvidence can't fire because parseRepeatCount returns
+ * undefined). A single 'page changed' click is enough — Jev's stepDoneP
+ * never reliably crosses 0.85 on a repeated click, but one observed
+ * change IS the signal that the click landed. The stepDoneP >= 0.5 gate
+ * (THRESHOLDS.stepDoneWithEvidence) is applied at the call site, not here
+ * — this function checks only the history evidence. */
+function hasBareClickEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
+  if (history.length === 0) return false;
+  const last = history[history.length - 1];
+  if (last.stepKey !== currentStepKey) return false;
+  if (!CLICK_FAMILY_OPS.has(last.verb)) return false;
+  return last.result === 'page changed';
+}
+
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
 function fingerprintMatches(fresh: Fingerprint, pending: Fingerprint): boolean {
   return (
@@ -934,10 +951,13 @@ async function runTool(
     // count that was satisfied. Guarded like every other optional field here
     // — never assigned when the branch didn't fire.
     countEvidence?: number;
+    step_text?: string;    // redacted current step text (chain clause or legacy step), browse_step only
+    clickEvidence?: true;  // WP-click: set on the round where bare-click evidence fired
   };
   const phaseAcc: {
     attachMs?: number;
     firstObserveMs?: number;
+    stepTextsStart?: string;
     rounds: PhaseRound[];
   } = { rounds: [] };
   let cur: PhaseRound | null = null;
@@ -1151,6 +1171,7 @@ async function runTool(
       // COUNT only, never the candidate labels. Feeds bench's why breakdown
       // (handoffRecordsFromLog parses log.jsonl, so it has to ride here).
       ...(r.step_review ? { step_review: { why: r.step_review.why, candidates: r.step_review.candidates.length } } : {}),
+      ...(phaseAcc.stepTextsStart !== undefined ? { step_texts_start: phaseAcc.stepTextsStart } : {}),
       phases: {
         ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
         ...(phaseAcc.firstObserveMs !== undefined ? { firstObserveMs: phaseAcc.firstObserveMs } : {}),
@@ -1329,6 +1350,16 @@ async function runTool(
       const repeatCount = parseRepeatCount(stepText);
       if (repeatCount !== undefined && hasRepeatCountEvidence(history, 'single', repeatCount)) {
         if (cur) cur.countEvidence = repeatCount;
+        return { result: mk('done', 'goal-met') };
+      }
+      // § WP-click: a count-less click step whose last act visibly changed
+      // the page ends done at the evidence bar (0.5) instead of 0.85.
+      if (
+        repeatCount === undefined &&
+        hasBareClickEvidence(history, 'single') &&
+        noulOf('done') >= THRESHOLDS.stepDoneWithEvidence
+      ) {
+        if (cur) cur.clickEvidence = true;
         return { result: mk('done', 'goal-met') };
       }
     }
@@ -2029,7 +2060,7 @@ async function runTool(
     let retried = false;
     const retryAllowed = entry?.kind === 'legacy' && takeoverOf(deps.config).retry;
     type ReviewWhy = 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
-      | 'already-done' | 'wrong-page' | 'not-ready';
+      | 'already-done' | 'wrong-page' | 'not-ready' | 'repeat';
     const entryReview = (why: ReviewWhy, candidates: Array<{ label: string; role?: string; name?: string }>) => ({
       step_review: { step: capLabel(entryStep ?? ''), why, candidates },
     });
@@ -2039,6 +2070,7 @@ async function runTool(
 
     // Chain state (§ 5.5.2), created by runBrowse.
     const chain = entry?.kind === 'chain' ? chainState : null;
+    if (chain) phaseAcc.stepTextsStart = redactValues(chain.clauses[0], values).slice(0, 300);
     const N = chain?.N ?? 0;
     const clauseText = (i: number): string => redactValues(chain!.clauses[i], values).slice(0, 300);
     const clauseReviewStep = () => capLabel(clauseText(Math.min(chain!.cursor, N - 1)));
@@ -2166,15 +2198,22 @@ async function runTool(
       const repeatCount = parseRepeatCount(chain!.clauses[chain!.cursor]);
       const repeatCountMet =
         repeatCount !== undefined && hasRepeatCountEvidence(history, `c${chain!.cursor}`, repeatCount);
+      // § WP-click: a count-less click step advances at the evidence bar
+      // once its last act was a click that visibly changed the page.
+      const bareClickEvidence =
+        repeatCount === undefined &&
+        hasBareClickEvidence(history, `c${chain!.cursor}`);
       if (
         stepDone >= THRESHOLDS.stepDone ||
         (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
         (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
           stepBindingCount <= 1 &&
           hasStepEvidence(history, `c${chain!.cursor}`)) ||
-        repeatCountMet
+        repeatCountMet ||
+        (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence)
       ) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
+        if (bareClickEvidence && cur) cur.clickEvidence = true;
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
@@ -2311,6 +2350,11 @@ async function runTool(
       }
       const bucket = beginRound();
       recoveredThisRound = false;
+      if (isBrowse) {
+        bucket.step_text = chain
+          ? clauseText(Math.min(chain.cursor, N - 1))
+          : (entryStep ?? '');
+      }
       const obs = await observeTimed(pageId);
       pageUrl = obs.url;
       // § outcome evidence choke point: fills the last act's observed result
@@ -2920,6 +2964,32 @@ async function runTool(
             return mk('fallback', 'no-progress', { step_review: { step, why: 'no-progress', candidates } });
           }
           return mk('fallback', 'no-progress', { candidates });
+        }
+        // § WP-click repeat guard: on a count-less click step, if the last act
+        // was a same-target click that changed the page and Jev picks the SAME
+        // target again, hand back instead of clicking — the step already has its
+        // evidence (one page change) and re-clicking the same target with
+        // stepDoneP < 0.5 is the r6/r7/r8/r9 over-click defect. Scope: chain
+        // clause + legacy browse_step only, never wingman_do.
+        const guardStepText = chain
+          ? chain.clauses[chain.cursor]
+          : (entry?.kind === 'legacy' ? entry.step : undefined);
+        if (
+          isBrowse &&
+          !recoveredThisRound &&
+          guardStepText !== undefined &&
+          parseRepeatCount(guardStepText) === undefined &&
+          hasBareClickEvidence(history, currentStepKey) &&
+          decision.el !== null &&
+          CLICK_FAMILY_OPS.has(decision.verb)
+        ) {
+          const last = history[history.length - 1];
+          const sameTarget = last.path !== undefined ? decision.el.path === last.path : decision.el.name === last.label;
+          if (sameTarget) {
+            const candidates = [candidateOf(decision.el, values)];
+            const step = chain ? clauseReviewStep() : capLabel(entryStep ?? '');
+            return mk('fallback', 'step-uncertain', { step_review: { step, why: 'repeat', candidates } });
+          }
         }
         const actValue =
           decision.verb === 'fill' || decision.verb === 'navigate' || decision.verb === 'upload'

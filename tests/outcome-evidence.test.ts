@@ -108,6 +108,7 @@ function choice(c: string, probabilities: Record<string, number>): JevAnswer {
 interface Harness {
   driver: FakeDriver;
   requests: JevRequest[];
+  records: WingmanLogRecord[];
   deps: LoopDeps;
   call: (input: unknown) => Promise<WingmanResult>;
   callDo: (input: unknown) => Promise<WingmanResult>;
@@ -120,6 +121,7 @@ function harness(opts: {
 }): Harness {
   const driver = new FakeDriver({ pages: [page()], observations: opts.observations });
   const requests: JevRequest[] = [];
+  const records: WingmanLogRecord[] = [];
   const ask: JevAsk = async (request, callOpts) => {
     requests.push(request);
     return opts.ask(request, callOpts);
@@ -132,11 +134,14 @@ function harness(opts: {
     ask,
     mutex: createMutex(),
     tokens,
-    writeLog: async () => {},
+    writeLog: async (record) => {
+      records.push(record);
+    },
   };
   return {
     driver,
     requests,
+    records,
     deps,
     call: (input: unknown) => runStep(input, deps),
     callDo: (input: unknown) => runDo(input, deps),
@@ -675,16 +680,17 @@ function clickEvidenceAsk(): JevAsk {
     });
 }
 
-test('WP-evidence-c: click step at step_done 0.6 with a page-changed result does not advance', async () => {
+test('WP-evidence-c: click step at step_done 0.6 with a page-changed result advances on bare-click evidence, not hasStepEvidence', async () => {
   const h = harness({
     observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2), addElementsObs(3)] },
     ask: clickEvidenceAsk(),
   });
   const r = await h.call({ goal: 'evidence click goal', steps: ['click the add element button'] });
-  assert.notEqual(r.status, 'done', `click-family must keep the 0.85 bar only, got ${r.status}/${r.reason}`);
-  assert.equal(r.reason, 'budget-steps');
+  assert.equal(r.status, 'done', `expected done via WP-click bare-click evidence, got ${r.status}/${r.reason}`);
   const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
-  assert.equal(clickActs.length, 3, 'every round\'s click lands (real progress each time) up to the step budget, never an evidence-backed advance');
+  assert.equal(clickActs.length, 1, 'one page-changing click is the evidence; no further click lands');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.clickEvidence === true), 'the advance must come from the bare-click branch (clickEvidence telemetry)');
 });
 
 /** step_done sits at 0.6 (evidence tier) every round, but the fill never
@@ -985,7 +991,8 @@ test('WP-count-c: a step with no count word never advances on count evidence (fa
   });
   const r = await h.call({ goal: 'WP-count goal c', steps: ['click the Add button'] });
   assert.notEqual(r.status, 'done', `no count word in the step must never trigger a count-evidence advance, got ${r.status}/${r.reason}`);
-  assert.equal(r.reason, 'budget-steps', `expected budget-steps (no count, stepDoneP never crosses 0.85), got ${r.reason}`);
+  assert.equal(r.reason, 'step-uncertain', `expected the WP-click repeat guard to hand back (no count, stepDoneP 0.3 < 0.5), got ${r.reason}`);
+  assert.equal(r.step_review?.why, 'repeat');
 });
 
 test('WP-count-d: clicks that produce no visible change do not count toward the repeat count', async () => {
@@ -1036,4 +1043,173 @@ test('parseRepeatCount: explicit count words, digit/word "N times", and ambiguit
   assert.equal(parseRepeatCount('click it twice, then submit 2 times'), undefined, 'more than one count expression is ambiguous');
   assert.equal(parseRepeatCount('click it at times'), undefined, '"at" is not a count word');
   assert.equal(parseRepeatCount('click it 51 times'), undefined, 'out of the 1..50 digit range');
+});
+
+// ---- WP-click (r10): bare-click evidence + same-target repeat guard. A
+// count-less click step advances (chain) / ends done (legacy) after ONE
+// click that visibly changed the page, once stepDoneP/done >= 0.5
+// (THRESHOLDS.stepDoneWithEvidence); below that bar, picking the SAME
+// target again hands back why 'repeat' instead of over-clicking. ----
+
+/** Legacy browse_step reads the `done` noul, not step_done: same shape as
+ * clickStepDoneAsk but with `done` fixed. */
+function clickDoneAsk(fixedP: number): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      done: { type: 'noul', noul: fixedP },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+}
+
+test('WP-click-a: chain step "click the Add button" (no count) advances after exactly 1 page-changing click at stepDoneP 0.55', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1)] },
+    ask: clickStepDoneAsk(0.55),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-click goal a', steps: ['click the Add button'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 1, 'exactly 1 click must land — one observed page change is the evidence');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.clickEvidence === true), 'clickEvidence telemetry must be set on the advancing round');
+});
+
+test('WP-click-b: chain step "click the Add button" (no count) hands back why repeat when the same target is picked again below the evidence bar', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
+    ask: clickStepDoneAsk(0.3),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-click goal b', steps: ['click the Add button'] });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'repeat');
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 1, 'only the first click lands; the guard bounces the same-target repeat');
+});
+
+test('WP-click-c: a step WITH a count word still uses count evidence, not bare-click evidence (2 clicks, not 1)', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
+    ask: clickStepDoneAsk(0.55),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-click goal c', steps: ['click the Add button twice'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 2, 'a "twice" step must not be cut short at 1 click by bare-click evidence');
+});
+
+test('WP-click-d: bare-click evidence does not fire when the click produced no visible change', async () => {
+  const inert = observation({ elements: [addButton()], text: 'nothing happens' });
+  const h = harness({
+    observations: { p1: [inert] },
+    ask: clickStepDoneAsk(0.55),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-click goal d', steps: ['click the Add button'] });
+  assert.notEqual(r.status, 'done', `a click with no observed page change must never advance on bare-click evidence, got ${r.status}/${r.reason}`);
+});
+
+test('WP-click-e: a fill step at stepDoneP 0.55 still advances via hasStepEvidence, never via bare-click evidence', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const ask: JevAsk = async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.55 : 0.05 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+  };
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask });
+  const r = await h.call({ goal: 'WP-click goal e', steps: ['fill the Amount field'], values: { amount: '42' } });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  assert.equal(fillActs.length, 1);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.every((rd) => rd.clickEvidence === undefined), 'a fill advance must never be attributed to bare-click evidence');
+});
+
+test('WP-click-f: legacy/single browse_step "click the Add button" (no count) ends done/goal-met after exactly 1 click at done 0.55', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1)] },
+    ask: clickDoneAsk(0.55),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'WP-click goal f', step: 'click the Add button' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason} after ${r.steps} steps`);
+  assert.equal(r.reason, 'goal-met');
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 1, 'exactly 1 click must land — one observed page change is the evidence');
+});
+
+// ---- readyP threshold (r10: THRESHOLDS.ready 0.5 -> 0.3) ----
+
+function readyAsk(readyP: number): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      ready: { type: 'noul', noul: readyP },
+      step_done: { type: 'noul', noul: hasEvidence ? 0.95 : 0.05 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('readyP 0.4 (>= 0.3) proceeds: a chain call does not bounce not-ready', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask: readyAsk(0.4) });
+  const r = await h.call({ goal: 'ready goal proceeds', steps: ['fill the amount field'], values: { amount: '42' } });
+  assert.notEqual(r.step_review?.why, 'not-ready', `readyP 0.4 must clear the 0.3 ready bar, got ${r.status}/${r.reason}`);
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().filter((a) => a.op === 'fill').length, 1);
+});
+
+test('readyP 0.2 (< 0.3) still waits, then bounces not-ready', async () => {
+  const h = harness({ observations: { p1: [observation()] }, ask: readyAsk(0.2) });
+  const r = await h.call({ goal: 'ready goal bounces', steps: ['fill the amount field'], values: { amount: '42' } });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'not-ready');
+  assert.equal(h.driver.actCalls().filter((a) => a.op === 'fill').length, 0, 'a not-ready round never acts on the step');
+});
+
+// ---- step_text telemetry redaction (r10) ----
+
+test('log redaction: step_text and step_texts_start carry the redacted step, never the bound value', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const secret = '4242';
+  for (const input of [
+    { goal: 'log redaction chain goal', steps: [`fill the Amount field with ${secret}`], values: { amount: secret } },
+    { goal: 'log redaction legacy goal', step: `fill the Amount field with ${secret}`, values: { amount: secret } },
+  ]) {
+    const h = harness({ observations: { p1: [unfilled, filled] }, ask: readyAsk(0.95) });
+    await h.call(input);
+    assert.equal(h.records.length, 1);
+    const record = h.records[0];
+    const rounds = record.phases?.rounds ?? [];
+    assert.ok(rounds.length > 0);
+    const stepText = rounds[0].step_text;
+    assert.ok(stepText !== undefined, 'browse_step rounds carry step_text');
+    assert.ok(!stepText.includes(secret), `step_text leaked the bound value: ${stepText}`);
+    assert.ok(stepText.includes('<value:amount>'), `step_text should carry the redaction token: ${stepText}`);
+    if ('steps' in input) {
+      assert.ok(record.step_texts_start !== undefined, 'chain mode records step_texts_start');
+      assert.ok(!record.step_texts_start.includes(secret), `step_texts_start leaked the bound value: ${record.step_texts_start}`);
+    } else {
+      assert.equal(record.step_texts_start, undefined, 'legacy mode has no step_texts_start');
+    }
+    assertNoValues(JSON.stringify(record), { amount: secret });
+  }
 });
