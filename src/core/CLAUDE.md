@@ -309,3 +309,21 @@
   suite (not just the file a change set names) is required work for any
   future change to `isNoProgress`/`annotateLastOutcome`, not optional
   follow-up.
+
+- **A `select` option's `value` and its `elementStateSignal` LABEL are two
+  different strings — never compare one against the other** (verifier,
+  2026-09-28, outcome-evidence stepDoneWithEvidence bar). `ElementRecord.options`
+  is `Array<{value, label}>`; the decision/act path (`decideVerbAndValue`,
+  `resolveOption`) resolves and acts on the option's `value` attribute
+  (`decision.optionValue` / `PendingAction.optionValue`), but
+  `elementStateSignal('select', el)` reads back `el.state.selected`, which the
+  driver reports as the option's raw LABEL text (see the redaction bullet
+  above: `'selected: <raw option text>'`). On any `<option value="v">label</option>`
+  where `v !== label`, `result === \`selected: ${optionValue}\`` would never
+  match even for a fully correct selection. `hasStepEvidence`'s select branch
+  (loop.ts) instead resolves the intended LABEL at the act site —
+  `el.options?.find(o => o.value === optionValue)?.label` — and stores it as
+  `HistoryEntry.intendedLabel` for later comparison against `result`. Any
+  future code that wants to verify "did the act land on what was asked" for a
+  `select` must go through this same label lookup, never compare `optionValue`
+  directly against `result`.

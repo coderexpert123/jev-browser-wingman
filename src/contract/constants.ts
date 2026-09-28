@@ -43,6 +43,24 @@ export const THRESHOLDS = {
   done: 0.85, doneNoAction: 0.5, login: 0.5, blocked: 0.5, error: 0.5, irreversible: 0.5, target: 0.5, value: 0.5,
   stepDone: 0.85, stepDoneNoAction: 0.5, key: 0.5, url: 0.5, file: 0.5, toolClass: 0.8,
   rightPage: 0.5, ready: 0.5, recover: 0.6,
+  // Evidence-backed step_done bar (operator-approved tuning, 2026-09-28,
+  // cloud round 7: bench-results/2026-09-28-r7/results.md telemetry + Part 3).
+  // stepDoneP undershoots THRESHOLDS.stepDone even after a verified outcome
+  // (e.g. /inputs 'type 42' -> historyResult 'filled' at stepDoneP 0.83;
+  // /dropdown 'Choose Option 2' -> 'selected: Option 2' at stepDoneP 0.52),
+  // while rounds that did advance ran a median of 0.89. runChainEarly's rule 3
+  // accepts this lower bar only when the last history entry is the current
+  // step's own fill/select/check/uncheck AND its observed result confirms
+  // that verb's end state — never for click-family or any other verb.
+  // Verifier fix (2026-09-28): 'select' now also requires the confirmed
+  // option to match the INTENDED one (not just any selection), 'fill'
+  // requires the field to have been empty immediately before this act (not
+  // just non-empty after — a pre-filled field proves nothing), and the whole
+  // rule is gated off for a step whose text names more than one supplied
+  // binding (a compound step must clear the ordinary 0.85 bar instead, so
+  // completing only the first of several named fields can't advance it).
+  // See hasStepEvidence and runChainEarly rule 3 in src/core/loop.ts.
+  stepDoneWithEvidence: 0.5,
 } as const;
 export const TWO_STAGE = { groupSize: 30, topGroups: 3 } as const;
 export const SELECT_CHUNK = 250;

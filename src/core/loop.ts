@@ -246,6 +246,18 @@ interface HistoryEntry {
   // call is one implicit step for this purpose). Internal only — never
   // reaches buildState's history mapping.
   stepKey?: string;
+  // § outcome evidence bar fix (verifier, 2026-09-28): for a `select` act
+  // only, the option's LABEL that the act intended to land on — looked up
+  // from the acted-on element's own `options` by the `value` the driver was
+  // told to select. `elementStateSignal`'s select branch reads back
+  // `el.state.selected`, which is the option's raw LABEL text, not its
+  // `value` attribute (they differ on any `<option value="…">label</option>`
+  // where the two aren't equal) — so this is the only form comparable to
+  // `result`. Undefined whenever the intended option's label can't be
+  // resolved (e.g. no matching entry in `options`), in which case the
+  // evidence check must fall back to "unconfirmed" rather than guess.
+  // Internal only — never reaches buildState's history mapping.
+  intendedLabel?: string;
 }
 
 /** § outcome evidence: element-state verbs read `state` directly (no new
@@ -386,6 +398,51 @@ function isNoProgress(
   // url+title+hash string), so 'no visible change' IS the no-progress signal
   // for them.
   return ELEMENT_STATE_VERBS.has(last.verb) ? last.result === last.before : last.result === 'no visible change';
+}
+
+/** Evidence-backed step_done bar (operator-approved tuning, 2026-09-28; see
+ * THRESHOLDS.stepDoneWithEvidence). True only when the LAST history entry
+ * belongs to the CURRENT step (`stepKey` match), its verb is one of the four
+ * element-state verbs, and its observed `result` confirms that verb's OWN
+ * intended end state:
+ *   - fill: `result === 'filled'` AND `before !== 'filled'` (verifier fix,
+ *     2026-09-28) — a field already non-empty BEFORE this act proves nothing:
+ *     'filled' only means non-empty, never that THIS act supplied the
+ *     intended value, so a pre-filled field must not count as fresh evidence.
+ *     Since `elementStateSignal('fill', …)` only ever returns 'filled' or
+ *     'empty', `before !== 'filled'` is exactly "before was 'empty'".
+ *   - select: `result === \`selected: ${intendedLabel}\`` (verifier fix,
+ *     2026-09-28) — starts-with 'selected:' alone would accept ANY selection,
+ *     including the wrong option; `intendedLabel` (recorded at the act site)
+ *     is the option Jev actually asked for, so this confirms the CORRECT
+ *     option landed, not merely that some option did. Undefined
+ *     `intendedLabel` (label couldn't be resolved) never confirms.
+ *   - check/'checked', uncheck/'unchecked': these are two-valued and the
+ *     value IS the goal, so no before-check is needed (unlike fill, a
+ *     confirmed 'checked' can't be "the wrong value").
+ * A click-family or targetless verb, an entry from a previous step, or a
+ * result that doesn't confirm the verb's end state all return false, leaving
+ * the 0.85 bar as the only path to advance. Residual, accepted risk (verifier,
+ * 2026-09-28): neither fill nor select can confirm the acted-on ELEMENT was
+ * the one the step actually named — that would need semantic matching of the
+ * step text to the element, which is Jev's own job, not a mechanical check. */
+function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
+  if (history.length === 0) return false;
+  const last = history[history.length - 1];
+  if (last.stepKey !== currentStepKey) return false;
+  if (!ELEMENT_STATE_VERBS.has(last.verb) || last.result === undefined) return false;
+  switch (last.verb) {
+    case 'fill':
+      return last.result === 'filled' && last.before !== 'filled';
+    case 'select':
+      return last.intendedLabel !== undefined && last.result === `selected: ${last.intendedLabel}`;
+    case 'check':
+      return last.result === 'checked';
+    case 'uncheck':
+      return last.result === 'unchecked';
+    default:
+      return false;
+  }
 }
 
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
@@ -1552,6 +1609,9 @@ async function runTool(
           fingerprint: el.fingerprint,
           before: outcomeSignal(action.verb, el, obs),
           stepKey,
+          ...(action.verb === 'select' && action.optionValue !== undefined
+            ? { intendedLabel: el.options?.find((o) => o.value === action.optionValue)?.label }
+            : {}),
         },
       ],
     };
@@ -1967,7 +2027,28 @@ async function runTool(
       // 3. advance (before the error rule, C2)
       const action = answers['action'] as JevChoiceAnswer | undefined;
       const stepDone = noulOf('step_done');
-      if (stepDone >= THRESHOLDS.stepDone || (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction)) {
+      // Multi-action-step guard (verifier, 2026-09-28): the evidence bar
+      // reads only the LAST act, so a compound step naming more than one
+      // supplied binding (e.g. "fill name and email") could otherwise be
+      // marked done after only the FIRST field lands — the second still
+      // empty. `bindingsInStep` (already used to anchor the value question,
+      // above) is the cheapest available signal for "how many fields does
+      // this step's text actually name": count ≤ 1 permits the evidence bar,
+      // count ≥ 2 forces the ordinary 0.85 stepDone bar, which judges the
+      // WHOLE step text rather than the single most recent act. Residual,
+      // accepted risk (flagged for the orchestrator): a compound step whose
+      // second target isn't a named `values` binding (e.g. "check the box
+      // and select the option", where neither half names a supplied value)
+      // still reads as count ≤ 1 and is not caught by this guard — closing
+      // that gap needs semantic parsing of the step text, out of scope here.
+      const stepBindingCount = bindingsInStep(chain!.clauses[chain!.cursor], values).length;
+      if (
+        stepDone >= THRESHOLDS.stepDone ||
+        (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
+        (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
+          stepBindingCount <= 1 &&
+          hasStepEvidence(history, `c${chain!.cursor}`))
+      ) {
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
@@ -2753,6 +2834,9 @@ async function runTool(
             ...(decision.el ? { path: decision.el.path, fingerprint: decision.el.fingerprint } : {}),
             before: outcomeSignal(decision.verb, decision.el ?? undefined, obs),
             stepKey: currentStepKey,
+            ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
+              ? { intendedLabel: decision.el.options?.find((o) => o.value === decision.optionValue)?.label }
+              : {}),
           },
         ];
       }

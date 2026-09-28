@@ -280,39 +280,28 @@ export async function runWithBrowser(argv: string[], deps: WithChromeDeps = {}):
   };
 
   const recordToolsListId = (parsed: unknown): void => {
-    if (!forced || !isRecord(parsed) || parsed.method !== 'tools/list') return;
-    const id = parsed.id;
-    if (typeof id === 'string' || typeof id === 'number') pendingToolsListIds.add(id);
+    if (!forced) return;
+    const elems = Array.isArray(parsed) ? parsed : [parsed];
+    for (const el of elems) {
+      if (!isRecord(el) || el.method !== 'tools/list') continue;
+      const id = el.id;
+      if (typeof id === 'string' || typeof id === 'number') pendingToolsListIds.add(id);
+    }
   };
 
   // ---- child -> client ----
 
-  let childBuf = '';
-  const handleChildLine = async (rawLine: string): Promise<void> => {
-    if (!forced) {
-      stdout.write(rawLine);
-      return;
-    }
-    let text = rawLine;
-    if (text.endsWith('\n')) text = text.slice(0, -1);
-    if (text.endsWith('\r')) text = text.slice(0, -1);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = undefined;
-    }
-    const isPendingToolsList =
-      isRecord(parsed) &&
-      (typeof parsed.id === 'string' || typeof parsed.id === 'number') &&
-      pendingToolsListIds.has(parsed.id as string | number) &&
-      isRecord(parsed.result) &&
-      Array.isArray((parsed.result as Record<string, unknown>).tools);
-    if (!isPendingToolsList) {
-      stdout.write(rawLine);
-      return;
-    }
-    const o = parsed as Record<string, unknown>;
+  /** Whether a single (non-array) parsed message is a pending tools/list result. */
+  const isPendingToolsListElement = (el: unknown): el is Record<string, unknown> =>
+    isRecord(el) &&
+    (typeof el.id === 'string' || typeof el.id === 'number') &&
+    pendingToolsListIds.has(el.id as string | number) &&
+    isRecord(el.result) &&
+    Array.isArray((el.result as Record<string, unknown>).tools);
+
+  /** Filters a pending tools/list result's tools by the active/matched profile
+   * and clears its pending id. Shared by the plain and batch response paths. */
+  const transformToolsListResult = async (o: Record<string, unknown>): Promise<Record<string, unknown>> => {
     pendingToolsListIds.delete(o.id as string | number);
     const result = o.result as Record<string, unknown>;
     const tools = result.tools as Array<{ name: string; description?: string }>;
@@ -353,7 +342,45 @@ export async function runWithBrowser(argv: string[], deps: WithChromeDeps = {}):
         );
       }
     }
-    stdout.write(JSON.stringify({ ...o, result: { ...result, tools: filteredTools } }) + '\n');
+    return { ...o, result: { ...result, tools: filteredTools } };
+  };
+
+  let childBuf = '';
+  const handleChildLine = async (rawLine: string): Promise<void> => {
+    if (!forced) {
+      stdout.write(rawLine);
+      return;
+    }
+    let text = rawLine;
+    if (text.endsWith('\n')) text = text.slice(0, -1);
+    if (text.endsWith('\r')) text = text.slice(0, -1);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = undefined;
+    }
+
+    if (Array.isArray(parsed)) {
+      let changed = false;
+      const out: unknown[] = [];
+      for (const el of parsed) {
+        if (isPendingToolsListElement(el)) {
+          out.push(await transformToolsListResult(el));
+          changed = true;
+        } else {
+          out.push(el);
+        }
+      }
+      stdout.write(changed ? JSON.stringify(out) + '\n' : rawLine);
+      return;
+    }
+
+    if (!isPendingToolsListElement(parsed)) {
+      stdout.write(rawLine);
+      return;
+    }
+    stdout.write(JSON.stringify(await transformToolsListResult(parsed)) + '\n');
   };
 
   child.stdout!.setEncoding('utf8');
@@ -387,13 +414,18 @@ export async function runWithBrowser(argv: string[], deps: WithChromeDeps = {}):
     } catch {
       parsed = undefined;
     }
-    recordToolsListId(parsed);
-
+    // Verifier fix (2026-09-28): compute the refusal BEFORE recording any
+    // tools/list id. A mixed batch — a tools/list request alongside a
+    // withheld tools/call — is refused (and never forwarded) as a whole (W7
+    // all-or-nothing, by design); recording that batch's tools/list id first
+    // would leave it in `pendingToolsListIds` forever, since the request
+    // that would have cleared it (the child's real response) never happens.
     const refusal = computeRefusal(parsed);
     if (refusal !== null) {
       writeProxyLine(refusal);
       return;
     }
+    recordToolsListId(parsed);
 
     const gate = gatedCallId(parsed);
     if (!gate.gated || !doEnsure) {

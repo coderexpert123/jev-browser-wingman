@@ -53,21 +53,45 @@ function handle(line) {
     append('unparsed');
     return;
   }
+  if (Array.isArray(msg)) {
+    append('batch:' + JSON.stringify(msg.map((m) => m && m.method)));
+    const results = msg
+      .map((m) => {
+        logOne(m);
+        const result = resultFor(m);
+        return result === undefined ? undefined : { jsonrpc: '2.0', id: m.id, result };
+      })
+      .filter((r) => r !== undefined);
+    process.stdout.write(JSON.stringify(results) + '\n');
+    return;
+  }
+  logOne(msg);
+  const result = resultFor(msg);
+  if (result !== undefined) reply(msg.id, result);
+}
+
+function logOne(msg) {
   const toolName = msg.params && msg.params.name ? ':' + msg.params.name : '';
   append('method:' + (msg.method ?? 'response') + toolName);
+}
+
+/** The result payload for one JSON-RPC message, or undefined for a
+ * notification/unhandled message with no id (nothing to reply with). */
+function resultFor(msg) {
   if (msg.method === 'initialize') {
-    reply(msg.id, {
+    return {
       protocolVersion: (msg.params && msg.params.protocolVersion) || '2024-11-05',
       capabilities: {},
       serverInfo: { name: 'stub-browsing', version: '0.0.0' },
-    });
+    };
   } else if (msg.method === 'tools/list') {
-    reply(msg.id, { tools });
+    return { tools };
   } else if (msg.method === 'tools/call') {
-    reply(msg.id, { content: [{ type: 'text', text: 'ok:' + ((msg.params && msg.params.name) ?? '') }] });
+    return { content: [{ type: 'text', text: 'ok:' + ((msg.params && msg.params.name) ?? '') }] };
   } else if (msg.id !== undefined) {
-    reply(msg.id, {});
+    return {};
   }
+  return undefined;
 }
 
 function reply(id, result) {

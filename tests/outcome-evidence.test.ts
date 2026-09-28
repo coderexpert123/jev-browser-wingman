@@ -585,3 +585,305 @@ test('T-recover-continue: continue retries land (exempt from no-progress); give-
   const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
   assert.equal(clickActs.length, 2, 'both the initial click and the continue-exempted retry must land');
 });
+
+// ---- WP-evidence: evidence-backed step_done bar (operator-approved tuning,
+// 2026-09-28; THRESHOLDS.stepDoneWithEvidence in src/contract/constants.ts).
+// Cloud round 7 (bench-results/2026-09-28-r7/results.md) showed step_done
+// undershooting THRESHOLDS.stepDone (0.85) even after a verified fill/select
+// outcome. runChainEarly's rule 3 now also advances at stepDoneWithEvidence
+// (0.5) when the LAST history entry belongs to the CURRENT step, its verb is
+// fill/select/check/uncheck, and its observed result confirms that verb's own
+// end state. Click-family and any non-confirming result keep the 0.85 bar. ----
+
+/** step_done reads only whether request.state's history carries a confirmed
+ * `"result":"filled"` entry: 0.6 (inside the evidence tier, below the
+ * ordinary 0.85 bar) once it does, 0.05 otherwise. `action` stays 'fill' on
+ * both rounds (never 'none'), so the pre-existing stepDoneNoAction path can
+ * never fire here — only the new evidence path can explain an advance. */
+function evidenceAdvanceAsk(): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.6 : 0.05 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('WP-evidence-a: step_done 0.6 with a confirmed fill result advances (evidence-backed bar)', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask: evidenceAdvanceAsk() });
+  const r = await h.call({
+    goal: 'evidence bar goal',
+    steps: ['fill the amount field'],
+    values: { amount: '42' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'goal-met');
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  assert.equal(fillActs.length, 1, 'only the first fill should act; the second round must advance on evidence, not repeat the fill');
+});
+
+/** Same shape as evidenceAdvanceAsk, but step_done never clears 0.4 — below
+ * stepDoneWithEvidence (0.5) even once the fill result confirms. */
+function evidenceBelowBarAsk(): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.4 : 0.05 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('WP-evidence-b: step_done 0.4 with a confirmed fill result does not advance (below the evidence bar)', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({
+    observations: { p1: [unfilled, filled] },
+    ask: evidenceBelowBarAsk(),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({
+    goal: 'evidence bar goal below threshold',
+    steps: ['fill the amount field'],
+    values: { amount: '42' },
+  });
+  assert.notEqual(r.status, 'done', `must not advance/finish on a 0.4 step_done, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'no-progress', `expected the no-progress guard to end this, got reason ${r.reason}`);
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  assert.equal(fillActs.length, 2, 'the first fill and its identical repeat both land; the guard — not evidence — stops the third');
+});
+
+/** Always proposes click on the Add Element button at stepDone 0.6 (inside
+ * the evidence tier) — click is not an element-state verb, so hasStepEvidence
+ * must never fire for it regardless of the 'page changed' result. */
+function clickEvidenceAsk(): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+}
+
+test('WP-evidence-c: click step at step_done 0.6 with a page-changed result does not advance', async () => {
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2), addElementsObs(3)] },
+    ask: clickEvidenceAsk(),
+  });
+  const r = await h.call({ goal: 'evidence click goal', steps: ['click the add element button'] });
+  assert.notEqual(r.status, 'done', `click-family must keep the 0.85 bar only, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'budget-steps');
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 3, 'every round\'s click lands (real progress each time) up to the step budget, never an evidence-backed advance');
+});
+
+/** step_done sits at 0.6 (evidence tier) every round, but the fill never
+ * takes — the observation script never flips filled to true, so the
+ * observed result stays 'empty' and hasStepEvidence must read that as no
+ * confirmation. */
+function fillNoEvidenceAsk(): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+}
+
+test('WP-evidence-d: fill step at step_done 0.6 with an unconfirmed (empty) result does not advance', async () => {
+  const stillEmpty = observation();
+  const h = harness({
+    observations: { p1: [stillEmpty] },
+    ask: fillNoEvidenceAsk(),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({
+    goal: 'evidence unconfirmed fill goal',
+    steps: ['fill the amount field'],
+    values: { amount: '42' },
+  });
+  assert.notEqual(r.status, 'done', `must not advance on an unconfirmed result, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'no-progress');
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  assert.equal(fillActs.length, 1, 'the guard stops the second identical no-change fill before evidence ever has a confirming result to read');
+});
+
+/** Step 0 fills (confirmed 'filled', evidence present) and advances on the
+ * ordinary 0.85 bar. Step 1 clicks: its first round proposes step_done 0.6
+ * (evidence tier) — if hasStepEvidence ignored stepKey it would wrongly read
+ * step 0's leftover 'filled' history entry as step 1's own evidence and
+ * advance without ever clicking. Both steps key off request.state.step. */
+function stepBoundaryEvidenceAsk(): JevAsk {
+  const seen: Record<string, number> = {};
+  return async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    seen[step] = (seen[step] ?? 0) + 1;
+    const n = seen[step];
+    if (step.includes('fill')) {
+      if (n === 1) {
+        return reply({
+          ...baseNouls(),
+          step_done: { type: 'noul', noul: 0.05 },
+          action: choice('fill', { fill: 0.9, none: 0.05 }),
+          target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+          value: choice('amount', { amount: 0.9, none: 0.05 }),
+        });
+      }
+      // Advance step 0 on the ordinary bar, independent of the evidence path
+      // under test at the step boundary below.
+      return reply({ ...baseNouls(), step_done: { type: 'noul', noul: 0.95 } });
+    }
+    if (n === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.6 }, // evidence tier: must NOT read step 0's fill evidence
+        action: choice('click', { click: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    }
+    return reply({ ...baseNouls(), step_done: { type: 'noul', noul: 0.95 } });
+  };
+}
+
+test('WP-evidence-e: evidence from a previous step\'s act does not count for the next step', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask: stepBoundaryEvidenceAsk() });
+  const r = await h.call({
+    goal: 'evidence step-boundary goal',
+    steps: ['fill the amount field', 'click the button'],
+    values: { amount: '42' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(fillActs.length, 1);
+  assert.equal(
+    clickActs.length,
+    1,
+    "step 1's click must actually be acted — step 0's fill evidence must not spuriously advance step 1 at the evidence tier",
+  );
+});
+
+// ---- WP-evidence-f/g/h: verifier fixes (2026-09-28) — wrong-option select,
+// pre-filled fill, and multi-binding compound steps must never count as
+// evidence. See hasStepEvidence and runChainEarly rule 3 in src/core/loop.ts. ----
+
+/** Same shape as selectAsk() (T-select, above) but drives step_done into the
+ * evidence tier (0.6) rather than the ordinary 0.95 bar, so only the new
+ * evidence path — never the plain 0.85 bar — could explain an advance. */
+function wrongOptionSelectAsk(): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"selected:');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.6 : 0.1 },
+      action: choice('select', { select: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('country', { country: 0.9, none: 0.05 }),
+      option: choice('o2', { o1: 0.05, o2: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('WP-evidence-f: select landing on the WRONG option does not advance on the evidence bar (intended-option mismatch)', async () => {
+  // The bound value asks for 'Canada' (intendedLabel), but the driver's
+  // observed post-act state never leaves 'United States' — modeling a
+  // select that silently landed on (or never left) the wrong option. The
+  // OLD code (`result.startsWith('selected:')`) would have accepted this as
+  // evidence; the fix requires the confirmed label to match the intended one.
+  const before = observation({ elements: [selectEl('United States')] });
+  const wrongAfter = observation({ elements: [selectEl('United States')] });
+  const h = harness({ observations: { p1: [before, wrongAfter] }, ask: wrongOptionSelectAsk() });
+  const r = await h.call({
+    goal: 'evidence wrong-option goal',
+    steps: ['select Canada'],
+    values: { country: 'Canada' },
+  });
+  assert.notEqual(
+    r.status,
+    'done',
+    `must not advance when the observed selection doesn't match the intended option, got ${r.status}/${r.reason}`,
+  );
+  assert.equal(r.reason, 'no-progress', `expected the no-progress guard to end this, got reason ${r.reason}`);
+  const selectActs = h.driver.actCalls().filter((a) => a.op === 'select');
+  assert.equal(selectActs.length, 1, 'the guard stops the second identical no-change select before evidence ever confirms the intended option');
+});
+
+/** step_done reads the same 'result':'filled' evidence flag as WP-evidence-a,
+ * but the field is ALREADY filled in every scripted observation — including
+ * the one taken BEFORE the act — so 'filled' never confirms this act did
+ * anything. */
+function preFilledFillAsk(): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.6 : 0.1 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('amount', { amount: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('WP-evidence-g: a field already filled BEFORE the act does not advance on the evidence bar (pre-filled, not confirmed by this act)', async () => {
+  const alreadyFilled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({
+    observations: { p1: [alreadyFilled] },
+    ask: preFilledFillAsk(),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({
+    goal: 'evidence pre-filled goal',
+    steps: ['fill the amount field'],
+    values: { amount: '42' },
+  });
+  assert.notEqual(r.status, 'done', `must not treat a pre-filled field as fresh evidence, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'no-progress', `expected the no-progress guard to end this, got reason ${r.reason}`);
+});
+
+/** Always fills the 'name' binding on e1, never 'email' — the step names
+ * both. step_done rides the evidence tier (0.6) once the fill confirms. */
+function multiBindingAsk(): JevAsk {
+  return async (request) => {
+    const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: hasEvidence ? 0.6 : 0.05 },
+      action: choice('fill', { fill: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      value: choice('name', { name: 0.9, email: 0.05, none: 0.05 }),
+    });
+  };
+}
+
+test('WP-evidence-h: a compound step naming two bindings does not advance on the evidence bar after only the first fills', async () => {
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask: multiBindingAsk() });
+  const r = await h.call({
+    goal: 'evidence multi-binding goal',
+    steps: ['fill name and email'],
+    values: { name: 'Jane', email: 'jane@x.com' },
+  });
+  assert.notEqual(
+    r.status,
+    'done',
+    `must not advance on the evidence bar while the step names two bindings and only one is confirmed filled, got ${r.status}/${r.reason}`,
+  );
+  const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
+  assert.ok(fillActs.length >= 1, 'at least the first (name) fill must land');
+});

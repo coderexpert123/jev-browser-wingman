@@ -619,6 +619,72 @@ test('W7: forced — a batch array with a withheld call gets an array of refusal
   assert.ok(!stubText.includes('tools/call'), `the child must never see the batch: ${stubText}`);
 });
 
+test('W7a: forced — a batch of script-class calls (browser_evaluate/browser_run_code_unsafe) is refused, nothing forwarded', async () => {
+  const home = join(scratch, 'w7a');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  await listTools(proc);
+  proc.send([
+    { jsonrpc: '2.0', id: 20, method: 'tools/call', params: { name: 'browser_evaluate', arguments: {} } },
+    { jsonrpc: '2.0', id: 21, method: 'tools/call', params: { name: 'browser_run_code_unsafe', arguments: {} } },
+  ]);
+  const line = await proc.next();
+  const parsed = JSON.parse(line) as ToolCallResult['result'][];
+  assert.ok(Array.isArray(parsed));
+  assert.equal(parsed.length, 2);
+  for (const r of parsed as unknown as Array<{ result: { isError?: boolean } }>) {
+    assert.equal(r.result.isError, true);
+  }
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(!stubText.includes('tools/call'), `the child must never see the batch: ${stubText}`);
+});
+
+test('W7b: forced — a batched tools/list response is filtered (withheld tools absent)', async () => {
+  const home = join(scratch, 'w7b');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS) },
+  });
+  proc.send([{ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }]);
+  const line = await proc.next();
+  const parsed = JSON.parse(line) as Array<{ id: number; result: { tools: Array<{ name: string }> } }>;
+  assert.ok(Array.isArray(parsed), `expected an array response: ${line}`);
+  assert.equal(parsed.length, 1);
+  const names = parsed[0].result.tools.map((t) => t.name);
+  assert.ok(!names.includes('browser_click'), `browser_click should be withheld in a batched tools/list: ${names}`);
+  assert.ok(names.includes('browser_snapshot'), `browser_snapshot should be retained: ${names}`);
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W7c: forced — activeProfile populated from a batched tools/list lets a later plain tools/call classify correctly', async () => {
+  const home = join(scratch, 'w7c');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  proc.send([{ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }]);
+  await proc.next();
+  const refused = await callTool(proc, 'browser_click', {}, 2);
+  assert.equal(refused.result.isError, true, 'browser_click should be refused once activeProfile is populated from a batched tools/list');
+  const forwarded = await callTool(proc, 'browser_snapshot', {}, 3);
+  assert.notEqual(forwarded.result.isError, true, 'browser_snapshot should still forward');
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(!stubText.includes('method:tools/call:browser_click'), `the stub must never see browser_click: ${stubText}`);
+  assert.ok(stubText.includes('method:tools/call:browser_snapshot'), `the stub should see browser_snapshot: ${stubText}`);
+});
+
 test('W8: preset + config failure — stderr line, unfiltered', async () => {
   const home = join(scratch, 'w8');
   await mkdir(home, { recursive: true });
