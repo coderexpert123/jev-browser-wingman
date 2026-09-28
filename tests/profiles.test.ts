@@ -157,9 +157,10 @@ test('denyEntries omits tools with a rule to a retained class and includes plain
   assert.ok(!result.entries.includes('mcp__s__navigate_page'), 'navigate_page stays allowed (reload/forward rules)');
   assert.ok(result.entries.includes('mcp__s__fill'));
   assert.ok(!result.entries.includes('mcp__s__take_snapshot'), 'read is retained, never denied');
+  assert.ok(result.entries.includes('mcp__s__evaluate_script'), 'script is withheld by default');
 });
 
-test('withheldClasses(OPS, []) is all nine withholdable classes', () => {
+test('withheldClasses(OPS, []) is all ten withholdable classes', () => {
   assert.deepEqual(withheldClasses(OPS, []), [...WITHHOLDABLE_CLASSES]);
 });
 
@@ -174,6 +175,17 @@ test('withheldClasses honours retain', () => {
   const result = withheldClasses(OPS, ['scroll']);
   assert.ok(!result.includes('scroll'));
   assert.ok(result.includes('navigate'));
+});
+
+test('withheldClasses withholds script by default even though no adapter declares any op for it (operator override of the dead-end rule)', () => {
+  const result = withheldClasses([], []);
+  assert.ok(result.includes('script'), `script should be withheld regardless of adapter ops: ${result}`);
+});
+
+test('withheldClasses honours retain for script', () => {
+  const result = withheldClasses(OPS, ['script']);
+  assert.ok(!result.includes('script'), `retain: ["script"] should keep it out of the withheld set: ${result}`);
+  assert.ok(result.includes('navigate'), 'unrelated classes stay withheld');
 });
 
 test('denyEntries shapes per client and returns null for unknown clients', () => {
@@ -197,6 +209,8 @@ test('denyEntries shapes per client and returns null for unknown clients', () =>
       'mcp__myserver__browser_file_upload',
       'mcp__myserver__browser_navigate',
       'mcp__myserver__browser_navigate_back',
+      'mcp__myserver__browser_evaluate',
+      'mcp__myserver__browser_run_code_unsafe',
     ],
   });
   const opencode = denyEntries('opencode', 'myserver', pw, withheld);
@@ -215,6 +229,8 @@ test('denyEntries shapes per client and returns null for unknown clients', () =>
     'myserver_browser_file_upload',
     'myserver_browser_navigate',
     'myserver_browser_navigate_back',
+    'myserver_browser_evaluate',
+    'myserver_browser_run_code_unsafe',
   ]);
   assert.equal(denyEntries('codex', 'myserver', pw, withheld), null);
 });

@@ -293,6 +293,36 @@ test('fixture server serves form.html and 404s traversal', async () => {
   }
 });
 
+test('npm pack ships every dir the runtime reads from packageRoot', () => {
+  const packResult = spawnSync('npm', ['pack', '--dry-run', '--json'], {
+    cwd: root,
+    encoding: 'utf8',
+    windowsHide: true,
+    shell: process.platform === 'win32',
+  });
+  assert.equal(packResult.status, 0, packResult.error ? String(packResult.error) : packResult.stderr);
+  const parsed = JSON.parse(packResult.stdout);
+  const packedPaths = parsed[0].files.map((f: { path: string }) => f.path.split(path.sep).join('/'));
+
+  // Every directory read via packageRoot() at runtime (grepped from src/:
+  // fixture-server.ts -> fixtures/pages, cli/guide.ts -> INSTALL-FOR-AGENTS.md,
+  // core/profiles.ts -> profiles) must be present in the packed tarball.
+  const requiredPrefixes = ['fixtures/pages/', 'profiles/', 'INSTALL-FOR-AGENTS.md'];
+  for (const prefix of requiredPrefixes) {
+    const covered = packedPaths.some((p: string) => p === prefix || p.startsWith(prefix));
+    assert.ok(covered, `expected a packed file under "${prefix}", got: ${JSON.stringify(packedPaths)}`);
+  }
+
+  assert.ok(
+    packedPaths.includes('profiles/playwright-mcp.json'),
+    `expected profiles/playwright-mcp.json in packed files, got: ${JSON.stringify(packedPaths)}`,
+  );
+  assert.ok(
+    packedPaths.includes('profiles/chrome-devtools-mcp.json'),
+    `expected profiles/chrome-devtools-mcp.json in packed files, got: ${JSON.stringify(packedPaths)}`,
+  );
+});
+
 test('fixture server sets the persistent cookie on cookie.html', async () => {
   const server = await startFixtureServer();
   try {

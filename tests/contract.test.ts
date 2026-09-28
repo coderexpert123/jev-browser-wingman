@@ -94,12 +94,17 @@ test('OPS, TARGETLESS_OPS, LEGACY_OPS and PRESS_KEYS are pinned (§ 5.1)', () =>
   assert.equal(PRESS_KEYS.length, 11);
 });
 
-test('WITHHOLDABLE_CLASSES and RETAINED_CLASSES are pinned and disjoint (§ 5.2)', () => {
+test('WITHHOLDABLE_CLASSES and RETAINED_CLASSES are pinned and disjoint (§ 5.2, amended 2026-09-28: script moved to withholdable)', () => {
+  // `script` moved here from RETAINED_CLASSES (operator directive 2026-09-28):
+  // forced mode withholds the caller's script-class tools by default, though
+  // no adapter op covers script (profiles.ts's withheldClasses() special-cases
+  // it rather than deriving it from CLASS_OPS). Opt back in with
+  // `handoff.retain: ["script"]`.
   assert.deepEqual(WITHHOLDABLE_CLASSES, [
-    'element-act', 'type', 'select', 'key', 'hover', 'upload', 'navigate', 'back', 'scroll',
+    'element-act', 'type', 'select', 'key', 'hover', 'upload', 'navigate', 'back', 'scroll', 'script',
   ]);
   assert.deepEqual(RETAINED_CLASSES, [
-    'pointer-xy', 'drag', 'tabs', 'dialog', 'read', 'wait', 'script', 'session', 'unknown',
+    'pointer-xy', 'drag', 'tabs', 'dialog', 'read', 'wait', 'session', 'unknown',
   ]);
   for (const c of WITHHOLDABLE_CLASSES) {
     assert.ok(!(RETAINED_CLASSES as readonly string[]).includes(c), `${c} must not be both withholdable and retained`);

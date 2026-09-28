@@ -235,6 +235,118 @@ test('log record carries the phases breakdown (fail-first shape test)', async ()
   assert.deepEqual(json, rec.phases);
 });
 
+test("a chain round's log carries step_done/ready/right_page probabilities; a non-chain round omits them", async () => {
+  // Noul-question probabilities (tuning data, 2026-09-28): step_done/ready/
+  // right_page are only ever asked in chain mode (buildRoundRequest only adds
+  // them when `chain` is true); `done` is asked every round, chain or not.
+  // Round 1 commits a click with step_done still low (zero steps taken can
+  // never end a chain call done, § 5.5.4 zero-step defence — endOfChain falls
+  // to step-uncertain/already-done otherwise); round 2 advances once a real
+  // act has landed.
+  let call = 0;
+  const chainAsk: JevAsk = async () => {
+    call += 1;
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+      right_page: { type: 'noul', noul: 0.92 },
+      ready: { type: 'noul', noul: 0.88 },
+    };
+    if (call === 1) {
+      answers.step_done = { type: 'noul', noul: 0.05 };
+      answers.action = choice('click', { click: 0.9, none: 0.05 });
+      answers.target = choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 });
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.95 };
+    }
+    return {
+      ok: true,
+      answers,
+      usage: { inputTokens: 10, outputTokens: 5 },
+      latencyMs: 1,
+      status: 200,
+      retries: 0,
+    };
+  };
+  const chainHarness = harness({ observations: { p1: [observation()] }, script: [], ask: chainAsk });
+  const chainResult = await chainHarness.callStep({ goal: 'noul-telemetry chain goal', steps: ['s1'] });
+  assert.equal(chainResult.status, 'done', `expected done, got ${chainResult.status}/${chainResult.reason}`);
+  const chainRound = chainHarness.records[0].phases!.rounds[0];
+  assert.equal(chainRound.doneP, 0.05);
+  assert.equal(chainRound.stepDoneP, 0.05);
+  assert.equal(chainRound.rightPageP, 0.92);
+  assert.equal(chainRound.readyP, 0.88);
+
+  const doAsk: JevAsk = async () => ({
+    ok: true,
+    answers: {
+      done: { type: 'noul', noul: 0.95 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+    },
+    usage: { inputTokens: 10, outputTokens: 5 },
+    latencyMs: 1,
+    status: 200,
+    retries: 0,
+  });
+  const doHarness = harness({ observations: { p1: [observation()] }, script: [], ask: doAsk });
+  const doResult = await doHarness.call({ goal: 'noul-telemetry wingman_do goal' });
+  assert.equal(doResult.status, 'done', `expected done, got ${doResult.status}/${doResult.reason}`);
+  const doRound = doHarness.records[0].phases!.rounds[0];
+  assert.equal(doRound.doneP, 0.95);
+  assert.equal('stepDoneP' in doRound, false, 'wingman_do is never asked step_done');
+  assert.equal('readyP' in doRound, false, 'wingman_do is never asked ready');
+  assert.equal('rightPageP' in doRound, false, 'wingman_do is never asked right_page');
+});
+
+test('a multi-round non-chain wingman_do call still carries errorP on round >= 2 (error is gated on round alone, not on chain)', async () => {
+  // verifier finding (2026-09-28): the phases.rounds telemetry comment
+  // originally lumped `error` in with the chain-only step_done/ready/
+  // right_page trio, claiming wingman_do "never" gets it — but
+  // buildRoundRequest/buildGroupRequest gate `error` on `round >= 2` alone,
+  // independent of `chain` (§ decideEarly rule 4 reads it for legacy/
+  // wingman_do calls too). Round 1 here commits a click with done still
+  // low; round 2 carries a low (non-triggering) error noul alongside a high
+  // done, so the call ends 'done' via rule 3 while still recording errorP
+  // from round 2's answers (recordDecisionTelemetry runs before decideEarly
+  // branches on them).
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: call === 1 ? 0.05 : 0.95 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+    };
+    if (call === 1) {
+      answers.action = choice('click', { click: 0.9, none: 0.05 });
+      answers.target = choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 });
+    } else {
+      answers.error = { type: 'noul', noul: 0.1 };
+    }
+    return {
+      ok: true,
+      answers,
+      usage: { inputTokens: 10, outputTokens: 5 },
+      latencyMs: 1,
+      status: 200,
+      retries: 0,
+    };
+  };
+  const h = harness({ observations: { p1: [observation()] }, script: [], ask });
+  const r = await h.call({ goal: 'noul-telemetry wingman_do multi-round goal' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 2, 'two rounds: the click, then the done round');
+  assert.equal('errorP' in rounds[0], false, 'round 1 never asks error (round < 2)');
+  assert.equal(rounds[1].errorP, 0.1, 'round 2 (>= 2) carries errorP even in non-chain mode');
+  assert.equal(rounds[1].doneP, 0.95);
+});
+
 test('check-path record carries phases with one round', async () => {
   const h = harness({ observations: { p1: [observation()] }, script: [{ answer: 0.9 }] });
   const r = await h.callCheck({ question: 'Is the list visible?' });

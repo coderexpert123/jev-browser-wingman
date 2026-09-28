@@ -254,6 +254,21 @@ interface HistoryEntry {
  * page-level signal so a targetless act never gets a false "unchanged". */
 const ELEMENT_STATE_VERBS: ReadonlySet<Op> = new Set(['fill', 'select', 'check', 'uncheck']);
 
+/** § outcome evidence fix (2026-09-28, r6 Finding 2 / diagnosis 3): the
+ * targetless verbs whose whole point is to leave the current page. They get
+ * a page-level before/result like click-family (pageSignal with no `el`,
+ * since there is no acted-on element) so a repeated navigate/back/reload
+ * that lands on the same page can trip the no-progress guard — r6 showed
+ * a fresh-install task repeat `navigate` 24x to budget-steps because no
+ * signal was ever recorded for it. Also read by runChainEarly (below) to
+ * skip the ready/right_page gate for these verbs: "is the CURRENT page
+ * ready" is asked about the page the step is about to abandon, so it was
+ * bouncing not-ready on effectively every first-navigate step (r6:
+ * part3-wingman-log.jsonl — every not-ready round's decided action was
+ * navigate, actionP 0.94-0.98). scroll/scroll_up/wait stay outside this set:
+ * they aren't navigation and keep their existing no-signal/no-guard behavior. */
+const NAVIGATION_OPS: ReadonlySet<Op> = new Set(['navigate', 'back', 'reload']);
+
 function elementStateSignal(verb: Op, el: ElementRecord): string {
   if (verb === 'fill') return el.state.filled ? 'filled' : 'empty';
   if (verb === 'select') return el.state.selected !== undefined ? `selected: ${el.state.selected}` : 'unknown';
@@ -292,7 +307,8 @@ function pageSignal(obs: Observation, el?: ElementRecord): string {
 function outcomeSignal(verb: Op, el: ElementRecord | undefined, obs: Observation): string | undefined {
   if (ELEMENT_STATE_VERBS.has(verb) && el) return elementStateSignal(verb, el);
   if (el) return pageSignal(obs, el); // click-family: cheap page-level signal
-  return undefined; // targetless / binding-only verb: no signal, no guard, no result
+  if (NAVIGATION_OPS.has(verb)) return pageSignal(obs); // targetless nav: page-level signal, no element
+  return undefined; // remaining targetless / binding-only verb: no signal, no guard, no result
 }
 
 /** § outcome evidence choke point: run once at the top of every round, right
@@ -335,8 +351,23 @@ function isNoProgress(
   history: HistoryEntry[],
   currentStepKey: string,
 ): boolean {
-  if (history.length === 0 || decision.el === null) return false;
+  if (history.length === 0) return false;
   const last = history[history.length - 1];
+  if (decision.el === null) {
+    // Targetless: no element identity to compare, so only the navigation
+    // verbs (navigate/back/reload) carry a signal at all (outcomeSignal
+    // above) — scroll/scroll_up/wait never do and correctly never match here.
+    if (!NAVIGATION_OPS.has(decision.verb)) return false;
+    if (
+      last.path !== undefined ||
+      last.verb !== decision.verb ||
+      last.result === undefined ||
+      last.stepKey !== currentStepKey
+    ) {
+      return false;
+    }
+    return last.result === 'no visible change';
+  }
   if (
     last.path === undefined ||
     last.path !== decision.el.path ||
@@ -759,6 +790,10 @@ async function runTool(
     action?: string; actionP?: number;
     target1?: string; target1P?: number; target2?: string; target2P?: number;
     historyResult?: string;
+    // Noul-question probabilities (tuning data, 2026-09-28): only when that
+    // question was asked this round (§ CLAUDE.md round-shape gotcha — never
+    // assign an optional telemetry field from a possibly-undefined source).
+    doneP?: number; stepDoneP?: number; readyP?: number; rightPageP?: number; errorP?: number;
   };
   const phaseAcc: {
     attachMs?: number;
@@ -806,6 +841,27 @@ async function runTool(
         cur.target2P = ranked[1][1];
       }
     }
+    // Noul-question probabilities (tuning data, 2026-09-28): written only
+    // when that question was actually asked this round. step_done/ready/
+    // right_page are chain-only; `error` rides whenever round >= 2 in
+    // every mode (wingman_do and browse_step included), so a multi-round
+    // non-chain call gets errorP too — guarded per the round-shape gotcha
+    // (never assign from a possibly-undefined source, since `{k: undefined}`
+    // is not deep-equal to `{}`).
+    const noulOf = (id: string): number | undefined => {
+      const a = answers[id];
+      return a && a.type === 'noul' ? a.noul : undefined;
+    };
+    const done = noulOf('done');
+    if (done !== undefined) cur.doneP = done;
+    const stepDone = noulOf('step_done');
+    if (stepDone !== undefined) cur.stepDoneP = stepDone;
+    const ready = noulOf('ready');
+    if (ready !== undefined) cur.readyP = ready;
+    const rightPage = noulOf('right_page');
+    if (rightPage !== undefined) cur.rightPageP = rightPage;
+    const error = noulOf('error');
+    if (error !== undefined) cur.errorP = error;
   };
 
   const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => ({
@@ -1936,20 +1992,50 @@ async function runTool(
         }
         recoveredThisRound = true;
       }
-      // 5. ready (Q5)
-      if (noulOf('ready') < THRESHOLDS.ready) {
-        if (chain!.notReadyRounds >= READY_MAX_WAITS || waits >= WAIT_MAX_PER_CALL) {
-          return { kind: 'bounceNotReady' };
+      // 5. ready (Q5) — skipped outright when this round's decided action is
+      // a targetless navigation verb (diagnosis 2026-09-28, r6 Part 3
+      // Finding: every not-ready bounce in the fresh-install sample carried
+      // a decided action of navigate at actionP 0.94-0.98). `ready` asks
+      // about the CURRENT page's state, but a navigate/back/reload step is,
+      // by definition, the one that leaves the current page — gating it on
+      // the current page's readiness was bouncing not-ready on effectively
+      // every first-navigate step. `action` (read at rule 3 above) already
+      // carries the round's decided verb before rule 5 runs, so it is
+      // available here without re-asking anything.
+      //
+      // right_page (rule 6, below) is deliberately NOT included in this
+      // skip (verifier finding, 2026-09-28): unlike `ready`, a low
+      // `right_page` never blocked or detoured the round on its own — it
+      // only counts consecutive wrong-page rounds toward WRONG_PAGE_MAX, and
+      // the r6 evidence for this skip was entirely about not-ready bounces,
+      // never about wrong-page ones. `back`/`navigate` is the model's
+      // documented recovery move for a wrong page (§ ACTION_CRITERIA:
+      // "back: … because the last action led to a wrong or broken page"), so
+      // skipping right_page whenever the decided action is back/navigate
+      // would freeze the counter on exactly the rounds it exists to count,
+      // letting a flapping wrong-page recovery loop (e.g. bouncing between
+      // two or more always-wrong pages) run to budget-steps instead of
+      // cleanly bouncing wrong-page.
+      const decidedAction = action?.choice;
+      const skipsReadyGate =
+        typeof decidedAction === 'string' && (NAVIGATION_OPS as ReadonlySet<string>).has(decidedAction);
+      if (!skipsReadyGate) {
+        // 5. ready (Q5)
+        if (noulOf('ready') < THRESHOLDS.ready) {
+          if (chain!.notReadyRounds >= READY_MAX_WAITS || waits >= WAIT_MAX_PER_CALL) {
+            return { kind: 'bounceNotReady' };
+          }
+          chain!.notReadyRounds += 1;
+          if (!hasOp('wait')) {
+            return { kind: 'settleOnly' };
+          }
+          return { kind: 'mechanical', verb: 'wait' };
         }
-        chain!.notReadyRounds += 1;
-        if (!hasOp('wait')) {
-          return { kind: 'settleOnly' };
-        }
-        return { kind: 'mechanical', verb: 'wait' };
+        chain!.notReadyRounds = 0;
       }
-      chain!.notReadyRounds = 0;
       // 6. right page (Q5): below WRONG_PAGE_MAX the round continues to rule 7
       // and the decide step unchanged, so Jev may still choose back/navigate.
+      // Always runs, even when rule 5 was skipped above (see comment there).
       if (noulOf('right_page') < THRESHOLDS.rightPage) {
         chain!.wrongPageRounds += 1;
         if (chain!.wrongPageRounds >= WRONG_PAGE_MAX) {

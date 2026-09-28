@@ -62,20 +62,32 @@ export type HandoffTools = (typeof HANDOFF_TOOLS)[number];
 export const HANDOFF_OPTIONAL = { mode: 'optional', tools: 'all', retain: [] } as const;
 export const HANDOFF_FORCED = { mode: 'forced', tools: 'browse-only', retain: [] } as const;
 // Capability classes of a caller's browsing-tool call (§ 5.8a).
+// `script` moved here from RETAINED_CLASSES (operator directive 2026-09-28):
+// a fresh-install round showed a calling agent bypassing forced handoff by
+// running the caller's own script-class tools (e.g. an "evaluate" or
+// "run code unsafe" call) to perform page actions directly. Withholding
+// `script` has no op-based fallback (see CLASS_OPS below), so it is an
+// explicit override of the § 10.4 dead-end rule, not an ops-derived class.
 export const WITHHOLDABLE_CLASSES = [
   'element-act', 'type', 'select', 'key', 'hover', 'upload', 'navigate', 'back', 'scroll',
+  'script',
 ] as const;
 export const RETAINED_CLASSES = [
-  'pointer-xy', 'drag', 'tabs', 'dialog', 'read', 'wait', 'script', 'session', 'unknown',
+  'pointer-xy', 'drag', 'tabs', 'dialog', 'read', 'wait', 'session', 'unknown',
 ] as const;
 export const CAPABILITY_CLASSES = [...WITHHOLDABLE_CLASSES, ...RETAINED_CLASSES] as const;
 export type WithholdableClass = (typeof WITHHOLDABLE_CLASSES)[number];
 export type CapabilityClass = (typeof CAPABILITY_CLASSES)[number];
 // A class is withheld only if the active adapter declares EVERY op listed for it (§ 10.4 dead-end rule).
+// `script` has no listed ops: no adapter can execute arbitrary script on the
+// caller's behalf, so the dead-end rule would otherwise always retain it.
+// profiles.ts's withheldClasses() special-cases `script` to withhold it by
+// default in forced mode anyway; opt back in per-config with `handoff.retain: ["script"]`.
 export const CLASS_OPS: Record<WithholdableClass, readonly string[]> = {
   'element-act': ['click', 'dblclick', 'check', 'uncheck'],
   type: ['fill'], select: ['select'], key: ['press'], hover: ['hover'], upload: ['upload'],
   navigate: ['navigate'], back: ['back'], scroll: ['scroll', 'scroll_up', 'scroll_to'],
+  script: [],
 };
 export const CLASS_CRITERIA: Record<CapabilityClass, string> = {
   'element-act': 'Clicks, double-clicks, checks or unchecks one page element chosen by reference or description',

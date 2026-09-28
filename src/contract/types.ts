@@ -183,6 +183,16 @@ export interface WingmanLogRecord {
       action?: string; actionP?: number;
       target1?: string; target1P?: number; target2?: string; target2P?: number;
       historyResult?: string;
+      // Noul-question probabilities (tuning data, 2026-09-28): each present
+      // only when that question was asked this round. step_done/ready/
+      // right_page are chain-only (buildRoundRequest/buildGroupRequest gate
+      // them on `chain`); `error` rides whenever round >= 2 in EVERY mode
+      // (gated on round alone, not on `chain`) — so a multi-round wingman_do
+      // or browse_step call gets errorP too, just never step_done/ready/
+      // right_page. wingman_check is always exactly one round (round 1), so
+      // none of the five ever appear there. Probabilities only, never the
+      // underlying value.
+      doneP?: number; stepDoneP?: number; readyP?: number; rightPageP?: number; errorP?: number;
     }>;
   };
 }

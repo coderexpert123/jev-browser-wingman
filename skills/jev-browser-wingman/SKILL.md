@@ -35,7 +35,8 @@ Sign-in and two-factor steps need the user.
 
 Tabs, pop-ups, dialogs, dragging and clicks at screen positions stay with your own browser tools. A page too large
 for one decision comes back for a snapshot and a `pick`. Right-clicks, modifier-held clicks and keys outside the
-wingman's set stay with your own browser tools' script tool.
+wingman's set need your own browser tools' script tool — in `forced` mode that tool is withheld too by default, so
+these need `handoff.retain: ["script"]` in config, or `pick` the element yourself another way.
 
 ## Handoff mode
 

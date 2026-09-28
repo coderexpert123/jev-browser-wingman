@@ -407,7 +407,10 @@ function bareToolName(name: string): string {
 // playwright profile's tool→class map and the derived withheld set
 // `withheldClasses(OPS, [])` (§ 10.4: every withholdable class the wingman
 // contract can in principle do, i.e. every class whose ops are a subset of
-// the full OPS enumeration).
+// the full OPS enumeration). `script` is checked ahead of the withheld set
+// (operator directive 2026-09-28 moved `script` into WITHHOLDABLE_CLASSES so
+// forced mode withholds it by default; it stays its own raw_script bucket
+// here rather than folding into raw_acts).
 export function deriveRawCounts(counts: Record<string, number>, profile: Profile | null): { raw_acts: number; raw_script: number } {
   if (!profile) return { raw_acts: 0, raw_script: 0 };
   const withheld = new Set<WithholdableClass>(withheldClasses(OPS, []));
@@ -416,8 +419,8 @@ export function deriveRawCounts(counts: Record<string, number>, profile: Profile
   for (const [rawName, n] of Object.entries(counts)) {
     const cls = profile.tools[bareToolName(rawName)];
     if (cls === undefined) continue;
-    if (withheld.has(cls as WithholdableClass)) raw_acts += n;
-    else if (cls === 'script') raw_script += n;
+    if (cls === 'script') raw_script += n;
+    else if (withheld.has(cls as WithholdableClass)) raw_acts += n;
   }
   return { raw_acts, raw_script };
 }

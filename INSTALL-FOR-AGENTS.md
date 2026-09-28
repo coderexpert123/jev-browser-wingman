@@ -82,11 +82,11 @@ Supported browsers: Chrome, Edge, Brave, Chromium, Opera and Vivaldi, found auto
 
 ## Handoff mode
 
-Wingman classes every call to the caller's browsing tools into capability classes. In `forced` mode (the default) the classes the active adapter can do are withheld from the caller, minus any classes listed in `handoff.retain`; the caller's own script tool is never withheld. In `optional` mode nothing is withheld.
+Wingman classes every call to the caller's browsing tools into capability classes. In `forced` mode (the default) the classes the active adapter can do are withheld from the caller, minus any classes listed in `handoff.retain`. The caller's own script tool (arbitrary JavaScript or code in the page or browser) is also withheld by default in forced mode, even though no adapter can run it: a fresh-install round showed a calling agent using its script tool to perform page actions directly, bypassing forced handoff entirely. In `optional` mode nothing is withheld.
 
-Which classes are withheld is derived from the adapter, so every withheld call has a wingman path. The classes that always stay with the caller: `pointer-xy`, `drag`, `tabs`, `dialog`, `read`, `wait`, `script`, `session`.
+Which classes are withheld is derived from the adapter, plus `script` (withheld regardless of adapter; see above). The classes that always stay with the caller: `pointer-xy`, `drag`, `tabs`, `dialog`, `read`, `wait`, `session`.
 
-Right-clicks, modifier-held clicks and keys outside the wingman key set (Enter, Tab, Shift+Tab, Escape, Space, Backspace, Ctrl/Cmd+A, arrows) stay reachable through the caller's own script tool, which forced mode never withholds.
+Right-clicks, modifier-held clicks and keys outside the wingman key set (Enter, Tab, Shift+Tab, Escape, Space, Backspace, Ctrl/Cmd+A, arrows) have no wingman path; they need the caller's own script tool, which forced mode withholds by default. A user who needs them sets `"handoff": {"retain": ["script"]}` in config to keep that tool available.
 
 With `policy.mode: "enforce"` in forced mode, a sensitive page comes back to the caller, who drives it with `pick` (a pick sends nothing to the decision service) or asks the user. `doctor` warns about the pairing. Forced handoff applies only while the top-level `mode` is `on`.
 

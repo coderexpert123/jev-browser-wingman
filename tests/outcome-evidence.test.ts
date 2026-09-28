@@ -454,6 +454,48 @@ test('T-click-no-progress: a repeated no-effect click ends fallback/no-progress,
   assert.equal(clickActs.length, 1, 'the guard must stop the SECOND identical no-change click, not act it');
 });
 
+// ---- T-navigate-no-progress: navigate is targetless (no `el`), so on the
+// unfixed loop outcomeSignal() returns undefined for it and isNoProgress
+// never gets a `before`/`result` pair to compare — a stuck navigate repeats
+// to budget-steps instead of tripping the guard. This is r6's Finding 2,
+// reproduced live on a fresh-install task: 24 identical `navigate` acts
+// ending `budget-steps`, never `no-progress` (bench-results/2026-09-28-r6/
+// results.md Part 3 Finding 2). Fixed by giving navigate/back/reload a
+// page-level before/result via pageSignal (no element). ----
+
+/** Always proposes navigate to the same url binding; the observation never
+ * changes (same url/title/text/element count), so a navigate that actually
+ * landed somewhere new never happens here — this is the "stuck navigate"
+ * shape, not a real one. */
+function navigateAsk(): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.05 },
+      action: choice('navigate', { navigate: 0.9, none: 0.05 }),
+      url: choice('dest', { dest: 0.9, none: 0.05 }),
+    });
+}
+
+test('T-navigate-no-progress: a repeated no-effect navigate ends fallback/no-progress, not budget-steps', async () => {
+  const stuck = observation(); // url/title/text/element count never change — the navigate never lands anywhere new
+  const h = harness({
+    observations: { p1: [stuck] },
+    ask: navigateAsk(),
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({
+    goal: 'outcome-evidence navigate no-progress goal',
+    steps: ['open the destination page'],
+    values: { dest: 'https://example.com/next' },
+  });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'no-progress', `expected no-progress, got reason ${r.reason} after ${r.steps} steps`);
+  assert.equal(r.step_review?.why, 'no-progress');
+  const navActs = h.driver.actCalls().filter((a) => a.op === 'navigate');
+  assert.equal(navActs.length, 1, 'the guard must stop the SECOND identical no-change navigate, not act it');
+});
+
 // ---- T-step-boundary: the SAME element+verb on two DIFFERENT chain steps
 // must never read as no-progress (orchestrator decision, 2026-09-28, scope
 // rule 1) — the guard compares against the last act only WITHIN the current

@@ -1338,6 +1338,40 @@ test('T24: a driver without wait settles instead of acting on a not-ready round'
   assert.ok(h.driver.events.some((e) => e.kind === 'settle'), 'settle ran instead');
 });
 
+// § outcome evidence fix (diagnosis 2026-09-28, r6 Part 3): "ready" asks
+// whether the CURRENT page is ready for the step, but a navigate step is by
+// definition the one that leaves the current page — gating it on the
+// current page's readiness bounced not-ready on effectively every
+// fresh-install first-navigate step (r6 telemetry: every not-ready round's
+// decided action was navigate, actionP 0.94-0.98). A navigate/back/reload
+// decision now skips the ready/right_page gate outright and commits on the
+// SAME round instead of burning a wait first.
+test('T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      CS({
+        ready: 0.2,
+        right_page: 0.2,
+        action: ['navigate', { navigate: 0.9, click: 0.05 }],
+        url: ['dest', { dest: 0.9, none: 0.05 }],
+      }),
+      ADV(),
+    ],
+    config: FORCED,
+  });
+  const r = await h.call({
+    goal: 'chain-t24 navigate not-ready goal',
+    steps: ['open the destination page'],
+    values: { dest: 'https://example.com/next' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1, 'no mechanical wait — the navigate commits on the first round despite low ready');
+  assert.equal(acts[0].op, 'navigate');
+  assert.equal(acts[0].value, 'https://example.com/next');
+});
+
 // ---- T25: recover (Q5) ----
 
 type ActEvent = ReturnType<FakeDriver['actCalls']>[number];

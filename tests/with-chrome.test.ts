@@ -459,7 +459,7 @@ async function callTool(proc: WHProc, name: string, args: unknown, id: number): 
 const PLAYWRIGHT_TOOLS = [
   'browser_click', 'browser_check', 'browser_uncheck', 'browser_type', 'browser_select_option',
   'browser_press_key', 'browser_hover', 'browser_file_upload', 'browser_navigate', 'browser_navigate_back',
-  'browser_tabs', 'browser_snapshot', 'browser_wait_for',
+  'browser_tabs', 'browser_snapshot', 'browser_wait_for', 'browser_evaluate', 'browser_run_code_unsafe',
 ].map((name) => ({ name, description: name }));
 
 const DEVTOOLS_TOOLS = ['take_snapshot', 'click', 'navigate_page', 'new_page'].map((name) => ({ name, description: name }));
@@ -776,6 +776,60 @@ test('W13: retain — a retained class stays listed even though the adapter decl
   const { names } = await listTools(proc);
   assert.ok(names.includes('browser_navigate'), `retain should keep browser_navigate listed: ${names}`);
   assert.ok(!names.includes('browser_click'), 'unrelated classes stay withheld');
+  proc.endStdin();
+  await proc.waitClose();
+});
+
+test('W17: forced — script-class tools (browser_evaluate, browser_run_code_unsafe) are withheld by default, though no adapter op covers them', async () => {
+  const home = join(scratch, 'w17');
+  await writeWHConfig(home, { handoff: { mode: 'forced' } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(!names.includes('browser_evaluate'), `browser_evaluate should be withheld: ${names}`);
+  assert.ok(!names.includes('browser_run_code_unsafe'), `browser_run_code_unsafe should be withheld: ${names}`);
+  const refusedEval = await callTool(proc, 'browser_evaluate', {}, 2);
+  assert.equal(refusedEval.result.isError, true, 'browser_evaluate must be refused under forced handoff');
+  const refusedRun = await callTool(proc, 'browser_run_code_unsafe', {}, 3);
+  assert.equal(refusedRun.result.isError, true, 'browser_run_code_unsafe must be refused under forced handoff');
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(!stubText.includes('method:tools/call:browser_evaluate'), `the stub must never see browser_evaluate: ${stubText}`);
+  assert.ok(!stubText.includes('method:tools/call:browser_run_code_unsafe'), `the stub must never see browser_run_code_unsafe: ${stubText}`);
+});
+
+test('W18: forced + handoff.retain: ["script"] — browser_evaluate stays listed and forwards', async () => {
+  const home = join(scratch, 'w18');
+  await writeWHConfig(home, { handoff: { mode: 'forced', retain: ['script'] } });
+  const stubLog = join(home, 'stub.log');
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: stubLog },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_evaluate'), `retain: ["script"] should keep browser_evaluate listed: ${names}`);
+  assert.ok(!names.includes('browser_click'), 'unrelated classes stay withheld');
+  const forwarded = await callTool(proc, 'browser_evaluate', {}, 2);
+  assert.notEqual(forwarded.result.isError, true, 'browser_evaluate must forward to the stub when retained');
+  proc.endStdin();
+  await proc.waitClose();
+  const stubText = await readLog(stubLog);
+  assert.ok(stubText.includes('method:tools/call:browser_evaluate'), `the stub should see browser_evaluate when retained: ${stubText}`);
+});
+
+test('W19: optional — browser_evaluate is listed (script withholding does not apply outside forced mode)', async () => {
+  const home = join(scratch, 'w19');
+  await writeWHConfig(home, { handoff: { mode: 'optional' } });
+  const proc = startWithhold({
+    home,
+    env: { WINGMAN_CDP_ENDPOINT: PRESET_ENDPOINT, STUB_TOOLS: JSON.stringify(PLAYWRIGHT_TOOLS), STUB_LOG: join(home, 'stub.log') },
+  });
+  const { names } = await listTools(proc);
+  assert.ok(names.includes('browser_evaluate'), `optional handoff must not filter browser_evaluate: ${names}`);
   proc.endStdin();
   await proc.waitClose();
 });

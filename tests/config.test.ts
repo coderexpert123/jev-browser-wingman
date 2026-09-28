@@ -309,7 +309,7 @@ test('(3) handoff.tools or handoff.retain given, mode absent, defaults mode to f
   }
 });
 
-test('(4) handoff.retain accepts withholdable classes and rejects an unknown class', async () => {
+test('(4) handoff.retain accepts withholdable classes (including script) and rejects an unknown class', async () => {
   const readHandoff = (config: WingmanConfig) =>
     (config as WingmanConfig & { handoff?: { retain?: string[] } }).handoff;
 
@@ -321,9 +321,20 @@ test('(4) handoff.retain accepts withholdable classes and rejects an unknown cla
     assert.deepEqual(readHandoff(ok.config)?.retain, ['scroll', 'key']);
   }
 
+  // 'script' moved into WITHHOLDABLE_CLASSES (operator directive 2026-09-28: forced
+  // mode withholds the caller's script tool by default); retain is how a user opts
+  // back in, so it must validate.
   const home2 = mkHome();
-  writeConfig(home2, { handoff: { retain: ['script'] } }); // 'script' is a retained class, not withholdable
-  const bad = await loadConfig(envFor(home2));
+  writeConfig(home2, { handoff: { retain: ['script'] } });
+  const withScript = await loadConfig(envFor(home2));
+  assert.equal(withScript.ok, true);
+  if (withScript.ok) {
+    assert.deepEqual(readHandoff(withScript.config)?.retain, ['script']);
+  }
+
+  const home3 = mkHome();
+  writeConfig(home3, { handoff: { retain: ['read'] } }); // 'read' is a retained class, not withholdable
+  const bad = await loadConfig(envFor(home3));
   assert.equal(bad.ok, false);
 });
 

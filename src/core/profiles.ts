@@ -216,11 +216,16 @@ export function classOfCall(profile: Profile, tool: string, args: unknown): Capa
 }
 
 /** The derived withheld set (§ 10.4): every withholdable class whose ops the
- * adapter declares in full, minus the operator's retained classes. */
+ * adapter declares in full, minus the operator's retained classes. `script`
+ * has no adapter op — the ops-derived dead-end rule would otherwise always
+ * retain it, leaving no wingman path for it — so it is withheld by default
+ * regardless of adapter (operator directive 2026-09-28, forced mode only in
+ * practice: callers only consult this list when handoff is forced); a caller
+ * that needs its own script tool opts back in via `handoff.retain: ["script"]`. */
 export function withheldClasses(adapterOps: readonly Op[], retain: readonly string[]): WithholdableClass[] {
   const ops = new Set<string>(adapterOps);
   return WITHHOLDABLE_CLASSES.filter(
-    (c) => CLASS_OPS[c].every((op) => ops.has(op)) && !retain.includes(c),
+    (c) => (c === 'script' || CLASS_OPS[c].every((op) => ops.has(op))) && !retain.includes(c),
   );
 }
 
