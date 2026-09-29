@@ -233,7 +233,15 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       noul(key, v);
     }
 
-    if (step.includes('tick Accept terms')) {
+    if (step.includes('open Checkboxes')) {
+      // r11: CLAUSE_CHECK decomposes into 'open Checkboxes' + 'tick Accept
+      // terms'; this sub-clause is pure navigation.
+      if (url.includes('chain-check.html')) {
+        noul('step_done', 0.95);
+      } else {
+        clickOn(/link "Checkboxes"/);
+      }
+    } else if (step.includes('tick Accept terms')) {
       if (url.includes('chain-check.html')) {
         const box = findId(q.target, /checkbox "Accept terms"/);
         const checked = box !== null && /checkbox "Accept terms".*\(checked\)/.test(q.target?.criteria?.[box] ?? '');
@@ -263,7 +271,12 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       }
     } else if (step.includes('value named email')) {
       if (url.includes('chain-form.html')) {
-        if (text.includes('sent:')) {
+        // r11: on the decomposed email sub-clause the loop may re-observe a
+        // field already filled from a prior round — grade done first.
+        const emailBox = findId(q.target, /textbox "Email"/);
+        if (emailBox !== null && !q.target?.criteria?.[emailBox]?.includes('(empty)')) {
+          noul('step_done', 0.95);
+        } else if (text.includes('sent:')) {
           noul('step_done', 0.95);
         } else {
           const empty = findId(q.target, /textbox "Email".*\(empty\)/);
@@ -275,6 +288,16 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
             clickOn(/button "Send"/);
           }
         }
+      } else {
+        clickOn(/link "Form"/);
+      }
+    } else if (step.includes('Send')) {
+      // r11: 'click Send' is its own sub-clause now (the email sub-clause
+      // carries 'value named email' and matches above).
+      if (text.includes('sent:')) {
+        noul('step_done', 0.95);
+      } else if (url.includes('chain-form.html')) {
+        clickOn(/button "Send"/);
       } else {
         clickOn(/link "Form"/);
       }
@@ -301,20 +324,34 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       } else {
         clickOn(/link "Form"/);
       }
+    } else if (step.includes('click Start') || step.includes('Start')) {
+      // r11: 'click Start' is its own sub-clause ('click Finish' never
+      // contains 'Start'; Finish-bearing texts are claimed above).
+      // Must run BEFORE the 'Finish' branch (per spec).
+      const startClicked = history.some((h) => h.verb === 'click' && /Start/.test(h.label));
+      if (startClicked || findId(q.target, /button "Start"/) === null) {
+        noul('step_done', 0.95);
+      } else {
+        clickOn(/button "Start"/);
+      }
     } else if (step.includes('Finish')) {
-      if (text.includes('finished')) {
+      // r11: 'wait for Finish' is its own sub-clause — done only once the
+      // Finish button actually renders; until then keep waiting.
+      if (step.includes('wait for Finish')) {
+        if (findId(q.target, /button "Finish"/) !== null) {
+          noul('step_done', 0.95);
+        } else {
+          cho('action', 'wait', { wait: 0.9, none: 0.05 });
+        }
+      } else if (text.includes('finished')) {
         noul('step_done', 0.95);
       } else if (findId(q.target, /button "Finish"/) !== null) {
-        noul('ready', step.includes('wait for Finish') ? 0.95 : 0.9);
         clickOn(/button "Finish"/);
       } else if (history.some((h) => h.verb === 'click' && /Start/.test(h.label))) {
-        if (step.includes('wait for Finish')) {
-          cho('action', 'wait', { wait: 0.9, none: 0.05 });
-        } else {
-          // E7: ready low with a click answer — the loop must wait, not act.
-          noul('ready', 0.2);
-          clickOn(/button "Start"/);
-        }
+        // E7: ready low with a click answer — the loop must wait, not act.
+        // The inner step.includes('wait for Finish') ready override is dead
+        // now that the top-level check handles it; removed.
+        clickOn(/button "Start"/);
       } else {
         clickOn(/button "Start"/);
       }

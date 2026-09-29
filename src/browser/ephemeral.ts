@@ -294,7 +294,7 @@ export async function launchEphemeralChrome(
 
   try {
     const portFile = join(profileDir, 'DevToolsActivePort');
-    const deadline = Date.now() + 15_000;
+    const deadline = Date.now() + 30_000;
     let port: number | null = null;
     while (Date.now() < deadline) {
       try {
@@ -310,7 +310,7 @@ export async function launchEphemeralChrome(
       await sleep(100);
     }
     if (port === null) {
-      throw new Error('Chrome did not write DevToolsActivePort within 15 s.');
+      throw new Error('Chrome did not write DevToolsActivePort within 30 s.');
     }
 
     const owner = (await defaultSocketOwnerPid(port)) ?? spawnedPid;

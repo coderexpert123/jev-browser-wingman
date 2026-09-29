@@ -12,6 +12,7 @@
 // (§ 5.6) and the state-size rule (§ 5.5.7).
 
 import {
+  CHAIN_MAX_STEPS,
   CHAIN_MEMORY_MAX,
   LABEL_MAX,
   READY_MAX_WAITS,
@@ -199,6 +200,12 @@ interface ChainState {
   key: string;
   clauses: string[];
   N: number;
+  // § r11 Q1 compound-clause decomposition: `clauses`/`N` are the EXPANDED
+  // sub-clause list; `parents[i]` maps each expanded index back to its caller
+  // clause index and `callerN` is the caller's original clause count, so
+  // caller-facing progress and step_number stay in the caller's numbering.
+  parents: number[];
+  callerN: number;
   cursor: number;
   priorActs: number;
   clauseRetried: boolean;
@@ -362,7 +369,8 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
  * result (per annotateLastOutcome, already computed from this round's fresh
  * obs before decision-making) is identical to its pre-act baseline — i.e.
  * the act had no observable effect. Targetless/binding-only verbs (no
- * `decision.el`) never match: they carry no path and no signal. */
+ * `decision.el`) never match: they carry no path and no signal.
+ * Deliberate asymmetry (r11 Q3): unlike lastEvidenceEntry, this guard reads only the literal last entry — a wait may itself change the page. */
 function isNoProgress(
   decision: { el: ElementRecord | null; verb: Op },
   history: HistoryEntry[],
@@ -405,11 +413,31 @@ function isNoProgress(
   return ELEMENT_STATE_VERBS.has(last.verb) ? last.result === last.before : last.result === 'no visible change';
 }
 
+/** § r11 Q3: the last signal-carrying history entry for `stepKey`. Walks back
+ * from the end, skipping entries whose `before === undefined` (signal-less
+ * acts — wait, bare scroll/scroll_up, any verb with no outcome signal), which
+ * previously shadowed the evidence of the act before them for the rest of the
+ * call. Returns the FIRST entry that carries `before`, but only when its
+ * stepKey matches — a signal-less entry is skipped unconditionally (a
+ * pre-advance wait is incidental), never allowed to leak the previous
+ * clause's evidence, which the stepKey check on the carried entry still
+ * guards. */
+function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEntry | undefined {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    if (h.before === undefined) continue;
+    return h.stepKey === stepKey ? h : undefined;
+  }
+  return undefined;
+}
+
 /** Evidence-backed step_done bar (operator-approved tuning, 2026-09-28; see
- * THRESHOLDS.stepDoneWithEvidence). True only when the LAST history entry
- * belongs to the CURRENT step (`stepKey` match), its verb is one of the four
- * element-state verbs, and its observed `result` confirms that verb's OWN
- * intended end state:
+ * THRESHOLDS.stepDoneWithEvidence). True only when the last SIGNAL-CARRYING
+ * history entry (r11 Q3: `lastEvidenceEntry` reads through signal-less acts
+ * such as wait/scroll, so their `before === undefined` entries no longer
+ * shadow a good act) belongs to the CURRENT step (`stepKey` match), its verb
+ * is one of the four element-state verbs, and its observed `result` confirms
+ * that verb's OWN intended end state:
  *   - fill: `result === 'filled'` AND `before !== 'filled'` (verifier fix,
  *     2026-09-28) — a field already non-empty BEFORE this act proves nothing:
  *     'filled' only means non-empty, never that THIS act supplied the
@@ -432,9 +460,8 @@ function isNoProgress(
  * the one the step actually named — that would need semantic matching of the
  * step text to the element, which is Jev's own job, not a mechanical check. */
 function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
-  if (history.length === 0) return false;
-  const last = history[history.length - 1];
-  if (last.stepKey !== currentStepKey) return false;
+  const last = lastEvidenceEntry(history, currentStepKey);
+  if (last === undefined) return false;
   if (!ELEMENT_STATE_VERBS.has(last.verb) || last.result === undefined) return false;
   switch (last.verb) {
     case 'fill':
@@ -487,16 +514,111 @@ export function parseRepeatCount(step: string): number | undefined {
   return matches === 1 ? count : undefined;
 }
 
+/** § r11 Q1 compound-clause decomposition: the action words observed in
+ * caller step texts. A conditional separator (`and` or a bare `,`) is a
+ * candidate boundary only when the word immediately after it matches this
+ * list; the actionability check below also requires the fragment following a
+ * candidate to contain one of these verbs. Word-bounded, case-insensitive
+ * (`back` covers "and go back"-style tails). */
+const VERB_RE =
+  /\b(?:open|go|navigate|return|click|press|select|choose|pick|check|uncheck|tick|fill|type|enter|scroll|hover|wait|submit|upload|attach|dismiss|close|enable|disable|set|clear|add|remove|start|toggle|switch|reload|refresh|back)\b/i;
+
+/** § r11 Q1: an anaphora word anywhere in the text after a candidate boundary
+ * suppresses the split — "then it", "click the same", "do it again" are
+ * continuations of the same action, not a new one. */
+const ANAPHORA_RE = /\b(it|them|there|again|same|another)\b/i;
+
+/** § r11 Q1: split a caller clause into ordered sub-clauses at accepted
+ * boundaries. Exported for unit tests only — same style as parseRepeatCount.
+ *
+ * Candidate separators, scanned left to right:
+ *   - unconditional: `;` and the word `then`;
+ *   - conditional: the word `and`, or a bare `,` — each only when the word
+ *     immediately following the separator matches VERB_RE ("fill name and
+ *     email", "click the Add Element button" never split).
+ * A candidate is ACCEPTED only when the text between it and the next
+ * candidate (or the clause end) is actionable: it contains a VERB_RE word and
+ * no ANAPHORA_RE word. An unaccepted candidate's separator text stays inside
+ * the fragment ("then the box should be checked", "click the box and then
+ * it", "click Add and Remove" as a name-tail all keep the clause whole).
+ * Split points drop the separator itself; each fragment is then trimmed of
+ * leading/trailing whitespace and commas and empties are dropped. The split
+ * is verbatim — no text is ever rewritten, reordered, or invented, so a count
+ * word can never be separated from the verb it counts and parseRepeatCount
+ * keeps working per sub-clause. */
+export function splitCompoundClause(clause: string): string[] {
+  // Separators are matched as whole words, never inside other words — `then`
+  // inside `next` is not a boundary.
+  const CANDIDATE_RE = /;|\b(?:then|and)\b|,/gi;
+  interface Cand {
+    start: number;
+    end: number;
+  }
+  const cands: Cand[] = [];
+  for (const m of clause.matchAll(CANDIDATE_RE)) {
+    const sep = m[0];
+    const start = m.index;
+    const end = start + sep.length;
+    if (sep === ',' || sep.toLowerCase() === 'and') {
+      // Conditional: the word immediately following must be an action verb.
+      const next = /^[^A-Za-z]*([A-Za-z]+)/.exec(clause.slice(end));
+      if (next === null || !VERB_RE.test(next[1])) continue;
+    }
+    cands.push({ start, end });
+  }
+  // A candidate is accepted when the text after it (to the next candidate or
+  // the end of the clause) is actionable: verb present, no anaphora.
+  const cuts: Cand[] = cands.filter((c, i) => {
+    const tailEnd = i + 1 < cands.length ? cands[i + 1].start : clause.length;
+    const tail = clause.slice(c.end, tailEnd);
+    return VERB_RE.test(tail) && !ANAPHORA_RE.test(tail);
+  });
+  if (cuts.length === 0) return [clause];
+  const parts: string[] = [];
+  let pos = 0;
+  for (const c of cuts) {
+    parts.push(clause.slice(pos, c.start));
+    pos = c.end;
+  }
+  parts.push(clause.slice(pos));
+  const frags = parts.map((p) => p.replace(/^[,\s]+|[,\s]+$/g, '')).filter((p) => p.length > 0);
+  return frags.length > 0 ? frags : [clause];
+}
+
+/** § r11 Q1: expand every caller clause into ordered sub-clauses.
+ * `parents[i]` is the caller index of expanded clause i. All-or-nothing: when
+ * the expansion would exceed CHAIN_MAX_STEPS (the validator's literal 12)
+ * returns null and the caller's list runs unsplit — no partial expansion, no
+ * invented merges at the cap. Null callers fall back to the identity
+ * (clauses = steps, parents = [0..steps.length-1]). */
+export function expandClauses(steps: string[]): { clauses: string[]; parents: number[] } | null {
+  const clauses: string[] = [];
+  const parents: number[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    for (const sub of splitCompoundClause(steps[i])) {
+      clauses.push(sub);
+      parents.push(i);
+    }
+  }
+  return clauses.length > CHAIN_MAX_STEPS ? null : { clauses, parents };
+}
+
 /** § WP-count: true when the trailing CONTIGUOUS run of history entries
  * (walking back from the most recent act) are all: this step
- * (`stepKey === currentStepKey`), a click-family verb, an OBSERVED page
- * change (`result === 'page changed'` — an entry not yet annotated, or
- * annotated 'no visible change'/'element gone', never counts), and the SAME
- * target as the very last entry (`path` when present, else `label`) — and
- * that run is at least `count` long. An intervening act that breaks any of
- * these (a different verb, a different target, a step boundary, a click that
- * had no visible effect) ends the run at that point; entries before the
- * break are never counted even if they'd otherwise qualify. Residual,
+ * (`stepKey === currentStepKey`), a click-family verb, an OBSERVED change
+ * (`result === 'page changed'` or — r11 Q3 — `'element gone'`, the strictly
+ * stronger change signal of an acted element that can't even be re-found;
+ * an entry not yet annotated or annotated 'no visible change' never counts),
+ * and the SAME target as the last SIGNAL-CARRYING entry (`path` when present,
+ * else `label`) — and that run is at least `count` long. r11 Q3: entries with
+ * `before === undefined` (signal-less acts — wait, bare scroll/scroll_up) are
+ * SKIPPED rather than breaking the walk, and the run's anchor is the first
+ * signal-carrying entry, not the literal tail — a wait between two clicks of
+ * the same target no longer hides the run. An intervening SIGNAL-CARRYING
+ * act that breaks any of the run conditions (a different verb, a different
+ * target, a step boundary, a click that had no visible effect) ends the run
+ * at that point; entries before the break are never counted even if they'd
+ * otherwise qualify. Residual,
  * accepted risk (matches hasStepEvidence's own disclaimer above): a count
  * met by clicks on the right label but on a page where the click's effect
  * wasn't the step's intended one is not mechanically detectable — this
@@ -504,16 +626,20 @@ export function parseRepeatCount(step: string): number | undefined {
  * that the something was correct. */
 function hasRepeatCountEvidence(history: HistoryEntry[], currentStepKey: string, count: number): boolean {
   if (history.length === 0) return false;
-  const last = history[history.length - 1];
+  // The anchor is the first SIGNAL-CARRYING entry walking back (r11 Q3),
+  // found lazily — signal-less tail entries are skipped, not a break.
+  let anchor: HistoryEntry | undefined;
   const sameTarget = (h: HistoryEntry): boolean =>
-    last.path !== undefined ? h.path === last.path : h.label === last.label;
+    anchor!.path !== undefined ? h.path === anchor!.path : h.label === anchor!.label;
   let run = 0;
   for (let i = history.length - 1; i >= 0; i--) {
     const h = history[i];
+    if (h.before === undefined) continue; // signal-less act: skip, don't break
+    if (anchor === undefined) anchor = h;
     if (
       h.stepKey !== currentStepKey ||
       !CLICK_FAMILY_OPS.has(h.verb) ||
-      h.result !== 'page changed' ||
+      (h.result !== 'page changed' && h.result !== 'element gone') ||
       !sameTarget(h)
     ) {
       break;
@@ -523,21 +649,25 @@ function hasRepeatCountEvidence(history: HistoryEntry[], currentStepKey: string,
   return run >= count;
 }
 
-/** § WP-click: true when the last history entry is a click-family act on
- * the current step that produced a visible page change. This is the
+/** § WP-click: true when the last SIGNAL-CARRYING history entry (r11 Q3:
+ * `lastEvidenceEntry` reads through signal-less acts such as wait/scroll) is
+ * a click-family act on the current step that produced a visible change —
+ * 'page changed' or 'element gone' (the strictly stronger signal of an acted
+ * element that can no longer be re-found by path+fingerprint — a real DOM
+ * change, not a stale enumeration). This is the
  * evidence bar for a click step with NO explicit count word (where
  * hasRepeatCountEvidence can't fire because parseRepeatCount returns
- * undefined). A single 'page changed' click is enough — Jev's stepDoneP
+ * undefined). A single 'page changed'/'element gone' click is enough — Jev's
+ * stepDoneP
  * never reliably crosses 0.85 on a repeated click, but one observed
  * change IS the signal that the click landed. The stepDoneP >= 0.5 gate
  * (THRESHOLDS.stepDoneWithEvidence) is applied at the call site, not here
  * — this function checks only the history evidence. */
 function hasBareClickEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
-  if (history.length === 0) return false;
-  const last = history[history.length - 1];
-  if (last.stepKey !== currentStepKey) return false;
+  const last = lastEvidenceEntry(history, currentStepKey);
+  if (last === undefined) return false;
   if (!CLICK_FAMILY_OPS.has(last.verb)) return false;
-  return last.result === 'page changed';
+  return last.result === 'page changed' || last.result === 'element gone';
 }
 
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
@@ -1070,12 +1200,15 @@ async function runTool(
   // lives here too.
   const finish = async (r: WingmanResult): Promise<WingmanResult> => {
     if (chainState) {
-      // § 5.5.2 progress on every chain-mode result.
+      // § 5.5.2 progress on every chain-mode result. r11 Q1: parent-mapped —
+      // the cursor/N run over the EXPANDED sub-clause list, but the caller
+      // sees its own numbering (expansion preserves order, so parents[cursor]
+      // is exactly the count of fully-completed caller clauses).
       if (r.progress === undefined) {
         r.progress = {
-          step_index: Math.min(chainState.cursor + 1, chainState.N),
-          steps_done: chainState.cursor,
-          steps_total: chainState.N,
+          step_index: chainState.cursor >= chainState.N ? chainState.callerN : chainState.parents[chainState.cursor] + 1,
+          steps_done: chainState.cursor >= chainState.N ? chainState.callerN : chainState.parents[chainState.cursor],
+          steps_total: chainState.callerN,
         };
       }
       // Memory write-back: done deletes, anything else stores.
@@ -1908,13 +2041,21 @@ async function runTool(
     const chain = stepInput.steps !== undefined;
     if (chain) {
       // § 5.5.2 memory: keyed on [goal, clauses]; values never enter the key.
+      // r11 Q1: the key stays on the caller's ORIGINAL clause array —
+      // expansion is deterministic, so the stored cursor stays valid across
+      // calls and a mid-clause resume lands on the exact sub-clause.
       const clauses = stepInput.steps as string[];
       const key = JSON.stringify([stepInput.goal, clauses]);
       const mem = chainMemory.get(key);
+      // § r11 Q1: each caller clause expands into ordered sub-clauses; null
+      // (would exceed CHAIN_MAX_STEPS) falls back to the identity mapping.
+      const exp = expandClauses(clauses);
       chainState = {
         key,
-        clauses,
-        N: clauses.length,
+        clauses: exp?.clauses ?? clauses,
+        N: (exp?.clauses ?? clauses).length,
+        parents: exp?.parents ?? clauses.map((_, i) => i),
+        callerN: clauses.length,
         cursor: mem?.cursor ?? 0,
         priorActs: mem?.acts ?? 0,
         clauseRetried: false,
@@ -2070,7 +2211,10 @@ async function runTool(
 
     // Chain state (§ 5.5.2), created by runBrowse.
     const chain = entry?.kind === 'chain' ? chainState : null;
-    if (chain) phaseAcc.stepTextsStart = redactValues(chain.clauses[0], values).slice(0, 300);
+    // r11 Q1: `entry.clauses` is the caller's ORIGINAL array (chainState's is
+    // the expanded list) — the step_texts_start telemetry names the caller's
+    // own first clause.
+    if (entry?.kind === 'chain') phaseAcc.stepTextsStart = redactValues(entry.clauses[0], values).slice(0, 300);
     const N = chain?.N ?? 0;
     const clauseText = (i: number): string => redactValues(chain!.clauses[i], values).slice(0, 300);
     const clauseReviewStep = () => capLabel(clauseText(Math.min(chain!.cursor, N - 1)));
@@ -2504,7 +2648,13 @@ async function runTool(
               doInput.goal,
               values,
               clauseText(chain.cursor),
-              { stepNumber: Math.min(chain.cursor + 1, N), stepsTotal: N },
+              // r11 Q1 OPEN-1: Jev-visible step numbers stay in the CALLER's
+              // numbering — same parent mapping as finish()'s progress, so a
+              // cursor inside caller clause p reports "step p+1 of callerN".
+              {
+                stepNumber: chain.cursor >= N ? chain.callerN : chain.parents[chain.cursor] + 1,
+                stepsTotal: chain.callerN,
+              },
             )
           : buildState(obs, history, doInput.goal, values, entryStep !== undefined && round === 1 ? entryStep : undefined);
         const anchorBindings = chain ? bindingsInStep(chain.clauses[chain.cursor], values) : entryBindings;

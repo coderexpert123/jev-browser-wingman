@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runDo, runStep, type LoopDeps } from '../src/core/loop.js';
+import { runDo, runStep, expandClauses, parseRepeatCount, splitCompoundClause, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -1587,4 +1587,281 @@ test('T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced
   });
   const r3 = await optDo.callDo({ goal: 'chain-t28 optional do goal' });
   assert.equal(r3.note, SENSITIVE_LINE);
+});
+
+// ---- r11 WP-B: compound-clause decomposition (§ r11 Q1) ----
+
+/** The text between two returned sub-clauses of the same original clause may
+ * only ever be a boundary separator: whitespace/commas/semicolons plus at most
+ * one boundary word (`and`/`then`). Asserts checklist item 8 — the split never
+ * invents, reorders, or drops non-separator text. */
+function assertVerbatimSplit(original: string, subs: string[]): void {
+  let pos = 0;
+  for (const sub of subs) {
+    const at = original.indexOf(sub, pos);
+    assert.ok(at >= pos, `sub-clause ${JSON.stringify(sub)} does not appear verbatim and in order in ${JSON.stringify(original)}`);
+    const gap = original.slice(pos, at);
+    assert.match(
+      gap,
+      /^[\s,;]*(?:\b(?:and|then)\b[\s,;]*)?$/i,
+      `gap ${JSON.stringify(gap)} between sub-clauses of ${JSON.stringify(original)} is more than a separator`,
+    );
+    pos = at + sub.length;
+  }
+  const tail = original.slice(pos);
+  assert.match(tail, /^[\s,;.!?]*$/, `tail ${JSON.stringify(tail)} after the last sub-clause is more than punctuation`);
+}
+
+test('splitCompoundClause: the r11 boundary table, verbatim', () => {
+  const cases: Array<{ clause: string; subs: string[] }> = [
+    { clause: 'open Checkboxes and tick the first checkbox', subs: ['open Checkboxes', 'tick the first checkbox'] },
+    {
+      clause: 'navigate back to the site home page and open Dropdown, then choose Option 1 in the dropdown',
+      subs: ['navigate back to the site home page', 'open Dropdown', 'choose Option 1 in the dropdown'],
+    },
+    {
+      clause: 'Return to the home page, open Add/Remove Elements, and click the Add Element button twice',
+      subs: ['Return to the home page', 'open Add/Remove Elements', 'click the Add Element button twice'],
+    },
+    { clause: 'fill name and email', subs: ['fill name and email'] }, // 'email' is not a verb word
+    { clause: 'click the box and then it', subs: ['click the box and then it'] }, // no verb in the tail — never a boundary
+    // 'check' IS a verb: only the anaphora gate keeps this whole (kills M5).
+    { clause: 'click the box and check it again', subs: ['click the box and check it again'] },
+    // 'And'/'AND' are conditional too (the separator match is case-insensitive):
+    // followed by a non-verb they are never a boundary even when a verb shows
+    // up later in the same tail — a case-sensitive conditional check would
+    // treat this 'And' as unconditional and split here.
+    { clause: 'open A And B click twice', subs: ['open A And B click twice'] },
+    { clause: 'click the Add Element button twice', subs: ['click the Add Element button twice'] }, // no boundary inside a count phrase
+    { clause: 'open Checkboxes; tick the first checkbox', subs: ['open Checkboxes', 'tick the first checkbox'] }, // ';' unconditional
+    { clause: 'go to the next page', subs: ['go to the next page'] }, // 'then' inside 'next' never matches: word-bounded
+  ];
+  for (const c of cases) {
+    const subs = splitCompoundClause(c.clause);
+    assert.deepEqual(subs, c.subs, c.clause);
+    assertVerbatimSplit(c.clause, subs);
+  }
+
+  // The count word stays with its verb inside the split fragment (r10).
+  const addRow = splitCompoundClause('open Add/Remove Elements and click the Add Element button twice');
+  assert.deepEqual(addRow, ['open Add/Remove Elements', 'click the Add Element button twice']);
+  assertVerbatimSplit('open Add/Remove Elements and click the Add Element button twice', addRow);
+  assert.equal(parseRepeatCount(addRow[1]), 2);
+
+  // A formerly-ambiguous clause resolves both counts once split.
+  const twiceRow = splitCompoundClause('click it twice, then submit 2 times');
+  assert.deepEqual(twiceRow, ['click it twice', 'submit 2 times']);
+  assertVerbatimSplit('click it twice, then submit 2 times', twiceRow);
+  assert.equal(parseRepeatCount(twiceRow[0]), 2);
+  assert.equal(parseRepeatCount(twiceRow[1]), 2);
+});
+
+test('expandClauses: parents map back to the caller clause; over the cap returns null', () => {
+  const exp = expandClauses(['open A and click B', 'fill C']);
+  assert.deepEqual(exp, { clauses: ['open A', 'click B', 'fill C'], parents: [0, 0, 1] });
+
+  // All-or-nothing at CHAIN_MAX_STEPS: 7 clauses that each expand to 2 (14 >
+  // 12) return null — the caller's list runs unsplit.
+  const over = expandClauses(Array.from({ length: 7 }, (_, i) => `open x${i} and click y${i}`));
+  assert.equal(over, null);
+});
+
+test('T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV(), CS(), ADV()],
+  });
+  const r = await h.call({
+    goal: 'chain-decompose order goal',
+    steps: ['open the Dropdown link and choose Option 1 in the dropdown'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'goal-met');
+  // Exact-string assertions: round 1's step is byte-identical to the first
+  // sub-clause, and the second sub-clause's text appears only after it
+  // advanced. Read from state.step on the recorded requests.
+  const stepOf = (i: number) => (h.requests[i].state as { step?: string }).step;
+  assert.equal(stepOf(0), 'open the Dropdown link');
+  assert.equal(stepOf(1), 'open the Dropdown link');
+  assert.equal(stepOf(2), 'choose Option 1 in the dropdown');
+  assert.equal(stepOf(3), 'choose Option 1 in the dropdown');
+  assert.equal(h.requests.length, 4);
+  // Parent-mapped: one caller clause, so Jev-visible and result progress stay
+  // in the caller's numbering throughout.
+  assert.deepEqual(r.progress, { step_index: 1, steps_done: 1, steps_total: 1 });
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 2);
+  assert.equal(acts[0].elementId, 'e1');
+  assert.equal(acts[1].elementId, 'e1');
+});
+
+test('T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    // Five rounds: alpha open (ask+advance), beta click (ask+advance), then an
+    // ask on the SECOND sub-clause 'scroll gamma' — the budget-steps result
+    // must then carry progress from expanded cursor 2, where the parent-mapped
+    // formula (steps_done = parents[2] = 1) DIVERGES from the expanded-index
+    // one (cursor = 2). A probe on 'beta click' alone cannot see the M4
+    // mutant: parents[1] === 1 === cursor there.
+    script: [CS(), ADV(), CS(), ADV(), CS()],
+  });
+  const r = await h.call({
+    goal: 'chain-decompose progress goal',
+    // Caller clause 2 must actually SPLIT ('and scroll' is a verb boundary)
+    // or the expanded-vs-parent mapping can never differ here and the M4
+    // mutant would be invisible to this test.
+    steps: ['alpha open', 'beta click and scroll gamma'],
+    max_steps: 2,
+  });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'budget-steps');
+  // The call ended on the act-check while the cursor sat on caller clause 2's
+  // SECOND sub-clause (expanded cursor 2 of 3): parent-mapped step_index 2 /
+  // steps_done 1 / steps_total 2, per the finish() formulas — NOT the
+  // expanded-index 3 / 2.
+  assert.deepEqual(r.progress, { step_index: 2, steps_done: 1, steps_total: 2 });
+  const stepOf = (i: number) => (h.requests[i].state as { step?: string }).step;
+  assert.equal(stepOf(0), 'alpha open');
+  assert.equal(stepOf(2), 'beta click');
+  assert.equal(stepOf(4), 'scroll gamma');
+  // Jev-visible numbering is the caller's own (OPEN-1): clause 2 of 2 on both
+  // sub-clauses of caller clause 2.
+  assert.equal((h.requests[2].state as { step_number?: number }).step_number, 2);
+  assert.equal((h.requests[2].state as { steps_total?: number }).steps_total, 2);
+  assert.equal((h.requests[4].state as { step_number?: number }).step_number, 2);
+  assert.equal((h.requests[4].state as { steps_total?: number }).steps_total, 2);
+});
+
+test('T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause', async () => {
+  const steps = ['open Checkboxes and tick the first checkbox', 'click e1'];
+  const goal = 'chain-decompose resume goal';
+  const h1 = harness({ observations: { p1: [observation()] }, script: [CS(), ADV(), CS()] });
+  const r1 = await h1.call({ goal, steps, max_steps: 1 });
+  assert.equal(r1.status, 'fallback', `expected fallback, got ${r1.status}/${r1.reason}`);
+  assert.equal(r1.reason, 'budget-steps');
+  assert.equal(r1.progress?.steps_done, 0, 'still inside caller clause 1: zero caller clauses fully done');
+  assert.equal(r1.progress?.steps_total, 2);
+
+  const h2 = harness({ observations: { p1: [observation()] }, script: [CS(), ADV(), CS(), ADV()] });
+  const r2 = await h2.call({ goal, steps });
+  assert.equal(r2.status, 'done', `expected done, got ${r2.status}/${r2.reason}`);
+  const stepOf = (i: number) => (h2.requests[i].state as { step?: string }).step;
+  assert.equal(stepOf(0), 'tick the first checkbox', 'the re-call resumes on the SECOND sub-clause, not the parent clause start');
+  assert.equal(stepOf(1), 'tick the first checkbox');
+  assert.equal(stepOf(2), 'click e1');
+  assert.deepEqual(r2.progress, { step_index: 2, steps_done: 2, steps_total: 2 });
+});
+
+// Add/Remove-style fixtures for T-decompose-twice (mirrors
+// outcome-evidence.test.ts's addElementsObs): an Add button plus N Delete
+// buttons; text varies so every click observes a page change.
+function addButton(): ElementRecord {
+  return el({
+    id: 'e1',
+    path: '#add',
+    tag: 'button',
+    role: 'button',
+    name: 'Add Element',
+    type: 'button',
+    editable: false,
+    state: { disabled: false },
+    fingerprint: { tag: 'button', role: 'button', name: 'Add Element', x: 0, y: 0 },
+  });
+}
+
+function deleteButton(n: number): ElementRecord {
+  return el({
+    id: `d${n}`,
+    path: `#del${n}`,
+    tag: 'button',
+    role: 'button',
+    name: 'Delete',
+    type: 'button',
+    editable: false,
+    state: { disabled: false },
+    fingerprint: { tag: 'button', role: 'button', name: 'Delete', x: 0, y: 0 },
+  });
+}
+
+function addElementsObs(n: number): Observation {
+  const elements = [addButton()];
+  for (let i = 0; i < n; i++) elements.push(deleteButton(i));
+  return observation({ elements, text: `${n} delete button(s) present` });
+}
+
+test('T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause', async () => {
+  const h = harness({
+    observations: {
+      p1: [addElementsObs(0), addElementsObs(0), addElementsObs(1), addElementsObs(2), addElementsObs(3)],
+    },
+    script: [CS(), ADV(), CS(), CS(), CS()],
+  });
+  const r = await h.call({
+    goal: 'chain-decompose twice goal',
+    steps: ['open Add/Remove Elements and click the Add Element button twice'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  const clickActs = acts.filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 3, '1 click on sub-clause 1 (open) + exactly 2 on sub-clause 2 (the count), never a third');
+  assert.deepEqual(clickActs.map((a) => a.elementId), ['e1', 'e1', 'e1']);
+  // The two count-clause clicks happened on the second sub-clause: the
+  // requests between the first advance and the count advance all carried
+  // 'click the Add Element button twice' as state.step.
+  const stepOf = (i: number) => (h.requests[i].state as { step?: string }).step;
+  assert.equal(stepOf(2), 'click the Add Element button twice');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(
+    rounds.some((rd) => rd.countEvidence === 2),
+    'countEvidence telemetry fired on the sub-clause advance',
+  );
+});
+
+test('T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      CS(),
+      ADV(),
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.9, e1: 0.05 }] }),
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.9, e1: 0.05 }] }),
+    ],
+  });
+  const r = await h.call({
+    goal: 'chain-decompose premature goal',
+    steps: ['open Checkboxes and tick the first checkbox'],
+  });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(r.step_review?.step, 'tick the first checkbox', 'the bounce reviews the operative SUB-clause, not the caller text');
+  // The first none round consumed the one clause retry (§ 5.5.2 rule 9):
+  // requests 3 and 4 are the two identical non-committing rounds on
+  // 'tick the first checkbox', and the call only bounces after the second.
+  assert.equal(h.requests.length, 4);
+  const stepOf = (i: number) => (h.requests[i].state as { step?: string }).step;
+  assert.equal(stepOf(2), 'tick the first checkbox');
+  assert.equal(stepOf(3), 'tick the first checkbox');
+  assert.equal(h.driver.actCalls().length, 1, 'only the sub-clause-1 click landed; the check never acted');
+});
+
+test('T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.9, e1: 0.05 }] }),
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.9, e1: 0.05 }] }),
+    ],
+  });
+  const r = await h.call({
+    goal: 'chain-decompose genuine nomatch goal',
+    steps: ['tick the first checkbox'],
+  });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(r.step_review?.step, 'tick the first checkbox');
+  assert.equal(h.driver.actCalls().length, 0);
+  assert.equal(h.requests.length, 2, 'retry consumed, then bounce — unchanged pre-r11 semantics for atomic clauses');
 });

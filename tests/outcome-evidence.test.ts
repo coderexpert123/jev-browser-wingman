@@ -1213,3 +1213,320 @@ test('log redaction: step_text and step_texts_start carry the redacted step, nev
     assertNoValues(JSON.stringify(record), { amount: secret });
   }
 });
+
+// ---- r11 WP-B: wait-storm evidence fix (§ r11 Q3). A `wait` (or any
+// signal-less act) history entry carries `before === undefined`; the evidence
+// functions used to read/break on the literal tail, so a wait after a working
+// click shadowed its evidence for the rest of the call. `lastEvidenceEntry`
+// now reads through signal-less entries, and 'element gone' (the acted
+// element re-rendered away) counts as click-family evidence. ----
+
+/** A clickable fixture distinct from the form `el()` — the Start button. */
+function startButton(): ElementRecord {
+  return el({
+    id: 'e1',
+    path: '#start',
+    tag: 'button',
+    role: 'button',
+    name: 'Start',
+    type: 'button',
+    editable: false,
+    state: { disabled: false },
+    fingerprint: { tag: 'button', role: 'button', name: 'Start', x: 0, y: 0 },
+  });
+}
+
+function startObs(withStart: boolean, text: string): Observation {
+  return observation({ elements: withStart ? [startButton()] : [], text });
+}
+
+test('T-wait-shadow: a click whose target re-renders away, followed by a wait answer, ends done — never storms', async () => {
+  // clickedGone drops the scripted target element (re-render), rendered adds a
+  // text change. r1 commits click→e1; r2 answers wait + step_done 0.6 (the
+  // evidence tier). On the fixed loop r2's advance rule reads THROUGH the
+  // would-be wait slot: 'element gone' is click evidence, so the clause
+  // advances on r2 and the scripted wait answer never reaches the act site —
+  // there is no third ask and no wait storm. (The spec's "exactly 1 wait act"
+  // clause is unreachable as written: rule 3 advances before the decide step,
+  // so a decided wait can never land on a round that also carries the
+  // evidence-tier step_done; the checklist-pinned invariant
+  // `requests.length === 2` is the assertion kept here.)
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.05 },
+        action: choice('click', { click: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 },
+      action: choice('wait', { wait: 0.9, none: 0.05 }),
+      target: choice('none', { none: 0.9, e1: 0.05 }),
+    });
+  };
+  const h = harness({
+    observations: { p1: [startObs(true, 'loading'), startObs(false, 'loading'), startObs(false, 'Hello World')] },
+    ask,
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'wait-shadow storm goal', steps: ['click the Start button'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'click').length, 1, 'exactly 1 click');
+  assert.equal(
+    acts.filter((a) => a.op === 'wait').length,
+    0,
+    'the r2 advance precedes the decide step — the scripted wait answer is consumed, never acted',
+  );
+  assert.equal(h.requests.length, 2, 'no extra asks burned past the advancing round');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.clickEvidence === true), 'the advance came from bare-click evidence on the element-gone click');
+});
+
+test('T-element-gone-click: an element-gone click result counts as click evidence at the 0.5 bar', async () => {
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.05 },
+        action: choice('click', { click: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 }, // evidence tier — below the ordinary 0.85 bar
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const h = harness({
+    observations: { p1: [startObs(true, 'loading'), startObs(false, 'loading')] },
+    ask,
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'element-gone click goal', steps: ['click the Start button'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const clickActs = h.driver.actCalls().filter((a) => a.op === 'click');
+  assert.equal(clickActs.length, 1, 'one element-gone click is the evidence; no second click lands');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.clickEvidence === true), 'clickEvidence telemetry must be set on the advancing round');
+});
+
+test('T-wait-transparency-state: a wait act between a fill and its confirm round still advances on the fill evidence', async () => {
+  // r1 commits fill→e1; r2 decides wait at step_done 0.3 (below every advance
+  // bar, so the wait ACTUALLY LANDS — its history entry carries
+  // `before === undefined`); r3 sits at the evidence tier (0.6). The fill's
+  // 'filled' result is annotated from r2's fresh obs and remains the last
+  // SIGNAL-CARRYING entry behind the wait, so r3 advances on fill evidence —
+  // this is the hasStepEvidence path through lastEvidenceEntry's skip that
+  // T-wait-shadow cannot reach (its advance fires before the decide step, so
+  // its scripted wait never lands). Without the skip the r3 tail is the wait
+  // entry itself, 'wait' is no element-state verb, and the call never ends
+  // done.
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.05 },
+        action: choice('fill', { fill: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+        value: choice('amount', { amount: 0.9, none: 0.05 }),
+      });
+    }
+    if (call === 2) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.3 }, // below every bar: the wait lands
+        action: choice('wait', { wait: 0.9, none: 0.05 }),
+        target: choice('none', { none: 0.9, e1: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 }, // evidence tier — below the ordinary 0.85 bar
+      // action 'click' deliberately NOT 'none': stepDoneNoAction 0.5 would
+      // advance an action-none round without any evidence at all, making the
+      // test inert.
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const unfilled = observation();
+  const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
+  const h = harness({ observations: { p1: [unfilled, filled] }, ask });
+  const r = await h.call({ goal: 'wait transparency fill goal', steps: ['fill the amount field'], values: { amount: '42' } });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'fill').length, 1, 'exactly 1 fill — the call must not re-fill');
+  assert.equal(acts.filter((a) => a.op === 'wait').length, 1, 'the wait act must land — without it there is no shadow to read through');
+  assert.equal(acts.length, 2, 'fill + wait and nothing else');
+});
+
+test('T-wait-shadow-landed: a landed wait after an element-gone click does not shadow the click evidence', async () => {
+  // The bench storm verbatim: click Start → the button re-renders away
+  // ('element gone' on the click entry) → the next act is a wait whose entry
+  // carries no `before` → on the unfixed loop that wait entry shadows the
+  // click's evidence for the rest of the call, so evidence-tier step_done
+  // answers drain into a no-match bounce instead of advancing. r2's wait
+  // decides at 0.3 (below every bar — it lands); r3 sits at 0.6 (evidence
+  // tier). With the fix, lastEvidenceEntry reads through the wait entry to
+  // the 'element gone' click — both halves of Q3 in one round — and the call
+  // ends done.
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.05 },
+        action: choice('click', { click: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    }
+    if (call === 2) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.3 }, // below every bar: the wait lands
+        action: choice('wait', { wait: 0.9, none: 0.05 }),
+        target: choice('none', { none: 0.9, e1: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.6 },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const h = harness({
+    observations: { p1: [startObs(true, 'loading'), startObs(false, 'loading'), startObs(false, 'Hello World'), startObs(false, 'Hello World')] },
+    ask,
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'wait-shadow landed wait goal', steps: ['click the Start button'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'click').length, 1, 'exactly 1 click');
+  assert.equal(acts.filter((a) => a.op === 'wait').length, 1, 'the wait act must land — without it the shadow case is never created');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.clickEvidence === true), 'the advance came from bare-click evidence read through the wait entry');
+});
+
+test('T-repeatcount-wait: a landed wait between two same-target clicks does not break the trailing-run count', async () => {
+  // r1 click, r2 a decided wait (low step_done — below every advance bar, so
+  // the wait DOES reach the act site here), r3 click, r4 low step_done. The
+  // wait entry is signal-less and must be SKIPPED by the count walk, not
+  // break it: the two 'page changed' clicks on e1 satisfy the count at r4.
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 2) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.3 },
+        action: choice('wait', { wait: 0.9, none: 0.05 }),
+        target: choice('none', { none: 0.9, e1: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.3 },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const h = harness({
+    observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2), addElementsObs(3), addElementsObs(4)] },
+    ask,
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'repeatcount wait goal', steps: ['click the Add button twice'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'click').length, 2, 'exactly 2 clicks land');
+  assert.equal(acts.filter((a) => a.op === 'wait').length, 1, 'the scripted wait landed between the clicks');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.countEvidence === 2), 'countEvidence === 2 on the advancing round');
+});
+
+test('T-repeatcount-element-gone: an element-gone click satisfies a count clause (count walk, count=1)', async () => {
+  // 'click the Start button once' parses to count 1, so bareClickEvidence is
+  // gated off (repeatCount !== undefined) and the ONLY advance path is
+  // hasRepeatCountEvidence's own 'element gone' acceptance — nothing else in
+  // the suite covers that arm (T-decompose-twice exercises 'page changed').
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 1) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.05 },
+        action: choice('click', { click: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.3 }, // irrelevant: the count bar ignores step_done
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const h = harness({
+    observations: { p1: [startObs(true, 'loading'), startObs(false, 'loading'), startObs(false, 'loading')] },
+    ask,
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
+  });
+  const r = await h.call({ goal: 'repeatcount element gone goal', steps: ['click the Start button once'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().filter((a) => a.op === 'click').length, 1, 'one element-gone click satisfies the count');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.ok(rounds.some((rd) => rd.countEvidence === 1), 'countEvidence === 1 on the advancing round');
+});
+
+test('T-no-progress-unchanged: a wait between two identical no-effect clicks leaves the literal-tail guard semantics intact', async () => {
+  // The guard reads ONLY the literal last history entry (deliberate asymmetry
+  // — a wait may itself change the page). Round 2's wait therefore makes round
+  // 3's repeat click the "literal tail ≠ same verb" case: the click lands. On
+  // round 4 the tail IS the second identical no-change click, so the guard
+  // fires exactly as it would with no wait in between — neither stricter nor
+  // looser.
+  let call = 0;
+  const ask: JevAsk = async () => {
+    call += 1;
+    if (call === 2) {
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.3 },
+        action: choice('wait', { wait: 0.9, none: 0.05 }),
+        target: choice('none', { none: 0.9, e1: 0.05 }),
+      });
+    }
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: 0.3 },
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    });
+  };
+  const inert = observation({ elements: [addButton()], text: 'nothing happens' });
+  const h = harness({ observations: { p1: [inert] }, ask, config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } } });
+  const r = await h.call({ goal: 'no-progress wait asymmetry goal', steps: ['click the Add button'] });
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'click').length, 2, 'the second identical click still lands past the wait');
+  assert.equal(acts.filter((a) => a.op === 'wait').length, 1);
+  // The deterministic end: r4's identical click decision meets the literal
+  // tail = click2 ('no visible change', same path+verb+step) → no-progress.
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'no-progress', `expected the guard to end it, got ${r.reason}`);
+});
