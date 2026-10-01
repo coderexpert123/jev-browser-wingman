@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-01-161447.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 16.354657,
+  "aborted": null,
+  "total_usd": 0.405118,
+  "runs": [
+    {
+      "task": "t10-saucedemo-checkout",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 18256,
+      "browser_tool_calls": 9,
+      "per_step_ms": 2028,
+      "llm": {
+        "input_tokens": 16,
+        "output_tokens": 898,
+        "cache_read_tokens": 439129,
+        "cache_write_tokens": 4019,
+        "usd": 0.160328,
+        "cli_reported_usd": 0.11291380000000001
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.160328,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 8,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_fill_form": 2,
+        "mcp__playwright__browser_click": 6
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 13839,
+      "browser_tool_calls": 6,
+      "per_step_ms": 2307,
+      "llm": {
+        "input_tokens": 14,
+        "output_tokens": 622,
+        "cache_read_tokens": 359088,
+        "cache_write_tokens": 34051,
+        "usd": 0.24479,
+        "cli_reported_usd": 0.2142696
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.24479,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 3,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 3,
+        "mcp__playwright__browser_type": 2,
+        "mcp__playwright__browser_click": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 16047.5,
+      "median_usd": 0.202559,
+      "fallback_rate": 0
+    }
+  }
+}
