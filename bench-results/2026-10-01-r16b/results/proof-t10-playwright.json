@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-01-161356.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 16.354657,
+  "aborted": null,
+  "total_usd": 0.276341,
+  "runs": [
+    {
+      "task": "t10-saucedemo-checkout",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 24716,
+      "browser_tool_calls": 9,
+      "per_step_ms": 2746,
+      "llm": {
+        "input_tokens": 18,
+        "output_tokens": 943,
+        "cache_read_tokens": 466445,
+        "cache_write_tokens": 32589,
+        "usd": 0.276341,
+        "cli_reported_usd": 0.233111
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.276341,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 8,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_fill_form": 2,
+        "mcp__playwright__browser_click": 6
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 24716,
+      "median_usd": 0.276341,
+      "fallback_rate": 0
+    }
+  }
+}
