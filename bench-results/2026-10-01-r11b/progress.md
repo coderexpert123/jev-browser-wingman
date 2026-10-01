@@ -14,3 +14,4 @@
   - M6 playwright ok=True wall=23.7s usd=0.170159 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
   - Phase M bars missed: handoffs (max 12 > 4), picks (13/24, needs <50%), median-steps (2.00 < 4); passed: completion 3/3, wingman-share, raw-acts, zero-step-done, first-call-success, no-page-error-end, raw-script
 - scan note: 2-char bound values (digit strings) cannot be scanned in numeric telemetry (actMs, element ids e<n>); evidence/ excluded from the bare-token short scan but every file is scanned for the value as a quoted JSON string.
+- Phase S DONE (phase-s.json, gate ON, policy off): forced ok=false wall=36.1s usd=0.213116 handoffs=5 picks=2 wingman_acts=6 raw_acts=0; `FORCED-VERDICT: smoke ok=false needs_confirmation=1` (ended on needs_confirmation/irreversible-heuristic).

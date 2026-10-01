@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-01-0733.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 20.814594,
+  "aborted": null,
+  "total_usd": 0.213116,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 36147,
+      "browser_tool_calls": 6,
+      "per_step_ms": 6025,
+      "llm": {
+        "input_tokens": 18,
+        "output_tokens": 2897,
+        "cache_read_tokens": 500367,
+        "cache_write_tokens": 4815,
+        "usd": 0.211675,
+        "cli_reported_usd": 0.1483394
+      },
+      "typesafe": {
+        "calls": 5,
+        "input_tokens": 34306,
+        "output_tokens": 9309,
+        "usd": 0.001441
+      },
+      "wingman": {
+        "calls": 5,
+        "fallback": 3,
+        "needs_confirmation": 1
+      },
+      "wingman_phases": {
+        "attach_ms": 107,
+        "first_observe_ms": 11,
+        "observe_ms": 8,
+        "jev_ms": 148,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 17
+      },
+      "usd": 0.213116,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 2,
+          "rounds": 5,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 7
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "error",
+          "reason": "act-failed",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          }
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 2,
+          "rounds": 6,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 6
+          },
+          "why": "no-match",
+          "candidates": 2
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          },
+          "why": "low-confidence",
+          "candidates": 2
+        },
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 6
+          }
+        }
+      ],
+      "handoffs": 5,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 2,
+        "mcp__jev-browser-wingman__browse_step": 5,
+        "mcp__playwright__browser_tabs": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 36147,
+      "median_usd": 0.213116,
+      "fallback_rate": 1
+    }
+  }
+}
