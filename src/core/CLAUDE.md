@@ -470,7 +470,7 @@
   non-final clause, now advances instead of acting. Gate 6 reads `chain.N`, the
   EXPANDED sub-clause count (`callerN` would treat sub-clause 0 of one comma-split
   caller clause as final); `T-nav-expanded` pins it, `T-nav-query` pins that a
-  query-only change is a left document. Known residual (verifier wave, r14; derived by code trace, no test scripts it): a
+  query-only change is a left document. Known residual (verifier wave, r14; reproduced once with a scratch chain test, not pinned: acts click then back, cursor stays on clause 1, ends no-match, steps_done 1): a
   stuck `back` fired on the clause AFTER a nav advance (wrong landing) returns to
   the page before the click while the cursor stays past the open clause, so the
   retry runs on the hub and bounces (stuckUsed already spent) — same class as a
