@@ -1,3 +1,12 @@
 # r12 progress log (HEAD f39aa12)
 - Part 1 DONE: 51/51 files; tsc 0; 713 tests, 712 pass, 1 skip (chrome-cmd win32), 0 fail AFTER re-run. FIRST RUN: tests/doctor.test.ts #12 "all ten checks pass on a clean ephemeral setup" FAILED (coexistence: observer fingerprint changed across attach/detach); RE-RUN: doctor 26/26 pass (flake; logs doctor.log vs doctor-rerun.log). lazy-chrome ok; known-bad tool-call FAIL answered=true. KB-nav proof: only T-navigate-evidence failed (44 pass/1 fail), restored clean.
 - Phase V DONE (phase-v.json) total_usd=0.917296: V1 playwright ok wall=35.8s usd=0.309106 | V2 ok 35.3s 0.336169 | V3 ok 32.3s 0.272021 -> 3/3, control OK
+- Phase M DONE (phase-m.json) total_usd=2.228084; forced-verdict overall FAIL (bars: handoffs max=15, picks 26/37, median-steps 2.00)
+  - M1 forced ok=True wall=99.5s usd=0.533276 handoffs=15 picks=9 wingman_acts=30 raw_acts=0 raw_script=0
+  - M2 playwright ok=True wall=34.6s usd=0.305122 handoffs=0 picks=0 wingman_acts=0 raw_acts=17 raw_script=0
+  - M3 forced ok=True wall=61.1s usd=0.348754 handoffs=10 picks=8 wingman_acts=24 raw_acts=0 raw_script=0
+  - M4 playwright ok=True wall=41.2s usd=0.338569 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+  - M5 forced ok=True wall=75.7s usd=0.418393 handoffs=12 picks=9 wingman_acts=26 raw_acts=0 raw_script=0
+  - M6 playwright ok=True wall=32.5s usd=0.28397 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+- Phase S DONE (phase-s.json, gate ON, policy off): S1 forced ok=True wall=92.5s usd=0.536833 handoffs=15 picks=8 wingman_acts=28 raw_acts=0; `FORCED-VERDICT: smoke ok=true needs_confirmation=6`
+- scan note: 2-char bound values can coincide with numeric telemetry (e.g. a token count in results JSON); the bare-token scan excludes logs/, evidence/, results/; all files are scanned for them as quoted JSON strings.
