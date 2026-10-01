@@ -467,4 +467,11 @@
   sets too) and `PhaseRound.leftPage` (every chain round whose last entry has
   `beforeUrl`). Test trap: a chain test whose clause click changes the
   observation URL, then answers step_done in [0.25, 0.5) with error < 0.5 on a
-  non-final clause, now advances instead of acting.
+  non-final clause, now advances instead of acting. Gate 6 reads `chain.N`, the
+  EXPANDED sub-clause count (`callerN` would treat sub-clause 0 of one comma-split
+  caller clause as final); `T-nav-expanded` pins it, `T-nav-query` pins that a
+  query-only change is a left document. Known residual (verifier wave, r14): a
+  stuck `back` fired on the clause AFTER a nav advance (wrong landing) returns to
+  the page before the click while the cursor stays past the open clause, so the
+  retry runs on the hub and bounces (stuckUsed already spent) — same class as a
+  0.5-bar click-evidence advance, not new in kind.
