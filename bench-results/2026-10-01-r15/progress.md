@@ -12,3 +12,4 @@
 - Phase M telemetry DONE (evidence/): 11 forced handoffs (3/4/4); 0 over-cap, 9 decomposed; why: post-action 4, wrong-page 3, no-match 2, low-confidence 1, not-ready 0, repeat 0, no-progress 0; 3 of 4 post-action ends are the Retrieve-password clause (first call per cell) and in all 3 the caller followed the note (next call started at the later clauses, no re-submit, no reload); 0 reload acts, 0 repeat whys, 0 act_error; navEvidence 11 firings, 11/11 next clause committed within 2 rounds, 0 premature; acting-ahead 0; stuck back x10, open_start_url x2, give-up x2 (12 recoveries, 11 committed, 12 advanced); Add Element = 2 clicks per cell.
 - Part 3 page 1 DONE: /inputs (evidence/part3/task1-*); doctor PASS 10/10
 - Part 3 page 2 DONE: /dropdown (evidence/part3/task2-*)
+- Part 3 page 3 DONE: /add_remove_elements/ (evidence/part3/task3-*)
