@@ -1,0 +1,36 @@
+## per-bucket occurrences: step_text of LAST round -> decided action
+### not-ready
+  M1.1 step_text=[click the Retrieve password button] action=wait aP=0.68 t1=none/0.98 sdP=0.49 rdy=0.21 rp=0.48 hist=None leftPage=False progress=4/7 rounds=36 last-actions=['fill', 'click', 'click', 'wait', 'wait', 'wait']
+  M1.2 step_text=[click the Retrieve password button] action=wait aP=0.65 t1=none/0.98 sdP=0.1 rdy=0.11 rp=0.4 hist=None leftPage=False progress=4/7 rounds=3 last-actions=['click', 'wait', 'wait']
+  M3.1 step_text=[click the Retrieve password button] action=wait aP=0.63 t1=none/0.98 sdP=0.46 rdy=0.2 rp=0.52 hist=None leftPage=False progress=4/7 rounds=35 last-actions=['fill', 'click', 'click', 'wait', 'wait', 'wait']
+  M3.2 step_text=[click the Retrieve password button] action=wait aP=0.59 t1=none/0.98 sdP=0.1 rdy=0.09 rp=0.46 hist=None leftPage=False progress=4/7 rounds=3 last-actions=['click', 'wait', 'wait']
+  M5.1 step_text=[click the Retrieve password button] action=wait aP=0.71 t1=none/0.98 sdP=0.46 rdy=0.18 rp=0.49 hist=None leftPage=False progress=4/7 rounds=36 last-actions=['fill', 'click', 'click', 'wait', 'wait', 'wait']
+  M5.2 step_text=[click the Retrieve password button] action=wait aP=0.56 t1=none/0.97 sdP=0.11 rdy=0.11 rp=0.48 hist=None leftPage=False progress=4/7 rounds=3 last-actions=['click', 'wait', 'wait']
+### no-match
+  M5.3 step_text=[open Dynamic Loading] action=click aP=0.58 t1=none/0.95 sdP=0.09 rdy=0.31 rp=0.4 hist=page changed leftPage=False progress=0/2 rounds=4 last-actions=['back', 'back', None, 'click']
+  M5.4 step_text=[open Status Codes] action=None aP=None t1=None/None sdP=None rdy=None rp=None hist=element gone leftPage=False progress=1/2 rounds=10 last-actions=['click', 'click', 'wait', 'click', 'click', None]
+### wrong-page
+  M1.3 step_text=[open the web address named home] action=None aP=None t1=None/None sdP=None rdy=None rp=None hist=None leftPage=None progress=0/3 rounds=3 last-actions=['navigate', 'navigate', None]
+### low-confidence
+  M1.4 step_text=[open Status Codes] action=None aP=None t1=None/None sdP=None rdy=None rp=None hist=element gone leftPage=False progress=2/3 rounds=11 last-actions=['click', 'click', 'wait', 'back', 'back', None]
+  M1.5 step_text=[open the 404 link] action=click aP=0.47000000000000003 t1=e1/0.57 sdP=0.46 rdy=0.56 rp=0.64 hist=element gone leftPage=True progress=1/2 rounds=7 last-actions=['click', 'click', 'click', 'click', 'click', 'click']
+  M3.3 step_text=[go to the start page <value:start>] action=wait aP=0.33 t1=none/0.95 sdP=0.51 rdy=0.51 rp=0.75 hist=element gone leftPage=False progress=4/7 rounds=10 last-actions=['click', 'click', 'click', 'wait', 'navigate', 'wait']
+  M5.5 step_text=[open the 404 link] action=click aP=0.47 t1=e1/0.58 sdP=0.38 rdy=0.47 rp=0.58 hist=element gone leftPage=True progress=1/2 rounds=6 last-actions=[None, 'click', 'click', 'click', 'click', 'click']
+### repeat
+  (none)
+### no-progress
+  (none)
+
+## calls with no why (done or non-fallback):
+  M3.4 done/goal-met
+
+## premature-advance screen (any advance whose next clause's first round has rightPageP<0.45 or readyP<0.3)
+  hits 0
+
+## navigate-evidence (r12 rule) advances (act-less round, hist page changed, sdP in [0.5,0.85), last act navigate)
+  M1.5 r2 [open the web address named home] sdP=0.79 -> next [open Status Codes] rp=0.88 rdy=0.75; end fallback/step-uncertain
+  M3.4 r2 [go to the start page <value:start>] sdP=0.74 -> next [open Status Codes] rp=0.87 rdy=0.52; end done/goal-met
+  count 2
+
+## stuck/recovery-navigate violations: stuck navigate (open_*) followed by advance on a clause not naming the binding
+  open_* stuck rounds: 0 (violations 0 if none)
