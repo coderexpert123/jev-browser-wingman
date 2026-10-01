@@ -1,0 +1,11 @@
+PASS key-present  source=env
+PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+PASS registration-portable  2 registration(s) portable
+PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+PASS profile-safe  the Chrome answering on port 9222 uses profile_dir
+PASS adapter-attach  attached to http://127.0.0.1:9222; 1 page(s)
+PASS default-context  attach stayed in the default context; cookies=5
+PASS coexistence  observer fingerprint identical across attach/detach (1 page(s))
+PASS handoff  enforced by proxy: playwright (playwright-mcp); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script
+PASS jev-round  runCheck answered with 1 jev call(s)
+verdict: PASS

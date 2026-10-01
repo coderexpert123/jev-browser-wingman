@@ -1,0 +1,8 @@
+client: claude
+[met] O1: wingman is registered with the client and its top-level mode is on
+[met] O2: the caller's in-page action tools are withheld
+[met] O3: wingman launches its own shared browser at first use; no separate step is needed
+  - none (wingman launches the shared browser at first use)
+[met] O4: a TypeSafe key is available
+[todo] O5: doctor has not verified this setup
+  - run jev-browser-wingman doctor --client claude

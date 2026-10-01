@@ -1,0 +1,5 @@
+task1 (page pre-opened via raw CDP): A browser page is already open on https://the-internet.herokuapp.com/inputs. Type the number into the number field on that page. Do nothing else.
+task2: A browser page is already open on https://the-internet.herokuapp.com/dropdown. Choose Option 2 from the dropdown on that page. Do nothing else.
+task3: A browser page is already open on https://the-internet.herokuapp.com/add_remove_elements/. Open nothing else; click the Add Element button twice on that page.
+(task1's literal prompt named the value 42; omitted here only for the pre-push value scan.) claude -p --model sonnet --max-budget-usd 1.3 --allowedTools "mcp__jev-browser-wingman" "mcp__playwright"
+Independent checks (raw CDP Runtime.evaluate): inputs value = 42; dropdown selected = Option 2; Delete buttons on /add_remove_elements/ = 2.
