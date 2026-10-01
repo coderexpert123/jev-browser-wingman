@@ -1,0 +1,285 @@
+## A. decomposition: calls=23 decomposed=17 no_compound=6 over_cap=0
+M1.1:7->16 M1.2:7->16 M1.3:3->8 M1.4:2->5 M1.5:3->6 M1.6:3->6 M1.7:2->3 M1.8:2->2 M1.9:2->2 M1.10:1->1 M3.1:7->16 M3.2:7->16 M3.3:4->8 M3.4:4->8 M3.5:2->4 M5.1:7->16 M5.2:7->16 M5.3:4->8 M5.4:1->1 M5.5:3->7 M5.6:3->6 M5.7:2->2 M5.8:2->2
+
+## B. why Counter({'not-ready': 10, 'low-confidence': 4, 'wrong-page': 3, None: 3, 'no-match': 2, 'no-progress': 1}) act_error records: 0
+
+## C. stuck rounds
+counts by id: {'back': 10, 'give-up': 4, 'open_home': 1}
+M1.1 r7 stuck=back clause=[open Dropdown] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 220, 'page changed', 'e11', 1), ('select', 51, 'element gone', 'e1', 0.99), ('click', 0, 'selected: Option 1', 'none', 0.64)]
+M1.1 r14 stuck=back clause=[open Add/Remove Elements] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 236, 'page changed', 'e2', 1), ('click', 0, 'element gone', 'e1', 0.94)]
+M1.1 r27 stuck=back clause=[open Forgot Password] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=False | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 238, 'page changed', 'e20', 1), ('fill', 51, 'element gone', 'e1', 0.99), ('click', 387, 'filled', 'e2', 0.91), ('wait', 1000, 'element gone', 'none', 0.98), ('wait', 1000, None, 'none', 0.98), ('wait', 0, None, 'none', 0.98)]
+M1.4 r3 stuck=give-up clause=[open Dynamic Loading] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=False | call end fallback/step-uncertain why=wrong-page
+      retry rounds (action,actMs,hist,t1,t1P): []
+M1.5 r3 stuck=give-up clause=[open the web address named url] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=False | call end fallback/step-uncertain why=wrong-page
+      retry rounds (action,actMs,hist,t1,t1P): []
+M1.6 r11 stuck=back clause=[open Status Codes] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=False | call end fallback/step-uncertain why=no-match
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 0, 'page changed', 'none', 0.98)]
+M3.1 r7 stuck=back clause=[open Dropdown] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 421, 'page changed', 'e11', 1), ('select', 54, 'element gone', 'e1', 0.98), ('click', 0, 'selected: Option 1', 'none', 0.61)]
+M3.1 r14 stuck=back clause=[open Add/Remove Elements] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 344, 'page changed', 'e2', 1), ('click', 0, 'element gone', 'e1', 0.9400000000000001)]
+M3.1 r27 stuck=back clause=[open Forgot Password] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=False | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 231, 'page changed', 'e20', 1), ('fill', 50, 'element gone', 'e1', 0.98), ('click', 392, 'filled', 'e2', 0.92), ('wait', 1000, 'element gone', 'none', 0.98), ('wait', 1000, None, 'none', 0.98), ('wait', 0, None, 'none', 0.98)]
+M5.1 r7 stuck=back clause=[open Dropdown] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 309, 'page changed', 'e11', 1), ('select', 58, 'element gone', 'e1', 0.99), ('click', 0, 'selected: Option 1', 'none', 0.61)]
+M5.1 r14 stuck=back clause=[open Add/Remove Elements] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=True | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 270, 'page changed', 'e2', 1), ('click', 0, 'element gone', 'e1', 0.96)]
+M5.1 r27 stuck=back clause=[open Forgot Password] decided_in_round=None | after: retried-clause committed-act=True advanced-to-next-clause=False | call end fallback/step-uncertain why=not-ready
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 307, 'page changed', 'e20', 1), ('fill', 55, 'element gone', 'e1', 0.98), ('click', 590, 'filled', 'e2', 0.93), ('wait', 1000, 'element gone', 'none', 0.97), ('wait', 1000, None, 'none', 0.98), ('wait', 0, None, 'none', 0.98)]
+M5.6 r3 stuck=open_home clause=[open the web address named home] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=True | call end fallback/step-uncertain why=low-confidence
+      retry rounds (action,actMs,hist,t1,t1P): [('click', 0, 'page changed', 'e14', 0.97)]
+M5.6 r13 stuck=give-up clause=[open Status Codes] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=False | call end fallback/step-uncertain why=low-confidence
+      retry rounds (action,actMs,hist,t1,t1P): []
+M5.7 r3 stuck=give-up clause=[open the web address named sc] decided_in_round=None | after: retried-clause committed-act=False advanced-to-next-clause=False | call end fallback/step-uncertain why=wrong-page
+      retry rounds (action,actMs,hist,t1,t1P): []
+recoveries (back/open_*): 11  retried clause committed: 9  advanced: 7  ended on same clause bounce: 4
+give-up: 4
+
+## D. evidence / waits
+M1.1: clickEvidence=[True] countEvidence=[2] max_consec_wait=3
+M1.2: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M1.3: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M1.6: clickEvidence=[True, True, True] countEvidence=[] max_consec_wait=1
+M1.7: clickEvidence=[True] countEvidence=[] max_consec_wait=0
+M1.10: clickEvidence=[True] countEvidence=[] max_consec_wait=0
+M3.1: clickEvidence=[True] countEvidence=[2] max_consec_wait=3
+M3.2: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M3.3: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M3.4: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M3.5: clickEvidence=[True] countEvidence=[] max_consec_wait=2
+M5.1: clickEvidence=[True, True] countEvidence=[2] max_consec_wait=3
+M5.2: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M5.3: clickEvidence=[] countEvidence=[] max_consec_wait=3
+M5.5: clickEvidence=[] countEvidence=[] max_consec_wait=2
+M5.6: clickEvidence=[True, True, True] countEvidence=[] max_consec_wait=1
+TOTAL clickEvidence 13 countEvidence 3
+
+## E. Add Element executed clicks per run
+cell M1: 2
+cell M3: 2
+cell M5: 2
+
+## F. per-round trace
+-- M1.1 fallback/step-uncertain why=not-ready progress=4/7 acts={'click': 8, 'check': 1, 'back': 4, 'select': 1, 'fill': 2, 'wait': 2}
+   r1: [open Checkboxes] click aP=0.9 hist=None sdP=0.06 rdy=0.59 rp=0.83 t1=e6/1 act_ms=456 stuck=None ce=None cnt=None
+   r2: [open Checkboxes] check aP=0.75 hist=element gone sdP=0.48 rdy=0.66 rp=0.81 t1=e1/0.68 act_ms=169 stuck=None ce=None cnt=None
+   r3: [open Checkboxes] check aP=0.28 hist=checked sdP=0.7 rdy=0.77 rp=0.87 t1=none/0.71 act_ms=0 stuck=None ce=None cnt=None
+   r4: [tick the first checkbox] none aP=0.44 hist=checked sdP=0.87 rdy=0.8 rp=0.9 t1=none/0.72 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open Dropdown] click aP=0.6 hist=checked sdP=0.08 rdy=0.57 rp=0.63 t1=none/0.95 act_ms=0 stuck=None ce=None cnt=None
+   r6: [open Dropdown] click aP=0.54 hist=checked sdP=0.09 rdy=0.57 rp=0.64 t1=none/0.9299999999999999 act_ms=0 stuck=None ce=None cnt=None
+   r7: [open Dropdown] None aP=None hist=checked sdP=None rdy=None rp=None t1=None/None act_ms=24 stuck=back ce=None cnt=None
+   r8: [open Dropdown] click aP=0.94 hist=page changed sdP=0.08 rdy=0.65 rp=0.83 t1=e11/1 act_ms=220 stuck=None ce=None cnt=None
+   r9: [open Dropdown] select aP=0.8200000000000001 hist=element gone sdP=0.3 rdy=0.64 rp=0.84 t1=e1/0.99 act_ms=51 stuck=None ce=None cnt=None
+   r10: [open Dropdown] click aP=0.42 hist=selected: Option 1 sdP=0.81 rdy=0.8 rp=0.86 t1=none/0.64 act_ms=0 stuck=None ce=None cnt=None
+   r11: [choose Option 1] click aP=0.32 hist=selected: Option 1 sdP=0.95 rdy=0.87 rp=0.91 t1=none/0.63 act_ms=0 stuck=None ce=None cnt=None
+   r12: [open Add/Remove Elements] click aP=0.69 hist=selected: Option 1 sdP=0.07 rdy=0.67 rp=0.67 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r13: [open Add/Remove Elements] click aP=0.67 hist=selected: Option 1 sdP=0.07 rdy=0.66 rp=0.67 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r14: [open Add/Remove Elements] None aP=None hist=selected: Option 1 sdP=None rdy=None rp=None t1=None/None act_ms=19 stuck=back ce=None cnt=None
+   r15: [open Add/Remove Elements] click aP=0.96 hist=page changed sdP=0.09 rdy=0.58 rp=0.78 t1=e2/1 act_ms=236 stuck=None ce=None cnt=None
+   r16: [open Add/Remove Elements] click aP=0.86 hist=element gone sdP=0.72 rdy=0.81 rp=0.88 t1=e1/0.94 act_ms=0 stuck=None ce=True cnt=None
+   r17: [click the Add Element button twice] click aP=0.99 hist=element gone sdP=0.08 rdy=0.78 rp=0.92 t1=e1/0.99 act_ms=85 stuck=None ce=None cnt=None
+   r18: [click the Add Element button twice] click aP=0.99 hist=page changed sdP=0.12 rdy=0.72 rp=0.91 t1=e1/1 act_ms=37 stuck=None ce=None cnt=None
+   r19: [click the Add Element button twice] none aP=0.36 hist=page changed sdP=0.9 rdy=0.81 rp=0.9 t1=none/0.85 act_ms=0 stuck=None ce=None cnt=2
+   r20: [open Inputs] back aP=0.73 hist=page changed sdP=0.06 rdy=0.58 rp=0.56 t1=none/1 act_ms=23 stuck=None ce=None cnt=None
+   r21: [open Inputs] click aP=0.96 hist=page changed sdP=0.08 rdy=0.54 rp=0.76 t1=e27/1 act_ms=241 stuck=None ce=None cnt=None
+   r22: [open Inputs] fill aP=0.94 hist=element gone sdP=0.38 rdy=0.79 rp=0.86 t1=e1/0.99 act_ms=64 stuck=None ce=None cnt=None
+   r23: [open Inputs] fill aP=0.42 hist=filled sdP=0.75 rdy=0.84 rp=0.85 t1=none/0.69 act_ms=0 stuck=None ce=None cnt=None
+   r24: [type the value named amount into the unlabeled number input] fill aP=0.54 hist=filled sdP=0.86 rdy=0.85 rp=0.89 t1=e1/0.7 act_ms=0 stuck=None ce=None cnt=None
+   r25: [open Forgot Password] click aP=0.7 hist=filled sdP=0.08 rdy=0.66 rp=0.69 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r26: [open Forgot Password] back aP=0.55 hist=filled sdP=0.08 rdy=0.7 rp=0.65 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r27: [open Forgot Password] None aP=None hist=filled sdP=None rdy=None rp=None t1=None/None act_ms=22 stuck=back ce=None cnt=None
+   r28: [open Forgot Password] click aP=0.97 hist=page changed sdP=0.09 rdy=0.63 rp=0.82 t1=e20/1 act_ms=238 stuck=None ce=None cnt=None
+   r29: [open Forgot Password] fill aP=0.82 hist=element gone sdP=0.42 rdy=0.79 rp=0.87 t1=e1/0.99 act_ms=51 stuck=None ce=None cnt=None
+   r30: [open Forgot Password] click aP=0.77 hist=filled sdP=0.4 rdy=0.79 rp=0.82 t1=e2/0.91 act_ms=387 stuck=None ce=None cnt=None
+   r31: [open Forgot Password] wait aP=0.46 hist=element gone sdP=0.44 rdy=0.21 rp=0.5 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r32: [open Forgot Password] wait aP=0.62 hist=None sdP=0.4 rdy=0.21 rp=0.5 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r33: [open Forgot Password] wait aP=0.62 hist=None sdP=0.48 rdy=0.2 rp=0.49 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M1.2 fallback/step-uncertain why=not-ready progress=4/7 acts={'wait': 2}
+   r1: [open Forgot Password] wait aP=0.7 hist=None sdP=0.08 rdy=0.08 rp=0.39 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r2: [open Forgot Password] wait aP=0.86 hist=None sdP=0.1 rdy=0.09 rp=0.3 t1=none/0.97 act_ms=1000 stuck=None ce=None cnt=None
+   r3: [open Forgot Password] wait aP=0.79 hist=None sdP=0.1 rdy=0.09 rp=0.37 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M1.3 fallback/step-uncertain why=not-ready progress=0/3 acts={'wait': 2}
+   r1: [open Forgot Password] wait aP=0.58 hist=None sdP=0.1 rdy=0.1 rp=0.36 t1=none/0.98 act_ms=1002 stuck=None ce=None cnt=None
+   r2: [open Forgot Password] wait aP=0.8 hist=None sdP=0.11 rdy=0.1 rp=0.31 t1=none/0.98 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [open Forgot Password] wait aP=0.76 hist=None sdP=0.15 rdy=0.11 rp=0.37 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M1.4 fallback/step-uncertain why=wrong-page progress=0/2 acts=None
+   r1: [open Dynamic Loading] navigate aP=0.43 hist=None sdP=0.07 rdy=0.05 rp=0.17 t1=none/0.99 act_ms=0 stuck=None ce=None cnt=None
+   r2: [open Dynamic Loading] navigate aP=0.4 hist=None sdP=0.06 rdy=0.05 rp=0.18 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open Dynamic Loading] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=0 stuck=give-up ce=None cnt=None
+-- M1.5 fallback/step-uncertain why=wrong-page progress=0/3 acts=None
+   r1: [open the web address named url] navigate aP=0.6 hist=None sdP=0.16 rdy=0.1 rp=0.16 t1=none/0.99 act_ms=0 stuck=None ce=None cnt=None
+   r2: [open the web address named url] navigate aP=0.68 hist=None sdP=0.17 rdy=0.12 rp=0.16 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open the web address named url] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=0 stuck=give-up ce=None cnt=None
+-- M1.6 fallback/step-uncertain why=no-match progress=2/3 acts={'navigate': 1, 'click': 3, 'back': 1}
+   r1: [open the web address named url] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=375 stuck=None ce=None cnt=None
+   r2: [open the web address named url] click aP=0.79 hist=page changed sdP=0.68 rdy=0.66 rp=0.79 t1=e14/0.99 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open Dynamic Loading] click aP=0.93 hist=page changed sdP=0.16 rdy=0.48 rp=0.78 t1=e14/1 act_ms=236 stuck=None ce=None cnt=None
+   r4: [open Dynamic Loading] click aP=0.51 hist=element gone sdP=0.62 rdy=0.62 rp=0.71 t1=e2/0.75 act_ms=0 stuck=None ce=True cnt=None
+   r5: [open the link named Example 2: Element rendered after the fact] click aP=0.89 hist=element gone sdP=0.11 rdy=0.55 rp=0.74 t1=e2/1 act_ms=235 stuck=None ce=None cnt=None
+   r6: [open the link named Example 2: Element rendered after the fact] click aP=0.7 hist=element gone sdP=0.82 rdy=0.61 rp=0.74 t1=e1/0.8099999999999999 act_ms=0 stuck=None ce=True cnt=None
+   r7: [click the Start button] click aP=0.8 hist=element gone sdP=0.12 rdy=0.5 rp=0.81 t1=e1/0.97 act_ms=81 stuck=None ce=None cnt=None
+   r8: [click the Start button] wait aP=0.64 hist=element gone sdP=0.72 rdy=0.5 rp=0.77 t1=none/0.94 act_ms=0 stuck=None ce=True cnt=None
+   r9: [open Status Codes] click aP=0.51 hist=element gone sdP=0.1 rdy=0.43 rp=0.6 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+   r10: [open Status Codes] click aP=0.55 hist=element gone sdP=0.09 rdy=0.46 rp=0.63 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+   r11: [open Status Codes] None aP=None hist=element gone sdP=None rdy=None rp=None t1=None/None act_ms=29 stuck=back ce=None cnt=None
+   r12: [open Status Codes] click aP=0.66 hist=page changed sdP=0.11 rdy=0.51 rp=0.66 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M1.7 fallback/step-uncertain why=no-match progress=1/2 acts={'navigate': 1, 'click': 3}
+   r1: [open the web address named url] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=122 stuck=None ce=None cnt=None
+   r2: [open the web address named url] click aP=0.6 hist=page changed sdP=0.61 rdy=0.66 rp=0.8 t1=e42/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open Status Codes] click aP=0.92 hist=page changed sdP=0.2 rdy=0.63 rp=0.82 t1=e42/1 act_ms=247 stuck=None ce=None cnt=None
+   r4: [open Status Codes] click aP=0.41000000000000003 hist=element gone sdP=0.42 rdy=0.55 rp=0.6 t1=e1/0.57 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open Status Codes] click aP=0.4 hist=element gone sdP=0.4 rdy=0.51 rp=0.59 t1=e1/0.68 act_ms=768 stuck=None ce=None cnt=None
+   r6: [open Status Codes] click aP=0.3 hist=element gone sdP=0.53 rdy=0.65 rp=0.68 t1=e40/0.46 act_ms=0 stuck=None ce=True cnt=None
+   r7: [open the 404 link] click aP=0.36 hist=element gone sdP=0.1 rdy=0.53 rp=0.58 t1=e40/0.78 act_ms=762 stuck=None ce=None cnt=None
+   r8: [open the 404 link] click aP=0.4 hist=element gone sdP=0.14 rdy=0.3 rp=0.58 t1=none/0.86 act_ms=0 stuck=None ce=None cnt=None
+   r9: [open the 404 link] click aP=0.33 hist=element gone sdP=0.13 rdy=0.3 rp=0.56 t1=none/0.9 act_ms=0 stuck=None ce=None cnt=None
+-- M1.8 fallback/step-uncertain why=low-confidence progress=0/2 acts={'back': 2}
+   r1: [go back] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=143 stuck=None ce=None cnt=None
+   r2: [go back] back aP=0.68 hist=page changed sdP=0.41 rdy=0.41 rp=0.24 t1=none/0.84 act_ms=25 stuck=None ce=None cnt=None
+   r3: [go back] back aP=0.55 hist=page changed sdP=0.48 rdy=0.72 rp=0.69 t1=e4/0.59 act_ms=0 stuck=None ce=None cnt=None
+   r4: [go back] back aP=0.53 hist=page changed sdP=0.51 rdy=0.72 rp=0.69 t1=e4/0.61 act_ms=0 stuck=None ce=None cnt=None
+-- M1.9 fallback/step-uncertain why=low-confidence progress=0/2 acts={'click': 1, 'back': 1}
+   r1: [go back] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=308 stuck=None ce=None cnt=None
+   r2: [go back] back aP=0.93 hist=element gone sdP=0.27 rdy=0.7 rp=0.55 t1=none/0.79 act_ms=29 stuck=None ce=None cnt=None
+   r3: [go back] back aP=0.5700000000000001 hist=page changed sdP=0.56 rdy=0.71 rp=0.78 t1=e4/0.78 act_ms=0 stuck=None ce=None cnt=None
+   r4: [go back] back aP=0.5 hist=page changed sdP=0.62 rdy=0.74 rp=0.79 t1=e4/0.87 act_ms=0 stuck=None ce=None cnt=None
+-- M1.10 done/goal-met why=None progress=1/1 acts={'click': 1}
+   r1: [click the 404 link] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=209 stuck=None ce=None cnt=None
+   r2: [click the 404 link] click aP=0.4 hist=element gone sdP=0.49 rdy=0.57 rp=0.65 t1=none/0.72 act_ms=0 stuck=None ce=None cnt=None
+   r3: [click the 404 link] click aP=0.39 hist=element gone sdP=0.58 rdy=0.62 rp=0.67 t1=none/0.73 act_ms=0 stuck=None ce=True cnt=None
+-- M3.1 fallback/step-uncertain why=not-ready progress=4/7 acts={'click': 8, 'check': 1, 'back': 4, 'select': 1, 'fill': 2, 'wait': 2}
+   r1: [open Checkboxes] click aP=0.92 hist=None sdP=0.06 rdy=0.55 rp=0.84 t1=e6/1 act_ms=441 stuck=None ce=None cnt=None
+   r2: [open Checkboxes] check aP=0.78 hist=element gone sdP=0.49 rdy=0.69 rp=0.82 t1=e1/0.77 act_ms=89 stuck=None ce=None cnt=None
+   r3: [open Checkboxes] click aP=0.32 hist=checked sdP=0.68 rdy=0.76 rp=0.86 t1=none/0.69 act_ms=0 stuck=None ce=None cnt=None
+   r4: [tick the first checkbox] none aP=0.47000000000000003 hist=checked sdP=0.88 rdy=0.8 rp=0.91 t1=none/0.65 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open Dropdown] click aP=0.66 hist=checked sdP=0.09 rdy=0.58 rp=0.66 t1=none/0.92 act_ms=0 stuck=None ce=None cnt=None
+   r6: [open Dropdown] click aP=0.55 hist=checked sdP=0.09 rdy=0.62 rp=0.64 t1=none/0.92 act_ms=0 stuck=None ce=None cnt=None
+   r7: [open Dropdown] None aP=None hist=checked sdP=None rdy=None rp=None t1=None/None act_ms=26 stuck=back ce=None cnt=None
+   r8: [open Dropdown] click aP=0.94 hist=page changed sdP=0.07 rdy=0.65 rp=0.83 t1=e11/1 act_ms=421 stuck=None ce=None cnt=None
+   r9: [open Dropdown] select aP=0.86 hist=element gone sdP=0.32 rdy=0.68 rp=0.85 t1=e1/0.98 act_ms=54 stuck=None ce=None cnt=None
+   r10: [open Dropdown] click aP=0.44 hist=selected: Option 1 sdP=0.75 rdy=0.79 rp=0.84 t1=none/0.61 act_ms=0 stuck=None ce=None cnt=None
+   r11: [choose Option 1] click aP=0.43 hist=selected: Option 1 sdP=0.95 rdy=0.87 rp=0.91 t1=none/0.66 act_ms=0 stuck=None ce=None cnt=None
+   r12: [open Add/Remove Elements] click aP=0.64 hist=selected: Option 1 sdP=0.07 rdy=0.61 rp=0.69 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r13: [open Add/Remove Elements] click aP=0.75 hist=selected: Option 1 sdP=0.08 rdy=0.61 rp=0.7 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+   r14: [open Add/Remove Elements] None aP=None hist=selected: Option 1 sdP=None rdy=None rp=None t1=None/None act_ms=30 stuck=back ce=None cnt=None
+   r15: [open Add/Remove Elements] click aP=0.96 hist=page changed sdP=0.1 rdy=0.59 rp=0.8 t1=e2/1 act_ms=344 stuck=None ce=None cnt=None
+   r16: [open Add/Remove Elements] click aP=0.8 hist=element gone sdP=0.7 rdy=0.8 rp=0.88 t1=e1/0.9400000000000001 act_ms=0 stuck=None ce=True cnt=None
+   r17: [click the Add Element button twice] click aP=0.99 hist=element gone sdP=0.09 rdy=0.76 rp=0.92 t1=e1/0.99 act_ms=70 stuck=None ce=None cnt=None
+   r18: [click the Add Element button twice] click aP=0.99 hist=page changed sdP=0.13 rdy=0.69 rp=0.92 t1=e1/1 act_ms=45 stuck=None ce=None cnt=None
+   r19: [click the Add Element button twice] none aP=0.36 hist=page changed sdP=0.9 rdy=0.82 rp=0.91 t1=none/0.86 act_ms=0 stuck=None ce=None cnt=2
+   r20: [open Inputs] back aP=0.68 hist=page changed sdP=0.08 rdy=0.53 rp=0.54 t1=none/1 act_ms=28 stuck=None ce=None cnt=None
+   r21: [open Inputs] click aP=0.95 hist=page changed sdP=0.09 rdy=0.55 rp=0.76 t1=e27/1 act_ms=380 stuck=None ce=None cnt=None
+   r22: [open Inputs] fill aP=0.96 hist=element gone sdP=0.43 rdy=0.81 rp=0.86 t1=e1/0.99 act_ms=51 stuck=None ce=None cnt=None
+   r23: [open Inputs] back aP=0.38 hist=filled sdP=0.82 rdy=0.83 rp=0.84 t1=none/0.72 act_ms=0 stuck=None ce=None cnt=None
+   r24: [type the value named amount into the unlabeled number input] fill aP=0.5 hist=filled sdP=0.87 rdy=0.86 rp=0.9 t1=e1/0.66 act_ms=0 stuck=None ce=None cnt=None
+   r25: [open Forgot Password] click aP=0.56 hist=filled sdP=0.08 rdy=0.67 rp=0.68 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r26: [open Forgot Password] click aP=0.6 hist=filled sdP=0.09 rdy=0.67 rp=0.67 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r27: [open Forgot Password] None aP=None hist=filled sdP=None rdy=None rp=None t1=None/None act_ms=31 stuck=back ce=None cnt=None
+   r28: [open Forgot Password] click aP=0.95 hist=page changed sdP=0.09 rdy=0.59 rp=0.82 t1=e20/1 act_ms=231 stuck=None ce=None cnt=None
+   r29: [open Forgot Password] fill aP=0.81 hist=element gone sdP=0.47 rdy=0.8 rp=0.86 t1=e1/0.98 act_ms=50 stuck=None ce=None cnt=None
+   r30: [open Forgot Password] click aP=0.89 hist=filled sdP=0.38 rdy=0.79 rp=0.84 t1=e2/0.92 act_ms=392 stuck=None ce=None cnt=None
+   r31: [open Forgot Password] wait aP=0.42 hist=element gone sdP=0.41 rdy=0.18 rp=0.47 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r32: [open Forgot Password] wait aP=0.61 hist=None sdP=0.41 rdy=0.21 rp=0.48 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r33: [open Forgot Password] wait aP=0.65 hist=None sdP=0.42 rdy=0.21 rp=0.47 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M3.2 fallback/step-uncertain why=not-ready progress=4/7 acts={'wait': 2}
+   r1: [open Forgot Password] wait aP=0.73 hist=None sdP=0.09 rdy=0.07 rp=0.43 t1=none/0.97 act_ms=1000 stuck=None ce=None cnt=None
+   r2: [open Forgot Password] wait aP=0.84 hist=None sdP=0.09 rdy=0.08 rp=0.31 t1=none/0.98 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [open Forgot Password] wait aP=0.79 hist=None sdP=0.13 rdy=0.09 rp=0.38 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M3.3 fallback/step-uncertain why=not-ready progress=0/4 acts={'wait': 2}
+   r1: [reload the page] wait aP=0.82 hist=None sdP=0.12 rdy=0.17 rp=0.37 t1=none/0.98 act_ms=1002 stuck=None ce=None cnt=None
+   r2: [reload the page] wait aP=0.93 hist=None sdP=0.14 rdy=0.2 rp=0.31 t1=none/0.98 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [reload the page] wait aP=0.93 hist=None sdP=0.15 rdy=0.2 rp=0.4 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M3.4 fallback/step-uncertain why=not-ready progress=0/4 acts={'reload': 1, 'wait': 2}
+   r1: [reload the page] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=636 stuck=None ce=None cnt=None
+   r2: [reload the page] wait aP=0.85 hist=no visible change sdP=0.33 rdy=0.16 rp=0.3 t1=none/0.96 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [reload the page] wait aP=0.89 hist=None sdP=0.35 rdy=0.21 rp=0.28 t1=none/0.97 act_ms=1000 stuck=None ce=None cnt=None
+   r4: [reload the page] wait aP=0.9 hist=None sdP=0.3 rdy=0.23 rp=0.38 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M3.5 error/page-error why=None progress=1/2 acts={'navigate': 1, 'click': 2, 'fill': 1, 'reload': 1}
+   r1: [open <value:start>] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=116 stuck=None ce=None cnt=None
+   r2: [open <value:start>] click aP=0.78 hist=page changed sdP=0.52 rdy=0.73 rp=0.8 t1=e20/0.99 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open Forgot Password] click aP=0.91 hist=page changed sdP=0.11 rdy=0.51 rp=0.77 t1=e20/1 act_ms=262 stuck=None ce=None cnt=None
+   r4: [open Forgot Password] wait aP=0.49 hist=element gone sdP=0.5 rdy=0.56 rp=0.7 t1=e1/0.76 act_ms=0 stuck=None ce=True cnt=None
+   r5: [enter the value named email into the E-mail field] fill aP=0.74 hist=element gone sdP=0.12 rdy=0.47 rp=0.6 t1=e1/0.95 act_ms=49 stuck=None ce=None cnt=None
+   r6: [enter the value named email into the E-mail field] fill aP=0.8 hist=filled sdP=0.64 rdy=0.72 rp=0.8 t1=e1/0.89 act_ms=0 stuck=None ce=None cnt=None
+   r7: [click the Retrieve password button] click aP=0.97 hist=filled sdP=0.19 rdy=0.56 rp=0.7 t1=e2/0.99 act_ms=420 stuck=None ce=None cnt=None
+   r8: [click the Retrieve password button] wait aP=0.48 hist=element gone sdP=0.32 rdy=0.14 rp=0.28 t1=none/0.96 act_ms=222 stuck=None ce=None cnt=None
+   r9: [click the Retrieve password button] wait aP=0.45 hist=no visible change sdP=0.29 rdy=0.15 rp=0.27 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+-- M5.1 fallback/step-uncertain why=not-ready progress=4/7 acts={'click': 8, 'check': 1, 'back': 4, 'select': 1, 'fill': 2, 'wait': 2}
+   r1: [open Checkboxes] click aP=0.88 hist=None sdP=0.05 rdy=0.59 rp=0.83 t1=e6/1 act_ms=237 stuck=None ce=None cnt=None
+   r2: [open Checkboxes] check aP=0.86 hist=element gone sdP=0.52 rdy=0.73 rp=0.83 t1=e1/0.8 act_ms=0 stuck=None ce=True cnt=None
+   r3: [tick the first checkbox] check aP=0.86 hist=element gone sdP=0.13 rdy=0.63 rp=0.85 t1=e1/0.79 act_ms=144 stuck=None ce=None cnt=None
+   r4: [tick the first checkbox] none aP=0.42 hist=checked sdP=0.87 rdy=0.81 rp=0.91 t1=none/0.68 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open Dropdown] click aP=0.61 hist=checked sdP=0.09 rdy=0.59 rp=0.65 t1=none/0.94 act_ms=0 stuck=None ce=None cnt=None
+   r6: [open Dropdown] click aP=0.65 hist=checked sdP=0.08 rdy=0.59 rp=0.65 t1=none/0.95 act_ms=0 stuck=None ce=None cnt=None
+   r7: [open Dropdown] None aP=None hist=checked sdP=None rdy=None rp=None t1=None/None act_ms=29 stuck=back ce=None cnt=None
+   r8: [open Dropdown] click aP=0.9400000000000001 hist=page changed sdP=0.09 rdy=0.66 rp=0.82 t1=e11/1 act_ms=309 stuck=None ce=None cnt=None
+   r9: [open Dropdown] select aP=0.9 hist=element gone sdP=0.3 rdy=0.72 rp=0.87 t1=e1/0.99 act_ms=58 stuck=None ce=None cnt=None
+   r10: [open Dropdown] click aP=0.4 hist=selected: Option 1 sdP=0.8 rdy=0.82 rp=0.87 t1=none/0.61 act_ms=0 stuck=None ce=None cnt=None
+   r11: [choose Option 1] click aP=0.33 hist=selected: Option 1 sdP=0.95 rdy=0.87 rp=0.92 t1=none/0.68 act_ms=0 stuck=None ce=None cnt=None
+   r12: [open Add/Remove Elements] click aP=0.76 hist=selected: Option 1 sdP=0.07 rdy=0.64 rp=0.75 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+   r13: [open Add/Remove Elements] click aP=0.75 hist=selected: Option 1 sdP=0.08 rdy=0.65 rp=0.72 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r14: [open Add/Remove Elements] None aP=None hist=selected: Option 1 sdP=None rdy=None rp=None t1=None/None act_ms=31 stuck=back ce=None cnt=None
+   r15: [open Add/Remove Elements] click aP=0.94 hist=page changed sdP=0.09 rdy=0.56 rp=0.81 t1=e2/1 act_ms=270 stuck=None ce=None cnt=None
+   r16: [open Add/Remove Elements] click aP=0.92 hist=element gone sdP=0.75 rdy=0.8 rp=0.89 t1=e1/0.96 act_ms=0 stuck=None ce=True cnt=None
+   r17: [click the Add Element button twice] click aP=1 hist=element gone sdP=0.08 rdy=0.77 rp=0.92 t1=e1/1 act_ms=84 stuck=None ce=None cnt=None
+   r18: [click the Add Element button twice] click aP=0.99 hist=page changed sdP=0.12 rdy=0.7 rp=0.91 t1=e1/1 act_ms=51 stuck=None ce=None cnt=None
+   r19: [click the Add Element button twice] none aP=0.49 hist=page changed sdP=0.88 rdy=0.8 rp=0.9 t1=none/0.8099999999999999 act_ms=0 stuck=None ce=None cnt=2
+   r20: [open Inputs] back aP=0.7 hist=page changed sdP=0.07 rdy=0.56 rp=0.58 t1=none/1 act_ms=33 stuck=None ce=None cnt=None
+   r21: [open Inputs] click aP=0.9400000000000001 hist=page changed sdP=0.07 rdy=0.53 rp=0.75 t1=e27/1 act_ms=308 stuck=None ce=None cnt=None
+   r22: [open Inputs] fill aP=0.95 hist=element gone sdP=0.37 rdy=0.8 rp=0.86 t1=e1/0.99 act_ms=55 stuck=None ce=None cnt=None
+   r23: [open Inputs] fill aP=0.36 hist=filled sdP=0.83 rdy=0.84 rp=0.84 t1=none/0.71 act_ms=0 stuck=None ce=None cnt=None
+   r24: [type the value named amount into the unlabeled number input] fill aP=0.58 hist=filled sdP=0.86 rdy=0.85 rp=0.88 t1=e1/0.63 act_ms=0 stuck=None ce=None cnt=None
+   r25: [open Forgot Password] click aP=0.58 hist=filled sdP=0.08 rdy=0.66 rp=0.7 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+   r26: [open Forgot Password] click aP=0.6 hist=filled sdP=0.08 rdy=0.64 rp=0.68 t1=none/0.96 act_ms=0 stuck=None ce=None cnt=None
+   r27: [open Forgot Password] None aP=None hist=filled sdP=None rdy=None rp=None t1=None/None act_ms=28 stuck=back ce=None cnt=None
+   r28: [open Forgot Password] click aP=0.95 hist=page changed sdP=0.09 rdy=0.58 rp=0.82 t1=e20/1 act_ms=307 stuck=None ce=None cnt=None
+   r29: [open Forgot Password] fill aP=0.84 hist=element gone sdP=0.4 rdy=0.8 rp=0.86 t1=e1/0.98 act_ms=55 stuck=None ce=None cnt=None
+   r30: [open Forgot Password] click aP=0.89 hist=filled sdP=0.39 rdy=0.81 rp=0.85 t1=e2/0.93 act_ms=590 stuck=None ce=None cnt=None
+   r31: [open Forgot Password] wait aP=0.47 hist=element gone sdP=0.42 rdy=0.18 rp=0.49 t1=none/0.97 act_ms=1000 stuck=None ce=None cnt=None
+   r32: [open Forgot Password] wait aP=0.62 hist=None sdP=0.44 rdy=0.22 rp=0.47 t1=none/0.98 act_ms=1000 stuck=None ce=None cnt=None
+   r33: [open Forgot Password] wait aP=0.65 hist=None sdP=0.41 rdy=0.19 rp=0.47 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M5.2 fallback/step-uncertain why=not-ready progress=4/7 acts={'wait': 2}
+   r1: [open Forgot Password] wait aP=0.68 hist=None sdP=0.08 rdy=0.08 rp=0.42 t1=none/0.97 act_ms=1001 stuck=None ce=None cnt=None
+   r2: [open Forgot Password] wait aP=0.83 hist=None sdP=0.1 rdy=0.07 rp=0.3 t1=none/0.97 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [open Forgot Password] wait aP=0.79 hist=None sdP=0.13 rdy=0.08 rp=0.37 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M5.3 fallback/step-uncertain why=not-ready progress=0/4 acts={'reload': 1, 'wait': 2}
+   r1: [reload the page] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=453 stuck=None ce=None cnt=None
+   r2: [reload the page] wait aP=0.74 hist=no visible change sdP=0.41 rdy=0.22 rp=0.33 t1=none/0.97 act_ms=1001 stuck=None ce=None cnt=None
+   r3: [reload the page] wait aP=0.79 hist=None sdP=0.43 rdy=0.29 rp=0.35 t1=none/0.97 act_ms=1000 stuck=None ce=None cnt=None
+   r4: [reload the page] wait aP=0.85 hist=None sdP=0.38 rdy=0.26 rp=0.32 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+-- M5.4 done/goal-met why=None progress=1/1 acts={'navigate': 1}
+   r1: [open the web address named url] navigate aP=0.95 hist=None sdP=0.14 rdy=0.13 rp=0.15 t1=none/0.94 act_ms=136 stuck=None ce=None cnt=None
+   r2: [open the web address named url] navigate aP=0.88 hist=page changed sdP=0.7 rdy=0.61 rp=0.5 t1=none/0.94 act_ms=0 stuck=None ce=None cnt=None
+-- M5.5 fallback/no-progress why=no-progress progress=0/3 acts={'fill': 1, 'click': 1, 'reload': 1}
+   r1: [enter the value named email into the E-mail field] fill aP=1 hist=None sdP=0.06 rdy=0.65 rp=0.91 t1=e1/0.98 act_ms=55 stuck=None ce=None cnt=None
+   r2: [enter the value named email into the E-mail field] click aP=0.77 hist=filled sdP=0.88 rdy=0.7 rp=0.9 t1=e2/0.91 act_ms=0 stuck=None ce=None cnt=None
+   r3: [click the Retrieve password button] click aP=1 hist=filled sdP=0.12 rdy=0.68 rp=0.88 t1=e2/1 act_ms=506 stuck=None ce=None cnt=None
+   r4: [click the Retrieve password button] wait aP=0.59 hist=element gone sdP=0.46 rdy=0.17 rp=0.39 t1=none/0.97 act_ms=204 stuck=None ce=None cnt=None
+   r5: [click the Retrieve password button] wait aP=0.52 hist=no visible change sdP=0.48 rdy=0.17 rp=0.48 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+-- M5.6 fallback/step-uncertain why=low-confidence progress=2/3 acts={'navigate': 1, 'click': 3}
+   r1: [open the web address named home] navigate aP=0.55 hist=None sdP=0.16 rdy=0.14 rp=0.17 t1=none/0.98 act_ms=0 stuck=None ce=None cnt=None
+   r2: [open the web address named home] navigate aP=0.47 hist=None sdP=0.15 rdy=0.1 rp=0.18 t1=none/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open the web address named home] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=118 stuck=open_home ce=None cnt=None
+   r4: [open the web address named home] click aP=0.7 hist=page changed sdP=0.92 rdy=0.81 rp=0.83 t1=e14/0.97 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open Dynamic Loading] click aP=0.93 hist=page changed sdP=0.09 rdy=0.57 rp=0.85 t1=e14/1 act_ms=239 stuck=None ce=None cnt=None
+   r6: [open Dynamic Loading] click aP=0.46 hist=element gone sdP=0.66 rdy=0.54 rp=0.67 t1=e2/0.83 act_ms=0 stuck=None ce=True cnt=None
+   r7: [open the link named Example 2: Element rendered after the fact] click aP=0.73 hist=element gone sdP=0.1 rdy=0.53 rp=0.71 t1=e2/0.99 act_ms=207 stuck=None ce=None cnt=None
+   r8: [open the link named Example 2: Element rendered after the fact] click aP=0.7 hist=element gone sdP=0.78 rdy=0.6 rp=0.76 t1=e1/0.76 act_ms=0 stuck=None ce=True cnt=None
+   r9: [click the Start button] click aP=0.76 hist=element gone sdP=0.11 rdy=0.47 rp=0.84 t1=e1/0.98 act_ms=92 stuck=None ce=None cnt=None
+   r10: [click the Start button] wait aP=0.5700000000000001 hist=element gone sdP=0.71 rdy=0.43 rp=0.78 t1=none/0.95 act_ms=0 stuck=None ce=True cnt=None
+   r11: [open Status Codes] back aP=0.41 hist=element gone sdP=0.07 rdy=0.37 rp=0.54 t1=none/0.95 act_ms=0 stuck=None ce=None cnt=None
+   r12: [open Status Codes] back aP=0.39 hist=element gone sdP=0.07 rdy=0.31 rp=0.53 t1=none/0.94 act_ms=0 stuck=None ce=None cnt=None
+   r13: [open Status Codes] None aP=None hist=element gone sdP=None rdy=None rp=None t1=None/None act_ms=0 stuck=give-up ce=None cnt=None
+-- M5.7 fallback/step-uncertain why=wrong-page progress=0/2 acts=None
+   r1: [open the web address named sc] navigate aP=0.66 hist=None sdP=0.1 rdy=0.32 rp=0.29 t1=none/0.9 act_ms=0 stuck=None ce=None cnt=None
+   r2: [open the web address named sc] navigate aP=0.7 hist=None sdP=0.1 rdy=0.29 rp=0.29 t1=none/0.89 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open the web address named sc] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=0 stuck=give-up ce=None cnt=None
+-- M5.8 fallback/step-uncertain why=low-confidence progress=1/2 acts={'navigate': 1, 'click': 1}
+   r1: [open the web address named sc] None aP=None hist=None sdP=None rdy=None rp=None t1=None/None act_ms=110 stuck=None ce=None cnt=None
+   r2: [open the web address named sc] click aP=0.67 hist=page changed sdP=0.72 rdy=0.7 rp=0.66 t1=e1/0.77 act_ms=0 stuck=None ce=None cnt=None
+   r3: [open the 404 link] click aP=0.76 hist=page changed sdP=0.13 rdy=0.56 rp=0.66 t1=e4/0.83 act_ms=226 stuck=None ce=None cnt=None
+   r4: [open the 404 link] click aP=0.46 hist=element gone sdP=0.33 rdy=0.3 rp=0.54 t1=e1/0.56 act_ms=0 stuck=None ce=None cnt=None
+   r5: [open the 404 link] click aP=0.46 hist=element gone sdP=0.36 rdy=0.31 rp=0.54 t1=e1/0.57 act_ms=0 stuck=None ce=None cnt=None
