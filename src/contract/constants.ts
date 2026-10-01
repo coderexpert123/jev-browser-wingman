@@ -146,3 +146,5 @@ export const CLASSIFY_TIMEOUT_MS = 10_000;
 export const READY_MAX_WAITS = 2;          // consecutive not-ready rounds that wait; the next one bounces `not-ready`
 export const WRONG_PAGE_MAX = 2;           // consecutive low `right_page` rounds on one clause → bounce `wrong-page`
 export const RECOVER_MAX_PER_CLAUSE = 2;   // recover acts per clause; the next error ends `error/page-error`
+// r13: a chain clause's `none` target probability at or above this, on a fresh clause whose decided action is click/navigate/back, triggers the stuck recover ask (from r12: hub-miss rounds answered none at 0.80-1.0)
+export const STUCK_NONE_MIN = 0.8;

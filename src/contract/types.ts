@@ -169,6 +169,8 @@ export interface WingmanLogRecord {
   step_review?: { why: string; candidates: number };
   // WP-click: the redacted first chain clause (chain mode only, capped to 300 chars).
   step_texts_start?: string;
+  // r13: the sanitized act error (op in flight, first and last message lines), written only on the exception path.
+  act_error?: { op?: Op; head: string; tail?: string };
   // Per-phase wall-time breakdown, ms. Numbers only — never page text.
   // attachMs/firstObserveMs are once per invocation; rounds is one entry per
   // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
@@ -204,6 +206,8 @@ export interface WingmanLogRecord {
       // only on the round where bare-click evidence fired.
       step_text?: string;
       clickEvidence?: true;
+      // r13: set only on a stuck-recover round: the validated chosen id (back / open_<name>) or give-up.
+      stuck?: string;
     }>;
   };
 }

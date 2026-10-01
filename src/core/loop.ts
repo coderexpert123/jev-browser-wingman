@@ -17,6 +17,7 @@ import {
   READY_MAX_WAITS,
   RECOVER_MAX_PER_CLAUSE,
   SETTLE_MAX_MS,
+  STUCK_NONE_MIN,
   TAKEOVER_MARGIN_FLOOR,
   TAKEOVER_MARGIN_RATIO,
   THRESHOLDS,
@@ -53,7 +54,9 @@ import {
   AttachError,
   CoveredTargetError,
   DialogOpenError,
+  NoHistoryError,
   StaleElementError,
+  WingmanError,
 } from '../contract/errors.js';
 import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
@@ -65,11 +68,14 @@ import {
   buildGroupRequest,
   buildOptionFinalRequest,
   buildOptionRequests,
+  buildRecoverRequest,
   buildRoundRequest,
   buildTargetRequest,
   elementCriterion,
   offeredOps,
+  RECOVER_OPEN_PREFIX,
   UNTRUSTED_SENTENCE,
+  urlBindings,
 } from './questions.js';
 import { candidateOf, resolvePick, validatePick } from './pick.js';
 import { registrableDomain } from './etld.js';
@@ -189,7 +195,7 @@ const bounceCounts = new Map<string, number>();
 // returned). A done call deletes its entry; every other end stores the cursor
 // and the accumulated act count. Eviction is oldest-first above
 // CHAIN_MEMORY_MAX.
-interface ChainMemoryEntry { cursor: number; acts: number }
+interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean }
 const chainMemory = new Map<string, ChainMemoryEntry>();
 
 /** Chain state for the current browse_step call, when it runs chain mode
@@ -212,7 +218,22 @@ interface ChainState {
   wrongPageRounds: number;
   notReadyRounds: number;
   recoverActs: number;
+  // r13 stuck recover (D1): `cursorActed` = an element-targeted act already
+  // happened on this clause; `stuckUsed` = the one stuck round was started;
+  // `stuckPending` = a deferred stuck round awaits (set at the would-be bounce).
+  cursorActed: boolean;
+  stuckUsed: boolean;
+  stuckPending: StuckPending | null;
 }
+
+/** r13: the bounce a stuck recovery defers (why + the candidates captured at trigger time). */
+type StuckPending = {
+  why: 'no-match' | 'low-confidence' | 'wrong-page';
+  candidates: Array<{ label: string; role?: string; name?: string }>;
+};
+
+/** r13 D1 rule 7: the decided action verbs that may trigger a stuck recovery. */
+const STUCK_VERBS: ReadonlySet<string> = new Set(['click', 'navigate', 'back']);
 
 function isPlainObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
@@ -264,6 +285,9 @@ interface HistoryEntry {
   // evidence check must fall back to "unconfirmed" rather than guess.
   // Internal only — never reaches buildState's history mapping.
   intendedLabel?: string;
+  // r13 D6: a stuck-recover navigate that is NOT the clause's own named
+  // binding act is never step evidence. Internal only.
+  stuckRecover?: true;
 }
 
 /** § outcome evidence: element-state verbs read `state` directly (no new
@@ -452,7 +476,8 @@ function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEnt
  *   - check/'checked', uncheck/'unchecked': these are two-valued and the
  *     value IS the goal, so no before-check is needed (unlike fill, a
  *     confirmed 'checked' can't be "the wrong value").
- *   - navigate (r12): `result === 'page changed'` — navigate only ever targets
+ *   - navigate (r12): `result === 'page changed'` (r13 D6: unless the entry is a
+ *     stuck-recover navigate, `stuckRecover`, that the clause did not name) — navigate only ever targets
  *     a url-typed binding Jev chose, and a landed navigation that visibly
  *     changed the page is the step's end state. back/reload are NOT evidence.
  *     Residual risk: this cannot verify it is the RIGHT page — right_page /
@@ -466,7 +491,7 @@ function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEnt
 function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
   const last = lastEvidenceEntry(history, currentStepKey);
   if (last === undefined) return false;
-  if (last.verb === 'navigate') return last.result === 'page changed';
+  if (last.verb === 'navigate') return last.stuckRecover !== true && last.result === 'page changed';
   if (!ELEMENT_STATE_VERBS.has(last.verb) || last.result === undefined) return false;
   switch (last.verb) {
     case 'fill':
@@ -858,6 +883,66 @@ function bindingsInStep(step: string, values: Record<string, string>): string[] 
     .map((b) => b.name);
 }
 
+/** r13 D4: the exact predicate decideTarget's navigate branch and the stuck
+ * round share — a url-typed binding whose value is an http(s) address. */
+function isNavigableBinding(name: string, values: Record<string, string>): boolean {
+  return name in values && typeHint(values[name]) === 'url' && /^https?:\/\//i.test(values[name]);
+}
+
+/** r13 D3: origin plus pathname equality; false on any parse error. */
+function sameDocument(a: string, b: string): boolean {
+  try {
+    const ua = new URL(a);
+    const ub = new URL(b);
+    return ua.origin === ub.origin && ua.pathname === ub.pathname;
+  } catch {
+    return false;
+  }
+}
+
+/** r13 D3: the one reader of a recover answer, shared by the error path
+ * (decideEarly, runChainEarly rule 4) and the stuck round: the chosen id when
+ * its probability clears THRESHOLDS.recover, else 'give-up'. */
+function recoverChoice(answers: AnswerMap): string {
+  const rec = answers['recover'] as JevChoiceAnswer | undefined;
+  const rc = rec?.choice;
+  return rec && typeof rc === 'string' && (rec.probabilities[rc] ?? 0) >= THRESHOLDS.recover ? rc : 'give-up';
+}
+
+/** r13 D8: one error-message line with page content stripped — cut at the first
+ * `<` (drops HTML snippets), quote-strip, redact bound values, collapse
+ * whitespace, strip one leading `-`, cap at 120 chars. */
+function sanitizeErrorLine(line: string, values: Record<string, string>): string {
+  let s = line;
+  const lt = s.indexOf('<');
+  if (lt >= 0) s = s.slice(0, lt) + '…';
+  s = s.replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '…');
+  s = redactValues(s, values);
+  s = s.replace(/\s+/g, ' ').trim();
+  if (s.startsWith('-')) s = s.slice(1).trim();
+  return s.slice(0, 120);
+}
+
+/** r13 D8: the act-error log field. A non-WingmanError never carries message
+ * text (only its class name); a WingmanError carries the sanitized first line
+ * and, with two or more lines, the sanitized last line. */
+export function describeActError(
+  e: unknown,
+  op: Op | null,
+  values: Record<string, string>,
+): { op?: Op; head: string; tail?: string } {
+  const opPart = op !== null ? { op } : {};
+  if (!(e instanceof WingmanError)) {
+    return { ...opPart, head: e instanceof Error ? 'fault: ' + e.name : 'fault' };
+  }
+  const lines = e.message
+    .split(/\r?\n/)
+    .map((l) => sanitizeErrorLine(l, values))
+    .filter((l) => l !== '');
+  const head = lines[0] ?? '';
+  return lines.length >= 2 ? { ...opPart, head, tail: lines[lines.length - 1] } : { ...opPart, head };
+}
+
 /** Appends the value-question anchor before the fixed untrusted-data sentence,
  * which always stays last (§ 3.6). No-op when the request carries no value
  * question. Static text only — never a value. */
@@ -1114,6 +1199,11 @@ async function runTool(
   const actsByOp: Partial<Record<Op, number>> = {};
   // § 5.5.2 chain state for this call, when browse_step runs chain mode.
   let chainState: ChainState | null = null;
+  // r13 D8: the op of the driver.act call in flight (set just before each of
+  // the 2 act sites, cleared after it resolves) and the sanitized act error
+  // the catch block records for the log.
+  let inFlightOp: Op | null = null;
+  let actError: WingmanLogRecord['act_error'];
 
   // Per-phase wall-time capture (ms). Numbers only — never page text.
   // `cur` is the round bucket the current ask/act/settle belongs to. The
@@ -1136,6 +1226,7 @@ async function runTool(
     countEvidence?: number;
     step_text?: string;    // redacted current step text (chain clause or legacy step), browse_step only
     clickEvidence?: true;  // WP-click: set on the round where bare-click evidence fired
+    stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
   };
   const phaseAcc: {
     attachMs?: number;
@@ -1270,6 +1361,8 @@ async function runTool(
         chainMemory.set(chainState.key, {
           cursor: chainState.cursor,
           acts: chainState.priorActs + steps,
+          cursorActed: chainState.cursorActed,
+          stuckTried: chainState.stuckUsed,
         });
         while (chainMemory.size > CHAIN_MEMORY_MAX) {
           const oldest = chainMemory.keys().next().value;
@@ -1358,6 +1451,7 @@ async function runTool(
       // (handoffRecordsFromLog parses log.jsonl, so it has to ride here).
       ...(r.step_review ? { step_review: { why: r.step_review.why, candidates: r.step_review.candidates.length } } : {}),
       ...(phaseAcc.stepTextsStart !== undefined ? { step_texts_start: phaseAcc.stepTextsStart } : {}),
+      ...(actError !== undefined ? { act_error: actError } : {}),
       phases: {
         ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
         ...(phaseAcc.firstObserveMs !== undefined ? { firstObserveMs: phaseAcc.firstObserveMs } : {}),
@@ -1556,10 +1650,7 @@ async function runTool(
         return { result: mk('error', 'page-error') };
       }
       // § 5.5.4 recover, exactly as chain rule 4; the counter is per call.
-      const rec = answers['recover'] as JevChoiceAnswer | undefined;
-      const rc = rec?.choice;
-      const r =
-        rec && typeof rc === 'string' && (rec.probabilities[rc] ?? 0) >= THRESHOLDS.recover ? rc : 'give-up';
+      const r = recoverChoice(answers);
       if (r === 'give-up' || legacyRecoverActs >= RECOVER_MAX_PER_CLAUSE) {
         return { result: mk('error', 'page-error') };
       }
@@ -1739,10 +1830,8 @@ async function runTool(
         urlAnswer &&
         typeof c === 'string' &&
         c !== 'none' &&
-        c in values &&
         (urlAnswer.probabilities[c] ?? 0) >= THRESHOLDS.url &&
-        typeHint(values[c]) === 'url' &&
-        /^https?:\/\//i.test(values[c])
+        isNavigableBinding(c, values)
       ) {
         binding = c;
       } else {
@@ -1889,7 +1978,9 @@ async function runTool(
       return { result: mk('fallback', 'budget-time'), history };
     }
     const tAct0 = now();
+    inFlightOp = action.verb;
     await driver.act(pageId, el.id, action.verb, actValue);
+    inFlightOp = null;
     if (cur) cur.actMs += now() - tAct0;
     if (action.verb === 'wait') {
       // never counts as a step (§ 5.5.3)
@@ -2029,6 +2120,11 @@ async function runTool(
     } else if (e instanceof ActFailedError) {
       reason = 'act-failed';
     }
+    actError = describeActError(
+      e,
+      inFlightOp,
+      tool === 'wingman_check' ? {} : ((validated.input as DoInput | StepInput).values ?? {}),
+    );
     return await finish(mk(status, reason));
   } finally {
     if (driver && attached) {
@@ -2116,6 +2212,9 @@ async function runTool(
         wrongPageRounds: 0,
         notReadyRounds: 0,
         recoverActs: 0,
+        cursorActed: mem?.cursorActed ?? false,
+        stuckUsed: mem?.stuckTried ?? false,
+        stuckPending: null,
       };
     }
 
@@ -2219,6 +2318,9 @@ async function runTool(
     // (RECOVER_MAX_PER_CLAUSE, then page-error) for these rounds instead of
     // firing independently.
     let recoveredThisRound = false;
+    // r13: hoisted from the loop body — the round's merged answer map, read by
+    // stuckEligible (D1 rules 7-8) at the two chain bounce sites.
+    let decisionAnswers: AnswerMap = {};
 
     /** A committed decision about to pass the gate and the act site. */
     interface Decision {
@@ -2227,6 +2329,8 @@ async function runTool(
       binding?: string;
       optionValue?: string;
       gate: boolean;
+      // r13: set on a stuck-recover decision (carries the deferred bounce).
+      stuck?: StuckPending;
     }
 
     // Legacy entry state: `entryPending` is true while the next round's entry
@@ -2275,6 +2379,47 @@ async function runTool(
     const chainBounce = (why: 'wrong-page' | 'not-ready'): WingmanResult =>
       mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why, candidates: [] } });
     /** § 5.5.2 rule 9: one retry per clause, then the bounce with evidence. */
+    /** The chain round's Jev state (also the stuck round's): the clause text and
+     * the caller-numbered step position (r11 Q1 OPEN-1). */
+    const chainRoundState = (obs: Observation): object =>
+      buildState(
+        obs,
+        history,
+        doInput.goal,
+        values,
+        clauseText(chain!.cursor),
+        // r11 Q1 OPEN-1: Jev-visible step numbers stay in the CALLER's
+        // numbering — same parent mapping as finish()'s progress, so a
+        // cursor inside caller clause p reports "step p+1 of callerN".
+        {
+          stepNumber: chain!.cursor >= N ? chain!.callerN : chain!.parents[chain!.cursor] + 1,
+          stepsTotal: chain!.callerN,
+        },
+      );
+    /** r13 D1: may this would-be bounce attempt a stuck recovery instead? All
+     * of rules 1-9, in order. */
+    const stuckEligible = (why: ReviewWhy): boolean => {
+      if (why !== 'no-match' && why !== 'low-confidence' && why !== 'wrong-page') return false; // 1
+      if (participation !== 'execute') return false; // 2
+      const c = chain!;
+      if (c.cursorActed) return false; // 3
+      if (c.stuckUsed || c.stuckPending !== null) return false; // 4
+      if (c.recoverActs >= RECOVER_MAX_PER_CLAUSE) return false; // 5
+      if (steps >= maxSteps || remaining() < TIME_FLOOR_MS) return false; // 6
+      const action = decisionAnswers['action'] as JevChoiceAnswer | undefined; // 7
+      if (!action || typeof action.choice !== 'string' || !STUCK_VERBS.has(action.choice)) return false;
+      const target = decisionAnswers['target'] as JevChoiceAnswer | undefined; // 8
+      if (!target || target.choice !== 'none' || (target.probabilities?.['none'] ?? 0) < STUCK_NONE_MIN) return false;
+      // 9: a destination exists.
+      if (offeredSet.has('back')) return true;
+      return offeredSet.has('navigate') && Object.keys(urlBindings(values)).length > 0;
+    };
+    /** r13 D3: the deferred bounce a failed/declined stuck recovery returns —
+     * identical to what the trigger site would have returned. */
+    const stuckBounce = (p: StuckPending): WingmanResult =>
+      p.why === 'wrong-page'
+        ? chainBounce('wrong-page')
+        : mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why: p.why, candidates: p.candidates } });
     const chainNonCommit = (
       why: ReviewWhy,
       candidates: Array<{ label: string; role?: string; name?: string }>,
@@ -2282,6 +2427,10 @@ async function runTool(
       if (takeoverOf(deps.config).retry && !chain!.clauseRetried && remaining() >= TIME_FLOOR_MS) {
         chain!.clauseRetried = true;
         return null; // the next round retries the clause
+      }
+      if (stuckEligible(why)) {
+        chain!.stuckPending = { why: why as StuckPending['why'], candidates };
+        return null;
       }
       return mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why, candidates } });
     };
@@ -2415,10 +2564,7 @@ async function runTool(
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
       if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
-        const rec = answers['recover'] as JevChoiceAnswer | undefined;
-        const rc = rec?.choice;
-        const r =
-          rec && typeof rc === 'string' && (rec.probabilities[rc] ?? 0) >= THRESHOLDS.recover ? rc : 'give-up';
+        const r = recoverChoice(answers);
         if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE) {
           return { kind: 'result', result: mk('error', 'page-error') };
         }
@@ -2507,6 +2653,9 @@ async function runTool(
         chain!.wrongPageRounds = 0;
         chain!.notReadyRounds = 0;
         chain!.recoverActs = 0;
+        chain!.cursorActed = false;
+        chain!.stuckUsed = false;
+        chain!.stuckPending = null;
         if (chain!.cursor === N) {
           return { t: 'result', result: endOfChain() };
         }
@@ -2531,7 +2680,13 @@ async function runTool(
         return { t: 'continue' };
       }
       if (early.kind === 'bounceNotReady') return { t: 'result', result: chainBounce('not-ready') };
-      if (early.kind === 'bounceWrongPage') return { t: 'result', result: chainBounce('wrong-page') };
+      if (early.kind === 'bounceWrongPage') {
+        if (stuckEligible('wrong-page')) {
+          chain!.stuckPending = { why: 'wrong-page', candidates: [] };
+          return { t: 'continue' };
+        }
+        return { t: 'result', result: chainBounce('wrong-page') };
+      }
       const r = chainNonCommit(early.why, early.candidates);
       return r !== null ? { t: 'result', result: r } : { t: 'continue' };
     }
@@ -2609,12 +2764,13 @@ async function runTool(
             return outcome.result;
           }
           history = outcome.history; // the act counted as a step; continue under the gate
+          if (chain) chain.cursorActed = true;
           continue;
         }
       }
 
       let decision: Decision | null = null;
-      let decisionAnswers: AnswerMap = {};
+      decisionAnswers = {};
 
       // ---- § 5.6 pick round (round 1, no ask) ----
       if (pickRound) {
@@ -2692,23 +2848,41 @@ async function runTool(
         };
       }
 
+      // ---- r13 stuck round (D2): a deferred stuck recovery runs here, after
+      // the observe/dialog/captcha/policy/token/pick blocks, as one recover
+      // ask in place of the normal round ask. It yields a mechanical decision
+      // for the SHARED act tail, or the deferred bounce.
+      if (decision === null && chain && chain.stuckPending !== null) {
+        const pend = chain.stuckPending;
+        chain.stuckPending = null;
+        chain.stuckUsed = true;
+        const urlNames = offeredSet.has('navigate')
+          ? Object.keys(urlBindings(values)).filter((n) => isNavigableBinding(n, values) && !sameDocument(values[n], obs.url))
+          : [];
+        const back = offeredSet.has('back');
+        if (!back && urlNames.length === 0) return stuckBounce(pend);
+        const sized = withStateSize(chainRoundState(obs),
+          (s) => buildRecoverRequest({ state: s, bindings: values, back, urlNames }), (p) => p);
+        if (!sized.ok || remaining() < TIME_FLOOR_MS) return stuckBounce(pend);
+        const rr = await askWithCost(sized.payload, 'browse_step', remaining);
+        if (!rr.ok) return mk('fallback', askFailReason(rr));
+        const id = recoverChoice(rr.answers as AnswerMap);
+        const offeredIds = new Set<string>([...(back ? ['back'] : []), ...urlNames.map((n) => RECOVER_OPEN_PREFIX + n)]);
+        bucket.stuck = offeredIds.has(id) ? redactValues(id, values) : 'give-up';
+        if (!offeredIds.has(id)) return stuckBounce(pend);
+        chain.recoverActs += 1;
+        chain.wrongPageRounds = 0;
+        chain.notReadyRounds = 0;
+        recoveredThisRound = true;
+        decision = id === 'back'
+          ? { el: null, verb: 'back', gate: false, stuck: pend }
+          : { el: null, verb: 'navigate', binding: id.slice(RECOVER_OPEN_PREFIX.length), gate: false, stuck: pend };
+      }
+
       // ---- build the state, ask, and decide (§ 3.7 / § 5.5.2) ----
       if (decision === null) {
         const state0 = chain
-          ? buildState(
-              obs,
-              history,
-              doInput.goal,
-              values,
-              clauseText(chain.cursor),
-              // r11 Q1 OPEN-1: Jev-visible step numbers stay in the CALLER's
-              // numbering — same parent mapping as finish()'s progress, so a
-              // cursor inside caller clause p reports "step p+1 of callerN".
-              {
-                stepNumber: chain.cursor >= N ? chain.callerN : chain.parents[chain.cursor] + 1,
-                stepsTotal: chain.callerN,
-              },
-            )
+          ? chainRoundState(obs)
           : buildState(obs, history, doInput.goal, values, entryStep !== undefined && round === 1 ? entryStep : undefined);
         const anchorBindings = chain ? bindingsInStep(chain.clauses[chain.cursor], values) : entryBindings;
         const twoStage = obs.elements.length > deps.config.budgets.max_elements;
@@ -3203,13 +3377,27 @@ async function runTool(
               ? decision.optionValue
               : undefined;
         const tAct = now();
-        await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue);
+        const stuckPend = decision.stuck;
+        inFlightOp = decision.verb;
+        try {
+          await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue);
+        } catch (e) {
+          // r13 D7: a stuck-recover back with no history is the deferred
+          // bounce, not an act failure; every other error propagates.
+          if (stuckPend !== undefined && e instanceof NoHistoryError) {
+            inFlightOp = null;
+            return stuckBounce(stuckPend);
+          }
+          throw e;
+        }
+        inFlightOp = null;
         bucket.actMs += now() - tAct;
         if (decision.verb === 'wait') {
           waits += 1;
         } else {
           steps += 1;
         }
+        if (chain && decision.el !== null) chain.cursorActed = true;
         actsByOp[decision.verb] = (actsByOp[decision.verb] ?? 0) + 1;
         const actLabel = decision.el ? decision.el.name : (decision.binding ?? '');
         lastAction = { verb: decision.verb, label: capLabel(redactValues(actLabel, values)) };
@@ -3235,6 +3423,14 @@ async function runTool(
             stepKey: currentStepKey,
             ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
               ? { intendedLabel: decision.el.options?.find((o) => o.value === decision.optionValue)?.label }
+              : {}),
+            // r13 D6: a stuck navigate is not step evidence unless the clause
+            // itself names the chosen binding.
+            ...(decision.stuck !== undefined &&
+            decision.verb === 'navigate' &&
+            !(decision.binding !== undefined &&
+              bindingsInStep(chain!.clauses[chain!.cursor], values).includes(decision.binding))
+              ? { stuckRecover: true as const }
               : {}),
           },
         ];

@@ -12,6 +12,7 @@ import {
   AttachError,
   CoveredTargetError,
   DialogOpenError,
+  NoHistoryError,
   StaleElementError,
   WingmanError,
 } from '../contract/errors.js';
@@ -401,7 +402,7 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
                 }),
               ]);
               if (!hist || typeof hist.currentIndex !== 'number' || hist.currentIndex <= 0 || !hist.entries?.length) {
-                throw new ActFailedError('no previous page');
+                throw new NoHistoryError('no previous page');
               }
               await raceAgainstDialog(
                 rec,

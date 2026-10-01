@@ -406,3 +406,27 @@
   a count-less browse_step with a page-changing observation now trips the
   repeat guard by construction (chain.test T23 was moved to a second target
   for this reason).
+
+- **Stuck recover (r13, 2026-10-01):** a chain clause's would-be BOUNCE
+  (`chainNonCommit`'s bounce branch and `applyChainEarly`'s `bounceWrongPage`)
+  first tries `stuckEligible(why)` (loop.ts, D1 rules 1-9): `why` in
+  no-match/low-confidence/wrong-page, execute participation, a FRESH clause
+  (`chain.cursorActed === false` - set by any element-targeted act or token
+  act, never by navigate/wait/scroll), once per clause (`stuckUsed`/`stuckPending`),
+  `recoverActs < RECOVER_MAX_PER_CLAUSE`, steps and time left, the merged
+  answers' action in `STUCK_VERBS` (click/navigate/back) and target `none` >=
+  `STUCK_NONE_MIN` (0.8), and a destination (`back` offered, or `navigate`
+  with a url binding). When eligible it sets `chain.stuckPending` and
+  continues; the NEXT round is a deferred stuck round (after the pick block)
+  that asks ONE `buildRecoverRequest` question (same id `recover`, stuck
+  wording, criteria `back` / `open_<name>` / `give-up`) and yields a
+  mechanical back/navigate decision for the shared act tail, or the deferred
+  bounce (`stuckBounce`, identical to the original bounce). A stuck navigate
+  gets `HistoryEntry.stuckRecover` so `hasStepEvidence` ignores it unless the
+  clause names that binding; `cursorActed`/`stuckTried` persist in chain
+  memory. `NoHistoryError` (a typed `ActFailedError`) from a stuck `back`
+  is the deferred bounce; every other act error logs `act_error`
+  (`describeActError`: first/last message line, cut at `<`, quotes stripped,
+  values redacted; non-Wingman errors carry only the class name). Test trap:
+  a fresh chain clause scripted action click/navigate/back with target `none`
+  >= 0.8 now takes one extra (stuck) ask before bouncing.

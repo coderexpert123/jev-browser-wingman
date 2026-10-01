@@ -20,6 +20,7 @@ import {
   AttachError,
   CoveredTargetError,
   DialogOpenError,
+  NoHistoryError,
   StaleElementError,
 } from '../contract/errors.js';
 import { wingmanHome } from '../contract/home.js';
@@ -446,7 +447,7 @@ class CdpDriver implements Driver {
             NAV_TIMEOUT_MS,
           );
           if (!hist || typeof hist.currentIndex !== 'number' || hist.currentIndex <= 0 || !hist.entries?.length) {
-            throw new ActFailedError('no previous page');
+            throw new NoHistoryError('no previous page');
           }
           const entry = hist.entries[hist.currentIndex - 1];
           await conn.send(

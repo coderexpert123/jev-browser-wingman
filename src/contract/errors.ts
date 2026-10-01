@@ -26,6 +26,16 @@ export class ActFailedError extends WingmanError {
   }
 }
 
+/** r13: a `back` with no previous history entry. Still code `act-failed`, so
+ * every existing `instanceof ActFailedError` holds; the loop catches it only
+ * for a stuck-recover back. */
+export class NoHistoryError extends ActFailedError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoHistoryError';
+  }
+}
+
 export class AttachError extends WingmanError {
   constructor(message: string) {
     super('no-browser', message);

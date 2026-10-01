@@ -283,6 +283,44 @@ function recoverQuestion(bindings: Record<string, string>): JevChoiceQuestion {
   };
 }
 
+// r13 stuck recover: a stuck variant of the recover question (same id
+// `recover`), asked only at a chain clause's would-be bounce. The error-path
+// wording above stays byte-identical.
+export const RECOVER_OPEN_PREFIX = 'open_';
+export const RECOVER_STUCK_INSTRUCTION = `No listed element on this page can do the state's step. Which response leads to a page where the step can be done? ${UNTRUSTED_SENTENCE}`;
+export const RECOVER_STUCK_CRITERIA: Record<string, string> = {
+  back: 'Go back to the previous page, because the step can be done there or from a page it links to',
+  'give-up': 'Stop, because neither the previous page nor any supplied web address leads to where the step can be done',
+};
+export function recoverOpenCriterion(name: string): string {
+  return `Open the supplied web address ${name}, because the step can be done there or from a page it links to`;
+}
+
+/** r13: the one-question stuck recover request. Criteria keys, in order:
+ * `back` (only when offered), `open_<name>` per url binding name, `give-up`.
+ * Binding NAMES only ever appear; every text passes redactValues. */
+export function buildRecoverRequest(a: {
+  state: object;
+  bindings: Record<string, string>;
+  back: boolean;
+  urlNames: readonly string[];
+}): JevRequest {
+  const rec: Record<string, string> = {};
+  if (a.back) rec.back = RECOVER_STUCK_CRITERIA.back;
+  for (const name of a.urlNames) rec[RECOVER_OPEN_PREFIX + name] = recoverOpenCriterion(name);
+  rec['give-up'] = RECOVER_STUCK_CRITERIA['give-up'];
+  return {
+    state: a.state,
+    questions: {
+      recover: {
+        type: 'choice',
+        instructions: redactValues(RECOVER_STUCK_INSTRUCTION, a.bindings),
+        criteria: redactRecord(rec, a.bindings),
+      },
+    },
+  };
+}
+
 function noul(id: string, bindings: Record<string, string>): JevNoulQuestion {
   return { type: 'noul', instructions: redactValues(INSTRUCTIONS[id], bindings) };
 }
