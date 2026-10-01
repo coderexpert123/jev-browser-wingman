@@ -2336,6 +2336,46 @@ test('T-stuck-token-act: a confirmed token act is an element act on the clause, 
   assert.equal(h.requests.length, 2);
 });
 
+test('T-stuck-noprogress-exempt: a stuck back right after an error-recover back that changed nothing is exempt from the no-progress guard', async () => {
+  const ERRB = (): SeqEntry => CS({ error: 0.9, recover: ['back', { back: 0.9 }] });
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), ERRB(), NONE(), STUCK('back'), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-noprogress goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h).map((a) => a[0]), ['back', 'back'], 'error back, then the stuck back (not a no-progress bounce)');
+  assert.equal(stuckReqs(h).length, 1);
+});
+
+test('T-stuck-no-back-op: a driver without back still offers the url binding, and with neither there is no stuck ask', async () => {
+  const NO_BACK = (OPS as readonly Op[]).filter((o) => o !== 'back');
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('open_home'), CS(), ADV()],
+  });
+  h.driver.ops = NO_BACK;
+  const r = await h.call({ goal: 'chain-stuck-noback goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['open_home', 'give-up']);
+
+  const h2 = harness({ observations: { p1: [spoke] }, script: [NONE(), NONE(), STUCK('back')] });
+  h2.driver.ops = NO_BACK;
+  const r2 = await h2.call({ goal: 'chain-stuck-noback none goal', steps: ['open the Form page'] });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(stuckReqs(h2).length, 0);
+  assert.equal(h2.driver.actCalls().length, 0);
+});
+
+test('T-stuck-telemetry-giveup: a declined stuck round records stuck give-up, an unanswered one records nothing', async () => {
+  const h = harness({ observations: { p1: [spoke] }, script: [NONE(), NONE(), STUCK('give-up')] });
+  await h.call({ goal: 'chain-stuck-telgiveup goal', steps: ['open the Form page'] });
+  assert.deepEqual(
+    h.records[0].phases?.rounds.map((r) => r.stuck),
+    [undefined, undefined, 'give-up'],
+  );
+});
+
 test('T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)', async () => {
   const goal = 'chain-stuck-memused goal';
   const steps = ['open the Form page'];
