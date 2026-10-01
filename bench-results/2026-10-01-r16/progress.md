@@ -8,3 +8,13 @@
   - A4 t12-js-confirm-dialog playwright ok=True wall=9.3s usd=0.089782 raw_acts=1 raw_script=0
   - A5 t13-infinite-scroll playwright ok=True wall=15.4s usd=0.079825 raw_acts=0 raw_script=1
   - A6 t14-key-press playwright ok=False wall=10.3s usd=0.088891 raw_acts=2 raw_script=0
+- Invocation B' DONE (narrowed: t12,t13,t14; forced x3; invB2-forced.json) total_usd=1.72732
+  - B1 t12-js-confirm-dialog forced ok=False wall=102.1s usd=0.21856 handoffs=2 picks=0 wingman_acts=1 raw_acts=0 raw_script=0
+  - B2 t13-infinite-scroll forced ok=False wall=31.0s usd=0.270236 handoffs=4 picks=1 wingman_acts=9 raw_acts=0 raw_script=0
+  - B3 t14-key-press forced ok=False wall=19.2s usd=0.241848 handoffs=5 picks=2 wingman_acts=4 raw_acts=0 raw_script=0
+  - B4 t12-js-confirm-dialog forced ok=False wall=99.8s usd=0.113941 handoffs=2 picks=0 wingman_acts=1 raw_acts=0 raw_script=0
+  - B5 t13-infinite-scroll forced ok=True wall=47.1s usd=0.228632 handoffs=4 picks=1 wingman_acts=31 raw_acts=0 raw_script=0
+  - B6 t14-key-press forced ok=False wall=21.9s usd=0.164542 handoffs=6 picks=2 wingman_acts=4 raw_acts=0 raw_script=0
+  - B7 t12-js-confirm-dialog forced ok=False wall=99.9s usd=0.114565 handoffs=2 picks=0 wingman_acts=1 raw_acts=0 raw_script=0
+  - B8 t13-infinite-scroll forced ok=True wall=43.8s usd=0.188877 handoffs=3 picks=0 wingman_acts=29 raw_acts=0 raw_script=0
+  - B9 t14-key-press forced ok=False wall=24.7s usd=0.186119 handoffs=7 picks=3 wingman_acts=5 raw_acts=0 raw_script=0
