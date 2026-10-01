@@ -1,0 +1,81 @@
+TAP version 13
+# Subtest: pinned descriptions match spec § 3.11 exactly
+ok 1 - pinned descriptions match spec § 3.11 exactly
+  ---
+  type: 'test'
+  ...
+# Subtest: mode off lists no tools
+ok 2 - mode off lists no tools
+  ---
+  type: 'test'
+  ...
+# Subtest: mode shadow lists all three tools with the pinned descriptions
+ok 3 - mode shadow lists all three tools with the pinned descriptions
+  ---
+  type: 'test'
+  ...
+# Subtest: the default config lists only browse_step and refuses wingman_do
+ok 4 - the default config lists only browse_step and refuses wingman_do
+  ---
+  type: 'test'
+  ...
+# Subtest: handoff optional lists all three tools
+ok 5 - handoff optional lists all three tools
+  ---
+  type: 'test'
+  ...
+# Subtest: forced handoff with tools all lists all three tools
+ok 6 - forced handoff with tools all lists all three tools
+  ---
+  type: 'test'
+  ...
+# Subtest: WINGMAN_BROWSE_ONLY is ignored
+ok 7 - WINGMAN_BROWSE_ONLY is ignored
+  ---
+  type: 'test'
+  ...
+# Subtest: shadow wingman_check returns fallback shadow with one jev call
+ok 8 - shadow wingman_check returns fallback shadow with one jev call
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do clicks Continue and returns done
+ok 9 - wingman_do clicks Continue and returns done
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do on Remove item returns needs_confirmation and nothing happens
+ok 10 - wingman_do on Remove item returns needs_confirmation and nothing happens
+  ---
+  type: 'test'
+  ...
+# Subtest: the confirm token executes the action and the dialog leaves it blocked dialog-open
+ok 11 - the confirm token executes the action and the dialog leaves it blocked dialog-open
+  ---
+  type: 'test'
+  ...
+# Subtest: a second concurrent call returns blocked busy
+ok 12 - a second concurrent call returns blocked busy
+  ---
+  type: 'test'
+  ...
+# Subtest: startup and tools/list never contact the browser endpoint; the first tool call does
+ok 13 - startup and tools/list never contact the browser endpoint; the first tool call does
+  ---
+  type: 'test'
+  ...
+# Subtest: stdout carries only protocol frames
+ok 14 - stdout carries only protocol frames
+  ---
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=14 pass=14 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

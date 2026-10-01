@@ -1,0 +1,82 @@
+TAP version 13
+# Subtest: E1: the four-clause chain completes in one call
+ok 1 - E1: the four-clause chain completes in one call
+  ---
+  type: 'test'
+  ...
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  type: 'test'
+  ...
+# Subtest: E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+ok 3 - E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+  ---
+  type: 'test'
+  ...
+# Subtest: E4: the delay page waits for Finish and finishes
+ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  type: 'test'
+  ...
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  type: 'test'
+  ...
+# Subtest: E6: a broken link recovers with back and then opens Form
+ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  type: 'test'
+  ...
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  type: 'test'
+  ...
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  type: 'test'
+  ...
+# Subtest: E9: a target on the hub page is reached in one call through a supplied start-page address (r13 stuck recover)
+ok 9 - E9: a target on the hub page is reached in one call through a supplied start-page address (r13 stuck recover)
+  ---
+  type: 'test'
+  ...
+# Subtest: E10: with no url binding the stuck recover goes back to the hub (cdp adapter)
+ok 10 - E10: with no url binding the stuck recover goes back to the hub (cdp adapter)
+  ---
+  type: 'test'
+  ...
+# Subtest: E11: an open sub-clause whose link click lands advances on the landing, so the next sub-goal is not acted under it (r14)
+not ok 11 - E11: an open sub-clause whose link click lands advances on the landing, so the next sub-goal is not acted under it (r14)
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    reason: step-uncertain
+    
+    'fallback' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'fallback'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-nav/tests/chain-e2e.test.js:740:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 10
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=11 pass=10 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
