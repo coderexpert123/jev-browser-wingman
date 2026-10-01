@@ -8,3 +8,5 @@
   - M4 playwright ok=True wall=25.0s usd=0.195613 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
   - M5 forced ok=True wall=62.9s usd=0.310409 handoffs=8 picks=2 wingman_acts=33 raw_acts=0 raw_script=0
   - M6 playwright ok=True wall=32.6s usd=0.307103 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+- Phase S DONE (phase-s.json, gate ON, policy off): S1 forced ok=False wall=16.5s usd=0.064419 handoffs=1 picks=0 wingman_acts=6 raw_acts=0; `FORCED-VERDICT: smoke ok=false needs_confirmation=1` (first handoff ended needs_confirmation/irreversible-heuristic after 15 rounds, steps 6; the cell stopped there).
+- NOTE: Phase S's bench/results file got the same minute-stamped name as Phase M (2026-10-01-0953.json) and overwrote it locally; Phase M's JSON had already been copied (results/phase-m.json, 6 runs, usd 1.65204) and is intact in the pushed commit b97533f.
