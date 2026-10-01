@@ -194,7 +194,12 @@ function findId(target: StubQuestion | undefined, regex: RegExp): string | null 
 // so a clause branch below must never key page identity off `state.url` when
 // a call's own binding value could equal the destination URL (E3's `form_url`
 // does, once navigated there). Prefer `state.title` or target criteria text.
-async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string; openAhead?: boolean }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
+async function startChainStub(opts: {
+  urlAnswer: string;
+  stuckAnswer?: string;
+  openAhead?: boolean;
+  submitError?: 'not-ready' | 'error';
+}): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
   return await startTypeSafeStub((body) => {
     const state = (body.state ?? {}) as {
       url?: string;
@@ -243,6 +248,46 @@ async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string; o
       const offered = Object.keys(q.recover.criteria ?? {});
       if (opts.stuckAnswer !== undefined && offered.includes(opts.stuckAnswer)) {
         cho('recover', opts.stuckAnswer, { [opts.stuckAnswer]: 0.9 });
+      }
+    } else if (title.startsWith('Fixture chain submit')) {
+      // r15 (E12/E13): the same-address submit fixture, keyed on title (the
+      // redaction gotcha above). The Retrieve click keeps the url, sets the
+      // title to 'Fixture chain submit error' and leaves the button listed.
+      const clicked = history.some((h) => h.verb === 'click' && /Retrieve/.test(h.label));
+      if (step.includes('value named email')) {
+        const box = findId(q.target, /textbox "Email".*\(empty\)/);
+        if (box !== null) {
+          cho('action', 'fill', { fill: 0.9, none: 0.05 });
+          cho('target', box, { [box]: 0.9, none: 0.05, ambiguous: 0.05 });
+          cho('value', 'email', { email: 0.9, none: 0.05 });
+        } else {
+          noul('step_done', 0.95);
+        }
+      } else if (step.includes('Retrieve')) {
+        if (title === 'Fixture chain submit') {
+          clickOn(/button "Retrieve"/);
+        } else if (opts.submitError === 'error') {
+          // r13 shape (M3.5 r8, M5.5 r4): the error rule fires, recover answers reload.
+          noul('step_done', 0.3);
+          noul('error', 0.9);
+          noul('ready', 0.2);
+          noul('right_page', 0.5);
+          cho('recover', 'reload', { reload: 0.9, 'give-up': 0.05 });
+          cho('action', 'wait', { wait: 0.5, none: 0.1 });
+          cho('target', 'none', { none: 0.97, ambiguous: 0.02 });
+        } else if (clicked) {
+          // r14 shape (M1.1 r34-r36): not ready, error just under the bar.
+          noul('step_done', 0.4);
+          noul('error', 0.45);
+          noul('ready', 0.2);
+          noul('right_page', 0.5);
+          cho('action', 'wait', { wait: 0.5, none: 0.1 });
+          cho('target', 'none', { none: 0.97, ambiguous: 0.02 });
+        } else {
+          // A resumed call has no history: Jev re-clicks the still-listed button.
+          noul('step_done', 0.1);
+          clickOn(/button "Retrieve"/);
+        }
       }
     } else if (step.includes('open the Form page')) {
       // r13 hub clause. Keyed on title, never url (redaction gotcha above):
@@ -776,6 +821,62 @@ test('E11: an open sub-clause whose link click lands advances on the landing, so
     const fills = rounds.filter((x) => x.action === 'fill' && x.actMs > 0);
     assert.equal(fills.length, 1, 'exactly one executed fill');
     assert.equal(fills[0].step_text, 'type the value named email into Email', 'the fill runs under its own clause');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+// ---- r15: post-action ends, no repeated submit (E12, E13) ----
+
+const SUBMIT_ARGS = {
+  steps: ['enter the value named email into Email and click Retrieve', 'click Done'],
+  values: { email: 'wingman@example.com' },
+  url_match: 'chain-submit.html',
+};
+
+/** The fixture's submit and page-load counters (sessionStorage, this tab). */
+async function submitCounts(): Promise<unknown> {
+  return await pageEval('chain-submit.html', () => [sessionStorage.getItem('submits'), sessionStorage.getItem('loads')]);
+}
+
+test('E12: a same-address submit that leaves the page not ready ends post-action, and the resume never re-submits (r15)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none', submitError: 'not-ready' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-submit');
+  const args = { goal: 'chain-e2e E12 post-action goal', ...SUBMIT_ARGS };
+  try {
+    const r1 = await callTool(s.client, args);
+    assert.equal(r1.status, 'fallback', `reason: ${r1.reason}`);
+    assert.equal(r1.reason, 'step-uncertain');
+    assert.deepEqual(r1.step_review, { step: 'click Retrieve', why: 'post-action', candidates: [] });
+    assert.deepEqual(r1.progress, { step_index: 1, steps_done: 0, steps_total: 2 });
+    const r2 = await callTool(s.client, args);
+    assert.equal(r2.reason, 'step-uncertain', `status: ${r2.status}`);
+    assert.equal(r2.step_review?.why, 'repeat');
+    assert.deepEqual(await submitCounts(), ['1', '1'], 'one submit and no reload');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E13: the recover path never reloads after a same-address submit (r15)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none', submitError: 'error' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-submit');
+  try {
+    const r = await callTool(s.client, { goal: 'chain-e2e E13 no reload goal', ...SUBMIT_ARGS });
+    assert.equal(r.status, 'error', `reason: ${r.reason}`);
+    assert.equal(r.reason, 'page-error');
+    assert.equal(r.step_review?.why, 'post-action');
+    assert.deepEqual(await submitCounts(), ['1', '1'], 'one submit and no reload');
+    const rec = lastLogRecord(s.home);
+    assert.equal((rec.acts_by_op as Record<string, number>)?.reload, undefined);
+    const rounds = ((rec.phases as { rounds?: Array<{ recover?: string }> } | undefined)?.rounds ?? []);
+    assert.ok(rounds.some((x) => x.recover === 'reload'), 'the recover answer was reload');
   } finally {
     await s.close();
     await stub.close();
