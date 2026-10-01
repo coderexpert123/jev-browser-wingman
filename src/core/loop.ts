@@ -536,16 +536,26 @@ const ANAPHORA_RE = /\b(it|them|there|again|same|another)\b/i;
  *   - conditional: the word `and`, or a bare `,` — each only when the word
  *     immediately following the separator matches VERB_RE ("fill name and
  *     email", "click the Add Element button" never split).
- * A candidate is ACCEPTED only when the text between it and the next
- * candidate (or the clause end) is actionable: it contains a VERB_RE word and
- * no ANAPHORA_RE word. An unaccepted candidate's separator text stays inside
- * the fragment ("then the box should be checked", "click the box and then
- * it", "click Add and Remove" as a name-tail all keep the clause whole).
- * Split points drop the separator itself; each fragment is then trimmed of
- * leading/trailing whitespace and commas and empties are dropped. The split
- * is verbatim — no text is ever rewritten, reordered, or invented, so a count
- * word can never be separated from the verb it counts and parseRepeatCount
- * keeps working per sub-clause. */
+ * A conditional candidate is additionally REJECTED while scanning (r11b):
+ * inside single quotes ("click the 'Add and Close' button" never splits —
+ * naïve ', ' and ' parity), when the word it introduces is `check`/`verify`
+ * followed by `that`/`if`/`whether` (an assertion tail Jev cannot act on, not
+ * a control action — "and check that the toggle is enabled"), or when the
+ * text from it to the next match/clause end is exactly one verb word and
+ * nothing else — a compound name's tail, not a sub-goal, so "click Save and
+ * Close", "click Add and Remove" and "fill email and submit" stay whole
+ * (under-splitting is the accepted safe direction).
+ * A surviving candidate is ACCEPTED only when the text between it and the
+ * next candidate (or the clause end) is actionable: it contains a VERB_RE
+ * word and no ANAPHORA_RE word. An unaccepted candidate's separator text
+ * stays inside the fragment ("then the box should be checked", "click the
+ * box and then it" keep the clause whole). Split points drop the separator
+ * itself; each fragment is then trimmed of leading/trailing whitespace and
+ * commas, plus one dangling separator word a skipped candidate left at a
+ * fragment end before an accepted `then` ("click A and" → "click A"), and
+ * empties are dropped. The split is verbatim — no text is ever rewritten,
+ * reordered, or invented, so a count word can never be separated from the
+ * verb it counts and parseRepeatCount keeps working per sub-clause. */
 export function splitCompoundClause(clause: string): string[] {
   // Separators are matched as whole words, never inside other words — `then`
   // inside `next` is not a boundary.
@@ -554,15 +564,41 @@ export function splitCompoundClause(clause: string): string[] {
     start: number;
     end: number;
   }
+  const seps = Array.from(clause.matchAll(CANDIDATE_RE)).map((m) => ({
+    sep: m[0],
+    start: m.index,
+    end: m.index + m[0].length,
+  }));
   const cands: Cand[] = [];
-  for (const m of clause.matchAll(CANDIDATE_RE)) {
-    const sep = m[0];
-    const start = m.index;
-    const end = start + sep.length;
+  let scanned = 0;
+  for (let i = 0; i < seps.length; i++) {
+    const { sep, start, end } = seps[i];
+    // Quote parity over the text before this separator: any match inside
+    // single quotes is part of a quoted name, never a boundary.
+    if ((clause.slice(scanned, start).match(/['‘’]/g) ?? []).length % 2 === 1) {
+      continue;
+    }
+    scanned = end;
     if (sep === ',' || sep.toLowerCase() === 'and') {
-      // Conditional: the word immediately following must be an action verb.
-      const next = /^[^A-Za-z]*([A-Za-z]+)/.exec(clause.slice(end));
+      // Conditional: the word immediately following must be an action verb,
+      // and `check`/`verify` + that/if/whether is an assertion tail, not an
+      // action — never a boundary.
+      const next = /^[^A-Za-z]*([A-Za-z]+)(?:[^A-Za-z]+([A-Za-z]+))?/.exec(clause.slice(end));
       if (next === null || !VERB_RE.test(next[1])) continue;
+      if (
+        /^(?:check|verify)$/i.test(next[1]) &&
+        next[2] !== undefined &&
+        /^(?:that|if|whether)$/i.test(next[2])
+      ) {
+        continue;
+      }
+      // A separator whose tail to the next match/clause end is a lone verb
+      // word closes a compound name ("Save and Close"), it does not open a
+      // sub-goal — a bare verb with no object is not actionable.
+      const nameTail = clause
+        .slice(end, i + 1 < seps.length ? seps[i + 1].start : clause.length)
+        .replace(/^[,\s]+|[,\s.;!?]+$/g, '');
+      if (/^[A-Za-z]+$/.test(nameTail) && VERB_RE.test(nameTail)) continue;
     }
     cands.push({ start, end });
   }
@@ -581,7 +617,14 @@ export function splitCompoundClause(clause: string): string[] {
     pos = c.end;
   }
   parts.push(clause.slice(pos));
-  const frags = parts.map((p) => p.replace(/^[,\s]+|[,\s]+$/g, '')).filter((p) => p.length > 0);
+  const frags = parts
+    .map((p) =>
+      p
+        .replace(/^[,\s]+|[,\s]+$/g, '')
+        .replace(/(?:\band\b|\bthen\b|;)\s*$/i, '')
+        .replace(/[,\s]+$/g, ''),
+    )
+    .filter((p) => p.length > 0);
   return frags.length > 0 ? frags : [clause];
 }
 

@@ -1592,9 +1592,10 @@ test('T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced
 // ---- r11 WP-B: compound-clause decomposition (§ r11 Q1) ----
 
 /** The text between two returned sub-clauses of the same original clause may
- * only ever be a boundary separator: whitespace/commas/semicolons plus at most
- * one boundary word (`and`/`then`). Asserts checklist item 8 — the split never
- * invents, reorders, or drops non-separator text. */
+ * only ever be boundary separators: whitespace/commas/semicolons plus up to
+ * two boundary words (`and`/`then` — "A and then B" drops two). Asserts
+ * checklist item 8 — the split never invents, reorders, or drops
+ * non-separator text. */
 function assertVerbatimSplit(original: string, subs: string[]): void {
   let pos = 0;
   for (const sub of subs) {
@@ -1603,7 +1604,7 @@ function assertVerbatimSplit(original: string, subs: string[]): void {
     const gap = original.slice(pos, at);
     assert.match(
       gap,
-      /^[\s,;]*(?:\b(?:and|then)\b[\s,;]*)?$/i,
+      /^[\s,;]*(?:\b(?:and|then)\b[\s,;]*){0,2}$/i,
       `gap ${JSON.stringify(gap)} between sub-clauses of ${JSON.stringify(original)} is more than a separator`,
     );
     pos = at + sub.length;
@@ -1635,6 +1636,42 @@ test('splitCompoundClause: the r11 boundary table, verbatim', () => {
     { clause: 'click the Add Element button twice', subs: ['click the Add Element button twice'] }, // no boundary inside a count phrase
     { clause: 'open Checkboxes; tick the first checkbox', subs: ['open Checkboxes', 'tick the first checkbox'] }, // ';' unconditional
     { clause: 'go to the next page', subs: ['go to the next page'] }, // 'then' inside 'next' never matches: word-bounded
+    // ---- r11b F1/F2/F3 rows ----
+    // F1 name-tail guard: a conditional separator followed by a lone verb
+    // word closes a compound name, it does not open a sub-goal.
+    { clause: 'click Save and Close', subs: ['click Save and Close'] },
+    { clause: 'click Add and Remove', subs: ['click Add and Remove'] },
+    { clause: 'fill email and submit', subs: ['fill email and submit'] },
+    // F1 quote guard: a boundary inside single quotes is part of the name.
+    { clause: "click the 'Add and Close' button", subs: ["click the 'Add and Close' button"] },
+    // No `and`/`then`/`;`/`,` at all — baseline unchanged.
+    { clause: 'click the Save & Exit button', subs: ['click the Save & Exit button'] },
+    // F1 positive: `then` still splits after a name-tail-rejected `and`.
+    {
+      clause: 'click Accept and Close then fill email',
+      subs: ['click Accept and Close', 'fill email'],
+    },
+    // F1 positive: the bench Pattern-A shape still splits into 3.
+    {
+      clause: 'navigate back and open Dropdown, then choose Option 1',
+      subs: ['navigate back', 'open Dropdown', 'choose Option 1'],
+    },
+    // F2: a skipped `and`/`;` before an accepted `then` leaves no dangling
+    // separator word in the previous fragment.
+    { clause: 'click A and then click B', subs: ['click A', 'click B'] },
+    { clause: 'click Save; then click OK', subs: ['click Save', 'click OK'] },
+    // F3: `check`/`verify` + that/if/whether is an assertion tail, not an
+    // action — the conditional boundary is rejected.
+    {
+      clause: 'go to settings and check that the toggle is enabled',
+      subs: ['go to settings and check that the toggle is enabled'],
+    },
+    {
+      clause: 'open settings and check whether the toggle saved',
+      subs: ['open settings and check whether the toggle saved'],
+    },
+    // F3 contrast: `check <control>` without that/if/whether stays a verb.
+    { clause: 'open A and check the box', subs: ['open A', 'check the box'] },
   ];
   for (const c of cases) {
     const subs = splitCompoundClause(c.clause);
