@@ -57,6 +57,10 @@ In `optional` mode both paths stay open, and a result's note may tell you to do 
 | error | Tool or decision fault; `invalid-input` names the argument to fix | Fix what the note names, or retry once |
 | needs_confirmation | An irreversible action is pending (only when the optional gate is on) | Ask the user, then re-call with the same arguments and the confirm_token |
 
+A `post-action` note can appear on a `fallback` or `error` result: it means
+the step's action already ran. Do not repeat it or reload; call again with
+only the steps after that one.
+
 ## wingman_do and wingman_check
 
 In `optional` mode two more tools are listed. `wingman_do` runs one bounded goal on the open page and never

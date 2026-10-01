@@ -10,6 +10,9 @@ After installing the command (below), start with `jev-browser-wingman doctor --p
 
 After publish, run `npm install -g jev-browser-wingman`.
 
+To install from a packed tarball (release candidates, offline installs), run
+`npm pack` in a checkout and then `npm install -g ./jev-browser-wingman-<version>.tgz`.
+
 From a source checkout, run `npm ci`, then `npm run build`, then `npm link` in the package directory.
 
 Verify with `jev-browser-wingman --version`. It must print a version and exit 0.
@@ -49,6 +52,15 @@ Read each server's `kind` and `mode`:
 - `mode`: `launch`, `cdp-endpoint`, `extension`, `wrapped`, or `n/a`.
 
 Run `jev-browser-wingman doctor --plan [--client <id>]` to print the same setup as concrete steps, one block per outcome. `--plan` never launches a browser and never sends data anywhere; an unrecognised client id prints a generic plan, not an error.
+
+`--plan` is read-only: it prints the wrapped entry as bare JSON — an object, or an
+array for clients like opencode that use array-form entries. Apply it with the
+client's own command. For Claude Code that is
+`claude mcp remove <old-name>` then `claude mcp add -s user <name> -- jev-browser-wingman with-browser -- <C> <A...>`
+where C and A are the old entry's command and args. A `[met]` outcome reflects
+configuration only; `doctor`'s live checks can still fail (for example
+`adapter-attach` fails until a debuggable browser answers — run
+`jev-browser-wingman chrome ensure` first).
 
 Wingman maps each browsing tool's calls to capability classes through profile files. Shipped profiles cover the common browsing servers; a user profile at `<wingmanHome>/profiles/<id>.json` with the same `id` replaces a shipped one, and `<wingmanHome>/profiles-auto/` holds profiles wingman writes itself after classifying an unknown tool's descriptions on its first session. To cover a new tool, copy a shipped profile, change `id`, `detect.args_contain` and the `tools` map, and drop it in the user profiles directory.
 
@@ -99,7 +111,12 @@ Opt out with `"handoff": {"mode": "optional"}` in config.
 - **Repeat counts stay inside one step.** When a step repeats an action a fixed number of times (e.g. "click the Add button twice"), keep the count word inside that single step entry. Splitting it into separate bare "click the Add button" steps loses the count — the decision service cannot tell when to stop and may over-act, producing real side effects on the page (e.g. dozens of extra clicks).
 - **Fallback while progressing.** `browse_step` can report `fallback`/`budget-steps` while making continuous, real, observable progress on a click-family step. Each retry compounds real side effects. When a result reports fallback after making progress, take a snapshot with your own browser tools to see the current page state before calling `browse_step` again.
 
-Self-correcting an over-executed step is done with another `browse_step` call (e.g. "delete the extra elements"), never with the raw click tool — it is withheld in forced mode, and using `script` to bypass handoff defeats the purpose of the wrap.
+Self-correcting an over-executed step is done with another `browse_step` call (e.g. "delete the extra elements"), never with the raw click tool — it is withheld in forced mode. Using `script` to bypass handoff defeats the purpose of the wrap.
+
+A `post-action` note means the step's action already ran and the page then failed
+to become usable. Do not repeat that action and do not reload the page: take a
+snapshot with your own tools, then call `browse_step` again with only the steps
+after that one.
 
 ## Configure
 
@@ -127,6 +144,9 @@ When the user approves the wrap, set `profile_dir` to the existing browsing tool
 ## Back up before editing
 
 Save the exact existing entry to `~/.jev-browser-wingman/backups/<client>-<server>-<UTC timestamp>.json`.
+
+On a fresh install the `backups/` directory does not exist yet — create it first
+(e.g. `mkdir ~/.jev-browser-wingman/backups` on Windows).
 
 Show the user the before and after entries. Edit only after approval. Use the client's own `mcp` command where it has one.
 
