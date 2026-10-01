@@ -154,7 +154,9 @@
 - **Chain mode's `decideTarget` no-value already wraps through `chainNonCommit`
   for every verb, including `navigate`** (checked 2026-09-27, cloud-run
   finding on `tests/chain-e2e.test.ts` E3 that turned out to be a test bug,
-  not a src gap): the chain merge-decide block (`loop.ts` ~2190-2206) checks
+  not a src gap): the chain merge-decide block (`loop.ts`, the
+  `decide.result` branch after `decideTarget(` in runDoRounds' chain step 8;
+  ~2960-2976 at f39aa12 — the old ~2190-2206 cite drifted) checks
   `decide.bounds` / `decide.keyMissing` / `decide.result.reason === 'no-value'`
   on every `decideTarget` result before falling through to `no-match` — this
   already covers `fill`'s (~1091/1097), `select`'s (~1122), `navigate`'s
@@ -162,8 +164,9 @@
   T9 already exercises navigate's `urlAnswer: 'none'` case and passes today,
   confirming this. If a chain e2e test reports status `ambiguous` where
   `fallback/step-uncertain/no-value` was expected, suspect the TEST first —
-  in particular a shared browser tab left on the wrong page: `runDoRounds`
-  filters `visiblePages` by `url_match` (loop.ts ~1372-1387) and returns
+  in particular a shared browser tab left on the wrong page: `runTool`
+  (not runDoRounds — corrected 2026-10-01) filters `visiblePages` by
+  `url_match` (loop.ts ~1992-2008 at f39aa12) before any mode runs, and returns
   `ambiguous`/`tab-ambiguous` on zero matches, which looks exactly like a
   leaked `ambiguous` from `decideTarget` unless you check the `reason` field.
   This is what `chain-e2e.test.ts` E3 hit: its bad-urlAnswer loop reused the
@@ -172,7 +175,7 @@
   `chain-e2e.test.ts`'s `gotoFixture` helper).
 - **`jev-error` is a catch-all — timeouts read like API defects** (2026-09-21,
   diagnosis of 2026-09-21-1311 browse fallbacks): `askFailReason`
-  (src/core/loop.ts:274) maps every ask error except `no-key`/`circuit-open`
+  (src/core/loop.ts, module-level; ~:830 at f39aa12, the old :274 cite drifted) maps every ask error except `no-key`/`circuit-open`
   to `jev-error`, so a client timeout and an HTTP 422 log identically.
   Discriminate via `phases.rounds[].jevMs`: a timeout sits at the full
   `jev_timeout_ms` budget (default 10_000, src/contract/constants.ts) with
