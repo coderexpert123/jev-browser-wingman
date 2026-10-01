@@ -12,7 +12,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runDo, runStep, expandClauses, parseRepeatCount, splitCompoundClause, type LoopDeps } from '../src/core/loop.js';
+import { runDo, runStep, expandClauses, parseRepeatCount, splitCompoundClause, describeActError, type LoopDeps } from '../src/core/loop.js';
+import { ActFailedError, NoHistoryError } from '../src/contract/errors.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -1930,4 +1931,387 @@ test('T-decompose-genuine-nomatch: a genuine none on an atomic clause still boun
   assert.equal(r.step_review?.step, 'tick the first checkbox');
   assert.equal(h.driver.actCalls().length, 0);
   assert.equal(h.requests.length, 2, 'retry consumed, then bounce — unchanged pre-r11 semantics for atomic clauses');
+});
+
+// ---- r13 (spec .build-r13-spec.md D1-D9): stuck-clause recovery + act-error logging ----
+
+const NONE = (over: SeqEntry = {}): SeqEntry =>
+  CS({
+    action: ['click', { click: 0.9, none: 0.05 }],
+    target: ['none', { none: 0.95, ambiguous: 0.03 }],
+    ...over,
+  });
+const STUCK = (id: string, p = 0.9): SeqEntry => ({ recover: [id, { [id]: p }] });
+const NAVLOW = (): SeqEntry =>
+  CS({
+    action: ['navigate', { navigate: 0.4, click: 0.3, none: 0.1 }],
+    target: ['none', { none: 0.95 }],
+  });
+
+const spoke = observation({ url: 'https://example.com/check', title: 'Check' });
+const hubEl = el({
+  id: 'e1',
+  path: '#form',
+  tag: 'a',
+  role: 'link',
+  name: 'Form',
+  fingerprint: { tag: 'a', role: 'link', name: 'Form', x: 0, y: 0 },
+});
+const hub = observation({ url: 'https://example.com/', title: 'Home', elements: [hubEl] });
+const formPage = observation({ url: 'https://example.com/form', title: 'Form', text: 'form page' });
+const HOME = { home: 'https://example.com/' };
+
+const actsOf = (h: Harness): Array<[Op, string | null, string | undefined]> =>
+  h.driver.actCalls().map((a) => [a.op as Op, a.elementId as string | null, a.value as string | undefined]);
+const qKeys = (r: JevRequest): string[] => Object.keys(r.questions);
+const stuckReqs = (h: Harness): JevRequest[] =>
+  h.requests.filter((r) => {
+    const k = qKeys(r);
+    return k.length === 1 && k[0] === 'recover';
+  });
+const recoverCriteria = (r: JevRequest): Record<string, string> =>
+  (r.questions.recover as unknown as { criteria: Record<string, string> }).criteria;
+
+test('T-stuck-url: a confident none on a hub-miss clause asks the stuck recover and navigates to the url binding, then the clause lands', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('open_home'), CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-url goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['navigate', null, 'https://example.com/'], ['click', 'e1', undefined]]);
+  assert.equal(h.requests.length, 5);
+  assert.deepEqual(qKeys(h.requests[2]), ['recover']);
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'open_home', 'give-up']);
+  assert.equal(
+    recoverCriteria(h.requests[2]).open_home,
+    'Open the supplied web address home, because the step can be done there or from a page it links to',
+  );
+  assertNoValues(JSON.stringify(h.requests[2]), HOME);
+  assert.equal(h.records[0].phases?.rounds[2].stuck, 'open_home');
+  assert.equal(r.steps, 2);
+});
+
+test('T-stuck-back: with no url binding the stuck recover goes back, then the clause lands', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('back'), CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-back goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'give-up']);
+  assert.deepEqual(actsOf(h), [['back', null, undefined], ['click', 'e1', undefined]]);
+});
+
+test('T-stuck-giveup: give-up and a sub-threshold answer both end in the deferred no-match bounce with zero acts', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('give-up')],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-stuck-giveup goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.driver.actCalls().length, 0);
+  assert.equal(h.requests.length, 3);
+  assert.equal(r.note, FORCED_BOUNCE_LINE);
+
+  const h2 = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('open_home', 0.5)],
+    config: FORCED,
+  });
+  const r2 = await h2.call({ goal: 'chain-stuck-giveup low goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.step_review?.why, 'no-match');
+  assert.equal(h2.driver.actCalls().length, 0, 'a 0.5 answer is below THRESHOLDS.recover (0.6): no navigate');
+  assert.equal(r2.note, FORCED_BOUNCE_LINE);
+});
+
+test('T-stuck-d7: only caller url bindings are offered; an unoffered id never acts', async () => {
+  const values = { ...HOME, email: 'person@example.org' };
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('open_email', 0.95)],
+  });
+  const r = await h.call({ goal: 'chain-stuck-d7 email goal', steps: ['open the Form page'], values });
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'open_home', 'give-up']);
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.driver.actCalls().length, 0);
+
+  const h2 = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('open_nowhere', 0.95)],
+  });
+  const r2 = await h2.call({ goal: 'chain-stuck-d7 nowhere goal', steps: ['open the Form page'], values });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.step_review?.why, 'no-match');
+  assert.equal(h2.driver.actCalls().length, 0);
+});
+
+test('T-stuck-once: a second would-be bounce on the same clause bounces without another stuck ask', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub] },
+    script: [NONE(), NONE(), STUCK('open_home'), NONE()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-once goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(actsOf(h).filter((a) => a[0] === 'navigate').length, 1);
+  assert.equal(h.requests.length, 4);
+  assert.equal(stuckReqs(h).length, 1);
+});
+
+test('T-stuck-verb: a none under a non-navigation verb (check) never triggers the stuck recover', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.95 }] }),
+      CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.95 }] }),
+      STUCK('back'),
+    ],
+  });
+  const r = await h.call({ goal: 'chain-stuck-verb goal', steps: ['tick the first checkbox'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+test('T-stuck-none-bar: none at 0.8 triggers the stuck ask, 0.79 does not', async () => {
+  const at = (p: number): SeqEntry => NONE({ target: ['none', { none: p }] });
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [at(0.8), at(0.8), STUCK('give-up')],
+  });
+  await h.call({ goal: 'chain-stuck-bar 080 goal', steps: ['open the Form page'] });
+  assert.equal(h.requests.length, 3);
+  assert.deepEqual(qKeys(h.requests[2]), ['recover']);
+
+  const h2 = harness({
+    observations: { p1: [spoke] },
+    script: [at(0.79), at(0.79), STUCK('back')],
+  });
+  const r2 = await h2.call({ goal: 'chain-stuck-bar 079 goal', steps: ['open the Form page'] });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(h2.requests.length, 2);
+  assert.equal(h2.driver.actCalls().length, 0);
+});
+
+test('T-stuck-not-fresh: a clause that already acted never takes the stuck recover', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [CS(), NONE(), NONE(), STUCK('back')],
+  });
+  const r = await h.call({ goal: 'chain-stuck-notfresh goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.requests.length, 3);
+  assert.equal(stuckReqs(h).length, 0);
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+});
+
+test('T-stuck-not-fresh-resume: a resumed clause that already acted stays ineligible (cursorActed rides chain memory)', async () => {
+  const goal = 'chain-stuck-resume goal';
+  const steps = ['open the Form page'];
+  const h1 = harness({ observations: { p1: [spoke] }, script: [CS(), CS()] });
+  const r1 = await h1.call({ goal, steps, max_steps: 1 });
+  assert.equal(r1.status, 'fallback');
+  assert.equal(r1.reason, 'budget-steps');
+
+  const h2 = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('back')],
+  });
+  const r2 = await h2.call({ goal, steps });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.step_review?.why, 'no-match');
+  assert.equal(h2.requests.length, 2);
+  assert.equal(h2.driver.actCalls().length, 0);
+});
+
+test('T-stuck-wrong-page: a wrong-page would-be bounce takes the stuck recover and the clause lands after it', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [
+      NONE({ right_page: 0.2 }),
+      NONE({ right_page: 0.2 }),
+      STUCK('open_home'),
+      CS({ right_page: 0.2 }),
+      ADV(),
+    ],
+  });
+  const r = await h.call({ goal: 'chain-stuck-wrongpage goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.equal(h.records[0].phases?.rounds[2].stuck, 'open_home');
+});
+
+test('T-stuck-wrong-page-giveup: give-up on a wrong-page trigger returns the wrong-page bounce with its own note', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE({ right_page: 0.2 }), NONE({ right_page: 0.2 }), STUCK('give-up')],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-stuck-wrongpage giveup goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.deepEqual(r.step_review, { step: 'open the Form page', why: 'wrong-page', candidates: [] });
+  assert.equal(r.note, FORCED_WRONG_PAGE_LINE);
+});
+
+test('T-stuck-evidence: a stuck navigate that the clause did not name is not step evidence', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('open_home'), CS({ step_done: 0.6 }), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-evidence goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 2, 'navigate then click: the stuck navigate did not advance the clause');
+});
+
+test('T-stuck-named-evidence: a stuck navigate to the binding the clause names IS its own act and counts as evidence', async () => {
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub] },
+    script: [NAVLOW(), NAVLOW(), STUCK('open_home'), NONE({ step_done: 0.6 })],
+  });
+  const r = await h.call({
+    goal: 'chain-stuck-named goal',
+    steps: ['open the web address named home'],
+    values: HOME,
+  });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['navigate', null, 'https://example.com/']]);
+  assert.equal(h.requests.length, 4);
+});
+
+test('T-stuck-same-url: the page we are already on is never offered as a destination', async () => {
+  const onHome = observation({ url: 'https://example.com/', title: 'Home' });
+  const h = harness({
+    observations: { p1: [onHome] },
+    script: [NONE(), NONE(), STUCK('give-up')],
+  });
+  await h.call({ goal: 'chain-stuck-sameurl goal', steps: ['open the Form page'], values: HOME });
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'give-up']);
+});
+
+test('T-stuck-budget: the recover budget shared with error recovery is spent first, so no stuck ask follows', async () => {
+  const ERR = (): SeqEntry => CS({ error: 0.9, recover: ['wait', { wait: 0.9 }] });
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), ERR(), ERR(), NONE(), STUCK('back')],
+  });
+  const r = await h.call({ goal: 'chain-stuck-budget goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.deepEqual(actsOf(h), [['wait', null, undefined], ['wait', null, undefined]]);
+  assert.equal(h.requests.length, 4);
+  assert.equal(stuckReqs(h).length, 0);
+});
+
+test('T-stuck-offer: an offer-mode call (takeover:false) never takes the stuck recover', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('back')],
+  });
+  const r = await h.call({ goal: 'chain-stuck-offer goal', steps: ['open the Form page'], takeover: false });
+  assert.equal(r.status, 'fallback');
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+test('T-stuck-no-history: a stuck back with no history is the deferred no-match bounce, not error/act-failed', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [NONE(), NONE(), STUCK('back')],
+  });
+  h.driver.failNextAct = new NoHistoryError('no previous page');
+  const r = await h.call({ goal: 'chain-stuck-nohistory goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.deepEqual(actsOf(h), [['back', null, undefined]]);
+  assert.equal(h.records[0].act_error, undefined);
+});
+
+test('T-stuck-steps-budget: a stuck recovery needs a step left; at max_steps the clause bounces no-match, not budget-steps', async () => {
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [CS(), ADV(), NONE(), NONE(), STUCK('back')],
+  });
+  const r = await h.call({
+    goal: 'chain-stuck-stepsbudget goal',
+    steps: ['tick the box', 'open the Form page'],
+    max_steps: 1,
+  });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.requests.length, 4);
+});
+
+test('T-stuck-two-stage: eligibility reads the merged two-stage answer map (action from request 1, none target from request 2)', async () => {
+  const two = observation({
+    url: 'https://example.com/check',
+    title: 'Check',
+    elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })],
+  });
+  const ASK1 = (): SeqEntry => CS({ group: ['g1', { g1: 0.9 }], target: undefined });
+  const ASK2: SeqEntry = { target: ['none', { none: 0.95, ambiguous: 0.03 }] };
+  const h = harness({
+    observations: { p1: [two, two, two, hub, formPage] },
+    script: [ASK1(), ASK2, ASK1(), ASK2, STUCK('open_home'), CS(), ADV()],
+    config: { budgets: { ...DEFAULT_BUDGETS, max_elements: 1 } },
+  });
+  const r = await h.call({ goal: 'chain-stuck-twostage goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.equal(stuckReqs(h).length, 1);
+});
+
+// ---- r13 D8: act-error logging ----
+
+const V1_MESSAGE =
+  "locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator('html > body > ul > li:nth-of-type(2) > a')\n    - locator resolved to <a href=\"chain-form.html\">Form</a>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable";
+const V2_MESSAGE =
+  'locator.click: Timeout 3000ms exceeded.\nCall log:\n  - locator resolved to <a href="chain-form.html">Form</a>';
+
+test('T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message', () => {
+  assert.deepEqual(describeActError(new ActFailedError(V1_MESSAGE), 'click', {}), {
+    op: 'click',
+    head: 'locator.click: Timeout 3000ms exceeded.',
+    tail: 'waiting for element to be visible, enabled and stable',
+  });
+  const v2 = describeActError(new ActFailedError(V2_MESSAGE), 'click', {});
+  assert.equal(v2.tail, 'locator resolved to …');
+  const j2 = JSON.stringify(v2);
+  for (const bad of ['href', 'chain-form', 'Form<']) assert.ok(!j2.includes(bad), `leaked ${bad}`);
+  assert.deepEqual(
+    describeActError(
+      new ActFailedError('net::ERR_NAME_NOT_RESOLVED at https://secret.example.org/path'),
+      null,
+      { target: 'https://secret.example.org/path' },
+    ),
+    { head: 'net::ERR_NAME_NOT_RESOLVED at <value:target>' },
+  );
+  assert.deepEqual(describeActError(new TypeError('boom secret'), null, {}), { head: 'fault: TypeError' });
+  assert.deepEqual(describeActError(new NoHistoryError('no previous page'), 'back', {}), {
+    op: 'back',
+    head: 'no previous page',
+  });
+});
+
+test('T-act-error-log: a thrown act error lands sanitized in the log record as act_error', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [CS()] });
+  h.driver.failNextAct = new ActFailedError(V2_MESSAGE);
+  const r = await h.call({ goal: 'chain-acterror-log goal', steps: ['click Details'] });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'act-failed');
+  assert.deepEqual(h.records[0].act_error, {
+    op: 'click',
+    head: 'locator.click: Timeout 3000ms exceeded.',
+    tail: 'locator resolved to …',
+  });
+  const j = JSON.stringify(h.records[0]);
+  assert.ok(!j.includes('href'));
+  assert.ok(!j.includes('chain-form'));
 });
