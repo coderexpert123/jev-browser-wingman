@@ -3166,3 +3166,35 @@ test('T-repeat-recovered: an error answered continue never lets the clause click
   assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
   assert.equal(navRounds(h)[1].recover, 'continue');
 });
+
+test('T-post-back-wait: after the clause\'s own effective click the recover answers back and wait still act, and a re-click after the back bounces repeat', async () => {
+  // Leg A: back goes to the form; the guard then blocks the re-click.
+  const BACK: SeqEntry = { error: 0.9, recover: ['back', { back: 0.9 }] };
+  const h = harness({
+    observations: { p1: [resetForm, resetError, resetForm] },
+    script: [CS(), POST(BACK), CS({ step_done: 0.1 })],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-post-back goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(h), [
+    ['click', 'e1', undefined],
+    ['back', null, undefined],
+  ]);
+  assert.equal(navRounds(h)[1].recover, 'back');
+
+  // Leg B: wait acts and the clause then advances.
+  const WAIT: SeqEntry = { error: 0.9, recover: ['wait', { wait: 0.9 }] };
+  const hb = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), POST(WAIT), ADV()],
+    config: FORCED,
+  });
+  const rb = await hb.call({ goal: 'chain-post-wait goal', steps: SUBMIT_STEPS });
+  assert.equal(rb.status, 'done');
+  assert.deepEqual(actsOf(hb), [
+    ['click', 'e1', undefined],
+    ['wait', null, undefined],
+  ]);
+});
