@@ -3198,3 +3198,44 @@ test('T-post-back-wait: after the clause\'s own effective click the recover answ
     ['wait', null, undefined],
   ]);
 });
+
+test('T-post-error-branches: every rule-4 page-error end after an effective click carries post-action (recover cap, unrecognized answer, undeclared op)', async () => {
+  // Leg A: the recover cap (two waits, then the third error answer).
+  const WAIT: SeqEntry = { error: 0.9, recover: ['wait', { wait: 0.9 }] };
+  const ha = harness({
+    observations: { p1: [resetForm, resetError] },
+    script: [CS(), POST(WAIT), POST(WAIT), POST(WAIT)],
+    config: FORCED,
+  });
+  const ra = await ha.call({ goal: 'chain-post-branches cap goal', steps: SUBMIT_STEPS });
+  assert.equal(ra.status, 'error');
+  assert.deepEqual(ra.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(ha), [
+    ['click', 'e1', undefined],
+    ['wait', null, undefined],
+    ['wait', null, undefined],
+  ]);
+
+  // Leg B: an answer outside back/reload/wait/continue/give-up.
+  const hb = harness({
+    observations: { p1: [resetForm, resetError] },
+    script: [CS(), POST({ error: 0.9, recover: ['foo', { foo: 0.9 }] })],
+    config: FORCED,
+  });
+  const rb = await hb.call({ goal: 'chain-post-branches unknown goal', steps: SUBMIT_STEPS });
+  assert.equal(rb.status, 'error');
+  assert.deepEqual(rb.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(hb), [['click', 'e1', undefined]]);
+
+  // Leg C: the recover op is not declared by the driver.
+  const hc = harness({
+    observations: { p1: [resetForm, resetError] },
+    script: [CS(), POST({ error: 0.9, recover: ['back', { back: 0.9 }] })],
+    config: FORCED,
+  });
+  hc.driver.ops = LEGACY_OPS;
+  const rc = await hc.call({ goal: 'chain-post-branches undeclared goal', steps: SUBMIT_STEPS });
+  assert.equal(rc.status, 'error');
+  assert.deepEqual(rc.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(hc), [['click', 'e1', undefined]]);
+});
