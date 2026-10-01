@@ -3110,10 +3110,10 @@ test('T-repeat-dialog: a click that opened a dialog still reaches chain memory, 
 
 // ---- r15 verifier pass 1: a late-landing submit, recover continue, legacy recover telemetry ----
 
-test('T-late-landing: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)', async () => {
-  // Leg A: the click's first observation is unchanged (the response had not
-  // arrived), the error page lands during the waits. The not-ready end names
-  // the action, and the resume never clicks again.
+test('T-late-landing-notready: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)', async () => {
+  // The click's first observation is unchanged (the response had not arrived),
+  // the error page lands during the waits. The not-ready end names the action,
+  // and the resume never clicks again.
   const h = harness({
     observations: { p1: [resetForm, resetForm, resetErrorForm] },
     script: [CS(), POST(), POST(), POST(), CS({ step_done: 0.1 })],
@@ -3127,8 +3127,9 @@ test('T-late-landing: a click read as no visible change whose page changes a rou
   const rA2 = await h.call(argsA);
   assert.equal(rA2.step_review?.why, 'repeat');
   assert.equal(actsOf(h).filter((a) => a[0] === 'click').length, 1, 'one submit across both calls');
+});
 
-  // Leg B: the same late landing, then the recover answer is reload: refused.
+test('T-late-landing-reload: the same late landing, then a recover reload is refused', async () => {
   const RELOAD: SeqEntry = { error: 0.9, recover: ['reload', { reload: 0.9 }] };
   const hb = harness({
     observations: { p1: [resetForm, resetForm, resetError] },

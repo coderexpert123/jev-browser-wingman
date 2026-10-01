@@ -520,3 +520,16 @@
   now ends `post-action`; a static observation makes a click `no visible change`, which
   T7 and T25 rely on; re-clicking the same element in one count-less clause after a wait
   or back now bounces `repeat`; an error answer >= 0.5 now blocks every advance below 0.85.
+  Known residuals (verifier wave, r15, not fixed): (1) optional-mode notes are unchanged,
+  so a `post-action` step-uncertain end there reads `BROWSE_STEP_CALLER_LINE` ("do this
+  step with your browser tools"), which asks the caller to repeat the executed action;
+  forced mode is correct. (2) The gate precedes the repeat guard, and a confirm-token act
+  never consults `clauseClicks()`, so with `gate.mode: 'confirm'` a resumed clause asks the
+  user to confirm the same irreversible click again. (3) Click identity is path + name, and
+  a path without an id is an `nth-of-type` chain: an error banner inserted as a same-tag
+  sibling before the form shifts it and the guard misses (an id-bearing button, like t9's
+  `#form_submit`, is stable). (4) A submit whose response lands after the call has ended
+  (the late flag only sees later rounds of the same call) is not in memory, so the resume
+  can click it again. (5) The token-act dialog-open end stores the click but not
+  `cursorActed`. Probe-test trap: `FakeDriver` repeats the last scripted observation, so a
+  two-observation script with a changed second entry is how a test shows a late landing.
