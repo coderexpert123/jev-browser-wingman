@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: reads claude, codex and opencode fixture registrations
+ok 1 - reads claude, codex and opencode fixture registrations
+  ---
+  type: 'test'
+  ...
+# Subtest: wrapPlaywrightEntry output for the claude fixture equals the pinned JSON
+ok 2 - wrapPlaywrightEntry output for the claude fixture equals the pinned JSON
+  ---
+  type: 'test'
+  ...
+# Subtest: wrapPlaywrightEntry drops --user-data-dir in both forms
+ok 3 - wrapPlaywrightEntry drops --user-data-dir in both forms
+  ---
+  type: 'test'
+  ...
+# Subtest: codex wrapped table gains startup_timeout_sec 60
+ok 4 - codex wrapped table gains startup_timeout_sec 60
+  ---
+  type: 'test'
+  ...
+# Subtest: wrapBrowsingEntry with the devtools profile strips --userDataDir in both forms and emits with-browser
+ok 5 - wrapBrowsingEntry with the devtools profile strips --userDataDir in both forms and emits with-browser
+  ---
+  type: 'test'
+  ...
+# Subtest: codex wingman entry sets tool_timeout_sec 150, above the max_ms ceiling
+ok 6 - codex wingman entry sets tool_timeout_sec 150, above the max_ms ceiling
+  ---
+  type: 'test'
+  ...
+# Subtest: portabilityProblems flags an absolute path
+ok 7 - portabilityProblems flags an absolute path
+  ---
+  type: 'test'
+  ...
+# Subtest: portabilityProblems flags a secret in env without printing it
+ok 8 - portabilityProblems flags a secret in env without printing it
+  ---
+  type: 'test'
+  ...
+# Subtest: a tilde path is portable
+ok 9 - a tilde path is portable
+  ---
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=9 pass=9 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

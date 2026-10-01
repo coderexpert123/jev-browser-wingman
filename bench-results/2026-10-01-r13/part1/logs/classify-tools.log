@@ -1,0 +1,46 @@
+TAP version 13
+# Subtest: a foreign tool list is classified and cached as a profile file
+ok 1 - a foreign tool list is classified and cached as a profile file
+  ---
+  type: 'test'
+  ...
+# Subtest: a second call with the same tool list reads the cache and asks nothing
+ok 2 - a second call with the same tool list reads the cache and asks nothing
+  ---
+  type: 'test'
+  ...
+# Subtest: an answer below THRESHOLDS.toolClass (0.8) classifies unknown
+ok 3 - an answer below THRESHOLDS.toolClass (0.8) classifies unknown
+  ---
+  type: 'test'
+  ...
+# Subtest: no ask (no key) returns no-key without touching the decision service
+ok 4 - no ask (no key) returns no-key without touching the decision service
+  ---
+  type: 'test'
+  ...
+# Subtest: an ask failure returns ask-failed
+ok 5 - an ask failure returns ask-failed
+  ---
+  type: 'test'
+  ...
+# Subtest: the request state carries names and cut descriptions and no caller values
+ok 6 - the request state carries names and cut descriptions and no caller values
+  ---
+  type: 'test'
+  ...
+# Subtest: every tool-class instruction ends with the untrusted-descriptions sentence
+ok 7 - every tool-class instruction ends with the untrusted-descriptions sentence
+  ---
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=7 pass=7 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

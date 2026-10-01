@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: no results expects the placeholder
+ok 1 - no results expects the placeholder
+  ---
+  type: 'test'
+  ...
+# Subtest: a hand-edited number fails
+ok 2 - a hand-edited number fails
+  ---
+  type: 'test'
+  ...
+# Subtest: --write then check passes
+ok 3 - --write then check passes
+  ---
+  type: 'test'
+  ...
+# Subtest: cap-proof files are ignored
+ok 4 - cap-proof files are ignored
+  ---
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=4 pass=4 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
