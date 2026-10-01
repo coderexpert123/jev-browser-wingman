@@ -1,0 +1,12 @@
+FORCED-VERDICT: completion forced=2/3 playwright=3/3
+FORCED-VERDICT: wingman-share 1.00
+FORCED-VERDICT: raw-acts 0
+FORCED-VERDICT: handoffs max=10
+FORCED-VERDICT: picks 9/23
+FORCED-VERDICT: zero-step-done 0
+FORCED-VERDICT: first-call-success 3/3
+FORCED-VERDICT: median-steps 1.00
+FORCED-VERDICT: no-page-error-end 1
+FORCED-VERDICT: raw-script 0
+FORCED-VERDICT: why-breakdown low-confidence=4 no-match=2 no-progress=1 not-ready=10 wrong-page=3
+FORCED-VERDICT: overall FAIL
