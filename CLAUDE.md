@@ -373,9 +373,13 @@ withheld — this file rides a public-bound repository). Gates:
   the 600 s wall with only 5 raw calls). `jev-error` fallbacks, not the caller,
   are now the binding defect on the browse route: one prompt line flipped
   engagement 0->5 but the tool refused the work.
-- **`repeats` has no CLI flag** — an n>1 run means temporarily editing
-  `bench/config.json` `repeats` and reverting after; the results commit is
-  pathspec'd to the results file only.
+- **`--repeats N` (integer 1-5) is a CLI flag of `dist/bench/run.js`** (parsed in
+  `bench/run.ts`); no need to edit `bench/config.json`. (Superseded 2026-10-01: an older
+  note said repeats had no flag.) Results files are second-stamped `YYYY-MM-DD-HHMMSS.json`
+  with `_N` on a same-second clash and never overwrite (r14 WP-D) — the minute-stamped
+  names let one phase's results overwrite another's (r13).
+- **A guard like r14's "never on the final clause" (`cursor < N - 1`) makes any mutant test
+  whose target clause is the last clause vacuous** — give such tests a trailing clause.
 
 ## Gotchas from the continuation-floor pass (2026-09-21)
 
