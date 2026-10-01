@@ -1,0 +1,696 @@
+TAP version 13
+# Subtest: T1: three clauses act once each and end done with progress {3,3,3}
+ok 1 - T1: three clauses act once each and end done with progress {3,3,3}
+  ---
+  type: 'test'
+  ...
+# Subtest: T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+ok 2 - T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+  ---
+  type: 'test'
+  ...
+# Subtest: T3: the same goal with changed steps starts at clause 1
+ok 3 - T3: the same goal with changed steps starts at clause 1
+  ---
+  type: 'test'
+  ...
+# Subtest: T4: a fresh chain where every clause is already done ends already-done with zero acts
+ok 4 - T4: a fresh chain where every clause is already done ends already-done with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+ok 5 - T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+  ---
+  type: 'test'
+  ...
+# Subtest: T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+ok 6 - T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+ok 7 - T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+ok 8 - T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick acts with zero asks, and the chain continues after it
+ok 9 - T8: a pick acts with zero asks, and the chain continues after it
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+ok 10 - T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto an obscured element returns target-covered
+ok 11 - T8: a pick onto an obscured element returns target-covered
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto a submit button under gate confirm returns needs_confirmation
+ok 12 - T8: a pick onto a submit button under gate confirm returns needs_confirmation
+  ---
+  type: 'test'
+  ...
+# Subtest: T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+ok 13 - T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T9: wingman_do action criteria never contain navigate or back
+ok 14 - T9: wingman_do action criteria never contain navigate or back
+  ---
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with a path binding converts to upload and acts with the path
+ok 15 - T10: a click on a file input with a path binding converts to upload and acts with the path
+  ---
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with no path binding is no-value with zero acts
+ok 16 - T10: a click on a file input with no path binding is no-value with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T11: chain press acts with the key answer; none or low key bounces low-confidence
+ok 17 - T11: chain press acts with the key answer; none or low key bounces low-confidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T11: wingman_do press falls back to Enter on a low key answer
+ok 18 - T11: wingman_do press falls back to Enter on a low key answer
+  ---
+  type: 'test'
+  ...
+# Subtest: T12: a chain scroll round with target none acts (null, scroll)
+ok 19 - T12: a chain scroll round with target none acts (null, scroll)
+  ---
+  type: 'test'
+  ...
+# Subtest: T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+ok 20 - T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+  ---
+  type: 'test'
+  ...
+# Subtest: T14: a mid-chain time budget ends budget-time with the correct progress
+ok 21 - T14: a mid-chain time budget ends budget-time with the correct progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T15: a two-stage round with a targetless action choice skips request 2
+ok 22 - T15: a two-stage round with a targetless action choice skips request 2
+  ---
+  type: 'test'
+  ...
+# Subtest: T16: no binding value appears in the requests or results of chain traffic
+ok 23 - T16: no binding value appears in the requests or results of chain traffic
+  ---
+  type: 'test'
+  ...
+# Subtest: T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+ok 24 - T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+  ---
+  type: 'test'
+  ...
+# Subtest: T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+ok 25 - T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+  ---
+  type: 'test'
+  ...
+# Subtest: T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+ok 26 - T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+  ---
+  type: 'test'
+  ...
+# Subtest: T20: every § 5.5.1 validation row reports its exact message
+ok 27 - T20: every § 5.5.1 validation row reports its exact message
+  ---
+  type: 'test'
+  ...
+# Subtest: T21: a reached target page ends done, not page-error (legacy and chain)
+ok 28 - T21: a reached target page ends done, not page-error (legacy and chain)
+  ---
+  type: 'test'
+  ...
+# Subtest: T22: oversized text is cut; a payload that cannot fit ends state-too-large
+ok 29 - T22: oversized text is cut; a payload that cannot fit ends state-too-large
+  ---
+  type: 'test'
+  ...
+# Subtest: T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+ok 30 - T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+  ---
+  type: 'test'
+  ...
+# Subtest: T23: two consecutive low right_page rounds on one clause bounce wrong-page
+ok 31 - T23: two consecutive low right_page rounds on one clause bounce wrong-page
+  ---
+  type: 'test'
+  ...
+# Subtest: T23: right_page low then high does not bounce, and an advance resets the counter
+ok 32 - T23: right_page low then high does not bounce, and an advance resets the counter
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+ok 33 - T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: ready low then high decides normally
+ok 34 - T24: ready low then high decides normally
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: a driver without wait settles instead of acting on a not-ready round
+ok 35 - T24: a driver without wait settles instead of acting on a not-ready round
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+ok 36 - T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+ok 37 - T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: continue falls through to the normal decision; the cap ends page-error
+ok 38 - T25: continue falls through to the normal decision; the cap ends page-error
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: legacy browse_step recovers the same way; wingman_do never asks recover
+ok 39 - T25: legacy browse_step recovers the same way; wingman_do never asks recover
+  ---
+  type: 'test'
+  ...
+# Subtest: T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+ok 40 - T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+  ---
+  type: 'test'
+  ...
+# Subtest: T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+ok 41 - T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+ok 42 - T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+ok 43 - T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+ok 44 - T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+  ---
+  type: 'test'
+  ...
+# Subtest: splitCompoundClause: the r11 boundary table, verbatim
+ok 45 - splitCompoundClause: the r11 boundary table, verbatim
+  ---
+  type: 'test'
+  ...
+# Subtest: expandClauses: parents map back to the caller clause; over the cap returns null
+ok 46 - expandClauses: parents map back to the caller clause; over the cap returns null
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+ok 47 - T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+ok 48 - T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+ok 49 - T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+ok 50 - T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+ok 51 - T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+ok 52 - T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+ok 53 - T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-url: a confident none on a hub-miss clause asks the stuck recover and navigates to the url binding, then the clause lands
+ok 54 - T-stuck-url: a confident none on a hub-miss clause asks the stuck recover and navigates to the url binding, then the clause lands
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-back: with no url binding the stuck recover goes back, then the clause lands
+ok 55 - T-stuck-back: with no url binding the stuck recover goes back, then the clause lands
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-giveup: give-up and a sub-threshold answer both end in the deferred no-match bounce with zero acts
+ok 56 - T-stuck-giveup: give-up and a sub-threshold answer both end in the deferred no-match bounce with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-d7: only caller url bindings are offered; an unoffered id never acts
+ok 57 - T-stuck-d7: only caller url bindings are offered; an unoffered id never acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-once: a second would-be bounce on the same clause bounces without another stuck ask
+ok 58 - T-stuck-once: a second would-be bounce on the same clause bounces without another stuck ask
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-verb: a none under a non-navigation verb (check) never triggers the stuck recover
+ok 59 - T-stuck-verb: a none under a non-navigation verb (check) never triggers the stuck recover
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-none-bar: none at 0.8 triggers the stuck ask, 0.79 does not
+ok 60 - T-stuck-none-bar: none at 0.8 triggers the stuck ask, 0.79 does not
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-not-fresh: a clause that already acted never takes the stuck recover
+ok 61 - T-stuck-not-fresh: a clause that already acted never takes the stuck recover
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-not-fresh-resume: a resumed clause that already acted stays ineligible (cursorActed rides chain memory)
+ok 62 - T-stuck-not-fresh-resume: a resumed clause that already acted stays ineligible (cursorActed rides chain memory)
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-wrong-page: a wrong-page would-be bounce takes the stuck recover and the clause lands after it
+ok 63 - T-stuck-wrong-page: a wrong-page would-be bounce takes the stuck recover and the clause lands after it
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-wrong-page-giveup: give-up on a wrong-page trigger returns the wrong-page bounce with its own note
+ok 64 - T-stuck-wrong-page-giveup: give-up on a wrong-page trigger returns the wrong-page bounce with its own note
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-evidence: a stuck navigate that the clause did not name is not step evidence
+ok 65 - T-stuck-evidence: a stuck navigate that the clause did not name is not step evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-named-evidence: a stuck navigate to the binding the clause names IS its own act and counts as evidence
+ok 66 - T-stuck-named-evidence: a stuck navigate to the binding the clause names IS its own act and counts as evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-same-url: the page we are already on is never offered as a destination
+ok 67 - T-stuck-same-url: the page we are already on is never offered as a destination
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-budget: the recover budget shared with error recovery is spent first, so no stuck ask follows
+ok 68 - T-stuck-budget: the recover budget shared with error recovery is spent first, so no stuck ask follows
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-offer: an offer-mode call (takeover:false) never takes the stuck recover
+ok 69 - T-stuck-offer: an offer-mode call (takeover:false) never takes the stuck recover
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-no-history: a stuck back with no history is the deferred no-match bounce, not error/act-failed
+ok 70 - T-stuck-no-history: a stuck back with no history is the deferred no-match bounce, not error/act-failed
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-steps-budget: a stuck recovery needs a step left; at max_steps the clause bounces no-match, not budget-steps
+ok 71 - T-stuck-steps-budget: a stuck recovery needs a step left; at max_steps the clause bounces no-match, not budget-steps
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-stage: eligibility reads the merged two-stage answer map (action from request 1, none target from request 2)
+ok 72 - T-stuck-two-stage: eligibility reads the merged two-stage answer map (action from request 1, none target from request 2)
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence trigger bounces low-confidence WITH the trigger-time candidates
+ok 73 - T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence trigger bounces low-confidence WITH the trigger-time candidates
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-nones: a multi-match first look followed by a none is NOT two consecutive none looks, so it bounces without the stuck ask
+ok 74 - T-stuck-two-nones: a multi-match first look followed by a none is NOT two consecutive none looks, so it bounces without the stuck ask
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-bindings: with two url bindings the navigate goes to the one Jev chose, not the first offered
+ok 75 - T-stuck-two-bindings: with two url bindings the navigate goes to the one Jev chose, not the first offered
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-token-act: a confirmed token act is an element act on the clause, so the clause is no longer fresh
+ok 76 - T-stuck-token-act: a confirmed token act is an element act on the clause, so the clause is no longer fresh
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-noprogress-exempt: a stuck back right after an error-recover back that changed nothing is exempt from the no-progress guard
+ok 77 - T-stuck-noprogress-exempt: a stuck back right after an error-recover back that changed nothing is exempt from the no-progress guard
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-no-back-op: a driver without back still offers the url binding, and with neither there is no stuck ask
+ok 78 - T-stuck-no-back-op: a driver without back still offers the url binding, and with neither there is no stuck ask
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-telemetry-giveup: a declined stuck round records stuck give-up, an unanswered one records nothing
+ok 79 - T-stuck-telemetry-giveup: a declined stuck round records stuck give-up, an unanswered one records nothing
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)
+ok 80 - T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-reset-on-advance: the once-per-clause budget resets when the clause advances, so the next hub-miss clause recovers too
+ok 81 - T-stuck-reset-on-advance: the once-per-clause budget resets when the clause advances, so the next hub-miss clause recovers too
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-shares-recover-budget: a stuck act spends one of the clause recover acts, so error recovery gets only the other
+ok 82 - T-stuck-shares-recover-budget: a stuck act spends one of the clause recover acts, so error recovery gets only the other
+  ---
+  type: 'test'
+  ...
+# Subtest: T-stuck-query-hub: a url binding differing from the page by query is offered; a hash-only difference (href="\#") is still the same page
+ok 83 - T-stuck-query-hub: a url binding differing from the page by query is offered; a hash-only difference (href="\#") is still the same page
+  ---
+  type: 'test'
+  ...
+# Subtest: T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message
+ok 84 - T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message
+  ---
+  type: 'test'
+  ...
+# Subtest: T-act-error-log: a thrown act error lands sanitized in the log record as act_error
+ok 85 - T-act-error-log: a thrown act error lands sanitized in the log record as act_error
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-advance: an open clause whose own click landed on another document advances at stepDone 0.35, so the next sub-goal is not acted under it
+ok 86 - T-nav-advance: an open clause whose own click landed on another document advances at stepDone 0.35, so the next sub-goal is not acted under it
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead as before, and at 0.6 the old evidence bar owns the advance
+ok 87 - T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead as before, and at 0.6 the old evidence bar owns the advance
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-same-url: a click that stays on the same document (or only changes the hash) keeps the 0.5 bar and acts ahead
+ok 88 - T-nav-same-url: a click that stays on the same document (or only changes the hash) keeps the 0.5 bar and acts ahead
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-error: a landed click whose page reads as an error never advances on navigation evidence
+ok 89 - T-nav-error: a landed click whose page reads as an error never advances on navigation evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-not-own: another clause's landed click is not evidence for the current clause
+ok 90 - T-nav-not-own: another clause's landed click is not evidence for the current clause
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-count: a clause with a count word advances only on its count, never on navigation evidence
+ok 91 - T-nav-count: a clause with a count word advances only on its count, never on navigation evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-two-bindings: a clause with two value bindings never advances on navigation evidence
+ok 92 - T-nav-two-bindings: a clause with two value bindings never advances on navigation evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-token: a confirmed token click records beforeUrl, so the next round advances on navigation evidence
+ok 93 - T-nav-token: a confirmed token click records beforeUrl, so the next round advances on navigation evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-final-clause: navigation evidence never advances the FINAL clause (it would end done/goal-met on a weak landing)
+ok 94 - T-nav-final-clause: navigation evidence never advances the FINAL clause (it would end done/goal-met on a weak landing)
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing
+ok 95 - T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-query: a landing that differs from the click page only by its query string is a left document
+ok 96 - T-nav-query: a landing that differs from the click page only by its query string is a left document
+  ---
+  type: 'test'
+  ...
+# Subtest: T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never carry leftPage or navEvidence
+ok 97 - T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never carry leftPage or navEvidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T-post-notready: not ready after the clause's own effective click ends post-action; a no-change click or a fill keeps not-ready
+not ok 98 - T-post-notready: not ready after the clause's own effective click ends post-action; a no-change click or a fill keeps not-ready
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        candidates: [],
+        step: 'click the Retrieve button',
+    +   why: 'not-ready'
+    -   why: 'post-action'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    step: 'click the Retrieve button'
+    why: 'post-action'
+    candidates:
+  actual:
+    step: 'click the Retrieve button'
+    why: 'not-ready'
+    candidates:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2483:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry
+ok 99 - T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry
+  ---
+  type: 'test'
+  ...
+# Subtest: T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)
+not ok 100 - T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'done' !== 'error'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'error'
+  actual: 'done'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2528:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-error-gate: below the 0.85 bar no advance passes an error the page shows; at 0.85 the clause still advances (done before error)
+ok 101 - T-error-gate: below the 0.85 bar no advance passes an error the page shows; at 0.85 the clause still advances (done before error)
+  ---
+  type: 'test'
+  ...
+# Subtest: T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)
+not ok 102 - T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'not-ready'
+    - 'post-action'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'post-action'
+  actual: 'not-ready'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2643:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-repeat-after-wait: in one call a wait between two clicks on the same target no longer hides the first click
+ok 103 - T-repeat-after-wait: in one call a wait between two clicks on the same target no longer hides the first click
+  ---
+  type: 'test'
+  ...
+# Subtest: T-repeat-pick: an explicit pick of the clicked target is the caller's instruction and acts
+not ok 104 - T-repeat-pick: an explicit pick of the clicked target is the caller's instruction and acts
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'not-ready'
+    - 'post-action'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'post-action'
+  actual: 'not-ready'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2712:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-repeat-dialog: a click that opened a dialog still reaches chain memory, so the resume never re-clicks it (shared act site and token act)
+not ok 105 - T-repeat-dialog: a click that opened a dialog still reaches chain memory, so the resume never re-clicks it (shared act site and token act)
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'no-progress'
+    - 'repeat'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'repeat'
+  actual: 'no-progress'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2729:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-late-landing-notready: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)
+not ok 106 - T-late-landing-notready: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        candidates: [],
+        step: 'click the Retrieve button',
+    +   why: 'not-ready'
+    -   why: 'post-action'
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    step: 'click the Retrieve button'
+    why: 'post-action'
+    candidates:
+  actual:
+    step: 'click the Retrieve button'
+    why: 'not-ready'
+    candidates:
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2768:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-late-landing-reload: the same late landing, then a recover reload is refused
+not ok 107 - T-late-landing-reload: the same late landing, then a recover reload is refused
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'done' !== 'error'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'error'
+  actual: 'done'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r15/tests/chain.test.js:2782:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-repeat-recovered: an error answered continue never lets the clause click its clicked target again
+ok 108 - T-repeat-recovered: an error answered continue never lets the clause click its clicked target again
+  ---
+  type: 'test'
+  ...
+# Subtest: T-post-back-wait: after the clause's own effective click the recover answers back and wait still act, and a re-click after the back bounces repeat
+ok 109 - T-post-back-wait: after the clause's own effective click the recover answers back and wait still act, and a re-click after the back bounces repeat
+  ---
+  type: 'test'
+  ...
+# Subtest: T-post-error-branches: every rule-4 page-error end after an effective click carries post-action (recover cap, unrecognized answer, undeclared op)
+ok 110 - T-post-error-branches: every rule-4 page-error end after an effective click carries post-action (recover cap, unrecognized answer, undeclared op)
+  ---
+  type: 'test'
+  ...
+1..110
+# tests 110
+# suites 0
+# pass 103
+# fail 7
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=110 pass=103 fail=7
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

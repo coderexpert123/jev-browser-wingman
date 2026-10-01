@@ -1,0 +1,146 @@
+TAP version 13
+# Subtest: every instruction ends with the untrusted-data sentence
+ok 1 - every instruction ends with the untrusted-data sentence
+  ---
+  type: 'test'
+  ...
+# Subtest: round 1 has no error question and round 2 has one
+ok 2 - round 1 has no error question and round 2 has one
+  ---
+  type: 'test'
+  ...
+# Subtest: value question only when bindings exist
+ok 3 - value question only when bindings exist
+  ---
+  type: 'test'
+  ...
+# Subtest: target criteria render role, name and state suffixes
+ok 4 - target criteria render role, name and state suffixes
+  ---
+  type: 'test'
+  ...
+# Subtest: form-control criteria carry the machine attributes in § 3.5 order
+ok 5 - form-control criteria carry the machine attributes in § 3.5 order
+  ---
+  type: 'test'
+  ...
+# Subtest: machine attributes are omitted when absent or empty
+ok 6 - machine attributes are omitted when absent or empty
+  ---
+  type: 'test'
+  ...
+# Subtest: an empty name renders (no label)
+ok 7 - an empty name renders (no label)
+  ---
+  type: 'test'
+  ...
+# Subtest: target criteria include none and ambiguous
+ok 8 - target criteria include none and ambiguous
+  ---
+  type: 'test'
+  ...
+# Subtest: 300 elements produce a group request with 10 groups and no target
+ok 9 - 300 elements produce a group request with 10 groups and no target
+  ---
+  type: 'test'
+  ...
+# Subtest: the target request covers only the top 3 groups
+ok 10 - the target request covers only the top 3 groups
+  ---
+  type: 'test'
+  ...
+# Subtest: 300 options produce 2 chunk requests of at most 251 criteria
+ok 11 - 300 options produce 2 chunk requests of at most 251 criteria
+  ---
+  type: 'test'
+  ...
+# Subtest: binding values never appear in any request
+ok 12 - binding values never appear in any request
+  ---
+  type: 'test'
+  ...
+# Subtest: check request carries only the answer question
+ok 13 - check request carries only the answer question
+  ---
+  type: 'test'
+  ...
+# Subtest: Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in order
+ok 14 - Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in order
+  ---
+  type: 'test'
+  ...
+# Subtest: Q2: offeredOps never offers navigate or back to wingman_do; browse_step gets back always, navigate only with a url binding, upload only with a path binding
+ok 15 - Q2: offeredOps never offers navigate or back to wingman_do; browse_step gets back always, navigate only with a url binding, upload only with a path binding
+  ---
+  type: 'test'
+  ...
+# Subtest: Q3: the url question rides only with navigate offered plus a url binding; its criteria are the url bindings plus none
+ok 16 - Q3: the url question rides only with navigate offered plus a url binding; its criteria are the url bindings plus none
+  ---
+  type: 'test'
+  ...
+# Subtest: Q4: the file question rides only with upload offered plus a path binding; its criteria are the path bindings plus none
+ok 17 - Q4: the file question rides only with upload offered plus a path binding; its criteria are the path bindings plus none
+  ---
+  type: 'test'
+  ...
+# Subtest: Q5: the key question criteria keys are the KEY_CRITERIA keys
+ok 18 - Q5: the key question criteria keys are the KEY_CRITERIA keys
+  ---
+  type: 'test'
+  ...
+# Subtest: Q6: chain adds step_done and the focus sentence immediately before the untrusted sentence in action, target, value and group
+ok 19 - Q6: chain adds step_done and the focus sentence immediately before the untrusted sentence in action, target, value and group
+  ---
+  type: 'test'
+  ...
+# Subtest: Q7: every INSTRUCTIONS entry, including the new chain entries, ends with the untrusted sentence
+ok 20 - Q7: every INSTRUCTIONS entry, including the new chain entries, ends with the untrusted sentence
+  ---
+  type: 'test'
+  ...
+# Subtest: Q8: the error instruction equals the reworded spec literal
+ok 21 - Q8: the error instruction equals the reworded spec literal
+  ---
+  type: 'test'
+  ...
+# Subtest: Q9: chain requests never leak binding values planted in names and criterion text
+ok 22 - Q9: chain requests never leak binding values planted in names and criterion text
+  ---
+  type: 'test'
+  ...
+# Subtest: Q10: right_page and ready ride iff chain; recover rides iff recover and only where error rides; two-stage keeps all three on request 1
+ok 23 - Q10: right_page and ready ride iff chain; recover rides iff recover and only where error rides; two-stage keeps all three on request 1
+  ---
+  type: 'test'
+  ...
+# Subtest: Q11: KEY_CRITERIA keys are the 11 PRESS_KEYS plus none in order; RECOVER_CRITERIA keys are exact; DEFAULT_OFFERED_OPS ends with scroll_to and never contains reload
+ok 24 - Q11: KEY_CRITERIA keys are the 11 PRESS_KEYS plus none in order; RECOVER_CRITERIA keys are exact; DEFAULT_OFFERED_OPS ends with scroll_to and never contains reload
+  ---
+  type: 'test'
+  ...
+# Subtest: Q12: right_page, ready and recover instructions, press and scroll_to criteria, KEY_CRITERIA and RECOVER_CRITERIA equal the spec literals
+ok 25 - Q12: right_page, ready and recover instructions, press and scroll_to criteria, KEY_CRITERIA and RECOVER_CRITERIA equal the spec literals
+  ---
+  type: 'test'
+  ...
+# Subtest: Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the spec literals, back, open_<name>, give-up in order
+ok 26 - Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the spec literals, back, open_<name>, give-up in order
+  ---
+  type: 'test'
+  ...
+# Subtest: Q-r13-stuck-noback: back:false and no url names leaves give-up as the only criterion; the error-path recover is untouched
+ok 27 - Q-r13-stuck-noback: back:false and no url names leaves give-up as the only criterion; the error-path recover is untouched
+  ---
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=27 pass=27 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

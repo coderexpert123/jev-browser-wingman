@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: flags a planted curl pipe to sh
+ok 1 - flags a planted curl pipe to sh
+  ---
+  type: 'test'
+  ...
+# Subtest: flags a planted Invoke-Expression
+ok 2 - flags a planted Invoke-Expression
+  ---
+  type: 'test'
+  ...
+# Subtest: flags a paste-this-prompt line
+ok 3 - flags a paste-this-prompt line
+  ---
+  type: 'test'
+  ...
+# Subtest: passes a clean document
+ok 4 - passes a clean document
+  ---
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=4 pass=4 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
