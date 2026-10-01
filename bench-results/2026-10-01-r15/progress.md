@@ -1,3 +1,10 @@
 # r15 progress log (HEAD e2b72f0)
 - Part 1 DONE: 51/51 files; tsc 0; 781 tests, 779 pass, 1 skip (chrome-cmd win32), 1 todo (conformance-ops playwright O18, PASSED as todo; cdp pass), 0 fail; no re-runs. chain 110/110, chain-e2e 13/13 incl. E9-E13, pick-e2e 2/2, browse-step-surface 7/7, conformance 28/28, conformance-ops 40 pass + 1 todo. lazy-chrome ok; known-bad tool-call FAIL answered=true. KB-r15 proof: chain 7 fail (T-post-notready, T-post-reload, T-repeat-resume required; plus T-repeat-pick, T-repeat-dialog, T-late-landing-notready, T-late-landing-reload), chain-e2e E12 and E13 fail (11 pass/2 fail); restored clean.
 - Phase V DONE (phase-v.json) total_usd=0.981121: V1 playwright ok 42.7s 0.465439 | V2 ok 23.1s 0.138917 | V3 ok 40.3s 0.376765 -> 3/3 control OK
+- Phase M DONE (phase-m.json) total_usd=1.574937; forced-verdict overall PASS (first time): completion 3/3, handoffs max=4, picks 1/11, median-steps 4.00, no-page-error-end 0
+  - M1 forced ok=True wall=50.3s usd=0.275102 handoffs=3 picks=0 wingman_acts=30 raw_acts=0 raw_script=0
+  - M2 playwright ok=True wall=29.3s usd=0.251189 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+  - M3 forced ok=True wall=45.4s usd=0.175035 handoffs=4 picks=1 wingman_acts=26 raw_acts=0 raw_script=0
+  - M4 playwright ok=True wall=39.8s usd=0.361125 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=1
+  - M5 forced ok=True wall=43.9s usd=0.212276 handoffs=4 picks=0 wingman_acts=25 raw_acts=0 raw_script=0
+  - M6 playwright ok=True wall=33.2s usd=0.30021 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=1
