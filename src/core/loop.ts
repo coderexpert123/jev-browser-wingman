@@ -306,6 +306,12 @@ interface HistoryEntry {
   // r13 D6: a stuck-recover navigate that is NOT the clause's own named
   // binding act is never step evidence. Internal only.
   stuckRecover?: true;
+  // r15 (verifier pass 1): a click-family act whose `result` read 'no visible
+  // change' but whose page changed at a LATER round (a slow response that had
+  // not arrived at the one observation `result` is taken from). Only
+  // effectiveClicks reads it; `result` itself stays untouched, so no evidence
+  // rule changes. Internal only.
+  late?: true;
 }
 
 /** § outcome evidence: element-state verbs read `state` directly (no new
@@ -403,6 +409,38 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
   }
   const updated: HistoryEntry = { ...last, result };
   return [...history.slice(0, -1), updated];
+}
+
+/** r15 (verifier pass 1): `annotateLastOutcome` reads each act's result ONCE,
+ * at the observation right after it, so a submit whose response arrives
+ * later (an AJAX call, a slow POST) reads 'no visible change' for good. At each
+ * later round's observation, flag such a click-family act `late` when its page
+ * signal now differs from the pre-act baseline (or its element is gone), so
+ * effectiveClicks counts it. `result` is not rewritten: evidence rules read
+ * it. A page that never changes after a no-op click stays unflagged (T25). */
+function noteLateChange(history: HistoryEntry[], obs: Observation): HistoryEntry[] {
+  const out = history.slice();
+  let flagged = false;
+  for (let i = 0; i < out.length; i += 1) {
+    const h = out[i];
+    if (
+      h.late === true ||
+      h.result !== 'no visible change' ||
+      h.before === undefined ||
+      h.path === undefined ||
+      !CLICK_FAMILY_OPS.has(h.verb)
+    ) {
+      continue;
+    }
+    const fresh = obs.elements.find(
+      (e) => e.path === h.path && (h.fingerprint === undefined || fingerprintMatches(e.fingerprint, h.fingerprint)),
+    );
+    if (fresh === undefined || pageSignal(obs, fresh) !== h.before) {
+      out[i] = { ...h, late: true };
+      flagged = true;
+    }
+  }
+  return flagged ? out : history;
 }
 
 /** § outcome evidence WP-B: true when `decision` repeats the exact same
@@ -777,11 +815,18 @@ function hasNavClickEvidence(history: HistoryEntry[], currentStepKey: string, cu
 
 /** r15 D3: `stepKey`'s effective clicks: its click-family acts on an element
  * whose observed result is not 'no visible change' (an act whose result was
- * never observed counts: it may have landed). Identity is the element path
- * plus its accessible name. */
+ * never observed counts: it may have landed; so does a 'no visible change'
+ * act whose page changed at a later round, `late`). Identity is the element
+ * path plus its accessible name. */
 function effectiveClicks(history: HistoryEntry[], stepKey: string): ClickRef[] {
   return history
-    .filter((h) => h.stepKey === stepKey && CLICK_FAMILY_OPS.has(h.verb) && h.path !== undefined && h.result !== 'no visible change')
+    .filter(
+      (h) =>
+        h.stepKey === stepKey &&
+        CLICK_FAMILY_OPS.has(h.verb) &&
+        h.path !== undefined &&
+        (h.result !== 'no visible change' || h.late === true),
+    )
     .map((h) => ({ path: h.path as string, name: h.label }));
 }
 
@@ -2820,6 +2865,7 @@ async function runTool(
       // § outcome evidence choke point: fills the last act's observed result
       // from this round's fresh obs, before anything reads history.
       history = annotateLastOutcome(history, obs);
+      history = noteLateChange(history, obs); // r15: a slow response landing rounds after the click
       const lastResult = history.length > 0 ? history[history.length - 1].result : undefined;
       if (cur && lastResult !== undefined) {
         // § outcome evidence secrecy (verifier fix, 2026-09-28): `result` can

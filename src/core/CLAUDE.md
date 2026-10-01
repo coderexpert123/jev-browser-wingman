@@ -484,7 +484,13 @@
   0.5-bar click-evidence advance, not new in kind.
 - Post-action ends, the weak-advance error gate and no repeated submit (r15):
   an EFFECTIVE click is a click-family act (click/dblclick/press) whose observed
-  result is not `no visible change` (a never-observed result counts); identity is
+  result is not `no visible change` (a never-observed result counts, and so does a
+  `no visible change` click whose page changed at a LATER round: `result` is read once,
+  at the observation right after the act, so a slow submit response reads unchanged for
+  good; `noteLateChange` flags such an entry `late` on any later observation whose page
+  signal differs from the pre-act baseline, and `result` itself is never rewritten, so
+  no evidence rule moves; a page that never changes after a no-op click stays
+  unflagged, which T25 relies on); identity is
   element path + accessible name (`effectiveClicks`). `clauseClicks()` = the clicks
   chain memory carried for a resumed cursor (`ChainMemoryEntry.clicks`, restored to
   `chain.priorClicks`, reset to [] on an advance) plus this call's; `finish()` stores

@@ -2879,6 +2879,7 @@ test("T-post-reload: the recover path never reloads after the step's own effecti
   assert.equal(rl.status, 'error');
   assert.equal(rl.reason, 'page-error');
   assert.deepEqual(actsOf(hl), [['click', 'e1', undefined]]);
+  assert.equal(navRounds(hl)[1].recover, 'reload');
 
   // Leg C (r10 L199/L200 shape): memory carries the click across an error end,
   // so a resumed call's recover reload is refused as well.
@@ -3105,4 +3106,62 @@ test('T-repeat-dialog: a click that opened a dialog still reaches chain memory, 
   const t3 = await ht.call(tArgs);
   assert.equal(t3.step_review?.why, 'repeat');
   assert.deepEqual(actsOf(ht), [['click', 'e1', undefined]]);
+});
+
+// ---- r15 verifier pass 1: a late-landing submit, recover continue, legacy recover telemetry ----
+
+test('T-late-landing: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)', async () => {
+  // Leg A: the click's first observation is unchanged (the response had not
+  // arrived), the error page lands during the waits. The not-ready end names
+  // the action, and the resume never clicks again.
+  const h = harness({
+    observations: { p1: [resetForm, resetForm, resetErrorForm] },
+    script: [CS(), POST(), POST(), POST(), CS({ step_done: 0.1 })],
+    config: FORCED,
+  });
+  const argsA = { goal: 'chain-late-landing notready goal', steps: SUBMIT_STEPS };
+  const rA = await h.call(argsA);
+  assert.equal(rA.status, 'fallback');
+  assert.deepEqual(rA.step_review, POST_REVIEW);
+  assert.equal(rA.note, FORCED_POST_ACTION_LINE);
+  const rA2 = await h.call(argsA);
+  assert.equal(rA2.step_review?.why, 'repeat');
+  assert.equal(actsOf(h).filter((a) => a[0] === 'click').length, 1, 'one submit across both calls');
+
+  // Leg B: the same late landing, then the recover answer is reload: refused.
+  const RELOAD: SeqEntry = { error: 0.9, recover: ['reload', { reload: 0.9 }] };
+  const hb = harness({
+    observations: { p1: [resetForm, resetForm, resetError] },
+    script: [CS(), POST({ error: 0.2 }), POST(RELOAD), ADV()],
+    config: FORCED,
+  });
+  const rB = await hb.call({ goal: 'chain-late-landing reload goal', steps: SUBMIT_STEPS });
+  assert.equal(rB.status, 'error');
+  assert.equal(rB.reason, 'page-error');
+  assert.deepEqual(rB.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(hb), [
+    ['click', 'e1', undefined],
+    ['wait', null, undefined],
+  ]);
+  assert.equal(navRounds(hb)[2].recover, 'reload');
+});
+
+test('T-repeat-recovered: an error answered continue never lets the clause click its clicked target again', async () => {
+  const CONT: SeqEntry = {
+    error: 0.9,
+    ready: 0.95,
+    recover: ['continue', { continue: 0.9 }],
+    action: ['click', { click: 0.9, none: 0.05 }],
+    target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }],
+  };
+  const h = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), POST(CONT)],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-repeat-recovered goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(navRounds(h)[1].recover, 'continue');
 });
