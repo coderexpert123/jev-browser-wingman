@@ -1,0 +1,60 @@
+## why buckets x split state: Counter({('no-match', 'decomposed'): 13, ('low-confidence', 'decomposed'): 10, ('no-progress', 'decomposed'): 2, ('wrong-page', 'decomposed'): 2, ('low-confidence', 'no-compound'): 1})
+
+## per-bucket occurrences: step_text of LAST round -> decided action
+### not-ready
+  (none)
+### no-match
+  run1.1 step_text=[open Dropdown] action=click aP=0.58 t1=none/0.93 t2=ambiguous/0.03 sdP=0.08 rdy=0.57 rp=0.63 hist=checked progress=1/7 rounds=6
+  run1.3 step_text=[open Add/Remove Elements] action=click aP=0.77 t1=none/0.9299999999999999 t2=e1/0.03 sdP=0.12 rdy=0.43 rp=0.58 hist=selected: Option 1 progress=1/6 rounds=6
+  run1.5 step_text=[open Inputs] action=click aP=0.54 t1=none/0.99 t2=ambiguous/0.01 sdP=0.08 rdy=0.55 rp=0.61 hist=page changed progress=1/5 rounds=7
+  run1.8 step_text=[open Forgot Password] action=click aP=0.93 t1=none/0.92 t2=e1/0.04 sdP=0.11 rdy=0.45 rp=0.63 hist=filled progress=1/4 rounds=5
+  run1.14 step_text=[open the 404 link] action=click aP=0.44 t1=none/0.8 t2=e636/0.04 sdP=0.24 rdy=0.33 rp=0.52 hist=element gone progress=0/1 rounds=8
+  run2.1 step_text=[open Dropdown] action=click aP=0.6 t1=none/0.92 t2=ambiguous/0.04 sdP=0.09 rdy=0.58 rp=0.61 hist=checked progress=1/7 rounds=6
+  run2.3 step_text=[open Add/Remove Elements] action=click aP=0.93 t1=none/0.95 t2=e2/0.03 sdP=0.09 rdy=0.64 rp=0.71 hist=selected: Option 1 progress=2/7 rounds=8
+  run2.4 step_text=[open Inputs] action=click aP=0.51 t1=none/0.99 t2=ambiguous/0.01 sdP=0.08 rdy=0.66 rp=0.53 hist=page changed progress=2/6 rounds=9
+  run3.1 step_text=[open Dropdown] action=click aP=0.56 t1=none/0.93 t2=e3/0.03 sdP=0.09 rdy=0.62 rp=0.66 hist=checked progress=1/7 rounds=6
+  run3.4 step_text=[open Add/Remove Elements] action=click aP=0.85 t1=none/0.95 t2=e2/0.03 sdP=0.1 rdy=0.52 rp=0.68 hist=selected: Option 1 progress=1/6 rounds=6
+  run3.5 step_text=[open Inputs] action=click aP=0.61 t1=none/1 t2=e2/0 sdP=0.11 rdy=0.62 rp=0.55 hist=page changed progress=1/5 rounds=8
+  run3.7 step_text=[open Forgot Password] action=click aP=0.93 t1=none/0.95 t2=e2/0.03 sdP=0.1 rdy=0.49 rp=0.61 hist=filled progress=1/4 rounds=4
+  run3.10 step_text=[open Status Codes] action=click aP=0.54 t1=none/0.97 t2=e1/0.02 sdP=0.1 rdy=0.43 rp=0.6 hist=element gone progress=1/2 rounds=9
+### wrong-page
+  run1.11 step_text=[open Dynamic Loading] action=click aP=0.47000000000000003 t1=none/0.93 t2=e3/0.05 sdP=0.11 rdy=0.3 rp=0.47 hist=None progress=0/2 rounds=4
+  run1.12 step_text=[open the web address named home] action=navigate aP=0.65 t1=none/0.81 t2=e3/0.14 sdP=0.31 rdy=0.44 rp=0.47 hist=None progress=0/3 rounds=2
+### low-confidence
+  run1.7 step_text=[open Inputs] action=wait aP=0.32 t1=e1/0.9400000000000001 t2=none/0.06 sdP=0.46 rdy=0.49 rp=0.71 hist=element gone progress=0/4 rounds=3
+  run1.13 step_text=[open Status Codes] action=back aP=0.39 t1=none/0.96 t2=e1/0.03 sdP=0.1 rdy=0.38 rp=0.55 hist=element gone progress=1/2 rounds=9
+  run2.2 step_text=[open the web address named home] action=navigate aP=0.34 t1=none/0.8 t2=ambiguous/0.1 sdP=0.38 rdy=0.66 rp=0.64 hist=None progress=0/7 rounds=2
+  run2.5 step_text=[open Inputs] action=wait aP=0.39 t1=e1/0.89 t2=none/0.1 sdP=0.35 rdy=0.33 rp=0.53 hist=element gone progress=1/5 rounds=5
+  run2.6 step_text=[open the web address named home] action=navigate aP=0.44 t1=e1/0.55 t2=none/0.35 sdP=0.53 rdy=0.64 rp=0.68 hist=filled progress=1/5 rounds=5
+  run2.8 step_text=[open Status Codes] action=back aP=0.47000000000000003 t1=none/0.96 t2=e1/0.03 sdP=0.08 rdy=0.39 rp=0.51 hist=element gone progress=2/3 rounds=10
+  run2.9 step_text=[open Status Codes] action=click aP=0.4 t1=e1/0.51 t2=e4/0.37 sdP=0.37 rdy=0.41 rp=0.58 hist=element gone progress=1/2 rounds=5
+  run2.10 step_text=[open the 404 link] action=click aP=0.47000000000000003 t1=e1/0.57 t2=none/0.4 sdP=0.46 rdy=0.56 rp=0.62 hist=element gone progress=0/1 rounds=3
+  run3.2 step_text=[go back to the start page] action=back aP=0.49 t1=none/0.88 t2=e3/0.07 sdP=0.15 rdy=0.62 rp=0.65 hist=None progress=0/6 rounds=2
+  run3.8 step_text=[enter the value named email into the E-mail field] action=fill aP=0.64 t1=e2/0.52 t2=e1/0.41 sdP=0.41 rdy=0.7 rp=0.8 hist=filled progress=0/3 rounds=6
+  run3.11 step_text=[open the 404 link] action=navigate aP=0.42 t1=None/None t2=None/None sdP=0.2 rdy=0.32 rp=0.51 hist=element gone progress=0/1 rounds=7
+### repeat
+  (none)
+### no-progress
+  run1.10 step_text=[click the Retrieve password button] action=wait aP=0.56 t1=none/0.96 t2=ambiguous/0.04 sdP=0.3 rdy=0.16 rp=0.37 hist=no visible change progress=0/3 rounds=7
+  run3.6 step_text=[open Inputs] action=click aP=0.45 t1=e1/0.92 t2=none/0.08 sdP=0.38 rdy=0.34 rp=0.55 hist=no visible change progress=0/4 rounds=4
+
+## step_text frequency in no-match + low-confidence (last round)
+  5x [open Inputs]
+  4x [open Status Codes]
+  3x [open Dropdown]
+  3x [open Add/Remove Elements]
+  3x [open the 404 link]
+  2x [open Forgot Password]
+  2x [open the web address named home]
+  1x [go back to the start page]
+  1x [enter the value named email into the E-mail field]
+
+## error/act-failed (back) calls:
+  run1.2 step_text=[open Dropdown] rounds=[None, 'click'] progress=0/6
+  run1.4 step_text=[open Add/Remove Elements] rounds=[None, 'click'] progress=0/5
+  run1.6 step_text=[open Inputs] rounds=[None, 'click'] progress=0/4
+  run1.9 step_text=[open Forgot Password] rounds=[None, 'click'] progress=0/3
+  run3.3 step_text=[go back to the start page] rounds=[None, 'click'] progress=0/6
+
+## premature-advance screen: clause advanced (next round different step_text) while the NEXT clause's first-round rightPageP < 0.45 or readyP < 0.3
+screen hits: 0

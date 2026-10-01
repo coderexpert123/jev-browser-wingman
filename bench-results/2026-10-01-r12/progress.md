@@ -10,3 +10,4 @@
   - M6 playwright ok=True wall=32.5s usd=0.28397 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
 - Phase S DONE (phase-s.json, gate ON, policy off): S1 forced ok=True wall=92.5s usd=0.536833 handoffs=15 picks=8 wingman_acts=28 raw_acts=0; `FORCED-VERDICT: smoke ok=true needs_confirmation=6`
 - scan note: 2-char bound values can coincide with numeric telemetry (e.g. a token count in results JSON); the bare-token scan excludes logs/, evidence/, results/; all files are scanned for them as quoted JSON strings.
+- Phase M telemetry DONE (evidence/): 37 forced handoffs; 0 over-cap calls (max expansion 16 <= 36), 34 decomposed, 3 no-compound; no-match 13 (r11b 8), low-confidence 11, no-progress 2, wrong-page 2, not-ready 0; clickEvidence 19, countEvidence 3; 3 navigate-evidence advances, 0 premature; Add Element = exactly 2 clicks in each run; no wait storm (max 2).

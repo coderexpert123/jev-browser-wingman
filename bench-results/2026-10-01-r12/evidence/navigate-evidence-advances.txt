@@ -1,0 +1,6 @@
+Navigate-evidence advances (round with no act, history='page changed', stepDoneP in [0.5,0.85), last act = navigate [decided navigate, or round-1 pick-navigate where acts_by_op has navigate]).
+NOTE: page URL/title before/after are NOT in the wingman log (only host); the next clause's first-round rightPageP/readyP and the call's end state are the available proxies.
+run1.15 r2 [open the web address named sc] sdP=0.73 decided=click rightPageP=0.67 -> next clause [click the link named 404] r1 rightPageP=0.68 readyP=0.62; call end done/goal-met why=None
+run2.9 r2 [open the web address named home] sdP=0.82 decided=click rightPageP=0.81 -> next clause [open Status Codes] r1 rightPageP=0.85 readyP=0.67; call end fallback/step-uncertain why=low-confidence
+run3.12 r2 [open the web address named url] sdP=0.81 decided=navigate rightPageP=0.72 -> call ends done/goal-met; call end done/goal-met why=None
+count: 3
