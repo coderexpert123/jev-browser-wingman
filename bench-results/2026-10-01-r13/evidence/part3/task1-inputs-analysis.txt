@@ -1,0 +1,5 @@
+BROWSE_STEP RESULT: {"status":"done","reason":"goal-met","steps":1,"last_action":{"verb":"fill","label":""},"cost":{"jev_calls":2,"input_tokens":3482,"output_tokens":924,"ms":745},"labels_untrusted":true,"progress":{"step_index":1,"steps_done":1,"steps_total":1}}
+tool calls: ['ToolSearch', 'mcp__jev-browser-wingman__browse_step'] cost 0.0637862
+LOG: status=done reason=goal-met steps=1 progress={'step_index': 1, 'steps_done': 1, 'steps_total': 1} acts_by_op={'fill': 1} why=None act_error=None
+   r1 [type the value named amount into the number field] action=fill stepDoneP=0.07 historyResult=None countEvidence=None clickEvidence=None stuck=None
+   r2 [type the value named amount into the number field] action=fill stepDoneP=0.73 historyResult=filled countEvidence=None clickEvidence=None stuck=None
