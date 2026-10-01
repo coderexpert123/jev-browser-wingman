@@ -20,8 +20,9 @@ Name a binding in the step that types it; a missing binding is reported by name.
 
 ## When it returns a step to you
 
-A `step_review` result names your step, up to three candidate elements with their `role` and `name`, and why it
-did not act. Look at the page with your own snapshot or screenshot if you need to. Then call again with the same
+A `step_review` result names the part of your step the wingman was working on when it handed back (a sub-part of a
+compound step, so not always your exact text), up to three candidate elements with their `role` and `name`, and why
+it did not act. `progress.step_index` tells you which of your own steps it was in. Look at the page with your own snapshot or screenshot if you need to. Then call again with the same
 goal, steps and values plus `pick`:
 
     pick: { role: "textbox", name: "ZIP", action: "fill", value: "zip" }
