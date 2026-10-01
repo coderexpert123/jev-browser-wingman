@@ -1,0 +1,239 @@
+calls per run [6, 6, 12]
+
+## A. decomposition (caller steps -> expanded steps_total per call)
+run1 call1: caller_steps=7 steps_total=7 same
+run1 call2: caller_steps=7 steps_total=7 same
+run1 call3: caller_steps=6 steps_total=6 same
+run1 call4: caller_steps=7 steps_total=7 same
+run1 call5: caller_steps=7 steps_total=7 same
+run1 call6: caller_steps=5 steps_total=5 same
+run2 call1: caller_steps=7 steps_total=7 same
+run2 call2: caller_steps=6 steps_total=6 same
+run2 call3: caller_steps=6 steps_total=6 same
+run2 call4: caller_steps=6 steps_total=6 same
+run2 call5: caller_steps=3 steps_total=3 same
+run2 call6: caller_steps=2 steps_total=2 same
+run3 call1: caller_steps=7 steps_total=7 same
+run3 call2: caller_steps=7 steps_total=7 same
+run3 call3: caller_steps=7 steps_total=7 same
+run3 call4: caller_steps=6 steps_total=6 same
+run3 call5: caller_steps=5 steps_total=5 same
+run3 call6: caller_steps=4 steps_total=4 same
+run3 call7: caller_steps=4 steps_total=4 same
+run3 call8: caller_steps=3 steps_total=3 same
+run3 call9: caller_steps=3 steps_total=3 same
+run3 call10: caller_steps=2 steps_total=2 same
+run3 call11: caller_steps=1 steps_total=1 same
+run3 call12: caller_steps=1 steps_total=1 same
+
+## B. status/reason/why per handoff
+run1 call1: fallback/step-uncertain why=no-match steps=2 progress=1/7 idx=2 acts={'click': 1, 'check': 1}
+run1 call2: fallback/step-uncertain why=no-match steps=1 progress=0/7 idx=1 acts={'navigate': 1}
+run1 call3: fallback/step-uncertain why=wrong-page steps=1 progress=1/6 idx=2 acts={'select': 1}
+run1 call4: fallback/no-progress why=no-progress steps=6 progress=3/7 idx=4 acts={'navigate': 2, 'click': 2, 'fill': 2}
+run1 call5: error/page-error why=None steps=3 progress=2/7 idx=3 acts={'navigate': 1, 'fill': 1, 'click': 1}
+run1 call6: done/goal-met why=None steps=5 progress=5/5 idx=5 acts={'navigate': 2, 'click': 3}
+run2 call1: fallback/step-uncertain why=low-confidence steps=2 progress=1/7 idx=2 acts={'click': 1, 'check': 1}
+run2 call2: fallback/step-uncertain why=wrong-page steps=0 progress=0/6 idx=1 acts=None
+run2 call3: fallback/step-uncertain why=wrong-page steps=0 progress=0/6 idx=1 acts=None
+run2 call4: fallback/no-progress why=no-progress steps=8 progress=2/6 idx=3 acts={'navigate': 3, 'select': 1, 'click': 2, 'fill': 2}
+run2 call5: error/page-error why=None steps=3 progress=1/3 idx=2 acts={'navigate': 1, 'fill': 1, 'click': 1}
+run2 call6: done/goal-met why=None steps=5 progress=2/2 idx=2 acts={'navigate': 2, 'click': 3}
+run3 call1: fallback/step-uncertain why=no-match steps=2 progress=1/7 idx=2 acts={'click': 1, 'check': 1}
+run3 call2: fallback/step-uncertain why=no-match steps=0 progress=0/7 idx=1 acts=None
+run3 call3: error/act-failed why=None steps=1 progress=0/7 idx=1 acts={'back': 1}
+run3 call4: fallback/step-uncertain why=no-match steps=2 progress=1/6 idx=2 acts={'click': 1, 'select': 1}
+run3 call5: fallback/step-uncertain why=no-match steps=4 progress=1/5 idx=2 acts={'navigate': 1, 'click': 3}
+run3 call6: fallback/step-uncertain why=low-confidence steps=2 progress=0/4 idx=1 acts={'navigate': 1, 'click': 1}
+run3 call7: fallback/step-uncertain why=no-match steps=1 progress=1/4 idx=2 acts={'fill': 1}
+run3 call8: fallback/step-uncertain why=no-match steps=3 progress=0/3 idx=1 acts={'navigate': 1, 'click': 1, 'fill': 1}
+run3 call9: error/page-error why=None steps=1 progress=0/3 idx=1 acts={'click': 1}
+run3 call10: fallback/step-uncertain why=low-confidence steps=4 progress=1/2 idx=2 acts={'navigate': 1, 'click': 3}
+run3 call11: fallback/step-uncertain why=wrong-page steps=4 progress=0/1 idx=1 acts={'navigate': 1, 'click': 3}
+run3 call12: done/goal-met why=None steps=2 progress=1/1 idx=1 acts={'navigate': 1, 'click': 1}
+
+## C. evidence firings, waits, clicks
+run1 call4: clickEvidence=[True] countEvidence=[] max_consec_wait=0
+run1 call5: clickEvidence=[True] countEvidence=[] max_consec_wait=1
+run1 call6: clickEvidence=[True, True, True] countEvidence=[] max_consec_wait=1
+run2 call4: clickEvidence=[] countEvidence=[2] max_consec_wait=0
+run2 call5: clickEvidence=[True] countEvidence=[] max_consec_wait=1
+run2 call6: clickEvidence=[True, True, True] countEvidence=[] max_consec_wait=1
+run3 call5: clickEvidence=[True] countEvidence=[2] max_consec_wait=0
+run3 call6: clickEvidence=[] countEvidence=[] max_consec_wait=2
+run3 call8: clickEvidence=[True] countEvidence=[] max_consec_wait=1
+run3 call10: clickEvidence=[True, True, True] countEvidence=[] max_consec_wait=1
+run3 call11: clickEvidence=[True] countEvidence=[] max_consec_wait=1
+run3 call12: clickEvidence=[True] countEvidence=[] max_consec_wait=0
+totals clickEvidence firings 16 countEvidence firings 2
+
+## D. no-match count (why)
+Counter({'no-match': 8, None: 7, 'wrong-page': 4, 'low-confidence': 3, 'no-progress': 2})
+
+## E. Add Element twice clause: clicks per run
+run1: click acts logged on Add-Element clause rounds = 1
+run2: click acts logged on Add-Element clause rounds = 2
+run3: click acts logged on Add-Element clause rounds = 2
+
+## F. per-round trace (step_text | action | actionP | historyResult | stepDoneP | clickEv | countEv)
+-- run1 call1 fallback/step-uncertain why=no-match
+   r1: [open Checkboxes and tick the first checkbox] click aP=0.79 hist=None sdP=0.05 rdy=0.65 rp=0.84 act_ms=492 ce=None cnt=None
+   r2: [open Checkboxes and tick the first checkbox] check aP=0.83 hist=element gone sdP=0.14 rdy=0.63 rp=0.85 act_ms=77 ce=None cnt=None
+   r3: [open Checkboxes and tick the first checkbox] none aP=0.51 hist=checked sdP=0.89 rdy=0.8 rp=0.89 act_ms=0 ce=None cnt=None
+   r4: [open Dropdown and choose Option 1] click aP=0.44 hist=checked sdP=0.06 rdy=0.55 rp=0.58 act_ms=0 ce=None cnt=None
+   r5: [open Dropdown and choose Option 1] click aP=0.5 hist=checked sdP=0.07 rdy=0.52 rp=0.6 act_ms=0 ce=None cnt=None
+-- run1 call2 fallback/step-uncertain why=no-match
+   r1: [open the web address named dropdown_url] navigate aP=0.63 hist=None sdP=0.07 rdy=0.42 rp=0.4 act_ms=121 ce=None cnt=None
+   r2: [open the web address named dropdown_url] check aP=0.46 hist=page changed sdP=0.74 rdy=0.62 rp=0.65 act_ms=0 ce=None cnt=None
+   r3: [open the web address named dropdown_url] check aP=0.47000000000000003 hist=page changed sdP=0.79 rdy=0.65 rp=0.64 act_ms=0 ce=None cnt=None
+-- run1 call3 fallback/step-uncertain why=wrong-page
+   r1: [choose the value named opt in the dropdown] None aP=None hist=None sdP=None rdy=None rp=None act_ms=44 ce=None cnt=None
+   r2: [choose the value named opt in the dropdown] none aP=0.27 hist=selected: <value:opt> sdP=0.93 rdy=0.76 rp=0.89 act_ms=0 ce=None cnt=None
+   r3: [open the web address named add_url and click the Add Element button tw] navigate aP=0.48 hist=selected: <value:opt> sdP=0.12 rdy=0.46 rp=0.47 act_ms=0 ce=None cnt=None
+   r4: [open the web address named add_url and click the Add Element button tw] navigate aP=0.55 hist=selected: <value:opt> sdP=0.12 rdy=0.46 rp=0.38 act_ms=0 ce=None cnt=None
+-- run1 call4 fallback/no-progress why=no-progress
+   r1: [open the web address named add_url] navigate aP=0.9 hist=None sdP=0.07 rdy=0.41 rp=0.5 act_ms=113 ce=None cnt=None
+   r2: [open the web address named add_url] click aP=0.63 hist=page changed sdP=0.79 rdy=0.67 rp=0.72 act_ms=75 ce=None cnt=None
+   r3: [open the web address named add_url] click aP=0.79 hist=page changed sdP=0.6 rdy=0.64 rp=0.72 act_ms=0 ce=True cnt=None
+   r4: [click the Add Element button twice] click aP=0.98 hist=page changed sdP=0.12 rdy=0.58 rp=0.86 act_ms=30 ce=None cnt=None
+   r5: [click the Add Element button twice] none aP=0.34 hist=page changed sdP=0.87 rdy=0.76 rp=0.86 act_ms=0 ce=None cnt=None
+   r6: [open the web address named inputs_url] navigate aP=0.91 hist=page changed sdP=0.08 rdy=0.51 rp=0.53 act_ms=116 ce=None cnt=None
+   r7: [open the web address named inputs_url] fill aP=0.72 hist=page changed sdP=0.72 rdy=0.7 rp=0.71 act_ms=46 ce=None cnt=None
+   r8: [open the web address named inputs_url] fill aP=0.63 hist=filled sdP=0.65 rdy=0.73 rp=0.74 act_ms=0 ce=None cnt=None
+   r9: [type the value named amount into the number input] fill aP=0.77 hist=filled sdP=0.63 rdy=0.72 rp=0.8 act_ms=19 ce=None cnt=None
+   r10: [type the value named amount into the number input] fill aP=0.84 hist=filled sdP=0.64 rdy=0.72 rp=0.78 act_ms=0 ce=None cnt=None
+-- run1 call5 error/page-error why=None
+   r1: [open the web address named forgot_url] navigate aP=0.83 hist=None sdP=0.08 rdy=0.41 rp=0.55 act_ms=123 ce=None cnt=None
+   r2: [open the web address named forgot_url] fill aP=0.72 hist=page changed sdP=0.86 rdy=0.7 rp=0.82 act_ms=0 ce=None cnt=None
+   r3: [enter the value named email into the E-mail field] fill aP=0.99 hist=page changed sdP=0.08 rdy=0.63 rp=0.81 act_ms=39 ce=None cnt=None
+   r4: [enter the value named email into the E-mail field] click aP=0.52 hist=filled sdP=0.91 rdy=0.76 rp=0.86 act_ms=0 ce=None cnt=None
+   r5: [click the Retrieve password button] click aP=1 hist=filled sdP=0.1 rdy=0.7 rp=0.85 act_ms=435 ce=None cnt=None
+   r6: [click the Retrieve password button] wait aP=0.63 hist=element gone sdP=0.51 rdy=0.19 rp=0.36 act_ms=0 ce=True cnt=None
+   r7: [open the web address named dyn_url] navigate aP=0.9 hist=element gone sdP=0.07 rdy=0.1 rp=0.25 act_ms=0 ce=None cnt=None
+-- run1 call6 done/goal-met why=None
+   r1: [open the web address named dyn_url] navigate aP=0.81 hist=None sdP=0.08 rdy=0.08 rp=0.15 act_ms=190 ce=None cnt=None
+   r2: [open the web address named dyn_url] click aP=0.36 hist=page changed sdP=0.88 rdy=0.6 rp=0.69 act_ms=0 ce=None cnt=None
+   r3: [open the link named Example 2: Element rendered after the fact] click aP=0.92 hist=page changed sdP=0.13 rdy=0.46 rp=0.74 act_ms=216 ce=None cnt=None
+   r4: [open the link named Example 2: Element rendered after the fact] click aP=0.67 hist=element gone sdP=0.76 rdy=0.54 rp=0.72 act_ms=0 ce=True cnt=None
+   r5: [click the Start button] click aP=0.87 hist=element gone sdP=0.13 rdy=0.42 rp=0.8 act_ms=71 ce=None cnt=None
+   r6: [click the Start button] wait aP=0.66 hist=element gone sdP=0.61 rdy=0.47 rp=0.81 act_ms=0 ce=True cnt=None
+   r7: [open the web address named status_url] navigate aP=0.9 hist=element gone sdP=0.07 rdy=0.37 rp=0.44 act_ms=109 ce=None cnt=None
+   r8: [open the web address named status_url] click aP=0.83 hist=page changed sdP=0.9 rdy=0.78 rp=0.79 act_ms=0 ce=None cnt=None
+   r9: [open the 404 link] click aP=0.85 hist=page changed sdP=0.1 rdy=0.7 rp=0.79 act_ms=247 ce=None cnt=None
+   r10: [open the 404 link] none aP=0.73 hist=element gone sdP=0.83 rdy=0.74 rp=0.75 act_ms=0 ce=True cnt=None
+-- run2 call1 fallback/step-uncertain why=low-confidence
+   r1: [open Checkboxes and tick the first checkbox] click aP=0.78 hist=None sdP=0.05 rdy=0.67 rp=0.85 act_ms=297 ce=None cnt=None
+   r2: [open Checkboxes and tick the first checkbox] check aP=0.8 hist=element gone sdP=0.13 rdy=0.64 rp=0.83 act_ms=73 ce=None cnt=None
+   r3: [open Checkboxes and tick the first checkbox] none aP=0.54 hist=checked sdP=0.91 rdy=0.82 rp=0.9 act_ms=0 ce=None cnt=None
+   r4: [open Dropdown and choose Option 1] click aP=0.54 hist=checked sdP=0.06 rdy=0.54 rp=0.6 act_ms=0 ce=None cnt=None
+   r5: [open Dropdown and choose Option 1] back aP=0.47000000000000003 hist=checked sdP=0.06 rdy=0.55 rp=0.59 act_ms=0 ce=None cnt=None
+-- run2 call2 fallback/step-uncertain why=wrong-page
+   r1: [open Dropdown and choose Option 1] select aP=0.38 hist=None sdP=0.05 rdy=0.38 rp=0.42 act_ms=0 ce=None cnt=None
+   r2: [open Dropdown and choose Option 1] select aP=0.43 hist=None sdP=0.04 rdy=0.4 rp=0.46 act_ms=0 ce=None cnt=None
+-- run2 call3 fallback/step-uncertain why=wrong-page
+   r1: [open the web address named dropdown_url, then choose Option 1 in the d] select aP=0.41000000000000003 hist=None sdP=0.05 rdy=0.41 rp=0.31 act_ms=0 ce=None cnt=None
+   r2: [open the web address named dropdown_url, then choose Option 1 in the d] navigate aP=0.41000000000000003 hist=None sdP=0.05 rdy=0.44 rp=0.28 act_ms=0 ce=None cnt=None
+-- run2 call4 fallback/no-progress why=no-progress
+   r1: [open the web address named dropdown_url, then choose Option 1 in the d] None aP=None hist=None sdP=None rdy=None rp=None act_ms=126 ce=None cnt=None
+   r2: [open the web address named dropdown_url, then choose Option 1 in the d] select aP=0.67 hist=page changed sdP=0.15 rdy=0.61 rp=0.7 act_ms=42 ce=None cnt=None
+   r3: [open the web address named dropdown_url, then choose Option 1 in the d] click aP=0.32 hist=selected: Option 1 sdP=0.91 rdy=0.78 rp=0.81 act_ms=0 ce=None cnt=None
+   r4: [open the web address named add_remove_url and click the Add Element bu] navigate aP=0.86 hist=selected: Option 1 sdP=0.07 rdy=0.47 rp=0.48 act_ms=114 ce=None cnt=None
+   r5: [open the web address named add_remove_url and click the Add Element bu] click aP=1 hist=page changed sdP=0.12 rdy=0.73 rp=0.89 act_ms=76 ce=None cnt=None
+   r6: [open the web address named add_remove_url and click the Add Element bu] click aP=0.98 hist=page changed sdP=0.1 rdy=0.65 rp=0.89 act_ms=30 ce=None cnt=None
+   r7: [open the web address named add_remove_url and click the Add Element bu] none aP=0.57 hist=page changed sdP=0.89 rdy=0.8 rp=0.89 act_ms=0 ce=None cnt=2
+   r8: [open the web address named inputs_url and type the value named amount ] navigate aP=0.97 hist=page changed sdP=0.07 rdy=0.53 rp=0.23 act_ms=125 ce=None cnt=None
+   r9: [open the web address named inputs_url and type the value named amount ] fill aP=0.98 hist=page changed sdP=0.12 rdy=0.73 rp=0.83 act_ms=38 ce=None cnt=None
+   r10: [open the web address named inputs_url and type the value named amount ] fill aP=0.5 hist=filled sdP=0.78 rdy=0.76 rp=0.86 act_ms=0 ce=None cnt=None
+   r11: [open the web address named inputs_url and type the value named amount ] fill aP=0.49 hist=filled sdP=0.79 rdy=0.74 rp=0.83 act_ms=19 ce=None cnt=None
+   r12: [open the web address named inputs_url and type the value named amount ] fill aP=0.59 hist=filled sdP=0.7 rdy=0.72 rp=0.82 act_ms=0 ce=None cnt=None
+-- run2 call5 error/page-error why=None
+   r1: [open the web address named forgot_url] None aP=None hist=None sdP=None rdy=None rp=None act_ms=114 ce=None cnt=None
+   r2: [open the web address named forgot_url] fill aP=0.61 hist=page changed sdP=0.86 rdy=0.66 rp=0.8 act_ms=0 ce=None cnt=None
+   r3: [enter the value named email into the E-mail field] fill aP=0.98 hist=page changed sdP=0.07 rdy=0.57 rp=0.78 act_ms=63 ce=None cnt=None
+   r4: [enter the value named email into the E-mail field] click aP=0.52 hist=filled sdP=0.88 rdy=0.74 rp=0.82 act_ms=0 ce=None cnt=None
+   r5: [click the Retrieve password button] click aP=1 hist=filled sdP=0.11 rdy=0.74 rp=0.84 act_ms=396 ce=None cnt=None
+   r6: [click the Retrieve password button] wait aP=0.58 hist=element gone sdP=0.55 rdy=0.21 rp=0.32 act_ms=0 ce=True cnt=None
+   r7: [open the web address named dynamic_url] navigate aP=0.83 hist=element gone sdP=0.08 rdy=0.11 rp=0.25 act_ms=0 ce=None cnt=None
+-- run2 call6 done/goal-met why=None
+   r1: [open the web address named dynamic_url] None aP=None hist=None sdP=None rdy=None rp=None act_ms=110 ce=None cnt=None
+   r2: [open the web address named dynamic_url] navigate aP=0.38 hist=page changed sdP=0.84 rdy=0.62 rp=0.72 act_ms=0 ce=None cnt=None
+   r3: [open the web address named dynamic_url] click aP=0.47000000000000003 hist=page changed sdP=0.85 rdy=0.64 rp=0.73 act_ms=0 ce=None cnt=None
+   r4: [open the link named Example 2: Element rendered after the fact] click aP=0.91 hist=page changed sdP=0.1 rdy=0.57 rp=0.76 act_ms=227 ce=None cnt=None
+   r5: [open the link named Example 2: Element rendered after the fact] click aP=0.61 hist=element gone sdP=0.75 rdy=0.49 rp=0.7 act_ms=0 ce=True cnt=None
+   r6: [click the Start button] click aP=0.68 hist=element gone sdP=0.16 rdy=0.42 rp=0.78 act_ms=71 ce=None cnt=None
+   r7: [click the Start button] wait aP=0.67 hist=element gone sdP=0.63 rdy=0.39 rp=0.72 act_ms=0 ce=True cnt=None
+   r8: [open the web address named status_url] navigate aP=0.78 hist=element gone sdP=0.16 rdy=0.39 rp=0.51 act_ms=116 ce=None cnt=None
+   r9: [open the web address named status_url] click aP=0.79 hist=page changed sdP=0.86 rdy=0.73 rp=0.75 act_ms=0 ce=None cnt=None
+   r10: [open the 404 link] click aP=0.87 hist=page changed sdP=0.1 rdy=0.69 rp=0.78 act_ms=247 ce=None cnt=None
+   r11: [open the 404 link] none aP=0.72 hist=element gone sdP=0.79 rdy=0.67 rp=0.74 act_ms=0 ce=True cnt=None
+-- run3 call1 fallback/step-uncertain why=no-match
+   r1: [open Checkboxes and tick the first checkbox] click aP=0.81 hist=None sdP=0.06 rdy=0.65 rp=0.85 act_ms=204 ce=None cnt=None
+   r2: [open Checkboxes and tick the first checkbox] check aP=0.84 hist=element gone sdP=0.14 rdy=0.64 rp=0.84 act_ms=68 ce=None cnt=None
+   r3: [open Checkboxes and tick the first checkbox] none aP=0.48 hist=checked sdP=0.91 rdy=0.81 rp=0.92 act_ms=0 ce=None cnt=None
+   r4: [open Dropdown and choose Option 1] click aP=0.46 hist=checked sdP=0.06 rdy=0.5 rp=0.55 act_ms=0 ce=None cnt=None
+   r5: [open Dropdown and choose Option 1] click aP=0.5 hist=checked sdP=0.06 rdy=0.56 rp=0.59 act_ms=0 ce=None cnt=None
+-- run3 call2 fallback/step-uncertain why=no-match
+   r1: [go back to the start page] back aP=0.38 hist=None sdP=0.16 rdy=0.62 rp=0.72 act_ms=0 ce=None cnt=None
+   r2: [go back to the start page] check aP=0.48 hist=None sdP=0.15 rdy=0.64 rp=0.73 act_ms=0 ce=None cnt=None
+-- run3 call3 error/act-failed why=None
+   r1: [go back to the start page] None aP=None hist=None sdP=None rdy=None rp=None act_ms=26 ce=None cnt=None
+   r2: [go back to the start page] click aP=0.88 hist=page changed sdP=0.58 rdy=0.76 rp=0.84 act_ms=0 ce=None cnt=None
+-- run3 call4 fallback/step-uncertain why=no-match
+   r1: [open Dropdown and choose Option 1] click aP=0.52 hist=None sdP=0.05 rdy=0.51 rp=0.83 act_ms=139 ce=None cnt=None
+   r2: [open Dropdown and choose Option 1] select aP=0.63 hist=element gone sdP=0.1 rdy=0.31 rp=0.76 act_ms=43 ce=None cnt=None
+   r3: [open Dropdown and choose Option 1] none aP=0.53 hist=selected: Option 1 sdP=0.86 rdy=0.77 rp=0.86 act_ms=0 ce=None cnt=None
+   r4: [open Add/Remove Elements and click the Add Element button twice] click aP=0.68 hist=selected: Option 1 sdP=0.1 rdy=0.43 rp=0.56 act_ms=0 ce=None cnt=None
+   r5: [open Add/Remove Elements and click the Add Element button twice] click aP=0.68 hist=selected: Option 1 sdP=0.1 rdy=0.42 rp=0.57 act_ms=0 ce=None cnt=None
+-- run3 call5 fallback/step-uncertain why=no-match
+   r1: [open Add/Remove Elements] None aP=None hist=None sdP=None rdy=None rp=None act_ms=199 ce=None cnt=None
+   r2: [open Add/Remove Elements] click aP=0.83 hist=page changed sdP=0.08 rdy=0.62 rp=0.86 act_ms=203 ce=None cnt=None
+   r3: [open Add/Remove Elements] click aP=0.71 hist=element gone sdP=0.79 rdy=0.77 rp=0.83 act_ms=0 ce=True cnt=None
+   r4: [click the Add Element button twice] click aP=0.95 hist=element gone sdP=0.1 rdy=0.6 rp=0.89 act_ms=75 ce=None cnt=None
+   r5: [click the Add Element button twice] click aP=0.97 hist=page changed sdP=0.15 rdy=0.59 rp=0.89 act_ms=34 ce=None cnt=None
+   r6: [click the Add Element button twice] none aP=0.43 hist=page changed sdP=0.88 rdy=0.81 rp=0.89 act_ms=0 ce=None cnt=2
+   r7: [open Inputs] back aP=0.39 hist=page changed sdP=0.09 rdy=0.63 rp=0.55 act_ms=0 ce=None cnt=None
+   r8: [open Inputs] click aP=0.39 hist=page changed sdP=0.1 rdy=0.66 rp=0.57 act_ms=0 ce=None cnt=None
+-- run3 call6 fallback/step-uncertain why=low-confidence
+   r1: [open Inputs] None aP=None hist=None sdP=None rdy=None rp=None act_ms=112 ce=None cnt=None
+   r2: [open Inputs] click aP=0.85 hist=page changed sdP=0.07 rdy=0.71 rp=0.85 act_ms=283 ce=None cnt=None
+   r3: [open Inputs] wait aP=0.42 hist=element gone sdP=0.39 rdy=0.34 rp=0.56 act_ms=0 ce=None cnt=None
+   r4: [open Inputs] wait aP=0.43 hist=element gone sdP=0.31 rdy=0.33 rp=0.56 act_ms=0 ce=None cnt=None
+-- run3 call7 fallback/step-uncertain why=no-match
+   r1: [type the value named amount into the unlabeled number input] None aP=None hist=None sdP=None rdy=None rp=None act_ms=41 ce=None cnt=None
+   r2: [type the value named amount into the unlabeled number input] fill aP=0.86 hist=filled sdP=0.75 rdy=0.72 rp=0.77 act_ms=0 ce=None cnt=None
+   r3: [open Forgot Password] click aP=0.89 hist=filled sdP=0.11 rdy=0.55 rp=0.65 act_ms=0 ce=None cnt=None
+   r4: [open Forgot Password] click aP=0.89 hist=filled sdP=0.12 rdy=0.52 rp=0.62 act_ms=0 ce=None cnt=None
+-- run3 call8 fallback/step-uncertain why=no-match
+   r1: [open Forgot Password] None aP=None hist=None sdP=None rdy=None rp=None act_ms=327 ce=None cnt=None
+   r2: [open Forgot Password] click aP=0.9 hist=page changed sdP=0.08 rdy=0.66 rp=0.87 act_ms=206 ce=None cnt=None
+   r3: [open Forgot Password] wait aP=0.41000000000000003 hist=element gone sdP=0.63 rdy=0.6 rp=0.76 act_ms=0 ce=True cnt=None
+   r4: [enter the value named email into the E-mail field] fill aP=0.87 hist=element gone sdP=0.07 rdy=0.5 rp=0.73 act_ms=40 ce=None cnt=None
+   r5: [enter the value named email into the E-mail field] fill aP=0.78 hist=filled sdP=0.3 rdy=0.7 rp=0.86 act_ms=0 ce=None cnt=None
+   r6: [enter the value named email into the E-mail field] fill aP=0.52 hist=filled sdP=0.43 rdy=0.72 rp=0.85 act_ms=0 ce=None cnt=None
+-- run3 call9 error/page-error why=None
+   r1: [click the Retrieve password button] None aP=None hist=None sdP=None rdy=None rp=None act_ms=358 ce=None cnt=None
+   r2: [click the Retrieve password button] wait aP=0.51 hist=element gone sdP=0.39 rdy=0.12 rp=0.35 act_ms=0 ce=None cnt=None
+-- run3 call10 fallback/step-uncertain why=low-confidence
+   r1: [open Dynamic Loading] None aP=None hist=None sdP=None rdy=None rp=None act_ms=135 ce=None cnt=None
+   r2: [open Dynamic Loading] click aP=0.85 hist=page changed sdP=0.1 rdy=0.62 rp=0.87 act_ms=216 ce=None cnt=None
+   r3: [open Dynamic Loading] click aP=0.66 hist=element gone sdP=0.57 rdy=0.51 rp=0.73 act_ms=0 ce=True cnt=None
+   r4: [open the link named Example 2: Element rendered after the fact] click aP=0.89 hist=element gone sdP=0.16 rdy=0.52 rp=0.72 act_ms=220 ce=None cnt=None
+   r5: [open the link named Example 2: Element rendered after the fact] click aP=0.72 hist=element gone sdP=0.78 rdy=0.61 rp=0.77 act_ms=0 ce=True cnt=None
+   r6: [click the Start button] click aP=0.88 hist=element gone sdP=0.1 rdy=0.51 rp=0.85 act_ms=67 ce=None cnt=None
+   r7: [click the Start button] wait aP=0.59 hist=element gone sdP=0.64 rdy=0.47 rp=0.79 act_ms=0 ce=True cnt=None
+   r8: [open Status Codes] back aP=0.36 hist=element gone sdP=0.1 rdy=0.35 rp=0.56 act_ms=0 ce=None cnt=None
+   r9: [open Status Codes] back aP=0.31 hist=element gone sdP=0.1 rdy=0.39 rp=0.57 act_ms=0 ce=None cnt=None
+-- run3 call11 fallback/step-uncertain why=wrong-page
+   r1: [open Status Codes] None aP=None hist=None sdP=None rdy=None rp=None act_ms=120 ce=None cnt=None
+   r2: [open Status Codes] click aP=0.97 hist=page changed sdP=0.13 rdy=0.73 rp=0.86 act_ms=243 ce=None cnt=None
+   r3: [open Status Codes] wait aP=0.4 hist=element gone sdP=0.4 rdy=0.46 rp=0.64 act_ms=0 ce=None cnt=None
+   r4: [open Status Codes] click aP=0.44 hist=element gone sdP=0.41 rdy=0.46 rp=0.64 act_ms=844 ce=None cnt=None
+   r5: [open Status Codes] click aP=0.37 hist=element gone sdP=0.54 rdy=0.62 rp=0.56 act_ms=0 ce=True cnt=None
+   r6: [open the 404 link] click aP=0.49 hist=element gone sdP=0.11 rdy=0.53 rp=0.56 act_ms=515 ce=None cnt=None
+   r7: [open the 404 link] navigate aP=0.37 hist=element gone sdP=0.12 rdy=0.28 rp=0.33 act_ms=0 ce=None cnt=None
+   r8: [open the 404 link] navigate aP=0.35 hist=element gone sdP=0.12 rdy=0.31 rp=0.34 act_ms=0 ce=None cnt=None
+-- run3 call12 done/goal-met why=None
+   r1: [click the link named 404 in the list of status codes] None aP=None hist=None sdP=None rdy=None rp=None act_ms=173 ce=None cnt=None
+   r2: [click the link named 404 in the list of status codes] click aP=0.83 hist=page changed sdP=0.16 rdy=0.65 rp=0.73 act_ms=226 ce=None cnt=None
+   r3: [click the link named 404 in the list of status codes] click aP=0.54 hist=element gone sdP=0.48 rdy=0.38 rp=0.55 act_ms=0 ce=None cnt=None
+   r4: [click the link named 404 in the list of status codes] click aP=0.52 hist=element gone sdP=0.52 rdy=0.42 rp=0.59 act_ms=0 ce=True cnt=None

@@ -1,0 +1,53 @@
+## decomposition coverage: calls over the 12-cap (unsplit fallback): 11 of 24 ; decomposed (expanded>caller): 11 ; no compound: 2
+caller steps -> sub-clauses where expansion applied:
+  run1 call4: 7 caller steps -> 8 sub-clauses
+  run1 call5: 7 caller steps -> 8 sub-clauses
+  run2 call5: 3 caller steps -> 8 sub-clauses
+  run2 call6: 2 caller steps -> 5 sub-clauses
+  run3 call5: 5 caller steps -> 12 sub-clauses
+  run3 call6: 4 caller steps -> 10 sub-clauses
+  run3 call7: 4 caller steps -> 9 sub-clauses
+  run3 call8: 3 caller steps -> 8 sub-clauses
+  run3 call9: 3 caller steps -> 6 sub-clauses
+  run3 call10: 2 caller steps -> 5 sub-clauses
+  run3 call11: 1 caller steps -> 2 sub-clauses
+
+## why x (over-cap or decomposed)
+  ('(done/goal-met)', 'expanded') 3
+  ('(error/act-failed)', 'overcap') 1
+  ('(error/page-error)', 'expanded') 3
+  ('low-confidence', 'expanded') 2
+  ('low-confidence', 'overcap') 1
+  ('no-match', 'expanded') 3
+  ('no-match', 'overcap') 5
+  ('no-progress', 'expanded') 1
+  ('no-progress', 'overcap') 1
+  ('wrong-page', 'expanded') 1
+  ('wrong-page', 'overcap') 3
+
+## per-bucket occurrences (step_text of the LAST round -> its decided action; aP; target1P; stepDoneP; calls are 'overcap' if the chain was unsplit)
+### no-match
+  run1 call1 [unsplit-overcap] step_text=[open Dropdown and choose Option 1] action=click aP=0.5 t1=none/0.9299999999999999 t2=ambiguous/0.03 stepDoneP=0.07 readyP=0.52 rightPageP=0.6 hist=checked progress=1/7
+  run1 call2 [unsplit-overcap] step_text=[open the web address named dropdown_url] action=check aP=0.47000000000000003 t1=none/0.47 t2=e1/0.46 stepDoneP=0.79 readyP=0.65 rightPageP=0.64 hist=page changed progress=0/7
+  run3 call1 [unsplit-overcap] step_text=[open Dropdown and choose Option 1] action=click aP=0.5 t1=none/0.93 t2=ambiguous/0.03 stepDoneP=0.06 readyP=0.56 rightPageP=0.59 hist=checked progress=1/7
+  run3 call2 [unsplit-overcap] step_text=[go back to the start page] action=check aP=0.48 t1=none/0.64 t2=e1/0.15 stepDoneP=0.15 readyP=0.64 rightPageP=0.73 hist=None progress=0/7
+  run3 call4 [unsplit-overcap] step_text=[open Add/Remove Elements and click the Add Element button twice] action=click aP=0.68 t1=none/0.96 t2=e1/0.02 stepDoneP=0.1 readyP=0.42 rightPageP=0.57 hist=selected: Option 1 progress=1/6
+  run3 call5 [decomposed] step_text=[open Inputs] action=click aP=0.39 t1=none/1 t2=ambiguous/0 stepDoneP=0.1 readyP=0.66 rightPageP=0.57 hist=page changed progress=1/5
+  run3 call7 [decomposed] step_text=[open Forgot Password] action=click aP=0.89 t1=none/0.95 t2=ambiguous/0.02 stepDoneP=0.12 readyP=0.52 rightPageP=0.62 hist=filled progress=1/4
+  run3 call8 [decomposed] step_text=[enter the value named email into the E-mail field] action=fill aP=0.52 t1=e2/0.67 t2=e1/0.28 stepDoneP=0.43 readyP=0.72 rightPageP=0.85 hist=filled progress=0/3
+### wrong-page
+  run1 call3 [unsplit-overcap] step_text=[open the web address named add_url and click the Add Element button twice] action=navigate aP=0.55 t1=none/0.89 t2=e1/0.07 stepDoneP=0.12 readyP=0.46 rightPageP=0.38 hist=selected: <value:opt> progress=1/6
+  run2 call2 [unsplit-overcap] step_text=[open Dropdown and choose Option 1] action=select aP=0.43 t1=none/0.9299999999999999 t2=ambiguous/0.03 stepDoneP=0.04 readyP=0.4 rightPageP=0.46 hist=None progress=0/6
+  run2 call3 [unsplit-overcap] step_text=[open the web address named dropdown_url, then choose Option 1 in the dropdown] action=navigate aP=0.41000000000000003 t1=none/0.85 t2=ambiguous/0.07 stepDoneP=0.05 readyP=0.44 rightPageP=0.28 hist=None progress=0/6
+  run3 call11 [decomposed] step_text=[open the 404 link] action=navigate aP=0.35 t1=None/None t2=None/None stepDoneP=0.12 readyP=0.31 rightPageP=0.34 hist=element gone progress=0/1
+### low-confidence
+  run2 call1 [unsplit-overcap] step_text=[open Dropdown and choose Option 1] action=back aP=0.47000000000000003 t1=none/0.94 t2=ambiguous/0.03 stepDoneP=0.06 readyP=0.55 rightPageP=0.59 hist=checked progress=1/7
+  run3 call6 [decomposed] step_text=[open Inputs] action=wait aP=0.43 t1=e1/0.88 t2=none/0.11 stepDoneP=0.31 readyP=0.33 rightPageP=0.56 hist=element gone progress=0/4
+  run3 call10 [decomposed] step_text=[open Status Codes] action=back aP=0.31 t1=none/0.91 t2=e1/0.08 stepDoneP=0.1 readyP=0.39 rightPageP=0.57 hist=element gone progress=1/2
+### not-ready
+  (none)
+### repeat
+  (none)
+### no-progress
+  run1 call4 [decomposed] step_text=[type the value named amount into the number input] action=fill aP=0.84 t1=e1/0.82 t2=none/0.15 stepDoneP=0.64 readyP=0.72 rightPageP=0.78 hist=filled progress=3/7
+  run2 call4 [unsplit-overcap] step_text=[open the web address named inputs_url and type the value named amount into the number input] action=fill aP=0.59 t1=e1/0.77 t2=none/0.22 stepDoneP=0.7 readyP=0.72 rightPageP=0.82 hist=filled progress=2/6
