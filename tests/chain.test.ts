@@ -2704,3 +2704,38 @@ test('T-nav-final-clause: navigation evidence never advances the FINAL clause (i
   assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
   assert.equal(r.status, 'done');
 });
+
+test('T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing', async () => {
+  // ONE caller clause that expands into two sub-clauses (callerN 1, N 2): a
+  // mutant bounding by the caller count would treat sub-clause 0 as final.
+  const h = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  const r = await h.call({
+    goal: 'chain-nav-expanded goal',
+    steps: ['open the Form link, then type the value named email into Email'],
+    values: navValues,
+  });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
+  assert.equal(h.askActs[2], 1, 'the advance round acted on nothing');
+  assert.equal((h.requests[2].state as { step?: string }).step, 'type the value named email into Email');
+  assert.equal(navRounds(h)[1].navEvidence, true);
+  assert.equal(navEvidenceRounds(h).length, 1);
+});
+
+test('T-nav-query: a landing that differs from the click page only by its query string is a left document', async () => {
+  const landing = (filled: boolean) =>
+    observation({ url: 'https://example.com/?view=form', title: 'Form', elements: [filled ? emailFilledEl : emailEl], text: 'form page' });
+  const h = harness({
+    observations: { p1: [hub, landing(false), landing(false), landing(true)] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-nav-query goal', steps: NAV_STEPS, values: navValues });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
+  assert.equal(h.askActs[2], 1, 'the advance round acted on nothing');
+  assert.equal(navRounds(h)[1].navEvidence, true);
+  assert.equal(navRounds(h)[1].leftPage, true);
+});
