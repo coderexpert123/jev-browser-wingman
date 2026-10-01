@@ -8,3 +8,4 @@
   - M4 playwright ok=True wall=39.8s usd=0.361125 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=1
   - M5 forced ok=True wall=43.9s usd=0.212276 handoffs=4 picks=0 wingman_acts=25 raw_acts=0 raw_script=0
   - M6 playwright ok=True wall=33.2s usd=0.30021 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=1
+- Phase S DONE (phase-s.json, gate ON, policy off): S1 forced ok=False wall=17.5s usd=0.064008 handoffs=1 picks=0 wingman_acts=6 raw_acts=0; `FORCED-VERDICT: smoke ok=false needs_confirmation=1` (first handoff ended needs_confirmation/irreversible-heuristic after 15 rounds; same shape as r13/r14).

@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-01-135226.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 20.814594,
+  "aborted": null,
+  "total_usd": 0.064008,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 17475,
+      "browser_tool_calls": 1,
+      "per_step_ms": 17475,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 772,
+        "cache_read_tokens": 161454,
+        "cache_write_tokens": 710,
+        "usd": 0.062697,
+        "cli_reported_usd": 0.0428628
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 31219,
+        "output_tokens": 7748,
+        "usd": 0.001311
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 1
+      },
+      "wingman_phases": {
+        "attach_ms": 57,
+        "first_observe_ms": 22,
+        "observe_ms": 10,
+        "jev_ms": 185,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 15
+      },
+      "usd": 0.064008,
+      "handoff_records": [
+        {
+          "status": "needs_confirmation",
+          "reason": "irreversible-heuristic",
+          "steps": 6,
+          "rounds": 15,
+          "progress": {
+            "step_index": 3,
+            "steps_done": 2,
+            "steps_total": 7
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 17475,
+      "median_usd": 0.064008,
+      "fallback_rate": 0
+    }
+  }
+}
