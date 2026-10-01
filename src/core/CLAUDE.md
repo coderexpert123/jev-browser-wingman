@@ -447,3 +447,24 @@
   will not re-ask. (4) `bindingsInStep` is a substring match, so D6's
   "clause names the binding" test treats any clause containing the binding
   name (e.g. "open the homepage" with binding `home`) as naming it.
+- **Landed-navigation evidence (r14, 2026-10-01):** `runChainEarly` rule 3 has
+  one more advance branch, `navAdvance`, taken only when no prior branch fired.
+  Gates: (1) `bareClickEvidence` (no count word; the clause's own last
+  signal-carrying act is click-family, `page changed` or `element gone`);
+  (2) that entry's `beforeUrl` and this round's `obs.url` are different
+  documents (`leftDocument`: origin+path+query differ, hash ignored);
+  (3) `stepBindingCount <= 1`; (4) `stepDone >= THRESHOLDS.stepDoneWithNavEvidence`
+  (0.25); (5) `noulOf('error') < THRESHOLDS.error` - rule 3 precedes rule 4, so
+  without this gate a click that landed on an error page would advance and hide
+  the failure; (6) NOT the final expanded clause (`chain.cursor < chain.N - 1`),
+  since an advance there ends the call done/goal-met on a weak landing.
+  Why: the error question's open-page carve-out suppresses errorP under an
+  `open X` clause (the same 500 page read errorP 0.32-0.37 under `open Forgot
+  Password` and 0.60-0.71 under `click the Retrieve password button`), so Jev
+  acted ahead under the open clause. Telemetry: `HistoryEntry.beforeUrl` (internal,
+  set by both history pushes, never in buildState), `PhaseRound.navEvidence`
+  (only on an advance that ONLY this branch allowed; `clickEvidence` still
+  sets too) and `PhaseRound.leftPage` (every chain round whose last entry has
+  `beforeUrl`). Test trap: a chain test whose clause click changes the
+  observation URL, then answers step_done in [0.25, 0.5) with error < 0.5 on a
+  non-final clause, now advances instead of acting.

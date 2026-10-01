@@ -208,6 +208,10 @@ export interface WingmanLogRecord {
       clickEvidence?: true;
       // r13: set only on a stuck-recover round: the validated chosen id (back / open_<name>) or give-up.
       stuck?: string;
+      // r14: set only on an advance that ONLY landed-navigation evidence allowed.
+      navEvidence?: true;
+      // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document.
+      leftPage?: boolean;
     }>;
   };
 }

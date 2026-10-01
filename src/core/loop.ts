@@ -270,6 +270,8 @@ interface HistoryEntry {
   path?: string;
   fingerprint?: Fingerprint;
   before?: string;
+  // r14 D2: the page address this act was made on. Internal only, never reaches buildState.
+  beforeUrl?: string;
   result?: string;
   // § outcome evidence WP-B scope (orchestrator decision, 2026-09-28): which
   // step this act belonged to — the chain clause index (`c<cursor>`) in
@@ -752,6 +754,15 @@ function hasBareClickEvidence(history: HistoryEntry[], currentStepKey: string): 
   return last.result === 'page changed' || last.result === 'element gone';
 }
 
+/** r14 D1: landed-navigation evidence — hasBareClickEvidence's entry (this
+ * step's last signal-carrying act, click-family, 'page changed' or
+ * 'element gone') was made on a document the page has since left. */
+function hasNavClickEvidence(history: HistoryEntry[], currentStepKey: string, currentUrl: string): boolean {
+  if (!hasBareClickEvidence(history, currentStepKey)) return false;
+  const last = lastEvidenceEntry(history, currentStepKey)!;
+  return last.beforeUrl !== undefined && leftDocument(last.beforeUrl, currentUrl);
+}
+
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
 function fingerprintMatches(fresh: Fingerprint, pending: Fingerprint): boolean {
   return (
@@ -907,6 +918,13 @@ function sameDocument(a: string, b: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** r14 D1: the page left the document an act was made on — both addresses
+ * parse and sameDocument says they differ. A parse failure is never "left". */
+function leftDocument(from: string, to: string): boolean {
+  try { new URL(from); new URL(to); } catch { return false; }
+  return !sameDocument(from, to);
 }
 
 /** r13 D3: the one reader of a recover answer, shared by the error path
@@ -1236,6 +1254,8 @@ async function runTool(
     step_text?: string;    // redacted current step text (chain clause or legacy step), browse_step only
     clickEvidence?: true;  // WP-click: set on the round where bare-click evidence fired
     stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
+    navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
+    leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
   };
   const phaseAcc: {
     attachMs?: number;
@@ -2022,6 +2042,7 @@ async function runTool(
           path: el.path,
           fingerprint: el.fingerprint,
           before: outcomeSignal(action.verb, el, obs),
+          beforeUrl: obs.url,
           stepKey,
           ...(action.verb === 'select' && action.optionValue !== undefined
             ? { intendedLabel: el.options?.find((o) => o.value === action.optionValue)?.label }
@@ -2566,17 +2587,29 @@ async function runTool(
       const bareClickEvidence =
         repeatCount === undefined &&
         hasBareClickEvidence(history, `c${chain!.cursor}`);
-      if (
+      const priorAdvance =
         stepDone >= THRESHOLDS.stepDone ||
         (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
         (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
           stepBindingCount <= 1 &&
           hasStepEvidence(history, `c${chain!.cursor}`)) ||
         repeatCountMet ||
-        (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence)
-      ) {
+        (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence);
+      // r14 D1: landed-navigation evidence (below the 0.5 evidence bar, never
+      // through an error). Condition 6 (orchestrator R2b): never on the final
+      // expanded clause, where an advance would end the call done/goal-met.
+      const navAdvance =
+        !priorAdvance &&
+        bareClickEvidence &&
+        chain!.cursor < chain!.N - 1 &&
+        stepBindingCount <= 1 &&
+        stepDone >= THRESHOLDS.stepDoneWithNavEvidence &&
+        noulOf('error') < THRESHOLDS.error &&
+        hasNavClickEvidence(history, `c${chain!.cursor}`, obs.url);
+      if (priorAdvance || navAdvance) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
         if (bareClickEvidence && cur) cur.clickEvidence = true;
+        if (navAdvance && cur) cur.navEvidence = true;
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
@@ -2742,6 +2775,8 @@ async function runTool(
         // gone') is a fixed string redactValues leaves untouched.
         cur.historyResult = redactValues(lastResult, values);
       }
+      const lastEntry = history.length > 0 ? history[history.length - 1] : undefined;
+      if (chain && lastEntry?.beforeUrl !== undefined) bucket.leftPage = leftDocument(lastEntry.beforeUrl, obs.url);
 
       // A dialog reported through onDialog before an act.
       if (dialogEvents.some((e) => e.pageId === pageId)) {
@@ -3438,6 +3473,7 @@ async function runTool(
             label: decision.el ? decision.el.name : (decision.binding ?? ''),
             ...(decision.el ? { path: decision.el.path, fingerprint: decision.el.fingerprint } : {}),
             before: outcomeSignal(decision.verb, decision.el ?? undefined, obs),
+            beforeUrl: obs.url,
             stepKey: currentStepKey,
             ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
               ? { intendedLabel: decision.el.options?.find((o) => o.value === decision.optionValue)?.label }

@@ -65,6 +65,13 @@ export const THRESHOLDS = {
   // completing only the first of several named fields can't advance it).
   // See hasStepEvidence and runChainEarly rule 3 in src/core/loop.ts.
   stepDoneWithEvidence: 0.5,
+  // r14 landed-navigation evidence: a chain clause whose own click-family act
+  // landed ('page changed' or 'element gone') and left the document it was
+  // made on advances at this stepDone while the error Noul is below its
+  // threshold (r13: landed own address-changing clicks read stepDoneP 0.30-0.82
+  // on the next round; an open clause on any other page read <= 0.17; the one
+  // wrong landing 0.14).
+  stepDoneWithNavEvidence: 0.25,
 } as const;
 export const TWO_STAGE = { groupSize: 30, topGroups: 3 } as const;
 export const SELECT_CHUNK = 250;
