@@ -61,5 +61,42 @@
     "goal": "Multi-page chain, in order: open Checkboxes and tick the first checkbox; open Dropdown and choose Option 1; open Add/Remove Elements and click the Add Element button twice; open Inputs and type the value named amount into the unlabeled number input, the only input field on the page; open Forgot Password, enter the value named email into the E-mail field and click the Retrieve password button; open Dynamic Loading, open the link named Example 2: Element rendered after the fact and click the Start button; open Status Codes and open the 404 link.",
     "values": { "amount": "77", "email": "wingman@example.com" },
     "oracle": "location.pathname === '/status_codes/404'"
+  },
+  {
+    "id": "t10-saucedemo-checkout",
+    "path": "https://www.saucedemo.com/",
+    "goal": "Sign in with the values named user and pass into the Username and Password fields, add the first listed product to the cart, open the shopping cart, open the checkout, fill the first name, last name and postal code fields with the values named first, last and zip, and finish the checkout.",
+    "values": { "user": "standard_user", "pass": "secret_sauce", "first": "Wing", "last": "Man", "zip": "12345" },
+    "oracle": "location.pathname === '/checkout-complete.html'",
+    "resetStorage": true
+  },
+  {
+    "id": "t11-todomvc-spa",
+    "path": "https://todomvc.com/examples/react/dist/",
+    "goal": "Type the value named item1 into the new-todo field and confirm it, then type the value named item2 the same way, then mark the first todo item complete.",
+    "values": { "item1": "write spec", "item2": "run tests" },
+    "oracle": "document.querySelectorAll('.todo-list li').length === 2 && document.querySelectorAll('.todo-list li.completed').length === 1",
+    "resetStorage": true
+  },
+  {
+    "id": "t12-js-confirm-dialog",
+    "path": "/javascript_alerts",
+    "goal": "Click the button for a JS Confirm, then accept the dialog that appears.",
+    "values": {},
+    "oracle": "document.querySelector('#result').innerText.includes('Ok')"
+  },
+  {
+    "id": "t13-infinite-scroll",
+    "path": "/infinite_scroll",
+    "goal": "Scroll down the page until at least ten result blocks have loaded.",
+    "values": {},
+    "oracle": "document.querySelectorAll('.jscroll-added').length >= 10"
+  },
+  {
+    "id": "t14-key-press",
+    "path": "/key_presses",
+    "goal": "Click the input field, then press the Enter key.",
+    "values": {},
+    "oracle": "document.querySelector('#result').innerText.toLowerCase().includes('enter')"
   }
 ]

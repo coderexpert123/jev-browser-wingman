@@ -4,7 +4,7 @@
 //        [--tasks <id,...>] [--routes <csv>] [--secrets-file <path>]
 //        [--purpose cap-proof|measure|experiment]
 //
-// 8 tasks x 3 routes x 1 repeat on one Chrome (port 9344, profile
+// tasks.json entries x routes x repeats on one Chrome (port 9344, profile
 // bench/.home/profile, window offscreen). Spend caps are enforced by
 // bench/cap.ts; the USD ceilings live there and nowhere else.
 //
@@ -36,6 +36,7 @@ export interface BenchTask {
   goal: string;
   values: Record<string, string>;
   oracle: string;
+  resetStorage?: boolean;
 }
 
 export type BenchRoute = 'playwright' | 'wingman' | 'browse' | 'forced';
@@ -454,7 +455,16 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     const mcpConfigPath = path.join(ctx.home, `mcp-${route}.json`);
     fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfigFor(ctx, route), null, 2));
 
-    await resetPages(ctx, START_BASE + task.path);
+    const startUrl = /^https?:\/\//.test(task.path)
+      ? task.path
+      : START_BASE + task.path;
+    if (task.resetStorage) {
+      await ctx.observer.send('Storage.clearDataForOrigin', {
+        origin: new URL(startUrl).origin,
+        storageTypes: 'all',
+      });
+    }
+    await resetPages(ctx, startUrl);
 
     const transcriptPath = transcriptPathFor(ctx.home, task.id, route);
     const res = await runClaude({

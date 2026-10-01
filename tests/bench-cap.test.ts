@@ -188,9 +188,9 @@ test('a 0.01 cap stops after the first run', async () => {
   assert.equal(parsed.runs.length, 1);
 });
 
-test('a harness without the abort check would run all 27', async () => {
+test('a harness without the abort check would run all 42', async () => {
   // Known-bad proof: with the abort check stubbed out, the identical fake
-  // runner runs all 9 tasks x 3 routes, so the previous test discriminates.
+  // runner runs all 14 tasks x 3 routes, so the previous test discriminates.
   const resDir = tmpDir('jevw-cap-nobad-');
   const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
   const runner = fakeRunner(0.02);
@@ -198,12 +198,12 @@ test('a harness without the abort check would run all 27', async () => {
   deps.shouldAbort = () => false;
   const { exit } = await capture(() => runBench(['--cap-usd', '0.01', '--phase-cap-usd', '10'], deps));
   assert.equal(exit, 0);
-  assert.equal(runner.calls(), 27);
+  assert.equal(runner.calls(), 42);
   const files = resultsFiles(resDir);
   assert.equal(files.length, 1);
   const parsed = JSON.parse(fs.readFileSync(path.join(resDir, files[0]), 'utf8')) as { aborted: unknown; runs: unknown[] };
   assert.equal(parsed.aborted, null);
-  assert.equal(parsed.runs.length, 27);
+  assert.equal(parsed.runs.length, 42);
 });
 
 test('the phase cap counts earlier results files', async () => {
