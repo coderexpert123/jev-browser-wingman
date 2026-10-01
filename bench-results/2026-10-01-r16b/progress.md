@@ -4,3 +4,11 @@
 - Invocation A DONE (t10,t11 playwright x1; invA-playwright.json) total_usd=0.405118
   - A1 t10-saucedemo-checkout playwright ok=True wall=18.3s usd=0.160328 raw_acts=8 raw_script=0
   - A2 t11-todomvc-spa playwright ok=True wall=13.8s usd=0.24479 raw_acts=3 raw_script=0
+- Invocation B DONE (t10,t11 forced x3; invB-forced.json) total_usd=1.739378
+  - B1 t10-saucedemo-checkout forced ok=True wall=30.0s usd=0.268779 handoffs=5 picks=3 wingman_acts=11 raw_acts=0 raw_script=0
+  - B2 t11-todomvc-spa forced ok=False wall=41.6s usd=0.449585 handoffs=10 picks=4 wingman_acts=4 raw_acts=0 raw_script=0
+  - B3 t10-saucedemo-checkout forced ok=True wall=28.1s usd=0.163863 handoffs=5 picks=3 wingman_acts=11 raw_acts=0 raw_script=0
+  - B4 t11-todomvc-spa forced ok=False wall=39.6s usd=0.369162 handoffs=10 picks=4 wingman_acts=4 raw_acts=0 raw_script=0
+  - B5 t10-saucedemo-checkout forced ok=True wall=28.0s usd=0.162769 handoffs=5 picks=3 wingman_acts=11 raw_acts=0 raw_script=0
+  - B6 t11-todomvc-spa forced ok=False wall=36.7s usd=0.32522 handoffs=10 picks=4 wingman_acts=4 raw_acts=0 raw_script=0
+- NOTE: the t11 todo item text appeared literally in the wingman log step_text (12 records) because the caller typed the literal text into its step instead of naming the binding in values; the product redacts only values it is given. Redacted in the pushed evidence.
