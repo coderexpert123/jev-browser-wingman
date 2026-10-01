@@ -430,3 +430,17 @@
   values redacted; non-Wingman errors carry only the class name). Test trap:
   a fresh chain clause scripted action click/navigate/back with target `none`
   >= 0.8 now takes one extra (stuck) ask before bouncing.
+  **Verifier-wave amendments (2026-10-01):** (1) `sameDocument` (the "already on
+  this page" filter for `open_<name>`) compares origin + pathname + query and
+  IGNORES only the hash — the spec's pathname-only cut hid query-routed hubs
+  (`/?view=home`), full-href equality offered the current page after an
+  `href="#"` click; both pinned by T-stuck-query-hub. (2) D1 guard 1 is now
+  enforced, not just described: `chain.retryNone` records that the look which
+  consumed the clause's retry was itself a confident none, and `stuckEligible`
+  requires it (retry on), so an ambiguous first look + a none never recovers.
+  (3) A failed stuck ask returns `fallback/jev-error` (spec-literal), which
+  forced mode maps to the RESUME line, not the bounce line — one extra hop on
+  a transient Jev failure; `stuckUsed` is already stored so the resume call
+  will not re-ask. (4) `bindingsInStep` is a substring match, so D6's
+  "clause names the binding" test treats any clause containing the binding
+  name (e.g. "open the homepage" with binding `home`) as naming it.
