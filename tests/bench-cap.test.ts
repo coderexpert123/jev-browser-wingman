@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import type { BenchRoute } from '../bench/run.js';
 import os from 'node:os';
 import path from 'node:path';
-import { runBench, type BenchDeps, type BenchRunRecord } from '../bench/run.js';
+import { runBench, resultsFileName, type BenchDeps, type BenchRunRecord } from '../bench/run.js';
 
 const PRICES = {
   llm: {
@@ -234,4 +234,45 @@ test('BENCH_MODEL overrides the configured caller model', async () => {
   assert.equal(files.length, 1);
   const parsed = JSON.parse(fs.readFileSync(path.join(resDir, files[0]), 'utf8')) as { model: string };
   assert.equal(parsed.model, 'glm-5.3');
+});
+
+test('resultsFileName stamps seconds and suffixes a taken name', () => {
+  const t = new Date(2026, 9, 1, 9, 53, 12);
+  assert.equal(resultsFileName(t), '2026-10-01-095312.json');
+  assert.equal(resultsFileName(t, (n) => n === '2026-10-01-095312.json'), '2026-10-01-095312_2.json');
+  assert.equal(
+    resultsFileName(t, (n) => n === '2026-10-01-095312.json' || n === '2026-10-01-095312_2.json'),
+    '2026-10-01-095312_3.json',
+  );
+  assert.throws(() => resultsFileName(t, () => true), /exhausted/);
+  assert.deepEqual(
+    ['2026-10-01-095312_2.json', '2026-10-01-095312.json', '2026-10-01-0953.json'].sort(),
+    ['2026-10-01-0953.json', '2026-10-01-095312.json', '2026-10-01-095312_2.json'],
+  );
+});
+
+test('two runs in the same second never overwrite and both count toward the phase cap', async () => {
+  const resDir = tmpDir('jevw-cap-same-second-');
+  const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
+  const argv = ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't1-checkboxes', '--routes', 'playwright', '--repeats', '1'];
+  const mk = (): BenchDeps => {
+    const deps = baseDeps(resDir, pricesPath, fakeRunner(0.02).runOne) as BenchDeps;
+    deps.now = () => new Date(2026, 9, 1, 9, 53, 12);
+    return deps;
+  };
+  const a = await capture(() => runBench(argv, mk()));
+  const b = await capture(() => runBench(argv, mk()));
+  assert.equal(a.exit, 0);
+  assert.equal(b.exit, 0);
+  const files = resultsFiles(resDir).sort();
+  assert.deepEqual(files, ['2026-10-01-095312.json', '2026-10-01-095312_2.json']);
+  for (const f of files) {
+    const parsed = JSON.parse(fs.readFileSync(path.join(resDir, f), 'utf8')) as { total_usd: number; date: string };
+    assert.equal(parsed.total_usd, 0.02);
+    assert.equal(parsed.date, f);
+  }
+  const deps3 = mk();
+  const c = await capture(() => runBench(['--cap-usd', '5', '--phase-cap-usd', '0.04', '--tasks', 't1-checkboxes', '--routes', 'playwright', '--repeats', '1'], deps3));
+  assert.equal(c.exit, 2);
+  assert.match(c.out + c.err, /BENCH-REFUSED: phase cap reached/);
 });

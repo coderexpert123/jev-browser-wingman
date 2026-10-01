@@ -141,6 +141,8 @@ export interface BenchDeps {
   // Test seam: the known-bad proof stubs this to false to show the loop
   // would run all 16 runs without the abort check.
   shouldAbort?: typeof shouldAbort;
+  // Test seam: a fixed clock makes the same-second collision test deterministic.
+  now?: () => Date;
 }
 
 const PKG_ROOT = packageRoot();
@@ -159,8 +161,17 @@ function twoDigit(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function resultsFileName(now: Date): string {
-  return `${now.getFullYear()}-${twoDigit(now.getMonth() + 1)}-${twoDigit(now.getDate())}-${twoDigit(now.getHours())}${twoDigit(now.getMinutes())}.json`;
+// Second-stamped name; a taken name gets `_2`..`_99`. `_` (0x5F) sorts after
+// `.` (0x2E), so the newest-file sort used by readme-bench still holds.
+export function resultsFileName(now: Date, taken: (name: string) => boolean = () => false): string {
+  const base = `${now.getFullYear()}-${twoDigit(now.getMonth() + 1)}-${twoDigit(now.getDate())}-${twoDigit(now.getHours())}${twoDigit(now.getMinutes())}${twoDigit(now.getSeconds())}`;
+  const first = `${base}.json`;
+  if (!taken(first)) return first;
+  for (let n = 2; n <= 99; n++) {
+    const candidate = `${base}_${n}.json`;
+    if (!taken(candidate)) return candidate;
+  }
+  throw new Error('results file name exhausted');
 }
 
 function round6(n: number): number {
@@ -666,6 +677,7 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   const pricesPath = deps?.pricesPath ?? path.join(PKG_ROOT, 'bench', 'prices.json');
   const env = deps?.env ?? process.env;
   const abortFn = deps?.shouldAbort ?? shouldAbort;
+  const clock = deps?.now ?? (() => new Date());
 
   let capUsd: number | undefined;
   let phaseCapUsd: number | undefined;
@@ -831,7 +843,7 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     exitCode = 1;
   } finally {
     const file: BenchResultsFile = {
-      date: resultsFileName(new Date()),
+      date: '',
       purpose,
       harness_version: HARNESS_VERSION,
       model: app.model,
@@ -844,7 +856,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     };
     try {
       fs.mkdirSync(resultsDir, { recursive: true });
-      fs.writeFileSync(path.join(resultsDir, file.date), JSON.stringify(file, null, 2));
+      const name = resultsFileName(clock(), (n) => fs.existsSync(path.join(resultsDir, n)));
+      file.date = name;
+      fs.writeFileSync(path.join(resultsDir, name), JSON.stringify(file, null, 2), { flag: 'wx' });
     } catch (err) {
       process.stderr.write(`jev-browser-wingman bench: could not write results: ${(err as Error).message}\n`);
       if (exitCode === 0) exitCode = 1;
