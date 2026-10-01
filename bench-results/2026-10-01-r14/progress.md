@@ -12,3 +12,4 @@
 - Phase M telemetry DONE (evidence/): 14 forced handoffs (5/4/5); 0 over-cap, 11 decomposed, 3 no-compound; navEvidence fired 14x, all 14 followed within 2 rounds by an element act on the next clause (0 stuck, 0 premature); acting-ahead 0; stuck back x10 / give-up x3 (10 recoveries, 9 committed, 9 advanced); 0 act_error; why: not-ready 6, low-confidence 4, no-match 2, wrong-page 1; the 6 not-ready are all `click the Retrieve password button` on the post-submit page (leftPage=False, sdP 0.1-0.49, rdy 0.09-0.21); 1 final-clause advance (M3.4, evidence rule, sdP 0.70).
 - Part 3 page 1 DONE: /inputs (evidence/part3/task1-*); doctor PASS 10/10
 - Part 3 page 2 DONE: /dropdown (evidence/part3/task2-*)
+- Part 3 page 3 DONE: /add_remove_elements/ (evidence/part3/task3-*)
