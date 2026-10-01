@@ -1,0 +1,16 @@
+const v=await (await fetch('http://127.0.0.1:9555/json/version')).json();
+const ws=new WebSocket(v.webSocketDebuggerUrl); let id=0; const pend=new Map();
+ws.onmessage=m=>{const d=JSON.parse(m.data); if(d.id&&pend.has(d.id)){pend.get(d.id)(d);pend.delete(d.id)}};
+await new Promise(r=>ws.onopen=r);
+const send=(method,params={},sessionId)=>new Promise(res=>{const i=++id;pend.set(i,res);ws.send(JSON.stringify({id:i,method,params,...(sessionId?{sessionId}:{})}))});
+const show=(l,d)=>console.log(l, JSON.stringify(d.error||d.result||d).slice(0,160));
+show('browser-level Storage.clearDataForOrigin saucedemo', await send('Storage.clearDataForOrigin',{origin:'https://www.saucedemo.com',storageTypes:'all'}));
+show('browser-level Storage.clearDataForOrigin todomvc', await send('Storage.clearDataForOrigin',{origin:'https://todomvc.com',storageTypes:'all'}));
+show('browser-level storageTypes cookies,local_storage', await send('Storage.clearDataForOrigin',{origin:'https://www.saucedemo.com',storageTypes:'cookies,local_storage'}));
+const {result:{targetInfos}}=await send('Target.getTargets'); const pg=targetInfos.find(t=>t.type==='page');
+const {result:{sessionId}}=await send('Target.attachToTarget',{targetId:pg.targetId,flatten:true});
+show('page-session Storage.clearDataForOrigin', await send('Storage.clearDataForOrigin',{origin:'https://www.saucedemo.com',storageTypes:'all'},sessionId));
+await send('Page.navigate',{url:'https://www.saucedemo.com/'},sessionId); await new Promise(r=>setTimeout(r,4000));
+show('browser-level after a navigation to the origin', await send('Storage.clearDataForOrigin',{origin:'https://www.saucedemo.com',storageTypes:'all'}));
+show('Network.clearBrowserCookies (browser-level)', await send('Network.clearBrowserCookies'));
+ws.close();

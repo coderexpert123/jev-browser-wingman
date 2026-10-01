@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-01-155932.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 20.814594,
+  "aborted": "error",
+  "total_usd": 0,
+  "runs": [],
+  "summary": {}
+}

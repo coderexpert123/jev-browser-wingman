@@ -1,0 +1,7 @@
+Chrome 141.0.7390.37 headless (chromium-1194 via bench/cloud/chromium-wrapper.sh), plain CDP over the browser-level websocket:
+browser-level Storage.clearDataForOrigin saucedemo {"code":-32603,"message":"Internal error"}
+browser-level Storage.clearDataForOrigin todomvc {"code":-32603,"message":"Internal error"}
+browser-level storageTypes cookies,local_storage {"code":-32603,"message":"Internal error"}
+page-session Storage.clearDataForOrigin {}            <- same call through an attached page session SUCCEEDS
+browser-level after a navigation to the origin {"code":-32603,"message":"Internal error"}
+Network.clearBrowserCookies (browser-level) {"code":-32601,"message":"'Network.clearBrowserCookies' wasn't found"}
