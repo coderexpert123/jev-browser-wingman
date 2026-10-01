@@ -12,3 +12,4 @@
 - NOTE: Phase S's bench/results file got the same minute-stamped name as Phase M (2026-10-01-0953.json) and overwrote it locally; Phase M's JSON had already been copied (results/phase-m.json, 6 runs, usd 1.65204) and is intact in the pushed commit b97533f.
 - Phase M telemetry DONE (evidence/): 23 forced handoffs (cells 10/5/8); 0 over-cap calls, 17 decomposed; stuck rounds: back x10, open_home x1, give-up x4; 11 recoveries -> 9 retried clauses committed, 7 advanced, 4 ended on a bounce on the same clause; 0 act_error records, 0 act-failed endings (r12: 5); why: not-ready 10, low-confidence 4, wrong-page 3, no-match 2, no-progress 1; not-ready is the new largest bucket (first call per run goes 33 rounds deep, acts ahead under `open Forgot Password`, then 3-wait storm).
 - Part 3 page 1 DONE: /inputs (evidence/part3/task1-*); doctor PASS 10/10
+- Part 3 page 2 DONE: /dropdown (evidence/part3/task2-*)
