@@ -2739,3 +2739,24 @@ test('T-nav-query: a landing that differs from the click page only by its query 
   assert.equal(navRounds(h)[1].navEvidence, true);
   assert.equal(navRounds(h)[1].leftPage, true);
 });
+
+test('T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never carry leftPage or navEvidence', async () => {
+  const mk = () =>
+    harness({ observations: { p1: [hub, formEmpty, formEmpty] }, script: [CS(), { done: 0.9 }] });
+  const legacy = mk();
+  const rl = await legacy.call({ goal: 'chain-nav-leftpage legacy goal', step: 'open the Form link' });
+  assert.equal(rl.status, 'done');
+  assert.equal(navRounds(legacy).length, 2);
+  for (const r of navRounds(legacy)) {
+    assert.equal(r.leftPage, undefined);
+    assert.equal(r.navEvidence, undefined);
+  }
+  const doH = mk();
+  const rd = await doH.callDo({ goal: 'chain-nav-leftpage do goal' });
+  assert.equal(rd.status, 'done');
+  assert.equal(navRounds(doH).length, 2);
+  for (const r of navRounds(doH)) {
+    assert.equal(r.leftPage, undefined);
+    assert.equal(r.navEvidence, undefined);
+  }
+});
