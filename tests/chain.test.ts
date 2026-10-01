@@ -2304,6 +2304,19 @@ test('T-stuck-two-nones: a multi-match first look followed by a none is NOT two 
   assert.equal(h.driver.actCalls().length, 0);
 });
 
+test('T-stuck-two-bindings: with two url bindings the navigate goes to the one Jev chose, not the first offered', async () => {
+  const values = { home: 'https://example.com/', docs: 'https://docs.example.com/start' };
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('open_docs'), CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-twobind goal', steps: ['open the Form page'], values });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'open_home', 'open_docs', 'give-up']);
+  assert.deepEqual(actsOf(h)[0], ['navigate', null, 'https://docs.example.com/start']);
+  assert.equal(h.records[0].phases?.rounds[2].stuck, 'open_docs');
+});
+
 test('T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)', async () => {
   const goal = 'chain-stuck-memused goal';
   const steps = ['open the Form page'];
