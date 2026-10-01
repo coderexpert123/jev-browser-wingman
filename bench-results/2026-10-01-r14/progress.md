@@ -1,2 +1,3 @@
 # r14 progress log (HEAD 68b66eb)
 - Part 1 DONE: 51/51 files; tsc 0; 766 tests, 764 pass, 1 skip (chrome-cmd win32), 1 todo (conformance-ops playwright O18, PASSED as todo), 0 fail; no re-runs needed. chain 97/97, chain-e2e 11/11 incl. E9, E10, E11. O18: cdp pass; playwright `ok # TODO` (passed, not skipped). lazy-chrome ok; known-bad tool-call FAIL answered=true. KB-nav proof: chain 5 fail (T-nav-advance, T-nav-floor, T-nav-token + T-nav-expanded, T-nav-query), chain-e2e E11 fail (10 pass/1 fail); restored clean.
+- Phase V DONE (phase-v.json) total_usd=0.93864: V1 playwright ok 25.4s 0.295412 | V2 ok 32.4s 0.312287 | V3 ok 34.0s 0.330941 -> 3/3 control OK
