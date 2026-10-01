@@ -2480,3 +2480,227 @@ test('T-act-error-log: a thrown act error lands sanitized in the log record as a
   assert.ok(!j.includes('href'));
   assert.ok(!j.includes('chain-form'));
 });
+
+// ---- r14 (spec .build-r14-spec.md WP-B): landed-navigation evidence ----
+
+const navValues = { email: 'person@example.org' };
+const emailEl = el({
+  id: 'e2',
+  path: '#email',
+  tag: 'input',
+  role: 'textbox',
+  name: 'Email',
+  type: 'email',
+  editable: true,
+  state: { disabled: false, filled: false },
+  fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 0, y: 0 },
+});
+const emailFilledEl = el({
+  id: 'e2',
+  path: '#email',
+  tag: 'input',
+  role: 'textbox',
+  name: 'Email',
+  type: 'email',
+  editable: true,
+  state: { disabled: false, filled: true },
+  fingerprint: { tag: 'input', role: 'textbox', name: 'Email', x: 0, y: 0 },
+});
+const formEmpty = observation({ url: 'https://example.com/form', title: 'Form', elements: [emailEl], text: 'form page' });
+const formFilled = observation({ url: 'https://example.com/form', title: 'Form', elements: [emailFilledEl], text: 'form page' });
+/** Jev acting ahead on the landed page: fill the next sub-goal's field. */
+const AHEAD = (sd: number, over: SeqEntry = {}): SeqEntry =>
+  CS({
+    step_done: sd,
+    action: ['fill', { fill: 0.9, none: 0.05 }],
+    target: ['e2', { e2: 0.9, none: 0.05, ambiguous: 0.05 }],
+    value: ['email', { email: 0.9, none: 0.05 }],
+    ...over,
+  });
+const NAV_STEPS = ['open the Form link', 'type the value named email into Email'];
+const navRounds = (h: Harness) => h.records[h.records.length - 1].phases!.rounds;
+const navEvidenceRounds = (h: Harness) => navRounds(h).filter((r) => r.navEvidence !== undefined);
+const FILL_AFTER_CLICK: Array<[Op, string | null, string | undefined]> = [
+  ['click', 'e1', undefined],
+  ['fill', 'e2', 'person@example.org'],
+];
+
+test('T-nav-advance: an open clause whose own click landed on another document advances at stepDone 0.35, so the next sub-goal is not acted under it', async () => {
+  const h = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-nav-advance goal', steps: NAV_STEPS, values: navValues });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
+  assert.equal(h.askActs[2], 1, 'the advance round acted on nothing');
+  assert.equal(h.requests.length, 4);
+  assert.equal((h.requests[2].state as { step?: string }).step, 'type the value named email into Email');
+  const rs = navRounds(h);
+  assert.equal(rs[1].navEvidence, true);
+  assert.equal(rs[1].clickEvidence, true);
+  assert.equal(rs[1].leftPage, true);
+  assert.equal(navEvidenceRounds(h).length, 1);
+
+  // Leg B: the link persists on the landed page (result 'page changed', not
+  // 'element gone') — a landed click with a left document still advances.
+  const landed = observation({ url: 'https://example.com/form', title: 'Form', elements: [hubEl, emailEl], text: 'form page' });
+  const landedFilled = observation({ url: 'https://example.com/form', title: 'Form', elements: [hubEl, emailFilledEl], text: 'form page' });
+  const h2 = harness({
+    observations: { p1: [hub, landed, landed, landedFilled] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  const r2 = await h2.call({ goal: 'chain-nav-advance goal persistent link', steps: NAV_STEPS, values: navValues });
+  assert.equal(r2.status, 'done');
+  assert.deepEqual(actsOf(h2), FILL_AFTER_CLICK);
+  assert.equal(h2.askActs[2], 1);
+  assert.equal(navRounds(h2)[1].navEvidence, true);
+  assert.equal(navRounds(h2)[1].leftPage, true);
+});
+
+test('T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead as before, and at 0.6 the old evidence bar owns the advance', async () => {
+  // Leg A: 0.24 is below the floor.
+  const a = harness({
+    observations: { p1: [hub, formEmpty, formFilled, formFilled] },
+    script: [CS(), AHEAD(0.24), ADV(), ADV()],
+  });
+  const ra = await a.call({ goal: 'chain-nav-floor goal A', steps: NAV_STEPS, values: navValues });
+  assert.equal(ra.status, 'done');
+  assert.equal(a.askActs[2], 2, 'acted ahead under the open clause');
+  assert.equal(navEvidenceRounds(a).length, 0);
+  // Leg B: 0.25 advances on navigation evidence.
+  const b = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.25), AHEAD(0.05), ADV()],
+  });
+  const rb = await b.call({ goal: 'chain-nav-floor goal B', steps: NAV_STEPS, values: navValues });
+  assert.equal(rb.status, 'done');
+  assert.equal(b.askActs[2], 1);
+  assert.equal(navRounds(b)[1].navEvidence, true);
+  // Leg C: 0.6 is the existing click-evidence bar, not navigation evidence.
+  const c = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.6), AHEAD(0.05), ADV()],
+  });
+  const rc = await c.call({ goal: 'chain-nav-floor goal C', steps: NAV_STEPS, values: navValues });
+  assert.equal(rc.status, 'done');
+  assert.equal(navRounds(c)[1].clickEvidence, true);
+  assert.equal(navRounds(c)[1].navEvidence, undefined);
+  assert.equal(c.askActs[2], 1);
+});
+
+test('T-nav-same-url: a click that stays on the same document (or only changes the hash) keeps the 0.5 bar and acts ahead', async () => {
+  for (const [i, url] of ['https://example.com/', 'https://example.com/#panel'].entries()) {
+    const panel = observation({ url, title: 'Home', elements: [hubEl, emailEl], text: 'panel open' });
+    const panelFilled = observation({ url, title: 'Home', elements: [hubEl, emailFilledEl], text: 'panel open' });
+    const h = harness({
+      observations: { p1: [hub, panel, panelFilled, panelFilled] },
+      script: [CS(), AHEAD(0.35), ADV(), ADV()],
+    });
+    const r = await h.call({ goal: `chain-nav-sameurl goal ${i}`, steps: NAV_STEPS, values: navValues });
+    assert.equal(r.status, 'done', url);
+    assert.equal(h.askActs[2], 2, `${url}: acted ahead`);
+    assert.equal(navEvidenceRounds(h).length, 0, url);
+    assert.equal(navRounds(h)[1].leftPage, false, url);
+  }
+});
+
+test('T-nav-error: a landed click whose page reads as an error never advances on navigation evidence', async () => {
+  const h = harness({
+    observations: { p1: [hub, formEmpty] },
+    script: [CS(), AHEAD(0.35, { error: 0.6, recover: ['give-up', { 'give-up': 0.9 }] })],
+  });
+  const r = await h.call({ goal: 'chain-nav-error goal', steps: NAV_STEPS, values: navValues });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'page-error');
+  assert.equal(h.requests.length, 2);
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(navEvidenceRounds(h).length, 0);
+});
+
+test("T-nav-not-own: another clause's landed click is not evidence for the current clause", async () => {
+  const clicked = observation({ url: 'https://example.com/form', title: 'Form', text: 'form page clicked' });
+  const h = harness({
+    observations: { p1: [hub, formPage, formPage, clicked] },
+    script: [CS(), ADV(), CS({ step_done: 0.35 }), ADV()],
+  });
+  const r = await h.call({
+    goal: 'chain-nav-notown goal',
+    steps: ['open the Form link', 'press the Details button', 'press the Details button again'],
+  });
+  assert.equal(r.status, 'done');
+  assert.equal(actsOf(h).length, 2);
+  assert.equal(h.askActs[3], 2, 'clause 2 acted on its own first round');
+  assert.equal(navEvidenceRounds(h).length, 0);
+});
+
+test('T-nav-count: a clause with a count word advances only on its count, never on navigation evidence', async () => {
+  const next = (n: number) =>
+    observation({
+      url: `https://example.com/p${n}`,
+      title: `P${n}`,
+      elements: [
+        el({ id: 'e1', path: '#next', tag: 'a', role: 'link', name: 'Next', fingerprint: { tag: 'a', role: 'link', name: 'Next', x: 0, y: 0 } }),
+      ],
+      text: `page ${n}`,
+    });
+  const h = harness({
+    observations: { p1: [next(0), next(1), next(2)] },
+    script: [CS(), CS({ step_done: 0.35 }), CS({ step_done: 0.35 }), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-nav-count goal', steps: ['click the Next link twice', 'press the Next link'] });
+  assert.equal(r.status, 'done');
+  assert.equal(actsOf(h).filter((a) => a[0] === 'click').length, 2);
+  assert.equal(navEvidenceRounds(h).length, 0);
+});
+
+test('T-nav-two-bindings: a clause with two value bindings never advances on navigation evidence', async () => {
+  const login = observation({ url: 'https://example.com/login', title: 'Login', elements: [el({ path: '#signin', name: 'Sign in' })] });
+  const home = observation({ url: 'https://example.com/home', title: 'Home', text: 'welcome' });
+  const h = harness({
+    observations: { p1: [login, home] },
+    script: [CS(), CS({ step_done: 0.35, target: ['none', { none: 0.95, ambiguous: 0.03 }] })],
+  });
+  const r = await h.call({
+    goal: 'chain-nav-twobind goal',
+    steps: ['sign in with the value named user and the value named pass', 'press the Details button'],
+    values: { user: 'person-user', pass: 'secret-pass-1' },
+  });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(navEvidenceRounds(h).length, 0);
+});
+
+test('T-nav-token: a confirmed token click records beforeUrl, so the next round advances on navigation evidence', async () => {
+  const placePage = observation({
+    url: 'https://example.com/cart',
+    title: 'Cart',
+    elements: [el({ type: 'submit', name: 'Place order' })],
+  });
+  const h = harness({
+    observations: { p1: [placePage, placePage, formEmpty, formEmpty, formFilled] },
+    script: [AHEAD(0.35), AHEAD(0.05), ADV()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const goal = 'chain-nav-token goal';
+  const steps = ['place the order', 'type the value named email into Email'];
+  const r1 = await h.call({ goal, steps, values: navValues, pick: { role: 'button', name: 'Place order', action: 'click' } });
+  assert.equal(r1.status, 'needs_confirmation');
+  const r2 = await h.call({ goal, steps, values: navValues, confirm_token: r1.confirm_token });
+  assert.equal(r2.status, 'done');
+  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
+  assert.equal(h.records[1].phases!.rounds[1].navEvidence, true);
+});
+
+test('T-nav-final-clause: navigation evidence never advances the FINAL clause (it would end done/goal-met on a weak landing)', async () => {
+  const h = harness({
+    observations: { p1: [hub, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.35), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-nav-final goal', steps: ['open the Form link'], values: navValues });
+  assert.equal(navEvidenceRounds(h).length, 0);
+  assert.equal(h.askActs[2], 2, 'acted ahead under the final clause: the old bars apply');
+  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
+  assert.equal(r.status, 'done');
+});
