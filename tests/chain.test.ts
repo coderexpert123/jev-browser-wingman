@@ -1708,6 +1708,14 @@ test('expandClauses: parents map back to the caller clause; over the cap returns
   // All-or-nothing beyond 36: 19 clauses x 2 = 38 return null.
   const over = expandClauses(Array.from({ length: 19 }, (_, i) => `open x${i} and click y${i}`));
   assert.equal(over, null);
+
+  // Exact boundary (verifier, r12): 36 sub-clauses expand, 37 return null —
+  // pins the cap value itself, not just "somewhere between 14 and 38".
+  const pairs = (n: number) => Array.from({ length: n }, (_, i) => `open x${i} and click y${i}`);
+  const at36 = expandClauses([...pairs(17), 'fill a', 'fill b']);
+  assert.ok(at36 !== null, '36 sub-clauses are within the cap');
+  assert.equal(at36!.clauses.length, 36);
+  assert.equal(expandClauses([...pairs(18), 'fill a']), null, '37 sub-clauses exceed the cap');
 });
 
 test('T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit', async () => {

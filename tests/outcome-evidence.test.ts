@@ -1567,6 +1567,32 @@ test('T-navigate-evidence: step_done 0.6 after a page-changing navigate advances
   assert.equal(acts.filter((a) => a.op === 'click').length, 0, 'round 2 must advance on the navigate evidence, not click');
 });
 
+test('T-navigate-unchanged-not-evidence: step_done 0.6 after a navigate that left the page unchanged does NOT advance on evidence', async () => {
+  const same = observation(); // every round observes the identical page: the navigate result is 'no visible change'
+  const h = harness({
+    observations: { p1: [same, same, same] },
+    ask: async (request) => {
+      const acted = JSON.stringify(request.state).includes('"result":"no visible change"');
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: acted ? 0.6 : 0.05 },
+        action: acted ? choice('click', { click: 0.9, none: 0.05 }) : choice('navigate', { navigate: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+        url: choice('form_url', { form_url: 0.9, none: 0.05 }),
+      });
+    },
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 4 } },
+  });
+  const r = await h.call({
+    goal: 'outcome-evidence navigate unchanged goal',
+    steps: ['open the web address named form_url'],
+    values: { form_url: 'https://example.com/next' },
+  });
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'navigate').length, 1, 'one navigate act');
+  assert.ok(acts.filter((a) => a.op === 'click').length >= 1, `an unchanged navigate must not count as evidence (round 2 acts instead of advancing); got ${r.status}/${r.reason}`);
+});
+
 test('T-back-not-evidence: step_done 0.6 after a page-changing back does NOT advance on the evidence bar', async () => {
   const before = observation();
   const after = observation({ url: 'https://example.com/prev', title: 'Prev', text: 'the previous page' });
