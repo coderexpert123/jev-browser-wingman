@@ -382,9 +382,12 @@
   r10):** a click step with NO count word (where `parseRepeatCount` returns
   `undefined`, so `hasRepeatCountEvidence` can't fire) now has its own
   evidence bar. `hasBareClickEvidence(history, currentStepKey)` is true when
-  the LAST history entry is on the current step, has a click-family verb
-  (`CLICK_FAMILY_OPS`), and `result === 'page changed'` — one observed change
-  is enough. Advance bar: chain mode's `runChainEarly` rule 3 gets an extra
+  the last SIGNAL-CARRYING history entry (`lastEvidenceEntry`, r11 Q3: reads
+  through waits/scrolls) is on the current step, has a click-family verb
+  (`CLICK_FAMILY_OPS`), and `result` is `'page changed'` OR `'element gone'`
+  (r11 Q3 — a link click that navigates almost always reads `element gone`,
+  since the link is absent on the new page; corrected 2026-10-01, r14
+  deep-plan) — one observed change is enough. Advance bar: chain mode's `runChainEarly` rule 3 gets an extra
   OR branch, `stepDoneP >= THRESHOLDS.stepDoneWithEvidence (0.5) &&
   bareClickEvidence`. Legacy browse_step: `decideEarly` rule 3b gets a
   sibling branch on the `done` noul `>= THRESHOLDS.stepDoneWithEvidence`
