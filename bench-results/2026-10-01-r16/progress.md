@@ -18,3 +18,4 @@
   - B7 t12-js-confirm-dialog forced ok=False wall=99.9s usd=0.114565 handoffs=2 picks=0 wingman_acts=1 raw_acts=0 raw_script=0
   - B8 t13-infinite-scroll forced ok=True wall=43.8s usd=0.188877 handoffs=3 picks=0 wingman_acts=29 raw_acts=0 raw_script=0
   - B9 t14-key-press forced ok=False wall=24.7s usd=0.186119 handoffs=7 picks=3 wingman_acts=5 raw_acts=0 raw_script=0
+- B' telemetry DONE (evidence/telemetry-invB2.txt)

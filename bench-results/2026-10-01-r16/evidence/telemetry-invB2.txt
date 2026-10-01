@@ -1,0 +1,66 @@
+## per call (cell, task, status/reason/why, steps, acts_by_op, round actions)
+B1 t12-js-confirm-dialog call1: blocked/dialog-open why=None steps=1 acts={'click': 1} rounds=[('click', 0.1, 0.74, None)] stuck=[] act_error=None
+B1 t12-js-confirm-dialog call2: error/tool-fault why=None steps=0 acts=None rounds=[] stuck=[] act_error={'head': 'fault: TimeoutError'}
+B2 t13-infinite-scroll call1: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.19, 0.26, None), ('scroll', 0.17, 0.25, None), ('scroll', 0.16, 0.23, None)] stuck=[] act_error=None
+B2 t13-infinite-scroll call2: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.19, 0.28, None), ('scroll', 0.16, 0.24, None), ('scroll', 0.17, 0.24, None)] stuck=[] act_error=None
+B2 t13-infinite-scroll call3: fallback/step-uncertain why=not-ready steps=1 acts={'scroll': 1, 'wait': 2} rounds=[(None, None, None, None), ('scroll', 0.2, 0.24, None), ('scroll', 0.28, 0.28, None), ('scroll', 0.3, 0.29, None)] stuck=[] act_error=None
+B2 t13-infinite-scroll call4: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.21, 0.27, None), ('scroll', 0.17, 0.23, None), ('scroll', 0.16, 0.24, None)] stuck=[] act_error=None
+B3 t14-key-press call1: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[('click', 0.08, 0.8, None), ('click', 0.61, 0.75, 'no visible change')] stuck=[] act_error=None
+B3 t14-key-press call2: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.6, 0.75, 'no visible change')] stuck=[] act_error=None
+B3 t14-key-press call3: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.58, 0.77, 'no visible change')] stuck=[] act_error=None
+B3 t14-key-press call4: error/invalid-input why=None steps=0 acts=None rounds=[] stuck=[] act_error=None
+B3 t14-key-press call5: done/goal-met why=None steps=1 acts={'press': 1} rounds=[('press', 0.1, 0.61, None), ('press', 0.51, 0.53, 'page changed')] stuck=[] act_error=None
+B4 t12-js-confirm-dialog call1: blocked/dialog-open why=None steps=1 acts={'click': 1} rounds=[('click', 0.1, 0.77, None)] stuck=[] act_error=None
+B4 t12-js-confirm-dialog call2: error/tool-fault why=None steps=0 acts=None rounds=[] stuck=[] act_error={'head': 'fault: TimeoutError'}
+B5 t13-infinite-scroll call1: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.19, 0.26, None), ('scroll', 0.15, 0.23, None), ('scroll', 0.18, 0.25, None)] stuck=[] act_error=None
+B5 t13-infinite-scroll call2: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.19, 0.29, None), ('scroll', 0.15, 0.24, None), ('scroll', 0.18, 0.24, None)] stuck=[] act_error=None
+B5 t13-infinite-scroll call3: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.2, 0.28, None), ('scroll', 0.18, 0.28, None), ('scroll', 0.17, 0.24, None)] stuck=[] act_error=None
+B5 t13-infinite-scroll call4: fallback/budget-steps why=None steps=24 acts={'scroll': 24, 'wait': 1} rounds=[(None, None, None, None), ('scroll', 0.21, 0.25, None), ('scroll', 0.29, 0.3, None), ('scroll', 0.3, 0.31, None), ('scroll', 0.34, 0.35, None), ('scroll', 0.37, 0.4, None), ('scroll', 0.38, 0.39, None), ('scroll', 0.38, 0.42, None)] stuck=[] act_error=None
+B6 t14-key-press call1: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[('click', 0.09, 0.78, None), ('click', 0.61, 0.75, 'no visible change')] stuck=[] act_error=None
+B6 t14-key-press call2: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.58, 0.74, 'no visible change')] stuck=[] act_error=None
+B6 t14-key-press call3: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.59, 0.73, 'no visible change')] stuck=[] act_error=None
+B6 t14-key-press call4: error/invalid-input why=None steps=0 acts=None rounds=[] stuck=[] act_error=None
+B6 t14-key-press call5: error/invalid-input why=None steps=0 acts=None rounds=[] stuck=[] act_error=None
+B6 t14-key-press call6: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[('click', 0.14, 0.77, None), ('click', 0.57, 0.78, 'no visible change')] stuck=[] act_error=None
+B7 t12-js-confirm-dialog call1: blocked/dialog-open why=None steps=1 acts={'click': 1} rounds=[('click', 0.11, 0.75, None)] stuck=[] act_error=None
+B7 t12-js-confirm-dialog call2: error/tool-fault why=None steps=0 acts=None rounds=[] stuck=[] act_error={'head': 'fault: TimeoutError'}
+B8 t13-infinite-scroll call1: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.2, 0.27, None), ('scroll', 0.18, 0.26, None), ('scroll', 0.17, 0.25, None)] stuck=[] act_error=None
+B8 t13-infinite-scroll call2: fallback/step-uncertain why=not-ready steps=0 acts={'wait': 2} rounds=[('scroll', 0.22, 0.28, None), ('scroll', 0.17, 0.24, None), ('scroll', 0.16, 0.22, None)] stuck=[] act_error=None
+B8 t13-infinite-scroll call3: fallback/budget-steps why=None steps=24 acts={'scroll': 24, 'wait': 1} rounds=[('scroll', 0.2, 0.31, None), ('scroll', 0.24, 0.3, None), ('scroll', 0.25, 0.27, None), ('scroll', 0.32, 0.31, None), ('scroll', 0.33, 0.34, None), ('scroll', 0.36, 0.36, None), ('scroll', 0.38, 0.4, None), ('scroll', 0.37, 0.4, None)] stuck=[] act_error=None
+B9 t14-key-press call1: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[('click', 0.09, 0.77, None), ('click', 0.6, 0.74, 'no visible change')] stuck=[] act_error=None
+B9 t14-key-press call2: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.57, 0.74, 'no visible change')] stuck=[] act_error=None
+B9 t14-key-press call3: fallback/no-progress why=no-progress steps=1 acts={'click': 1} rounds=[(None, None, None, None), ('click', 0.61, 0.75, 'no visible change')] stuck=[] act_error=None
+B9 t14-key-press call4: fallback/step-uncertain why=repeat steps=1 acts={'press': 1} rounds=[('press', 0.13, 0.71, None), ('press', 0.48, 0.57, 'page changed')] stuck=[] act_error=None
+B9 t14-key-press call5: error/invalid-input why=None steps=0 acts=None rounds=[] stuck=[] act_error=None
+B9 t14-key-press call6: error/invalid-input why=None steps=0 acts=None rounds=[] stuck=[] act_error=None
+B9 t14-key-press call7: fallback/no-progress why=no-progress steps=1 acts={'press': 1} rounds=[(None, None, None, None), ('press', 0.28, 0.66, 'no visible change')] stuck=[] act_error=None
+
+## why counts by task
+t12-js-confirm-dialog {'blocked/dialog-open': 3, 'error/tool-fault': 3} | acts_by_op totals {'click': 3}
+t13-infinite-scroll {'not-ready': 9, 'fallback/budget-steps': 2} | acts_by_op totals {'wait': 20, 'scroll': 49}
+t14-key-press {'no-progress': 11, 'error/invalid-input': 5, 'done/goal-met': 1, 'repeat': 1} | acts_by_op totals {'click': 10, 'press': 3}
+
+## t13 scroll acts per cell (acts_by_op.scroll summed over its calls)
+B2: scroll acts=1, handoffs=4
+B5: scroll acts=24, handoffs=4
+B8: scroll acts=24, handoffs=3
+
+## no-progress/repeat on t14: step_text of last rounds
+B3 call1 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B3 call2 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B3 call3 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B3 call4 why=None last step_text=[None] action=None hist=None
+B3 call5 why=None last step_text=[press the Enter key] action=press hist=page changed
+B6 call1 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B6 call2 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B6 call3 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B6 call4 why=None last step_text=[None] action=None hist=None
+B6 call5 why=None last step_text=[None] action=None hist=None
+B6 call6 why=no-progress last step_text=[click the text input field with id target] action=click hist=no visible change
+B9 call1 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B9 call2 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B9 call3 why=no-progress last step_text=[click the input field] action=click hist=no visible change
+B9 call4 why=repeat last step_text=[press the Enter key while the input field is focused] action=press hist=page changed
+B9 call5 why=None last step_text=[None] action=None hist=None
+B9 call6 why=None last step_text=[None] action=None hist=None
+B9 call7 why=no-progress last step_text=[press the Enter key while the input field is focused] action=press hist=no visible change
