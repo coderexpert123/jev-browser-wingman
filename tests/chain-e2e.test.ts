@@ -194,7 +194,7 @@ function findId(target: StubQuestion | undefined, regex: RegExp): string | null 
 // so a clause branch below must never key page identity off `state.url` when
 // a call's own binding value could equal the destination URL (E3's `form_url`
 // does, once navigated there). Prefer `state.title` or target criteria text.
-async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
+async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
   return await startTypeSafeStub((body) => {
     const state = (body.state ?? {}) as {
       url?: string;
@@ -233,7 +233,28 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       noul(key, v);
     }
 
-    if (step.includes('open Checkboxes')) {
+    // r13: the stuck-recover request is ONE question, `recover`, with criteria
+    // back / open_<name> / give-up. It is matched BEFORE any step branch (the
+    // request still carries state.step). When no stuckAnswer is configured or
+    // it is not offered, nothing is answered and fillDefaultAnswers picks the
+    // first criterion at 0.05, below the recover threshold: a bounce.
+    const stuckRequest = Object.keys(q).length === 1 && 'recover' in q;
+    if (stuckRequest) {
+      const offered = Object.keys(q.recover.criteria ?? {});
+      if (opts.stuckAnswer !== undefined && offered.includes(opts.stuckAnswer)) {
+        cho('recover', opts.stuckAnswer, { [opts.stuckAnswer]: 0.9 });
+      }
+    } else if (step.includes('open the Form page')) {
+      // r13 hub clause. Keyed on title, never url (redaction gotcha above):
+      // the `home` value equals the index page's own address.
+      if (title === 'Fixture chain form') {
+        noul('step_done', 0.95);
+      } else if (!clickOn(/link "Form"/)) {
+        // Not on the hub: a confident `none` on a click, the stuck trigger.
+        cho('action', 'click', { click: 0.9, none: 0.05 });
+        cho('target', 'none', { none: 0.95, ambiguous: 0.03 });
+      }
+    } else if (step.includes('open Checkboxes')) {
       // r11: CLAUSE_CHECK decomposes into 'open Checkboxes' + 'tick Accept
       // terms'; this sub-clause is pure navigation.
       if (url.includes('chain-check.html')) {
@@ -629,6 +650,80 @@ test('E8: scroll_to brings Far away into view and clicks it', { timeout: 120_000
     assert.equal(log, 'far');
     const rec = lastLogRecord(s.home);
     assert.equal((rec.acts_by_op as Record<string, number>)?.scroll_to, 1);
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+// ---- r13: stuck-clause recovery (E9, E10) ----
+
+/** The stub requests whose question set is exactly `recover` (the stuck ask). */
+function stuckRequests(stub: Awaited<ReturnType<typeof startChainStub>>): unknown[] {
+  return stub.requests.filter((req) => {
+    const r = req as { body?: { questions?: Record<string, unknown> } };
+    const keys = Object.keys(r.body?.questions ?? {});
+    return keys.length === 1 && keys[0] === 'recover';
+  });
+}
+
+function stuckRounds(rec: Record<string, unknown>): string[] {
+  const rounds = ((rec.phases as { rounds?: Array<{ stuck?: string }> } | undefined)?.rounds ?? []) as Array<{
+    stuck?: string;
+  }>;
+  return rounds.map((r) => r.stuck).filter((s): s is string => s !== undefined);
+}
+
+test('E9: a target on the hub page is reached in one call through a supplied start-page address (r13 stuck recover)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none', stuckAnswer: 'open_home' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-index');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E9 stuck recover via url binding goal',
+      steps: [CLAUSE_CHECK, 'open the Form page', CLAUSE_SEND],
+      values: { email: 'wingman@example.com', home: `${fixture.url}/chain-index.html` },
+      url_match: 'chain-index.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    assert.deepEqual(r.progress, { step_index: 3, steps_done: 3, steps_total: 3 });
+    const log = await pageEval('chain-form.html', () => document.getElementById('log')?.textContent ?? null);
+    assert.equal(log, 'sent:wingman@example.com:1');
+    const rec = lastLogRecord(s.home);
+    const byOp = rec.acts_by_op as Record<string, number>;
+    assert.equal(byOp.navigate, 1);
+    assert.equal(byOp.back, undefined);
+    assert.ok(stuckRounds(rec).includes('open_home'), `a round carries stuck open_home: ${JSON.stringify(stuckRounds(rec))}`);
+    assert.equal(stuckRequests(stub).length, 1, 'exactly one stuck ask');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E10: with no url binding the stuck recover goes back to the hub (cdp adapter)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none', stuckAnswer: 'back' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-index');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E10 stuck recover via back goal',
+      steps: [CLAUSE_CHECK, 'open the Form page', CLAUSE_SEND],
+      values: { email: 'wingman@example.com' },
+      url_match: 'chain-index.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    assert.deepEqual(r.progress, { step_index: 3, steps_done: 3, steps_total: 3 });
+    const log = await pageEval('chain-form.html', () => document.getElementById('log')?.textContent ?? null);
+    assert.equal(log, 'sent:wingman@example.com:1');
+    const rec = lastLogRecord(s.home);
+    const byOp = rec.acts_by_op as Record<string, number>;
+    assert.equal(byOp.back, 1);
+    assert.equal(byOp.navigate, undefined);
+    assert.ok(stuckRounds(rec).includes('back'), `a round carries stuck back: ${JSON.stringify(stuckRounds(rec))}`);
+    assert.equal(stuckRequests(stub).length, 1, 'exactly one stuck ask');
   } finally {
     await s.close();
     await stub.close();

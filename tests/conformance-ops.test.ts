@@ -44,6 +44,7 @@ const TITLES: Record<string, string> = {
   'ops.html': 'Fixture ops',
   'form.html': 'Fixture form',
   'styled-controls.html': 'Fixture styled controls',
+  'chain-index.html': 'Fixture chain index',
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -57,7 +58,7 @@ export const OP_TEST_IDS: Record<Op, string[]> = {
   fill: ['O4', 'O12', 'O16', 'O17'],
   upload: ['O5'],
   navigate: ['O6', 'O7'],
-  back: ['O6'],
+  back: ['O6', 'O18'],
   wait: ['O8'],
   scroll_up: ['O9'],
   scroll: ['O10'],
@@ -428,6 +429,49 @@ function adapterSuite(adapter: 'playwright' | 'cdp'): void {
         'the shortened value',
       );
     });
+
+    // O18 (r13): a click must land after `back` restores the previous page.
+    // Registered directly (not via runOn) so the test context `t` is available
+    // for the precondition skip. On playwright it is a todo (OPEN-1): the r12
+    // click after a bfcache back timed out 5/5; a todo failure does not fail
+    // the run, a todo pass signals OPEN-1 is unnecessary.
+    {
+      const title = 'O18 a click lands after back restores the previous page';
+      REGISTERED_TITLES.push(title);
+      test(
+        title,
+        {
+          todo: adapter === 'playwright' ? 'OPEN-1 (r13): playwright click after a bfcache back timed out 5/5 in r12' : false,
+        },
+        async (t) =>
+          withPage(suite.env, adapter, 'chain-index.html', async (ctx) => {
+            const checkboxes = await elementNamed(ctx, 'Checkboxes');
+            await ctx.driver.act(ctx.pageId, checkboxes.id, 'click');
+            await pollUntil(
+              async () => (await evalMain(ctx, 'document.title')) === 'Fixture chain check',
+              'the check page title',
+              5_000,
+            );
+            await ctx.driver.act(ctx.pageId, null, 'back');
+            await pollUntil(
+              async () => (await evalMain(ctx, 'document.title')) === 'Fixture chain index',
+              'the index title after back',
+              5_000,
+            );
+            if ((await evalMain(ctx, "sessionStorage.getItem('bfcache')")) !== '1') {
+              t.skip('O18 blind: back was not a bfcache restore');
+              return;
+            }
+            const form = await elementNamed(ctx, 'Form');
+            await ctx.driver.act(ctx.pageId, form.id, 'click');
+            await pollUntil(
+              async () => (await evalMain(ctx, 'document.title')) === 'Fixture chain form',
+              'the form title after the post-back click',
+              5_000,
+            );
+          }),
+      );
+    }
 
     run('O17', 'press SelectAll then Backspace empties the field', async (ctx) => {
       const first = await elementNamed(ctx, 'First');
