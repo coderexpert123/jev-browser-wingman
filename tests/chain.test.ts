@@ -2760,3 +2760,349 @@ test('T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never 
     assert.equal(r.navEvidence, undefined);
   }
 });
+
+// ---- r15 (spec .build-r15-spec.md WP-B): post-action ends, the error gate on weak advances, no repeated submit ----
+
+// Owned by .build-r15-spec.md D1; inlined so drift on either side fails.
+const FORCED_POST_ACTION_LINE =
+  "This step's action already ran, then the page did not become usable for the step and may show an error. Look at it with your own snapshot and do not repeat that action or reload the page. To go on, call browse_step again with only the steps after this one; if the page shows a failure the user needs to know about, tell the user.";
+const retrieveEl = el({
+  id: 'e1',
+  path: '#retrieve',
+  name: 'Retrieve',
+  fingerprint: { tag: 'button', role: 'button', name: 'Retrieve', x: 0, y: 0 },
+});
+const resetForm = observation({ url: 'https://example.com/reset', title: 'Reset', elements: [retrieveEl], text: 'reset form' });
+/** The same address after the submit, the button gone: a server error page (t9 forgot-password, r14). */
+const resetError = observation({ url: 'https://example.com/reset', title: 'Error', elements: [], text: 'Internal Server Error' });
+/** The same address after the submit, the form re-rendered under the error: the button is still there. */
+const resetErrorForm = observation({
+  url: 'https://example.com/reset',
+  title: 'Error',
+  elements: [retrieveEl],
+  text: 'Internal Server Error',
+});
+/** A form page whose text differs per round, so each click reads 'page changed'. */
+const resetFormN = (n: number) =>
+  observation({ url: 'https://example.com/reset', title: 'Reset', elements: [retrieveEl], text: `reset form ${n}` });
+/** The r14 post-submit round (M1.1 r34): step_done 0.38, error 0.49, ready 0.18, target none 0.98. */
+const POST = (over: SeqEntry = {}): SeqEntry =>
+  CS({
+    step_done: 0.4,
+    error: 0.45,
+    ready: 0.2,
+    right_page: 0.5,
+    action: ['wait', { wait: 0.5, click: 0.3, none: 0.1 }],
+    target: ['none', { none: 0.97, ambiguous: 0.02 }],
+    ...over,
+  });
+const GIVE_UP: SeqEntry = { recover: ['give-up', { 'give-up': 0.9 }] };
+const SUBMIT_STEPS = ['click the Retrieve button', 'open the Next page'];
+const POST_REVIEW = { step: 'click the Retrieve button', why: 'post-action', candidates: [] };
+const CLICK_WAIT_WAIT: Array<[Op, string | null, string | undefined]> = [
+  ['click', 'e1', undefined],
+  ['wait', null, undefined],
+  ['wait', null, undefined],
+];
+
+test("T-post-notready: not ready after the clause's own effective click ends post-action; a no-change click or a fill keeps not-ready", async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST(), POST()],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-post-notready goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.deepEqual(r.step_review, POST_REVIEW);
+  assert.equal(r.note, FORCED_POST_ACTION_LINE);
+  assert.deepEqual(actsOf(h), CLICK_WAIT_WAIT);
+  assert.equal(h.requests.length, 4);
+  assert.deepEqual(h.records[0].step_review, { why: 'post-action', candidates: 0 });
+
+  // Leg B: a click seen to change nothing is not an effective click.
+  const hb = harness({ observations: { p1: [resetForm] }, script: [CS(), POST(), POST(), POST()], config: FORCED });
+  const rb = await hb.call({ goal: 'chain-post-notready nochange goal', steps: SUBMIT_STEPS });
+  assert.equal(rb.step_review?.why, 'not-ready');
+  assert.equal(rb.note, FORCED_NOT_READY_LINE);
+
+  // Leg C: a clause that only filled keeps the not-ready bounce.
+  const hc = harness({
+    observations: { p1: [formEmpty, formFilled, formFilled, formFilled] },
+    script: [AHEAD(0.05), POST(), POST(), POST()],
+    config: FORCED,
+  });
+  const rc = await hc.call({
+    goal: 'chain-post-notready fill goal',
+    steps: ['type the value named email into Email', 'open the Next page'],
+    values: navValues,
+  });
+  assert.equal(rc.step_review?.why, 'not-ready');
+});
+
+test("T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry", async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetError] },
+    script: [CS(), POST({ error: 0.9, ...GIVE_UP })],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-post-error goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'page-error');
+  assert.deepEqual(r.step_review, POST_REVIEW);
+  assert.equal(r.note, FORCED_POST_ACTION_LINE);
+  assert.equal(navRounds(h)[1].recover, 'give-up');
+  assert.equal(navRounds(h)[0].recover, undefined);
+});
+
+test("T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)", async () => {
+  const RELOAD: SeqEntry = { error: 0.9, recover: ['reload', { reload: 0.9 }] };
+  const h = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), POST(RELOAD), ADV()],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-post-reload goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'page-error');
+  assert.deepEqual(r.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(h.requests.length, 2);
+  assert.equal(navRounds(h)[1].recover, 'reload');
+
+  // Leg B: legacy browse_step refuses the reload the same way (plain page-error).
+  const hl = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), POST(RELOAD), { done: 0.9 }],
+  });
+  const rl = await hl.call({ goal: 'chain-post-reload legacy goal', step: 'click the Retrieve button' });
+  assert.equal(rl.status, 'error');
+  assert.equal(rl.reason, 'page-error');
+  assert.deepEqual(actsOf(hl), [['click', 'e1', undefined]]);
+
+  // Leg C (r10 L199/L200 shape): memory carries the click across an error end,
+  // so a resumed call's recover reload is refused as well.
+  const hc = harness({
+    observations: { p1: [resetForm, resetError] },
+    script: [CS(), POST({ error: 0.9, ...GIVE_UP }), POST(), POST(RELOAD), ADV()],
+    config: FORCED,
+  });
+  const argsC = { goal: 'chain-post-reload resume goal', steps: SUBMIT_STEPS };
+  const rc1 = await hc.call(argsC);
+  assert.equal(rc1.status, 'error');
+  assert.equal(rc1.step_review?.why, 'post-action');
+  const rc2 = await hc.call(argsC);
+  assert.equal(rc2.status, 'error');
+  assert.equal(rc2.reason, 'page-error');
+  assert.deepEqual(rc2.step_review, POST_REVIEW);
+  assert.deepEqual(actsOf(hc), [
+    ['click', 'e1', undefined],
+    ['wait', null, undefined],
+  ]);
+  assert.equal(navRounds(hc)[1].recover, 'reload');
+});
+
+test('T-error-gate: below the 0.85 bar no advance passes an error the page shows; at 0.85 the clause still advances (done before error)', async () => {
+  // Leg A (r11b L4/L10): click evidence at stepDone 0.55 with error 0.68.
+  const ha = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), POST({ step_done: 0.55, error: 0.68, ...GIVE_UP }), ADV()],
+    config: FORCED,
+  });
+  const ra = await ha.call({ goal: 'chain-error-gate click goal', steps: SUBMIT_STEPS });
+  assert.equal(ra.status, 'error');
+  assert.deepEqual(ra.step_review, POST_REVIEW);
+  assert.equal(ha.requests.length, 2);
+
+  // Leg B: fill evidence at 0.6 with error 0.7 (no click: a plain page-error).
+  const hb = harness({
+    observations: { p1: [formEmpty, formFilled, formFilled] },
+    script: [AHEAD(0.05), CS({ step_done: 0.6, error: 0.7, ...GIVE_UP }), ADV()],
+    config: FORCED,
+  });
+  const rb = await hb.call({
+    goal: 'chain-error-gate fill goal',
+    steps: ['type the value named email into Email', 'open the Next page'],
+    values: navValues,
+  });
+  assert.equal(rb.status, 'error');
+  assert.equal(rb.step_review, undefined);
+  assert.equal(hb.requests.length, 2);
+
+  // Leg C: action none at 0.6 with error 0.7, no act on the clause.
+  const hc = harness({
+    observations: { p1: [resetForm, resetForm, resetForm] },
+    script: [CS({ ready: 0.2 }), POST({ step_done: 0.6, error: 0.7, ready: 0.95, action: ['none', { none: 0.9 }], ...GIVE_UP }), ADV()],
+    config: FORCED,
+  });
+  const rc = await hc.call({ goal: 'chain-error-gate none goal', steps: SUBMIT_STEPS });
+  assert.equal(rc.status, 'error');
+  assert.equal(hc.requests.length, 2);
+
+  // Leg D: a met click count with error 0.7.
+  const hd = harness({
+    observations: { p1: [resetFormN(0), resetFormN(1), resetFormN(2), resetFormN(2)] },
+    script: [CS(), CS(), CS({ step_done: 0.3, error: 0.7, ...GIVE_UP })],
+    config: FORCED,
+  });
+  const rd = await hd.call({ goal: 'chain-error-gate count goal', steps: ['click the Retrieve button twice', 'open the Next page'] });
+  assert.equal(rd.status, 'error');
+  assert.equal(rd.step_review?.step, 'click the Retrieve button twice');
+  assert.equal(hd.requests.length, 3);
+
+  // Leg E: stepDone 0.9 with error 0.68 still advances (C2: done before error).
+  const he = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), POST({ step_done: 0.9, error: 0.68, ...GIVE_UP }), ADV()],
+    config: FORCED,
+  });
+  const re = await he.call({ goal: 'chain-error-gate confident goal', steps: SUBMIT_STEPS });
+  assert.equal(re.status, 'done');
+  assert.equal(he.requests.length, 3);
+
+  // Leg F: legacy browse_step click evidence (done 0.6) with error 0.7 never ends done/goal-met.
+  const hf = harness({
+    observations: { p1: [resetForm, resetError, resetError] },
+    script: [CS(), { done: 0.6, error: 0.7, ...GIVE_UP }],
+  });
+  const rf = await hf.call({ goal: 'chain-error-gate legacy click goal', step: 'click the Retrieve button' });
+  assert.equal(rf.status, 'error');
+  assert.equal(rf.reason, 'page-error');
+
+  // Leg G: legacy browse_step met count with error 0.7 never ends done/goal-met.
+  const hg = harness({
+    observations: { p1: [resetFormN(0), resetFormN(1), resetFormN(2), resetFormN(2)] },
+    script: [CS(), CS(), { done: 0.1, error: 0.7, ...GIVE_UP }],
+  });
+  const rg = await hg.call({ goal: 'chain-error-gate legacy count goal', step: 'click the Retrieve button twice' });
+  assert.equal(rg.status, 'error');
+  assert.equal(rg.reason, 'page-error');
+});
+
+test('T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)', async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), POST(), POST(), POST(), CS({ step_done: 0.1 })],
+    config: FORCED,
+  });
+  const args = { goal: 'chain-repeat-resume goal', steps: SUBMIT_STEPS };
+  const r1 = await h.call(args);
+  assert.equal(r1.step_review?.why, 'post-action');
+  const r2 = await h.call(args);
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.reason, 'step-uncertain');
+  assert.equal(r2.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(h), CLICK_WAIT_WAIT);
+  assert.equal(h.requests.length, 5);
+
+  // Leg B: the carried clicks belong to the resumed clause only; after it
+  // advances, the next clause may click the same element.
+  const STEPS2 = ['click the Retrieve button', 'press Retrieve to resend'];
+  const hb = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), POST(), POST(), POST(), ADV(), CS(), ADV()],
+    config: FORCED,
+  });
+  const argsB = { goal: 'chain-repeat-resume scope goal', steps: STEPS2 };
+  assert.equal((await hb.call(argsB)).step_review?.why, 'post-action');
+  const rb = await hb.call(argsB);
+  assert.equal(rb.status, 'done');
+  assert.equal(actsOf(hb).filter((a) => a[0] === 'click').length, 2);
+
+  // Leg C: in one call, an earlier clause's click on the same element does
+  // not block the next clause's click.
+  const hc = harness({
+    observations: { p1: [resetFormN(0), resetFormN(1), resetFormN(2), resetFormN(3)] },
+    script: [CS(), ADV(), CS(), ADV()],
+    config: FORCED,
+  });
+  const rc = await hc.call({ goal: 'chain-repeat-resume clause goal', steps: STEPS2 });
+  assert.equal(rc.status, 'done');
+  assert.equal(actsOf(hc).filter((a) => a[0] === 'click').length, 2);
+});
+
+test('T-repeat-after-wait: in one call a wait between two clicks on the same target no longer hides the first click', async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), POST(), CS({ step_done: 0.1 })],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-repeat-wait goal', steps: SUBMIT_STEPS });
+  assert.equal(r.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(h), [
+    ['click', 'e1', undefined],
+    ['wait', null, undefined],
+  ]);
+
+  // Leg B: a different control at the same path (another accessible name) is
+  // not the clicked target, so it acts.
+  const retryEl = el({
+    id: 'e1',
+    path: '#retrieve',
+    name: 'Try again',
+    fingerprint: { tag: 'button', role: 'button', name: 'Try again', x: 0, y: 0 },
+  });
+  const retryPage = observation({ url: 'https://example.com/reset', title: 'Error', elements: [retryEl], text: 'Internal Server Error' });
+  const hb = harness({
+    observations: { p1: [resetForm, retryPage, retryPage, retryPage] },
+    script: [CS(), POST(), CS({ step_done: 0.1 }), ADV(), ADV()],
+    config: FORCED,
+  });
+  const rb = await hb.call({ goal: 'chain-repeat-wait other name goal', steps: SUBMIT_STEPS });
+  assert.equal(rb.status, 'done');
+  assert.equal(actsOf(hb).filter((a) => a[0] === 'click').length, 2);
+});
+
+test("T-repeat-pick: an explicit pick of the clicked target is the caller's instruction and acts", async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), POST(), POST(), POST(), ADV(), ADV()],
+    config: FORCED,
+  });
+  const args = { goal: 'chain-repeat-pick goal', steps: SUBMIT_STEPS };
+  const r1 = await h.call(args);
+  assert.equal(r1.step_review?.why, 'post-action');
+  const r2 = await h.call({ ...args, pick: { role: 'button', name: 'Retrieve', action: 'click' } });
+  assert.equal(r2.status, 'done');
+  assert.equal(actsOf(h).filter((a) => a[0] === 'click').length, 2);
+});
+
+test('T-repeat-dialog: a click that opened a dialog still reaches chain memory, so the resume never re-clicks it (shared act site and token act)', async () => {
+  const h = harness({
+    observations: { p1: [resetForm, resetErrorForm] },
+    script: [CS(), CS({ step_done: 0.1 })],
+    config: FORCED,
+  });
+  const args = { goal: 'chain-repeat-dialog goal', steps: SUBMIT_STEPS };
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Send it?' };
+  const r1 = await h.call(args);
+  assert.equal(r1.status, 'blocked');
+  assert.equal(r1.reason, 'dialog-open');
+  const r2 = await h.call(args);
+  assert.equal(r2.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+
+  // Leg B: the confirmed token click opens the dialog.
+  const placePage = observation({
+    url: 'https://example.com/cart',
+    title: 'Cart',
+    elements: [el({ type: 'submit', name: 'Place order' })],
+  });
+  const ht = harness({
+    observations: { p1: [placePage] },
+    script: [CS({ step_done: 0.1 })],
+    config: { ...FORCED, gate: { mode: 'confirm' } },
+  });
+  const tArgs = { goal: 'chain-repeat-dialog token goal', steps: ['place the order', 'open the Next page'] };
+  const t1 = await ht.call({ ...tArgs, pick: { role: 'button', name: 'Place order', action: 'click' } });
+  assert.equal(t1.status, 'needs_confirmation');
+  ht.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Place it?' };
+  const t2 = await ht.call({ ...tArgs, confirm_token: t1.confirm_token });
+  assert.equal(t2.status, 'blocked');
+  assert.equal(t2.reason, 'dialog-open');
+  // The gate would ask again before the repeat guard; turn it off so the guard decides.
+  ht.deps.config = makeConfig(FORCED);
+  const t3 = await ht.call(tArgs);
+  assert.equal(t3.step_review?.why, 'repeat');
+  assert.deepEqual(actsOf(ht), [['click', 'e1', undefined]]);
+});
