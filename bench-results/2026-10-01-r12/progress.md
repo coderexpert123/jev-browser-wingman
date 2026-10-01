@@ -1,2 +1,3 @@
 # r12 progress log (HEAD f39aa12)
 - Part 1 DONE: 51/51 files; tsc 0; 713 tests, 712 pass, 1 skip (chrome-cmd win32), 0 fail AFTER re-run. FIRST RUN: tests/doctor.test.ts #12 "all ten checks pass on a clean ephemeral setup" FAILED (coexistence: observer fingerprint changed across attach/detach); RE-RUN: doctor 26/26 pass (flake; logs doctor.log vs doctor-rerun.log). lazy-chrome ok; known-bad tool-call FAIL answered=true. KB-nav proof: only T-navigate-evidence failed (44 pass/1 fail), restored clean.
+- Phase V DONE (phase-v.json) total_usd=0.917296: V1 playwright ok wall=35.8s usd=0.309106 | V2 ok 35.3s 0.336169 | V3 ok 32.3s 0.272021 -> 3/3, control OK
