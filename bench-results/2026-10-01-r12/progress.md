@@ -13,3 +13,4 @@
 - Phase M telemetry DONE (evidence/): 37 forced handoffs; 0 over-cap calls (max expansion 16 <= 36), 34 decomposed, 3 no-compound; no-match 13 (r11b 8), low-confidence 11, no-progress 2, wrong-page 2, not-ready 0; clickEvidence 19, countEvidence 3; 3 navigate-evidence advances, 0 premature; Add Element = exactly 2 clicks in each run; no wait storm (max 2).
 - Part 3 page 1 DONE: /inputs browse_step first call done/goal-met, acts fill:1, input value verified = typed number; tools = ToolSearch + browse_step only; doctor PASS 10/10 (handoff enforced by proxy, script withheld)
 - Part 3 page 2 DONE: /dropdown (see evidence/part3/task2-dropdown-analysis.txt)
+- Part 3 page 3 DONE: /add_remove_elements/ (see evidence/part3/task3-*)
