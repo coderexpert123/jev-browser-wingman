@@ -12,7 +12,6 @@
 // (§ 5.6) and the state-size rule (§ 5.5.7).
 
 import {
-  CHAIN_MAX_STEPS,
   CHAIN_MEMORY_MAX,
   LABEL_MAX,
   READY_MAX_WAITS,
@@ -453,7 +452,12 @@ function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEnt
  *   - check/'checked', uncheck/'unchecked': these are two-valued and the
  *     value IS the goal, so no before-check is needed (unlike fill, a
  *     confirmed 'checked' can't be "the wrong value").
- * A click-family or targetless verb, an entry from a previous step, or a
+ *   - navigate (r12): `result === 'page changed'` — navigate only ever targets
+ *     a url-typed binding Jev chose, and a landed navigation that visibly
+ *     changed the page is the step's end state. back/reload are NOT evidence.
+ *     Residual risk: this cannot verify it is the RIGHT page — right_page /
+ *     wrong-page handling remains Jev's job.
+ * A click-family or targetless verb (incl. back/reload), an entry from a previous step, or a
  * result that doesn't confirm the verb's end state all return false, leaving
  * the 0.85 bar as the only path to advance. Residual, accepted risk (verifier,
  * 2026-09-28): neither fill nor select can confirm the acted-on ELEMENT was
@@ -462,6 +466,7 @@ function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEnt
 function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boolean {
   const last = lastEvidenceEntry(history, currentStepKey);
   if (last === undefined) return false;
+  if (last.verb === 'navigate') return last.result === 'page changed';
   if (!ELEMENT_STATE_VERBS.has(last.verb) || last.result === undefined) return false;
   switch (last.verb) {
     case 'fill':
@@ -630,10 +635,15 @@ export function splitCompoundClause(clause: string): string[] {
 
 /** § r11 Q1: expand every caller clause into ordered sub-clauses.
  * `parents[i]` is the caller index of expanded clause i. All-or-nothing: when
- * the expansion would exceed CHAIN_MAX_STEPS (the validator's literal 12)
- * returns null and the caller's list runs unsplit — no partial expansion, no
- * invented merges at the cap. Null callers fall back to the identity
- * (clauses = steps, parents = [0..steps.length-1]). */
+ * the expansion would exceed EXPANDED_CHAIN_MAX returns null and the
+ * caller's list runs unsplit — no partial expansion, no invented merges at
+ * the cap. Null callers fall back to the identity (clauses = steps, parents =
+ * [0..steps.length-1]). Expansion of a valid caller list (<= 12, the
+ * validator's CHAIN_MAX_STEPS) is bounded by EXPANDED_CHAIN_MAX; the 12 bound
+ * was the CALLER-list limit misapplied to sub-clauses (r11b evidence: 11 of 24
+ * calls fell back unsplit). */
+const EXPANDED_CHAIN_MAX = 36;
+
 export function expandClauses(steps: string[]): { clauses: string[]; parents: number[] } | null {
   const clauses: string[] = [];
   const parents: number[] = [];
@@ -643,7 +653,7 @@ export function expandClauses(steps: string[]): { clauses: string[]; parents: nu
       parents.push(i);
     }
   }
-  return clauses.length > CHAIN_MAX_STEPS ? null : { clauses, parents };
+  return clauses.length > EXPANDED_CHAIN_MAX ? null : { clauses, parents };
 }
 
 /** § WP-count: true when the trailing CONTIGUOUS run of history entries
@@ -2091,7 +2101,7 @@ async function runTool(
       const key = JSON.stringify([stepInput.goal, clauses]);
       const mem = chainMemory.get(key);
       // § r11 Q1: each caller clause expands into ordered sub-clauses; null
-      // (would exceed CHAIN_MAX_STEPS) falls back to the identity mapping.
+      // (would exceed EXPANDED_CHAIN_MAX) falls back to the identity mapping.
       const exp = expandClauses(clauses);
       chainState = {
         key,

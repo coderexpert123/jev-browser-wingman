@@ -1530,3 +1530,62 @@ test('T-no-progress-unchanged: a wait between two identical no-effect clicks lea
   assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
   assert.equal(r.reason, 'no-progress', `expected the guard to end it, got ${r.reason}`);
 });
+
+// ---- r12 T-navigate-evidence: a landed navigate that changed the page is
+// evidence (hasStepEvidence's navigate line). Round 2 answers step_done 0.6
+// (evidence tier, below the 0.85 bar) with a CLICK action (never 'none': the
+// action-none path has its own 0.5 bar and would make this inert). Without
+// the navigate evidence line, round 2 acts a click instead of advancing. ----
+
+function navigateEvidenceAsk(verb: 'click' | 'back'): JevAsk {
+  return async (request) => {
+    const landed = JSON.stringify(request.state).includes('"result":"page changed"');
+    return reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: landed ? 0.6 : 0.05 },
+      action: landed
+        ? choice(verb, { [verb]: 0.9, none: 0.05 })
+        : choice('navigate', { navigate: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      url: choice('form_url', { form_url: 0.9, none: 0.05 }),
+    });
+  };
+}
+
+test('T-navigate-evidence: step_done 0.6 after a page-changing navigate advances on navigate evidence', async () => {
+  const before = observation();
+  const after = observation({ url: 'https://example.com/next', title: 'Next', text: 'a different page entirely' });
+  const h = harness({ observations: { p1: [before, after] }, ask: navigateEvidenceAsk('click') });
+  const r = await h.call({
+    goal: 'outcome-evidence navigate evidence goal',
+    steps: ['open the web address named form_url'],
+    values: { form_url: 'https://example.com/next' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.filter((a) => a.op === 'navigate').length, 1, 'exactly one navigate act');
+  assert.equal(acts.filter((a) => a.op === 'click').length, 0, 'round 2 must advance on the navigate evidence, not click');
+});
+
+test('T-back-not-evidence: step_done 0.6 after a page-changing back does NOT advance on the evidence bar', async () => {
+  const before = observation();
+  const after = observation({ url: 'https://example.com/prev', title: 'Prev', text: 'the previous page' });
+  const h = harness({
+    observations: { p1: [before, after] },
+    ask: async (request) => {
+      const landed = JSON.stringify(request.state).includes('"result":"page changed"');
+      return reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: landed ? 0.6 : 0.05 },
+        action: choice('back', { back: 0.9, none: 0.05 }),
+        target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+      });
+    },
+    config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 4 } },
+  });
+  const r = await h.call({ goal: 'outcome-evidence back goal', steps: ['go back to the previous page'] });
+  const backActs = h.driver.actCalls().filter((a) => a.op === 'back');
+  assert.notEqual(r.status, 'done', `back at 0.6 must not advance on evidence; got ${r.status}/${r.reason}`);
+  assert.ok(backActs.length >= 1, 'a back act must have landed');
+  assert.ok(backActs.length >= 2 || r.status !== 'done', `back at 0.6 must not advance; got ${r.status}/${r.reason} after ${backActs.length} back acts`);
+});

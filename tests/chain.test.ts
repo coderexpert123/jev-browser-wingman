@@ -1697,10 +1697,31 @@ test('expandClauses: parents map back to the caller clause; over the cap returns
   const exp = expandClauses(['open A and click B', 'fill C']);
   assert.deepEqual(exp, { clauses: ['open A', 'click B', 'fill C'], parents: [0, 0, 1] });
 
-  // All-or-nothing at CHAIN_MAX_STEPS: 7 clauses that each expand to 2 (14 >
-  // 12) return null — the caller's list runs unsplit.
-  const over = expandClauses(Array.from({ length: 7 }, (_, i) => `open x${i} and click y${i}`));
+  // r12: the cap is EXPANDED_CHAIN_MAX (36), not the caller-list 12: 7 clauses
+  // that each expand to 2 (14) now expand fully.
+  const ok = expandClauses(Array.from({ length: 7 }, (_, i) => `open x${i} and click y${i}`));
+  assert.ok(ok !== null, '14 sub-clauses are within the expansion cap');
+  assert.equal(ok!.clauses.length, 14);
+  assert.deepEqual(ok!.parents, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
+  assert.equal(ok!.clauses[0], 'open x0');
+
+  // All-or-nothing beyond 36: 19 clauses x 2 = 38 return null.
+  const over = expandClauses(Array.from({ length: 19 }, (_, i) => `open x${i} and click y${i}`));
   assert.equal(over, null);
+});
+
+test('T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit', async () => {
+  const steps = Array.from({ length: 7 }, (_, i) => `open X${i + 1} and click Y${i + 1}`);
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-decompose cap goal', steps, max_steps: 1 });
+  assert.equal(h.requests.length >= 1, true);
+  const st = h.requests[0].state as { step?: string; steps_total?: number };
+  assert.equal(st.step, 'open X1', 'request 0 carries the first SUB-clause, proving the 14-way expansion ran');
+  assert.equal(st.steps_total, 7);
+  assert.equal(r.progress?.steps_total, 7);
 });
 
 test('T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress', async () => {
