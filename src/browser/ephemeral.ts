@@ -48,7 +48,7 @@ async function sleep(ms: number): Promise<void> {
 // the incident this responds to (70 leaked headless chromes, RAM exhausted).
 
 // 1. Owner-pid tag: every profile dir embeds the launching process's pid, so
-//    an orphan sweep (below) can tell "owner died" from "owner still running"
+//    an orphan sweep (below) can tell a dead owner from a live one
 //    without any registry surviving the owner's own death.
 interface LiveChromeEntry {
   pid: number;
