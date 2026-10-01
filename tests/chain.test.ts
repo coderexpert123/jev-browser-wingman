@@ -2317,6 +2317,25 @@ test('T-stuck-two-bindings: with two url bindings the navigate goes to the one J
   assert.equal(h.records[0].phases?.rounds[2].stuck, 'open_docs');
 });
 
+test('T-stuck-token-act: a confirmed token act is an element act on the clause, so the clause is no longer fresh', async () => {
+  const placePage = observation({ elements: [el({ type: 'submit', name: 'Place order' })] });
+  const h = harness({
+    observations: { p1: [placePage] },
+    script: [NONE(), NONE(), STUCK('back')],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const goal = 'chain-stuck-token goal';
+  const steps = ['place the order'];
+  const r1 = await h.call({ goal, steps, pick: { role: 'button', name: 'Place order', action: 'click' } });
+  assert.equal(r1.status, 'needs_confirmation');
+  const r2 = await h.call({ goal, steps, confirm_token: r1.confirm_token });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.step_review?.why, 'no-match');
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]], 'the token click only: no stuck back');
+  assert.equal(stuckReqs(h).length, 0);
+  assert.equal(h.requests.length, 2);
+});
+
 test('T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)', async () => {
   const goal = 'chain-stuck-memused goal';
   const steps = ['open the Form page'];
