@@ -194,7 +194,7 @@ function findId(target: StubQuestion | undefined, regex: RegExp): string | null 
 // so a clause branch below must never key page identity off `state.url` when
 // a call's own binding value could equal the destination URL (E3's `form_url`
 // does, once navigated there). Prefer `state.title` or target criteria text.
-async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
+async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string; openAhead?: boolean }): Promise<Awaited<ReturnType<typeof startTypeSafeStub>>> {
   return await startTypeSafeStub((body) => {
     const state = (body.state ?? {}) as {
       url?: string;
@@ -323,7 +323,23 @@ async function startChainStub(opts: { urlAnswer: string; stuckAnswer?: string })
         clickOn(/link "Form"/);
       }
     } else if (step.includes('open Form')) {
-      if (url.includes('chain-form.html')) {
+      if (opts.openAhead && title === 'Fixture chain form') {
+        // r14 (E11): models r13 Jev acting ahead on the landed page. step_done
+        // sits in the navEvidence band [0.25, 0.5) and the body answers the
+        // NEXT sub-goal's verb. Keyed on title, never url (redaction gotcha
+        // above the stub). With openAhead unset this branch is skipped.
+        noul('step_done', 0.35);
+        const emptyEmail = findId(q.target, /textbox "Email".*\(empty\)/);
+        if (emptyEmail !== null) {
+          cho('action', 'fill', { fill: 0.9, none: 0.05 });
+          cho('target', emptyEmail, { [emptyEmail]: 0.9, none: 0.05, ambiguous: 0.05 });
+          cho('value', 'email', { email: 0.9, none: 0.05 });
+        } else if (!text.includes('sent:')) {
+          clickOn(/button "Send"/);
+        } else {
+          cho('action', 'none', { none: 0.9, click: 0.05 });
+        }
+      } else if (url.includes('chain-form.html')) {
         noul('step_done', 0.95);
       } else if (text.includes('Not found')) {
         // The not-found check runs before the chain-error.html guard: after
@@ -724,6 +740,42 @@ test('E10: with no url binding the stuck recover goes back to the hub (cdp adapt
     assert.equal(byOp.navigate, undefined);
     assert.ok(stuckRounds(rec).includes('back'), `a round carries stuck back: ${JSON.stringify(stuckRounds(rec))}`);
     assert.equal(stuckRequests(stub).length, 1, 'exactly one stuck ask');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+// ---- r14: landed-navigation evidence (E11) ----
+
+test('E11: an open sub-clause whose link click lands advances on the landing, so the next sub-goal is not acted under it (r14)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none', openAhead: true });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-index');
+  try {
+    // Splits into 'open Form' / 'type the value named email into Email' /
+    // 'click Send' (the t9 forgot-password shape); `open Form` is NOT final.
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E11 landed navigation evidence goal',
+      steps: ['open Form, type the value named email into Email and click Send'],
+      values: { email: 'wingman@example.com' },
+      url_match: 'chain-index.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    assert.deepEqual(r.progress, { step_index: 1, steps_done: 1, steps_total: 1 });
+    // Fresh tab: sessionStorage `terms` is unset.
+    const log = await pageEval('chain-form.html', () => document.getElementById('log')?.textContent ?? null);
+    assert.equal(log, 'sent:wingman@example.com:0');
+    const rec = lastLogRecord(s.home);
+    const rounds = ((rec.phases as { rounds?: Array<{ step_text?: string; action?: string; actMs: number; navEvidence?: true }> } | undefined)?.rounds ?? []);
+    assert.equal(rounds.filter((x) => x.navEvidence === true).length, 1, 'exactly one navEvidence advance');
+    const openActs = rounds.filter((x) => x.step_text === 'open Form' && x.actMs > 0);
+    assert.equal(openActs.length, 1, 'exactly one executed act under `open Form`');
+    assert.equal(openActs[0].action, 'click', 'the act under `open Form` is the link click');
+    const fills = rounds.filter((x) => x.action === 'fill' && x.actMs > 0);
+    assert.equal(fills.length, 1, 'exactly one executed fill');
+    assert.equal(fills[0].step_text, 'type the value named email into Email', 'the fill runs under its own clause');
   } finally {
     await s.close();
     await stub.close();
