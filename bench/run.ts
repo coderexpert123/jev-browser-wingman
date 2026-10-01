@@ -290,8 +290,8 @@ export interface RunContext {
   mainJsPath: string;
 }
 
-// The harness may navigate the shared page before a run; the tools may not.
-async function resetPages(ctx: RunContext, startUrl: string): Promise<void> {
+// The harness may navigate the shared page and clear its origin's storage before a run; the tools may not.
+async function resetPages(ctx: RunContext, startUrl: string, clearOrigin?: string): Promise<void> {
   const { targetInfos } = await ctx.observer.send<{ targetInfos: Array<{ targetId: string; type: string }> }>(
     'Target.getTargets',
   );
@@ -304,6 +304,12 @@ async function resetPages(ctx: RunContext, startUrl: string): Promise<void> {
     targetId: ctx.keptTargetId,
     flatten: true,
   });
+  if (clearOrigin) {
+    await ctx.observer.send('Storage.clearDataForOrigin', {
+      origin: clearOrigin,
+      storageTypes: 'all',
+    }, sessionId);
+  }
   await ctx.observer.send('Page.navigate', { url: startUrl }, sessionId);
 }
 
@@ -458,13 +464,11 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     const startUrl = /^https?:\/\//.test(task.path)
       ? task.path
       : START_BASE + task.path;
-    if (task.resetStorage) {
-      await ctx.observer.send('Storage.clearDataForOrigin', {
-        origin: new URL(startUrl).origin,
-        storageTypes: 'all',
-      });
-    }
-    await resetPages(ctx, startUrl);
+    await resetPages(
+      ctx,
+      startUrl,
+      task.resetStorage ? new URL(startUrl).origin : undefined,
+    );
 
     const transcriptPath = transcriptPathFor(ctx.home, task.id, route);
     const res = await runClaude({
