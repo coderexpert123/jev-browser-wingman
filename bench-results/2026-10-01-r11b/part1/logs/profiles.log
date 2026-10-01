@@ -1,0 +1,91 @@
+TAP version 13
+# Subtest: both shipped profiles load and validate
+ok 1 - both shipped profiles load and validate
+  ---
+  type: 'test'
+  ...
+# Subtest: every tool class in both shipped profiles is a CAPABILITY_CLASSES member
+ok 2 - every tool class in both shipped profiles is a CAPABILITY_CLASSES member
+  ---
+  type: 'test'
+  ...
+# Subtest: every one of the 0.0.80 default 24 names has a class in the playwright profile
+ok 3 - every one of the 0.0.80 default 24 names has a class in the playwright profile
+  ---
+  type: 'test'
+  ...
+# Subtest: every one of the 1.10.1 30 names has a class in the devtools profile
+ok 4 - every one of the 1.10.1 30 names has a class in the devtools profile
+  ---
+  type: 'test'
+  ...
+# Subtest: profileForArgv and profileForTools pick correctly
+ok 5 - profileForArgv and profileForTools pick correctly
+  ---
+  type: 'test'
+  ...
+# Subtest: classOfCall applies argument rules before the tool map
+ok 6 - classOfCall applies argument rules before the tool map
+  ---
+  type: 'test'
+  ...
+# Subtest: denyEntries omits tools with a rule to a retained class and includes plain withheld tools
+ok 7 - denyEntries omits tools with a rule to a retained class and includes plain withheld tools
+  ---
+  type: 'test'
+  ...
+# Subtest: withheldClasses(OPS, []) is all ten withholdable classes
+ok 8 - withheldClasses(OPS, []) is all ten withholdable classes
+  ---
+  type: 'test'
+  ...
+# Subtest: withheldClasses omits upload when the adapter lacks it (dead-end rule)
+ok 9 - withheldClasses omits upload when the adapter lacks it (dead-end rule)
+  ---
+  type: 'test'
+  ...
+# Subtest: withheldClasses honours retain
+ok 10 - withheldClasses honours retain
+  ---
+  type: 'test'
+  ...
+# Subtest: withheldClasses withholds script by default even though no adapter declares any op for it (operator override of the dead-end rule)
+ok 11 - withheldClasses withholds script by default even though no adapter declares any op for it (operator override of the dead-end rule)
+  ---
+  type: 'test'
+  ...
+# Subtest: withheldClasses honours retain for script
+ok 12 - withheldClasses honours retain for script
+  ---
+  type: 'test'
+  ...
+# Subtest: denyEntries shapes per client and returns null for unknown clients
+ok 13 - denyEntries shapes per client and returns null for unknown clients
+  ---
+  type: 'test'
+  ...
+# Subtest: an invalid user profile is skipped with one stderr line naming the file
+ok 14 - an invalid user profile is skipped with one stderr line naming the file
+  ---
+  type: 'test'
+  ...
+# Subtest: a user profile with the same id overrides the shipped one
+ok 15 - a user profile with the same id overrides the shipped one
+  ---
+  type: 'test'
+  ...
+# Subtest: toolsFingerprint is stable, order-insensitive and 16 hex chars
+ok 16 - toolsFingerprint is stable, order-insensitive and 16 hex chars
+  ---
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=16 pass=16 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

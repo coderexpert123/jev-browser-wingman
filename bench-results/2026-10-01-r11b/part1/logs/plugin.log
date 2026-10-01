@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: loads an ESM plugin exporting wingmanPlugin
+ok 1 - loads an ESM plugin exporting wingmanPlugin
+  ---
+  type: 'test'
+  ...
+# Subtest: loads a CommonJS plugin through default
+ok 2 - loads a CommonJS plugin through default
+  ---
+  type: 'test'
+  ...
+# Subtest: rejects a module without wingmanPlugin
+ok 3 - rejects a module without wingmanPlugin
+  ---
+  type: 'test'
+  ...
+# Subtest: rejects a non-function ask
+ok 4 - rejects a non-function ask
+  ---
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=4 pass=4 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

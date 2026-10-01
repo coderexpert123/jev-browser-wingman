@@ -1,0 +1,51 @@
+TAP version 13
+# Subtest: ensure prints the EnsureResult JSON
+ok 1 - ensure prints the EnsureResult JSON
+  ---
+  type: 'test'
+  ...
+# Subtest: a foreign holder exits 1 with code foreign-holder
+ok 2 - a foreign holder exits 1 with code foreign-holder
+  ---
+  type: 'test'
+  ...
+# Subtest: stop prints killed pids
+ok 3 - stop prints killed pids
+  ---
+  type: 'test'
+  ...
+# Subtest: show restores and moves the shared window on-screen
+ok 4 - show restores and moves the shared window on-screen
+  ---
+  type: 'test'
+  ...
+# Subtest: hide moves the shared window off-screen
+ok 5 - hide moves the shared window off-screen
+  ---
+  type: 'test'
+  ...
+# Subtest: hide restores a minimised window before moving it off-screen
+ok 6 - hide restores a minimised window before moving it off-screen
+  ---
+  type: 'test'
+  ...
+# Subtest: show fails with no-browser when nothing answers on the port
+ok 7 - show fails with no-browser when nothing answers on the port
+  ---
+  type: 'test'
+  ...
+# Subtest: show and hide move the real window on-screen and back off-screen (GetWindowRect)
+ok 8 - show and hide move the real window on-screen and back off-screen (GetWindowRect) # SKIP win32 only
+  ---
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+RUN-TESTS: files=1 tests=8 pass=7 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

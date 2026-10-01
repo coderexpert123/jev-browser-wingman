@@ -1,0 +1,51 @@
+TAP version 13
+# Subtest: bounce 1 on a goal appends the retry-or-take-over sentence to the caller note
+ok 1 - bounce 1 on a goal appends the retry-or-take-over sentence to the caller note
+  ---
+  type: 'test'
+  ...
+# Subtest: bounce 2 on the same goal replaces the note with the stop-calling sentence
+ok 2 - bounce 2 on the same goal replaces the note with the stop-calling sentence
+  ---
+  type: 'test'
+  ...
+# Subtest: bounce 3 on the same goal replaces the note with the not-able-to-progress sentence
+ok 3 - bounce 3 on the same goal replaces the note with the not-able-to-progress sentence
+  ---
+  type: 'test'
+  ...
+# Subtest: bounce 4 and beyond stay at tier 3
+ok 4 - bounce 4 and beyond stay at tier 3
+  ---
+  type: 'test'
+  ...
+# Subtest: a different goal text starts the ladder again at tier 1
+ok 5 - a different goal text starts the ladder again at tier 1
+  ---
+  type: 'test'
+  ...
+# Subtest: a done result carries no note, and bounces after it resume the ladder, not restart it
+ok 6 - a done result carries no note, and bounces after it resume the ladder, not restart it
+  ---
+  type: 'test'
+  ...
+# Subtest: a target-covered bounce escalates like any bounce
+ok 7 - a target-covered bounce escalates like any bounce
+  ---
+  type: 'test'
+  ...
+# Subtest: takeover-offered and budget-steps keep their static notes even after bounces on the goal
+ok 8 - takeover-offered and budget-steps keep their static notes even after bounces on the goal
+  ---
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=8 pass=8 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

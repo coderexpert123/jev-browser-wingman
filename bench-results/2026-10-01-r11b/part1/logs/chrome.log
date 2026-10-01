@@ -1,0 +1,151 @@
+TAP version 13
+# Subtest: refuses the default user-data dir without spawning
+ok 1 - refuses the default user-data dir without spawning
+  ---
+  type: 'test'
+  ...
+# Subtest: refuses when a Chrome holds the profile without a debug port and kills nothing
+ok 2 - refuses when a Chrome holds the profile without a debug port and kills nothing
+  ---
+  type: 'test'
+  ...
+# Subtest: refuses when the answering Chrome uses another profile
+ok 3 - refuses when the answering Chrome uses another profile
+  ---
+  type: 'test'
+  ...
+# Subtest: reuses an answering Chrome on the same profile without spawning
+ok 4 - reuses an answering Chrome on the same profile without spawning
+  ---
+  type: 'test'
+  ...
+# Subtest: spawns with CHROME_ARGS and records the socket owner pid
+ok 5 - spawns with CHROME_ARGS and records the socket owner pid
+  ---
+  type: 'test'
+  ...
+# Subtest: a spawn that never answers is killed and the pidfile removed
+ok 6 - a spawn that never answers is killed and the pidfile removed
+  ---
+  type: 'test'
+  ...
+# Subtest: win32 offscreen, normal and minimized launches go through start /min and never spawn chrome directly
+ok 7 - win32 offscreen, normal and minimized launches go through start /min and never spawn chrome directly
+  ---
+  type: 'test'
+  ...
+# Subtest: every launch mode passes an explicit --window-position (WP-X)
+ok 8 - every launch mode passes an explicit --window-position (WP-X)
+  ---
+  type: 'test'
+  ...
+# Subtest: minimized mode minimises every window of a Chrome it started through Browser.setWindowBounds
+ok 9 - minimized mode minimises every window of a Chrome it started through Browser.setWindowBounds
+  ---
+  type: 'test'
+  ...
+# Subtest: offscreen and normal modes never call Browser.setWindowBounds
+ok 10 - offscreen and normal modes never call Browser.setWindowBounds
+  ---
+  type: 'test'
+  ...
+# Subtest: headless mode spawns chrome directly with --headless=new and never minimises
+ok 11 - headless mode spawns chrome directly with --headless=new and never minimises
+  ---
+  type: 'test'
+  ...
+# Subtest: a reused Chrome is never minimised or activated
+ok 12 - a reused Chrome is never minimised or activated
+  ---
+  type: 'test'
+  ...
+# Subtest: darwin launches through open -g -n -a when the binary is inside an app bundle
+ok 13 - darwin launches through open -g -n -a when the binary is inside an app bundle
+  ---
+  type: 'test'
+  ...
+# Subtest: stopChrome kills only the pidfile pid with both markers
+ok 14 - stopChrome kills only the pidfile pid with both markers
+  ---
+  type: 'test'
+  ...
+# Subtest: stopChrome never sweeps other Chromes on the profile
+ok 15 - stopChrome never sweeps other Chromes on the profile
+  ---
+  type: 'test'
+  ...
+# Subtest: CHROME_ARGS equals the PA launcher headed list
+ok 16 - CHROME_ARGS equals the PA launcher headed list
+  ---
+  type: 'test'
+  ...
+# Subtest: profileMarkerMatches rejects a sibling dir prefix
+ok 17 - profileMarkerMatches rejects a sibling dir prefix
+  ---
+  type: 'test'
+  ...
+# Subtest: profileHolders counts Chrome child processes (--type=) as non-holders (OG-1)
+ok 18 - profileHolders counts Chrome child processes (--type=) as non-holders (OG-1)
+  ---
+  type: 'test'
+  ...
+# Subtest: win32 candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+ok 19 - win32 candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  type: 'test'
+  ...
+# Subtest: darwin candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+ok 20 - darwin candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  type: 'test'
+  ...
+# Subtest: linux candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+ok 21 - linux candidates: Chrome first, then Edge, Brave, Chromium, Opera, Vivaldi (exact array)
+  ---
+  type: 'test'
+  ...
+# Subtest: findChrome falls through to Opera, then Vivaldi, when only they exist
+ok 22 - findChrome falls through to Opera, then Vivaldi, when only they exist
+  ---
+  type: 'test'
+  ...
+# Subtest: isDefaultUserDataDir is true for each family default dir per platform (exact inputs)
+ok 23 - isDefaultUserDataDir is true for each family default dir per platform (exact inputs)
+  ---
+  type: 'test'
+  ...
+# Subtest: listChromeProcesses Windows command covers the five family executables
+ok 24 - listChromeProcesses Windows command covers the five family executables
+  ---
+  type: 'test'
+  ...
+# Subtest: listChromeProcesses POSIX keeps msedge, brave, opera and vivaldi lines and drops firefox
+ok 25 - listChromeProcesses POSIX keeps msedge, brave, opera and vivaldi lines and drops firefox
+  ---
+  type: 'test'
+  ...
+# Subtest: findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)
+ok 26 - findChrome falls through to Edge when no Chrome exists (real consumer over real candidates)
+  ---
+  type: 'test'
+  ...
+# Subtest: an explicit chromePath still wins over every autodiscovered candidate
+ok 27 - an explicit chromePath still wins over every autodiscovered candidate
+  ---
+  type: 'test'
+  ...
+# Subtest: launchEphemeralChrome returns an answering endpoint and close removes the profile
+ok 28 - launchEphemeralChrome returns an answering endpoint and close removes the profile
+  ---
+  type: 'test'
+  ...
+1..28
+# tests 28
+# suites 0
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=28 pass=28 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
