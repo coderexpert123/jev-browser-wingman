@@ -1,0 +1,26 @@
+TAP version 13
+# Subtest: F1: forced — no withheld-class name listed; browser_snapshot/browser_tabs listed; browser_click refused
+ok 1 - F1: forced — no withheld-class name listed; browser_snapshot/browser_tabs listed; browser_click refused
+  ---
+  type: 'test'
+  ...
+# Subtest: F2: optional — browser_click is listed
+ok 2 - F2: optional — browser_click is listed
+  ---
+  type: 'test'
+  ...
+# Subtest: F3: with-chrome (deprecated alias) — same result as F1
+ok 3 - F3: with-chrome (deprecated alias) — same result as F1
+  ---
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=3 pass=3 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

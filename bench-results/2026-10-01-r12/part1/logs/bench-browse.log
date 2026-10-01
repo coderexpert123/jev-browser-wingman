@@ -1,0 +1,141 @@
+TAP version 13
+# Subtest: both routes carry the task goal verbatim in the prompt
+ok 1 - both routes carry the task goal verbatim in the prompt
+  ---
+  type: 'test'
+  ...
+# Subtest: browse route prompt carries the engagement line, not the wingman routing rules
+ok 2 - browse route prompt carries the engagement line, not the wingman routing rules
+  ---
+  type: 'test'
+  ...
+# Subtest: forced route prompt carries the literal engagement line before the goal
+ok 3 - forced route prompt carries the literal engagement line before the goal
+  ---
+  type: 'test'
+  ...
+# Subtest: browse route allows the wingman tools
+ok 4 - browse route allows the wingman tools
+  ---
+  type: 'test'
+  ...
+# Subtest: forced route allows the wingman tools (the non-playwright rule, unchanged)
+ok 5 - forced route allows the wingman tools (the non-playwright rule, unchanged)
+  ---
+  type: 'test'
+  ...
+# Subtest: browse route mcp config registers the wingman server with its fixed env
+ok 6 - browse route mcp config registers the wingman server with its fixed env
+  ---
+  type: 'test'
+  ...
+# Subtest: forced route mcp config has the exact wrapped shape
+ok 7 - forced route mcp config has the exact wrapped shape
+  ---
+  type: 'test'
+  ...
+# Subtest: non-forced routes keep the plain playwright registration
+ok 8 - non-forced routes keep the plain playwright registration
+  ---
+  type: 'test'
+  ...
+# Subtest: transcript capture paths: wingman routes record one, playwright records none
+ok 9 - transcript capture paths: wingman routes record one, playwright records none
+  ---
+  type: 'test'
+  ...
+# Subtest: benchConfigText always writes gate and policy explicitly, and handoff per route
+ok 10 - benchConfigText always writes gate and policy explicitly, and handoff per route
+  ---
+  type: 'test'
+  ...
+# Subtest: maxTurnsFor uses the per-route override, else the configured max
+ok 11 - maxTurnsFor uses the per-route override, else the configured max
+  ---
+  type: 'test'
+  ...
+# Subtest: committed bench/config.json keeps its routes and carries route_max_turns.forced
+ok 12 - committed bench/config.json keeps its routes and carries route_max_turns.forced
+  ---
+  type: 'test'
+  ...
+# Subtest: --repeats runs a route more than once; out-of-range values are refused
+ok 13 - --repeats runs a route more than once; out-of-range values are refused
+  ---
+  type: 'test'
+  ...
+# Subtest: forcedVerdict: a healthy forced file passes every line and overall
+ok 14 - forcedVerdict: a healthy forced file passes every line and overall
+  ---
+  type: 'test'
+  ...
+# Subtest: forcedVerdict: each flipped line fails on its own and drags overall
+ok 15 - forcedVerdict: each flipped line fails on its own and drags overall
+  ---
+  type: 'test'
+  ...
+# Subtest: forcedVerdict: wingman-share with a zero denominator FAILs
+ok 16 - forcedVerdict: wingman-share with a zero denominator FAILs
+  ---
+  type: 'test'
+  ...
+# Subtest: forcedVerdict: validity mode requires b >= 2 and m >= 3
+ok 17 - forcedVerdict: validity mode requires b >= 2 and m >= 3
+  ---
+  type: 'test'
+  ...
+# Subtest: forcedVerdict: smoke mode is informational and reports needs_confirmation
+ok 18 - forcedVerdict: smoke mode is informational and reports needs_confirmation
+  ---
+  type: 'test'
+  ...
+# Subtest: handoffRecordsFromLog parses browse_step lines only, with rounds and progress
+ok 19 - handoffRecordsFromLog parses browse_step lines only, with rounds and progress
+  ---
+  type: 'test'
+  ...
+# Subtest: tallyToolUse counts every tool_use block by name and ignores other events
+ok 20 - tallyToolUse counts every tool_use block by name and ignores other events
+  ---
+  type: 'test'
+  ...
+# Subtest: raw_acts/raw_script derive from the playwright profile and the withheld set
+ok 21 - raw_acts/raw_script derive from the playwright profile and the withheld set
+  ---
+  type: 'test'
+  ...
+# Subtest: chromium-wrapper.sh is the cloud-only recipe; ignore-certificate-errors never enters src
+ok 22 - chromium-wrapper.sh is the cloud-only recipe; ignore-certificate-errors never enters src
+  ---
+  type: 'test'
+  ...
+# Subtest: WINGMAN_BROWSE_ONLY never re-enters the tracked bench sources
+ok 23 - WINGMAN_BROWSE_ONLY never re-enters the tracked bench sources
+  ---
+  type: 'test'
+  ...
+# Subtest: --routes forced runs only the forced route
+ok 24 - --routes forced runs only the forced route
+  ---
+  type: 'test'
+  ...
+# Subtest: an unknown --routes value is refused with exit 2
+ok 25 - an unknown --routes value is refused with exit 2
+  ---
+  type: 'test'
+  ...
+# Subtest: purpose experiment is accepted
+ok 26 - purpose experiment is accepted
+  ---
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=26 pass=26 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

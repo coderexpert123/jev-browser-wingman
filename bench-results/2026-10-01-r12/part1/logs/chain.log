@@ -1,0 +1,276 @@
+TAP version 13
+# Subtest: T1: three clauses act once each and end done with progress {3,3,3}
+ok 1 - T1: three clauses act once each and end done with progress {3,3,3}
+  ---
+  type: 'test'
+  ...
+# Subtest: T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+ok 2 - T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+  ---
+  type: 'test'
+  ...
+# Subtest: T3: the same goal with changed steps starts at clause 1
+ok 3 - T3: the same goal with changed steps starts at clause 1
+  ---
+  type: 'test'
+  ...
+# Subtest: T4: a fresh chain where every clause is already done ends already-done with zero acts
+ok 4 - T4: a fresh chain where every clause is already done ends already-done with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+ok 5 - T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+  ---
+  type: 'test'
+  ...
+# Subtest: T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+ok 6 - T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+ok 7 - T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+ok 8 - T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick acts with zero asks, and the chain continues after it
+ok 9 - T8: a pick acts with zero asks, and the chain continues after it
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+ok 10 - T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto an obscured element returns target-covered
+ok 11 - T8: a pick onto an obscured element returns target-covered
+  ---
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto a submit button under gate confirm returns needs_confirmation
+ok 12 - T8: a pick onto a submit button under gate confirm returns needs_confirmation
+  ---
+  type: 'test'
+  ...
+# Subtest: T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+ok 13 - T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T9: wingman_do action criteria never contain navigate or back
+ok 14 - T9: wingman_do action criteria never contain navigate or back
+  ---
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with a path binding converts to upload and acts with the path
+ok 15 - T10: a click on a file input with a path binding converts to upload and acts with the path
+  ---
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with no path binding is no-value with zero acts
+ok 16 - T10: a click on a file input with no path binding is no-value with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: T11: chain press acts with the key answer; none or low key bounces low-confidence
+ok 17 - T11: chain press acts with the key answer; none or low key bounces low-confidence
+  ---
+  type: 'test'
+  ...
+# Subtest: T11: wingman_do press falls back to Enter on a low key answer
+ok 18 - T11: wingman_do press falls back to Enter on a low key answer
+  ---
+  type: 'test'
+  ...
+# Subtest: T12: a chain scroll round with target none acts (null, scroll)
+ok 19 - T12: a chain scroll round with target none acts (null, scroll)
+  ---
+  type: 'test'
+  ...
+# Subtest: T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+ok 20 - T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+  ---
+  type: 'test'
+  ...
+# Subtest: T14: a mid-chain time budget ends budget-time with the correct progress
+ok 21 - T14: a mid-chain time budget ends budget-time with the correct progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T15: a two-stage round with a targetless action choice skips request 2
+ok 22 - T15: a two-stage round with a targetless action choice skips request 2
+  ---
+  type: 'test'
+  ...
+# Subtest: T16: no binding value appears in the requests or results of chain traffic
+ok 23 - T16: no binding value appears in the requests or results of chain traffic
+  ---
+  type: 'test'
+  ...
+# Subtest: T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+ok 24 - T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+  ---
+  type: 'test'
+  ...
+# Subtest: T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+ok 25 - T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+  ---
+  type: 'test'
+  ...
+# Subtest: T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+ok 26 - T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+  ---
+  type: 'test'
+  ...
+# Subtest: T20: every § 5.5.1 validation row reports its exact message
+ok 27 - T20: every § 5.5.1 validation row reports its exact message
+  ---
+  type: 'test'
+  ...
+# Subtest: T21: a reached target page ends done, not page-error (legacy and chain)
+ok 28 - T21: a reached target page ends done, not page-error (legacy and chain)
+  ---
+  type: 'test'
+  ...
+# Subtest: T22: oversized text is cut; a payload that cannot fit ends state-too-large
+ok 29 - T22: oversized text is cut; a payload that cannot fit ends state-too-large
+  ---
+  type: 'test'
+  ...
+# Subtest: T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+ok 30 - T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+  ---
+  type: 'test'
+  ...
+# Subtest: T23: two consecutive low right_page rounds on one clause bounce wrong-page
+ok 31 - T23: two consecutive low right_page rounds on one clause bounce wrong-page
+  ---
+  type: 'test'
+  ...
+# Subtest: T23: right_page low then high does not bounce, and an advance resets the counter
+ok 32 - T23: right_page low then high does not bounce, and an advance resets the counter
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+ok 33 - T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: ready low then high decides normally
+ok 34 - T24: ready low then high decides normally
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: a driver without wait settles instead of acting on a not-ready round
+ok 35 - T24: a driver without wait settles instead of acting on a not-ready round
+  ---
+  type: 'test'
+  ...
+# Subtest: T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+ok 36 - T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+ok 37 - T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: continue falls through to the normal decision; the cap ends page-error
+ok 38 - T25: continue falls through to the normal decision; the cap ends page-error
+  ---
+  type: 'test'
+  ...
+# Subtest: T25: legacy browse_step recovers the same way; wingman_do never asks recover
+ok 39 - T25: legacy browse_step recovers the same way; wingman_do never asks recover
+  ---
+  type: 'test'
+  ...
+# Subtest: T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+ok 40 - T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+  ---
+  type: 'test'
+  ...
+# Subtest: T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+ok 41 - T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+ok 42 - T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+ok 43 - T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+  ---
+  type: 'test'
+  ...
+# Subtest: T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+ok 44 - T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+  ---
+  type: 'test'
+  ...
+# Subtest: splitCompoundClause: the r11 boundary table, verbatim
+ok 45 - splitCompoundClause: the r11 boundary table, verbatim
+  ---
+  type: 'test'
+  ...
+# Subtest: expandClauses: parents map back to the caller clause; over the cap returns null
+ok 46 - expandClauses: parents map back to the caller clause; over the cap returns null
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+ok 47 - T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+ok 48 - T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+ok 49 - T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+ok 50 - T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+ok 51 - T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+ok 52 - T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+  ---
+  type: 'test'
+  ...
+# Subtest: T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+ok 53 - T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+  ---
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=53 pass=53 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
