@@ -324,16 +324,6 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
       } else {
         clickOn(/link "Form"/);
       }
-    } else if (step.includes('click Start') || step.includes('Start')) {
-      // r11: 'click Start' is its own sub-clause ('click Finish' never
-      // contains 'Start'; Finish-bearing texts are claimed above).
-      // Must run BEFORE the 'Finish' branch (per spec).
-      const startClicked = history.some((h) => h.verb === 'click' && /Start/.test(h.label));
-      if (startClicked || findId(q.target, /button "Start"/) === null) {
-        noul('step_done', 0.95);
-      } else {
-        clickOn(/button "Start"/);
-      }
     } else if (step.includes('Finish')) {
       // r11: 'wait for Finish' is its own sub-clause — done only once the
       // Finish button actually renders; until then keep waiting.
@@ -349,9 +339,25 @@ async function startChainStub(opts: { urlAnswer: string }): Promise<Awaited<Retu
         clickOn(/button "Finish"/);
       } else if (history.some((h) => h.verb === 'click' && /Start/.test(h.label))) {
         // E7: ready low with a click answer — the loop must wait, not act.
-        // The inner step.includes('wait for Finish') ready override is dead
-        // now that the top-level check handles it; removed.
+        // (r11 verification fix: the ready-low signal here is load-bearing;
+        // dropping it makes the stub re-answer click Start with ready 0.95
+        // and the loop ends no-progress instead of waiting for Finish.)
+        noul('ready', 0.2);
         clickOn(/button "Start"/);
+      } else {
+        clickOn(/button "Start"/);
+      }
+    } else if (step.includes('click Start') || step.includes('Start')) {
+      // r11: 'click Start' is its own sub-clause. Must run AFTER the 'Finish'
+      // branch (spec amendment 2026-09-29): an anaphora-suppressed WHOLE clause
+      // like 'click Start, then click Finish once it appears' contains both
+      // 'Start' and 'Finish', and needs Finish semantics — Start-first
+      // swallowed it and marked step_done before Finish existed (E7 failed
+      // 4/4 pre-reorder). A split 'click Start' sub-clause never contains
+      // 'Finish', so the reorder is safe.
+      const startClicked = history.some((h) => h.verb === 'click' && /Start/.test(h.label));
+      if (startClicked || findId(q.target, /button "Start"/) === null) {
+        noul('step_done', 0.95);
       } else {
         clickOn(/button "Start"/);
       }
