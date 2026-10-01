@@ -128,7 +128,7 @@ export interface WingmanResult {
   step_review?: {                    // browse_step only (§ 3.17, amendment 2026-09-21d): entry-round bounce/offer evidence
     step: string;                    // the redacted proposed step text, capped to LABEL_MAX
     why: 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
-       | 'already-done' | 'wrong-page' | 'not-ready' | 'no-progress' | 'repeat';
+       | 'already-done' | 'wrong-page' | 'not-ready' | 'no-progress' | 'repeat' | 'post-action';
     candidates: Array<{ label: string; role?: string; name?: string }>;   // top 3 target candidates: redacted criteria labels
   };
   progress?: { step_index: number; steps_done: number; steps_total: number };
@@ -212,6 +212,8 @@ export interface WingmanLogRecord {
       navEvidence?: true;
       // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document.
       leftPage?: boolean;
+      // r15: browse_step rounds where the error rule fired: the validated recover answer (give-up when below the bar).
+      recover?: string;
     }>;
   };
 }

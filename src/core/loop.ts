@@ -181,6 +181,11 @@ export const FORCED_NOT_READY_LINE =
   'The page did not finish loading what the step needs. Check it with your own snapshot; call browse_step again with the same arguments once it is ready, or with pick naming the element.';
 export const FORCED_PAGE_ERROR_LINE =
   'The page shows an error wingman could not recover from. Look at it with your own snapshot, then call browse_step again with pick or a changed step, or ask the user.';
+// r15 D1: the end of a step whose own click already took effect when the page
+// then did not become usable (not ready after the waits, or an error the recover
+// path cannot fix without repeating the act). Static text only.
+export const FORCED_POST_ACTION_LINE =
+  "This step's action already ran, then the page did not become usable for the step and may show an error. Look at it with your own snapshot and do not repeat that action or reload the page. To go on, call browse_step again with only the steps after this one; if the page shows a failure the user needs to know about, tell the user.";
 export const PICK_UNMATCHED_LINE =
   'The pick matched no single element. Call again with pick using a role and name from candidates, and add nth when several elements share them.';
 export const UNSUPPORTED_OP_LINE =
@@ -195,7 +200,9 @@ const bounceCounts = new Map<string, number>();
 // returned). A done call deletes its entry; every other end stores the cursor
 // and the accumulated act count. Eviction is oldest-first above
 // CHAIN_MEMORY_MAX.
-interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean }
+// r15 D3: `clicks` = the stored cursor clause's effective clicks (element path and name; in-process only).
+type ClickRef = { path: string; name: string };
+interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean; clicks?: ClickRef[] }
 const chainMemory = new Map<string, ChainMemoryEntry>();
 
 /** Chain state for the current browse_step call, when it runs chain mode
@@ -228,6 +235,11 @@ interface ChainState {
   // confident none (verb in STUCK_VERBS, target none >= STUCK_NONE_MIN), so a
   // stuck recovery follows two consecutive none looks, never an ambiguous one.
   retryNone: boolean;
+  // r15 D3: the stored cursor clause's effective clicks from earlier calls
+  // (restored from chain memory, [] after an advance), and the live reader
+  // runDoRounds installs so finish() stores this call's clicks too.
+  priorClicks: ClickRef[];
+  clicksNow?: () => ClickRef[];
 }
 
 /** r13: the bounce a stuck recovery defers (why + the candidates captured at trigger time). */
@@ -763,6 +775,16 @@ function hasNavClickEvidence(history: HistoryEntry[], currentStepKey: string, cu
   return last.beforeUrl !== undefined && leftDocument(last.beforeUrl, currentUrl);
 }
 
+/** r15 D3: `stepKey`'s effective clicks: its click-family acts on an element
+ * whose observed result is not 'no visible change' (an act whose result was
+ * never observed counts: it may have landed). Identity is the element path
+ * plus its accessible name. */
+function effectiveClicks(history: HistoryEntry[], stepKey: string): ClickRef[] {
+  return history
+    .filter((h) => h.stepKey === stepKey && CLICK_FAMILY_OPS.has(h.verb) && h.path !== undefined && h.result !== 'no visible change')
+    .map((h) => ({ path: h.path as string, name: h.label }));
+}
+
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
 function fingerprintMatches(fresh: Fingerprint, pending: Fingerprint): boolean {
   return (
@@ -1256,6 +1278,7 @@ async function runTool(
     stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
+    recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
   };
   const phaseAcc: {
     attachMs?: number;
@@ -1345,6 +1368,8 @@ async function runTool(
   /** § 5.5.5 forced note table: the first matching row wins, top to bottom. */
   const forcedNote = (r: WingmanResult): string => {
     const why = r.step_review?.why;
+    // r15 D1: first, for the not-ready (step-uncertain) and page-error ends alike.
+    if (why === 'post-action') return FORCED_POST_ACTION_LINE;
     if (r.reason === 'step-uncertain') {
       if (why === 'already-done') return FORCED_ALREADY_DONE_LINE;
       if (why === 'wrong-page') return FORCED_WRONG_PAGE_LINE;
@@ -1392,6 +1417,7 @@ async function runTool(
           acts: chainState.priorActs + steps,
           cursorActed: chainState.cursorActed,
           stuckTried: chainState.stuckUsed,
+          clicks: chainState.clicksNow ? chainState.clicksNow() : chainState.priorClicks,
         });
         while (chainMemory.size > CHAIN_MEMORY_MAX) {
           const oldest = chainMemory.keys().next().value;
@@ -1657,7 +1683,8 @@ async function runTool(
     // which (like stepDoneP) never fires reliably on a repeated click.
     if (stepText !== undefined) {
       const repeatCount = parseRepeatCount(stepText);
-      if (repeatCount !== undefined && hasRepeatCountEvidence(history, 'single', repeatCount)) {
+      // r15 D2: no evidence-assisted end passes an error the page shows.
+      if (repeatCount !== undefined && noulOf('error') < THRESHOLDS.error && hasRepeatCountEvidence(history, 'single', repeatCount)) {
         if (cur) cur.countEvidence = repeatCount;
         return { result: mk('done', 'goal-met') };
       }
@@ -1666,7 +1693,8 @@ async function runTool(
       if (
         repeatCount === undefined &&
         hasBareClickEvidence(history, 'single') &&
-        noulOf('done') >= THRESHOLDS.stepDoneWithEvidence
+        noulOf('done') >= THRESHOLDS.stepDoneWithEvidence &&
+        noulOf('error') < THRESHOLDS.error
       ) {
         if (cur) cur.clickEvidence = true;
         return { result: mk('done', 'goal-met') };
@@ -1680,7 +1708,10 @@ async function runTool(
       }
       // § 5.5.4 recover, exactly as chain rule 4; the counter is per call.
       const r = recoverChoice(answers);
-      if (r === 'give-up' || legacyRecoverActs >= RECOVER_MAX_PER_CLAUSE) {
+      if (cur) cur.recover = r;
+      // r15 D3: never reload after this step's own effective click (reloading a
+      // form response re-sends it); the page error ends the call instead.
+      if (r === 'give-up' || legacyRecoverActs >= RECOVER_MAX_PER_CLAUSE || (r === 'reload' && effectiveClicks(history, 'single').length > 0)) {
         return { result: mk('error', 'page-error') };
       }
       if (r === 'back' || r === 'reload' || r === 'wait') {
@@ -2019,9 +2050,25 @@ async function runTool(
     actsByOp[action.verb] = (actsByOp[action.verb] ?? 0) + 1;
     // Result labels are redacted against the call's bindings and capped (§ WP-C7 item 5).
     lastAction = { verb: action.verb, label: capLabel(redactValues(el.name, values)) };
+    // r15 D4: the executed act enters history before any dialog return.
+    const next: HistoryEntry[] = [
+      ...history,
+      {
+        verb: action.verb,
+        label: el.name,
+        path: el.path,
+        fingerprint: el.fingerprint,
+        before: outcomeSignal(action.verb, el, obs),
+        beforeUrl: obs.url,
+        stepKey,
+        ...(action.verb === 'select' && action.optionValue !== undefined
+          ? { intendedLabel: el.options?.find((o) => o.value === action.optionValue)?.label }
+          : {}),
+      },
+    ];
     // § 3.7 rule 11.
     if (dialogEvents.some((e) => e.pageId === pageId)) {
-      return { result: mk('blocked', 'dialog-open'), history };
+      return { result: mk('blocked', 'dialog-open'), history: next };
     }
     const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
     if (settleBudget > 0) {
@@ -2030,26 +2077,9 @@ async function runTool(
       if (cur) cur.settleMs += now() - tSettle0;
     }
     if (dialogEvents.some((e) => e.pageId === pageId)) {
-      return { result: mk('blocked', 'dialog-open'), history };
+      return { result: mk('blocked', 'dialog-open'), history: next };
     }
-    return {
-      result: null,
-      history: [
-        ...history,
-        {
-          verb: action.verb,
-          label: el.name,
-          path: el.path,
-          fingerprint: el.fingerprint,
-          before: outcomeSignal(action.verb, el, obs),
-          beforeUrl: obs.url,
-          stepKey,
-          ...(action.verb === 'select' && action.optionValue !== undefined
-            ? { intendedLabel: el.options?.find((o) => o.value === action.optionValue)?.label }
-            : {}),
-        },
-      ],
-    };
+    return { result: null, history: next };
   }
 
   const validated =
@@ -2246,6 +2276,7 @@ async function runTool(
         stuckUsed: mem?.stuckTried ?? false,
         stuckPending: null,
         retryNone: false,
+        priorClicks: mem?.clicks ?? [],
       };
     }
 
@@ -2389,7 +2420,7 @@ async function runTool(
     let retried = false;
     const retryAllowed = entry?.kind === 'legacy' && takeoverOf(deps.config).retry;
     type ReviewWhy = 'no-match' | 'multi-match' | 'low-confidence' | 'no-value' | 'offered' | 'target-covered'
-      | 'already-done' | 'wrong-page' | 'not-ready' | 'repeat';
+      | 'already-done' | 'wrong-page' | 'not-ready' | 'repeat' | 'post-action';
     const entryReview = (why: ReviewWhy, candidates: Array<{ label: string; role?: string; name?: string }>) => ({
       step_review: { step: capLabel(entryStep ?? ''), why, candidates },
     });
@@ -2457,6 +2488,15 @@ async function runTool(
       p.why === 'wrong-page'
         ? chainBounce('wrong-page')
         : mk('fallback', 'step-uncertain', { step_review: { step: clauseReviewStep(), why: p.why, candidates: p.candidates } });
+    /** r15 D3: the current clause's effective clicks: those chain memory carried
+     * for a resumed cursor, then this call's. */
+    const clauseClicks = (): ClickRef[] =>
+      chain ? [...chain.priorClicks, ...effectiveClicks(history, `c${chain.cursor}`)] : [];
+    if (chain) chain.clicksNow = clauseClicks;
+    /** r15 D1: the step_review of an end that follows this clause's own effective click. */
+    const postActionReview = () => ({
+      step_review: { step: clauseReviewStep(), why: 'post-action' as const, candidates: [] },
+    });
     const chainNonCommit = (
       why: ReviewWhy,
       candidates: Array<{ label: string; role?: string; name?: string }>,
@@ -2587,14 +2627,18 @@ async function runTool(
       const bareClickEvidence =
         repeatCount === undefined &&
         hasBareClickEvidence(history, `c${chain!.cursor}`);
+      // r15 D2: below the confident stepDone bar no advance passes an error the
+      // page shows (rule 3 precedes rule 4); the 0.85 bar keeps C2's done-first order.
+      const errorClear = noulOf('error') < THRESHOLDS.error;
       const priorAdvance =
         stepDone >= THRESHOLDS.stepDone ||
-        (action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
-        (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
-          stepBindingCount <= 1 &&
-          hasStepEvidence(history, `c${chain!.cursor}`)) ||
-        repeatCountMet ||
-        (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence);
+        (errorClear &&
+          ((action?.choice === 'none' && stepDone >= THRESHOLDS.stepDoneNoAction) ||
+            (stepDone >= THRESHOLDS.stepDoneWithEvidence &&
+              stepBindingCount <= 1 &&
+              hasStepEvidence(history, `c${chain!.cursor}`)) ||
+            repeatCountMet ||
+            (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence)));
       // r14 D1: landed-navigation evidence (below the 0.5 evidence bar, never
       // through an error). Condition 6 (orchestrator R2b): never on the final
       // expanded clause, where an advance would end the call done/goal-met.
@@ -2604,7 +2648,7 @@ async function runTool(
         chain!.cursor < chain!.N - 1 &&
         stepBindingCount <= 1 &&
         stepDone >= THRESHOLDS.stepDoneWithNavEvidence &&
-        noulOf('error') < THRESHOLDS.error &&
+        errorClear &&
         hasNavClickEvidence(history, `c${chain!.cursor}`, obs.url);
       if (priorAdvance || navAdvance) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
@@ -2615,19 +2659,25 @@ async function runTool(
       // 4. error and recover (round ≥ 2; the question rides only then)
       if (round >= 2 && noulOf('error') >= THRESHOLDS.error) {
         const r = recoverChoice(answers);
-        if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE) {
-          return { kind: 'result', result: mk('error', 'page-error') };
+        if (cur) cur.recover = r;
+        // r15 D1/D3: after this clause's own effective click a page-error end
+        // carries step_review why 'post-action', and the recover never reloads
+        // (reloading a form response re-sends it).
+        const clicked = clauseClicks().length > 0;
+        const pageError = (): WingmanResult => mk('error', 'page-error', clicked ? postActionReview() : {});
+        if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE || (r === 'reload' && clicked)) {
+          return { kind: 'result', result: pageError() };
         }
         if (r === 'back' || r === 'reload' || r === 'wait') {
           if (!hasOp(r)) {
-            return { kind: 'result', result: mk('error', 'page-error') };
+            return { kind: 'result', result: pageError() };
           }
           chain!.recoverActs += 1;
           return { kind: 'mechanical', verb: r };
         }
         // 'continue' (and anything unrecognized) goes on as if no error fired.
         if (r !== 'continue') {
-          return { kind: 'result', result: mk('error', 'page-error') };
+          return { kind: 'result', result: pageError() };
         }
         recoveredThisRound = true;
       }
@@ -2707,6 +2757,7 @@ async function runTool(
         chain!.stuckUsed = false;
         chain!.stuckPending = null;
         chain!.retryNone = false;
+        chain!.priorClicks = [];
         if (chain!.cursor === N) {
           return { t: 'result', result: endOfChain() };
         }
@@ -2730,7 +2781,13 @@ async function runTool(
         }
         return { t: 'continue' };
       }
-      if (early.kind === 'bounceNotReady') return { t: 'result', result: chainBounce('not-ready') };
+      if (early.kind === 'bounceNotReady') {
+        // r15 D1: not ready after this clause's own effective click is a post-action end.
+        return {
+          t: 'result',
+          result: clauseClicks().length > 0 ? mk('fallback', 'step-uncertain', postActionReview()) : chainBounce('not-ready'),
+        };
+      }
       if (early.kind === 'bounceWrongPage') {
         if (stuckEligible('wrong-page')) {
           chain!.stuckPending = { why: 'wrong-page', candidates: [] };
@@ -2813,10 +2870,12 @@ async function runTool(
             pageId, driver, obs, token, values, maxSteps, remaining, history, driverOps,
             chain ? `c${chain.cursor}` : 'single',
           );
+          // r15 D4: an executed act is in history even when the call ends here
+          // (dialog-open), so finish() stores its click in chain memory.
+          history = outcome.history; // the act counted as a step; continue under the gate
           if (outcome.result) {
             return outcome.result;
           }
-          history = outcome.history; // the act counted as a step; continue under the gate
           if (chain) chain.cursorActed = true;
           continue;
         }
@@ -3406,15 +3465,26 @@ async function runTool(
           : (entry?.kind === 'legacy' ? entry.step : undefined);
         if (
           isBrowse &&
-          !recoveredThisRound &&
           guardStepText !== undefined &&
           parseRepeatCount(guardStepText) === undefined &&
-          hasBareClickEvidence(history, currentStepKey) &&
           decision.el !== null &&
           CLICK_FAMILY_OPS.has(decision.verb)
         ) {
-          const last = history[history.length - 1];
-          const sameTarget = last.path !== undefined ? decision.el.path === last.path : decision.el.name === last.label;
+          const target = decision.el;
+          // r15 D3: a chain clause never re-clicks a target it already clicked
+          // with effect, in this call or (memory) an earlier one, whatever acts
+          // came between; an explicit pick is the caller's own instruction.
+          // Legacy browse_step keeps the r10 rule.
+          let sameTarget: boolean;
+          if (chain) {
+            sameTarget = !pickRound && clauseClicks().some((c) => c.path === target.path && c.name === target.name);
+          } else {
+            const last = history[history.length - 1];
+            sameTarget =
+              !recoveredThisRound &&
+              hasBareClickEvidence(history, currentStepKey) &&
+              (last.path !== undefined ? target.path === last.path : target.name === last.label);
+          }
           if (sameTarget) {
             const candidates = [candidateOf(decision.el, values)];
             const step = chain ? clauseReviewStep() : capLabel(entryStep ?? '');
@@ -3454,18 +3524,8 @@ async function runTool(
         actsByOp[decision.verb] = (actsByOp[decision.verb] ?? 0) + 1;
         const actLabel = decision.el ? decision.el.name : (decision.binding ?? '');
         lastAction = { verb: decision.verb, label: capLabel(redactValues(actLabel, values)) };
-        if (dialogEvents.some((e) => e.pageId === pageId)) {
-          return mk('blocked', 'dialog-open');
-        }
-        const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
-        if (settleBudget > 0) {
-          const tSettle = now();
-          await driver.settle(pageId, settleBudget);
-          bucket.settleMs += now() - tSettle;
-        }
-        if (dialogEvents.some((e) => e.pageId === pageId)) {
-          return mk('blocked', 'dialog-open');
-        }
+        // r15 D4: the executed act enters history before any dialog return, so a
+        // click that opened a dialog still reaches chain memory through finish().
         history = [
           ...history,
           {
@@ -3488,6 +3548,18 @@ async function runTool(
               : {}),
           },
         ];
+        if (dialogEvents.some((e) => e.pageId === pageId)) {
+          return mk('blocked', 'dialog-open');
+        }
+        const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
+        if (settleBudget > 0) {
+          const tSettle = now();
+          await driver.settle(pageId, settleBudget);
+          bucket.settleMs += now() - tSettle;
+        }
+        if (dialogEvents.some((e) => e.pageId === pageId)) {
+          return mk('blocked', 'dialog-open');
+        }
       }
       // next round
     }

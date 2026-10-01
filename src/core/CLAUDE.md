@@ -461,7 +461,14 @@
   Why: the error question's open-page carve-out suppresses errorP under an
   `open X` clause (the same 500 page read errorP 0.32-0.37 under `open Forgot
   Password` and 0.60-0.71 under `click the Retrieve password button`), so Jev
-  acted ahead under the open clause. Telemetry: `HistoryEntry.beforeUrl` (internal,
+  acted ahead under the open clause. [r15 deep-plan correction, 2026-10-01, checked
+  by a separate refutation pass: under the click clause that page does not reliably
+  read above 0.5. Across every post-Retrieve-click round in r10-r14 it read 0.32-0.72:
+  r14's first calls 0.38-0.49 (7-clause chain), r13's re-issued chains 0.60-0.71,
+  r11b L4 0.68 (7-clause), r10 L199 0.59 (8-clause), r10 L231 0.41 (3-clause). Neither
+  chain length nor clause text predicts it; the 0.32-0.37 low end sits under `open
+  Forgot Password`, where the carve-out applies. Never design against it crossing
+  0.5.] Telemetry: `HistoryEntry.beforeUrl` (internal,
   set by both history pushes, never in buildState), `PhaseRound.navEvidence`
   (only on an advance that ONLY this branch allowed; `clickEvidence` still
   sets too) and `PhaseRound.leftPage` (every chain round whose last entry has
@@ -475,3 +482,35 @@
   the page before the click while the cursor stays past the open clause, so the
   retry runs on the hub and bounces (stuckUsed already spent) — same class as a
   0.5-bar click-evidence advance, not new in kind.
+- Post-action ends, the weak-advance error gate and no repeated submit (r15):
+  an EFFECTIVE click is a click-family act (click/dblclick/press) whose observed
+  result is not `no visible change` (a never-observed result counts); identity is
+  element path + accessible name (`effectiveClicks`). `clauseClicks()` = the clicks
+  chain memory carried for a resumed cursor (`ChainMemoryEntry.clicks`, restored to
+  `chain.priorClicks`, reset to [] on an advance) plus this call's; `finish()` stores
+  it on EVERY non-done end, `error` and `blocked` included, so a resumed call after an
+  error end also refuses reload and re-click. When non-empty, rule 5's not-ready
+  bounce returns `fallback`/`step-uncertain` and every rule-4 page-error end returns
+  `error`/`page-error`, both with `step_review.why 'post-action'`; `forcedNote` checks
+  that first and returns `FORCED_POST_ACTION_LINE` (it replaces the "call again with the
+  same arguments" default that made r14's resumes dead hops). D2: `errorClear`
+  (errorP < 0.5) gates the action-none, step-evidence, repeat-count, click-evidence and
+  nav-evidence advances (and legacy rule 3b's count/click-evidence `done`); the
+  `stepDone >= 0.85` branch stays ungated (done-before-error, T21). Reload refusal:
+  rule 4's `reload` answer after an effective click ends page-error instead, because a
+  reload of a same-address form response re-sends the form (chain: via memory across
+  calls; legacy: same call only). Chain repeat guard: a click-family decision on a
+  target in `clauseClicks()` (same path AND name) bounces `repeat` whatever acts came
+  between; a pick round is exempt, `recoveredThisRound` no longer exempts in chain mode,
+  legacy keeps the r10 rule. D4: the executed act enters history before any
+  `dialog-open` return (shared act tail and `runTokenAction`, `history = outcome.history`
+  before the result return), so a submit that opened a dialog reaches memory.
+  `PhaseRound.recover` holds the validated recover answer on rounds where the error
+  rule fired. Two routes stay open by design: a caller-written `reload the page` clause
+  in a rewritten step list gets a fresh `[goal, clauses]` memory key, so the loop cannot
+  refuse it (the post-action note tells the caller not to reload); legacy browse_step
+  keeps no memory, so it refuses a reload within one call only. Test traps: a chain
+  test whose click changes the observation and then hits readyP < 0.3, or a page error,
+  now ends `post-action`; a static observation makes a click `no visible change`, which
+  T7 and T25 rely on; re-clicking the same element in one count-less clause after a wait
+  or back now bounces `repeat`; an error answer >= 0.5 now blocks every advance below 0.85.
