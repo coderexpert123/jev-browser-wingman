@@ -2268,6 +2268,81 @@ test('T-stuck-two-stage: eligibility reads the merged two-stage answer map (acti
   assert.equal(stuckReqs(h).length, 1);
 });
 
+test('T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence trigger bounces low-confidence WITH the trigger-time candidates', async () => {
+  const LOWC = (): SeqEntry =>
+    CS({
+      action: ['navigate', { navigate: 0.4, click: 0.3, none: 0.1 }],
+      target: ['none', { none: 0.95, e1: 0.03 }],
+    });
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [LOWC(), LOWC(), STUCK('give-up')],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'chain-stuck-lowconf goal', steps: ['open the Form page'], values: HOME });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'low-confidence', 'the deferred bounce keeps the trigger why, never a hardcoded no-match');
+  assert.equal(r.step_review?.candidates.length, 1, 'the trigger-time candidates ride the deferred bounce');
+  assert.equal(r.step_review?.candidates[0].name, 'Details');
+  assert.equal(r.note, FORCED_BOUNCE_LINE);
+  assert.equal(h.driver.actCalls().length, 0);
+  assert.equal(stuckReqs(h).length, 1);
+});
+
+test('T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)', async () => {
+  const goal = 'chain-stuck-memused goal';
+  const steps = ['open the Form page'];
+  const h1 = harness({ observations: { p1: [spoke] }, script: [NONE(), NONE(), STUCK('give-up')] });
+  const r1 = await h1.call({ goal, steps });
+  assert.equal(r1.status, 'fallback');
+  assert.equal(stuckReqs(h1).length, 1);
+
+  const h2 = harness({ observations: { p1: [spoke] }, script: [NONE(), NONE(), STUCK('back')] });
+  const r2 = await h2.call({ goal, steps });
+  assert.equal(r2.status, 'fallback');
+  assert.equal(r2.step_review?.why, 'no-match');
+  assert.equal(h2.requests.length, 2, 'retry then bounce: no second stuck ask for the same stored clause');
+  assert.equal(stuckReqs(h2).length, 0);
+  assert.equal(h2.driver.actCalls().length, 0);
+});
+
+test('T-stuck-reset-on-advance: the once-per-clause budget resets when the clause advances, so the next hub-miss clause recovers too', async () => {
+  const docsPage = observation({ url: 'https://example.com/docs', title: 'Docs', text: 'docs page' });
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub, formPage, formPage, formPage, formPage, hub, docsPage] },
+    script: [NONE(), NONE(), STUCK('back'), CS(), ADV(), NONE(), NONE(), STUCK('back'), CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-reset goal', steps: ['open the Form page', 'open the Docs page'] });
+  assert.equal(r.status, 'done', `${r.status}/${r.reason}`);
+  assert.equal(stuckReqs(h).length, 2, 'one stuck ask per clause');
+  assert.deepEqual(actsOf(h).map((a) => a[0]), ['back', 'click', 'back', 'click']);
+});
+
+test('T-stuck-shares-recover-budget: a stuck act spends one of the clause recover acts, so error recovery gets only the other', async () => {
+  const ERR = (): SeqEntry => CS({ error: 0.9, recover: ['wait', { wait: 0.9 }] });
+  const h = harness({
+    observations: { p1: [spoke, spoke, spoke, hub] },
+    script: [NONE(), NONE(), STUCK('back'), ERR(), ERR(), ERR()],
+  });
+  const r = await h.call({ goal: 'chain-stuck-sharedbudget goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'page-error');
+  assert.deepEqual(actsOf(h).map((a) => a[0]), ['back', 'wait'], 'stuck back + one error wait = RECOVER_MAX_PER_CLAUSE');
+});
+
+test('T-stuck-query-hub: a url binding that differs from the page only by query or hash is still offered (the page we are on is the full address)', async () => {
+  for (const [i, pageUrl] of ['https://example.com/?view=item', 'https://example.com/#/item'].entries()) {
+    const onSpoke = observation({ url: pageUrl, title: 'Item' });
+    const h = harness({
+      observations: { p1: [onSpoke] },
+      script: [NONE(), NONE(), STUCK('give-up')],
+    });
+    await h.call({ goal: `chain-stuck-queryhub goal ${i}`, steps: ['open the Form page'], values: HOME });
+    assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'open_home', 'give-up'], pageUrl);
+  }
+});
+
 // ---- r13 D8: act-error logging ----
 
 const V1_MESSAGE =

@@ -889,12 +889,14 @@ function isNavigableBinding(name: string, values: Record<string, string>): boole
   return name in values && typeHint(values[name]) === 'url' && /^https?:\/\//i.test(values[name]);
 }
 
-/** r13 D3: origin plus pathname equality; false on any parse error. */
+/** r13 D3: the supplied address IS the page we are already on — full normalized
+ * address equality (origin, path, query AND hash); false on any parse error.
+ * Origin plus pathname alone (the first cut) hid a query- or hash-routed hub
+ * (`/?view=home` vs `/?view=item`, `/#/` vs `/#/item`) from the offer, losing
+ * the handoff on exactly the sites whose spokes differ only by route. */
 function sameDocument(a: string, b: string): boolean {
   try {
-    const ua = new URL(a);
-    const ub = new URL(b);
-    return ua.origin === ub.origin && ua.pathname === ub.pathname;
+    return new URL(a).href === new URL(b).href;
   } catch {
     return false;
   }
