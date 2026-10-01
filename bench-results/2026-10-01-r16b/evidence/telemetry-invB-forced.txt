@@ -1,0 +1,85 @@
+## per call: cell task call status/reason/why steps progress acts_by_op | first rounds (action,sdP,rdy,hist,stuck,nav)
+B1 t10- c1: login/login-page why=None steps=0 prog=0/11 acts=None act_error=None | [fill,0.07,0.58,None,None,None]
+B1 t10- c2: login/login-page why=None steps=1 prog=0/11 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.78,0.63,filled,None,None]
+B1 t10- c3: login/login-page why=None steps=1 prog=0/10 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.63,0.57,filled,None,None]
+B1 t10- c4: login/login-page why=None steps=1 prog=0/9 acts={'click': 1} act_error=None | [None,None,None,None,None,None] [back,0.62,0.5,element gone,None,None]
+B1 t10- c5: done/goal-met why=None steps=8 prog=8/8 acts={'click': 5, 'fill': 3} act_error=None | [click,0.09,0.78,None,None,None] [click,0.75,0.6,element gone,None,None] [click,0.14,0.62,element gone,None,None] [click,0.93,0.87,page changed,None,None] [click,0.12,0.8,page changed,None,None] [fill,0.77,0.66,element gone,None,None]
+B2 t11- c1: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'fill': 1} act_error=None | [fill,0.05,0.48,None,None,None] [fill,0.73,0.55,filled,None,None] [press,0.21,0.55,filled,None,None] [press,0.2,0.54,filled,None,None]
+B2 t11- c2: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B2 t11- c3: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B2 t11- c4: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.14,0.48,page changed,None,None] [press,0.16,0.5,page changed,None,None]
+B2 t11- c5: fallback/step-uncertain why=low-confidence steps=1 prog=1/3 acts={'fill': 1} act_error=None | [fill,0.06,0.55,None,None,None] [fill,0.56,0.62,filled,None,None] [press,0.18,0.61,filled,None,None] [press,0.16,0.63,filled,None,None]
+B2 t11- c6: fallback/step-uncertain why=low-confidence steps=1 prog=1/3 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.15,0.56,page changed,None,None] [press,0.17,0.53,page changed,None,None]
+B2 t11- c7: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.06,0.5,None,None,None] [check,0.06,0.52,None,None,None]
+B2 t11- c8: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B2 t11- c9: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B2 t11- c10: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.1,0.61,None,None,None] [check,0.11,0.6,None,None,None]
+B3 t10- c1: login/login-page why=None steps=0 prog=0/11 acts=None act_error=None | [fill,0.08,0.55,None,None,None]
+B3 t10- c2: login/login-page why=None steps=1 prog=0/11 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.74,0.61,filled,None,None]
+B3 t10- c3: login/login-page why=None steps=1 prog=0/11 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.08,0.59,filled,None,None]
+B3 t10- c4: login/login-page why=None steps=1 prog=0/11 acts={'click': 1} act_error=None | [None,None,None,None,None,None] [fill,0.13,0.38,element gone,None,None] [fill,0.14,0.45,element gone,None,None]
+B3 t10- c5: done/goal-met why=None steps=8 prog=8/8 acts={'click': 5, 'fill': 3} act_error=None | [click,0.09,0.76,None,None,None] [click,0.64,0.6,element gone,None,None] [click,0.16,0.62,element gone,None,None] [click,0.93,0.86,page changed,None,None] [click,0.14,0.81,page changed,None,None] [fill,0.75,0.64,element gone,None,None]
+B4 t11- c1: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'fill': 1} act_error=None | [fill,0.06,0.48,None,None,None] [fill,0.69,0.54,filled,None,None] [press,0.19,0.55,filled,None,None] [press,0.2,0.54,filled,None,None]
+B4 t11- c2: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B4 t11- c3: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B4 t11- c4: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.16,0.51,page changed,None,None] [press,0.15,0.5,page changed,None,None]
+B4 t11- c5: fallback/step-uncertain why=low-confidence steps=1 prog=0/2 acts={'fill': 1} act_error=None | [fill,0.06,0.57,None,None,None] [fill,0.58,0.62,filled,None,None] [press,0.21,0.62,filled,None,None] [press,0.18,0.61,filled,None,None]
+B4 t11- c6: fallback/step-uncertain why=low-confidence steps=1 prog=0/2 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.44,0.5,page changed,None,None] [press,0.42,0.54,page changed,None,None]
+B4 t11- c7: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.07,0.55,None,None,None] [check,0.06,0.53,None,None,None]
+B4 t11- c8: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B4 t11- c9: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B4 t11- c10: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.1,0.6,None,None,None] [check,0.09,0.62,None,None,None]
+B5 t10- c1: login/login-page why=None steps=0 prog=0/11 acts=None act_error=None | [fill,0.07,0.55,None,None,None]
+B5 t10- c2: login/login-page why=None steps=1 prog=0/11 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.77,0.62,filled,None,None]
+B5 t10- c3: login/login-page why=None steps=1 prog=0/10 acts={'fill': 1} act_error=None | [None,None,None,None,None,None] [fill,0.64,0.55,filled,None,None]
+B5 t10- c4: login/login-page why=None steps=1 prog=0/9 acts={'click': 1} act_error=None | [None,None,None,None,None,None] [back,0.61,0.45,element gone,None,None]
+B5 t10- c5: done/goal-met why=None steps=8 prog=8/8 acts={'click': 5, 'fill': 3} act_error=None | [click,0.08,0.75,None,None,None] [click,0.73,0.62,element gone,None,None] [click,0.14,0.64,element gone,None,None] [click,0.93,0.87,page changed,None,None] [click,0.13,0.81,page changed,None,None] [fill,0.76,0.6,element gone,None,None]
+B6 t11- c1: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'fill': 1} act_error=None | [fill,0.05,0.5,None,None,None] [fill,0.71,0.53,filled,None,None] [press,0.19,0.54,filled,None,None] [press,0.19,0.54,filled,None,None]
+B6 t11- c2: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B6 t11- c3: error/invalid-input why=None steps=0 prog=None/None acts=None act_error=None | 
+B6 t11- c4: fallback/step-uncertain why=no-match steps=1 prog=0/3 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.15,0.5,page changed,None,None] [press,0.16,0.52,page changed,None,None]
+B6 t11- c5: fallback/step-uncertain why=low-confidence steps=1 prog=0/2 acts={'fill': 1} act_error=None | [fill,0.06,0.54,None,None,None] [fill,0.55,0.6,filled,None,None] [press,0.18,0.59,filled,None,None] [press,0.18,0.6,filled,None,None]
+B6 t11- c6: fallback/step-uncertain why=no-match steps=1 prog=0/2 acts={'press': 1} act_error=None | [None,None,None,None,None,None] [press,0.16,0.48,page changed,None,None] [press,0.16,0.48,page changed,None,None]
+B6 t11- c7: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.06,0.48,None,None,None] [check,0.06,0.45,None,None,None]
+B6 t11- c8: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B6 t11- c9: ambiguous/target-uncertain why=None steps=0 prog=0/1 acts=None act_error=None | [None,None,None,None,None,None]
+B6 t11- c10: fallback/step-uncertain why=no-match steps=0 prog=0/1 acts=None act_error=None | [check,0.12,0.59,None,None,None] [check,0.11,0.6,None,None,None]
+
+## why/status counts by task:
+  t10-saucedemo-checkout {'login/login-page': 12, 'done/goal-met': 3} | acts {'fill': 15, 'click': 18}
+  t11-todomvc-spa {'no-match': 13, 'error/invalid-input': 6, 'low-confidence': 5, 'ambiguous/target-uncertain': 6} | acts {'fill': 6, 'press': 6}
+
+## totals {'reload_acts': 0, 'clickEvidence': 15}
+calls with >=3 consecutive waits: 0
+
+## t11 forced: step_text of last round per call (redacted)
+  B2 c1 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.55 rdy=0.54
+  B2 c2 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B2 c3 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B2 c4 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.51 rdy=0.5
+  B2 c5 fallback/step-uncertain why=low-confidence step=[press Enter in the new-todo field] action=press t1=e11/0.61 rdy=0.63
+  B2 c6 fallback/step-uncertain why=low-confidence step=[press Enter in the new-todo field] action=press t1=e11/0.54 rdy=0.53
+  B2 c7 fallback/step-uncertain why=no-match step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=check t1=none/0.83 rdy=0.52
+  B2 c8 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=None t1=None/None rdy=None
+  B2 c9 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=None t1=None/None rdy=None
+  B2 c10 fallback/step-uncertain why=no-match step=[click the unlabeled checkbox to the left of the todo text '<redacted-t] action=check t1=none/0.93 rdy=0.6
+  B4 c1 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.55 rdy=0.54
+  B4 c2 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B4 c3 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B4 c4 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.6 rdy=0.5
+  B4 c5 fallback/step-uncertain why=low-confidence step=[press Enter to confirm] action=press t1=e11/0.53 rdy=0.61
+  B4 c6 fallback/step-uncertain why=low-confidence step=[press Enter to confirm] action=press t1=e11/0.55 rdy=0.54
+  B4 c7 fallback/step-uncertain why=no-match step=[mark the first todo item (<redacted-todo-text>) complete by clicking i] action=check t1=none/0.9 rdy=0.53
+  B4 c8 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by clicking i] action=None t1=None/None rdy=None
+  B4 c9 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by clicking i] action=None t1=None/None rdy=None
+  B4 c10 fallback/step-uncertain why=no-match step=[click the unlabeled checkbox in the list row that contains the text '<] action=check t1=none/0.95 rdy=0.62
+  B6 c1 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.62 rdy=0.54
+  B6 c2 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B6 c3 error/invalid-input why=None step=[] action=None t1=None/None rdy=None
+  B6 c4 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.56 rdy=0.52
+  B6 c5 fallback/step-uncertain why=low-confidence step=[press Enter to confirm] action=press t1=e11/0.53 rdy=0.6
+  B6 c6 fallback/step-uncertain why=no-match step=[press Enter to confirm] action=press t1=none/0.5700000000000001 rdy=0.48
+  B6 c7 fallback/step-uncertain why=no-match step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=check t1=none/0.85 rdy=0.45
+  B6 c8 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=None t1=None/None rdy=None
+  B6 c9 ambiguous/target-uncertain why=None step=[mark the first todo item (<redacted-todo-text>) complete by checking i] action=None t1=None/None rdy=None
+  B6 c10 fallback/step-uncertain why=no-match step=[click the unlabeled checkbox in the first row of the todo list, next t] action=check t1=none/0.93 rdy=0.6
