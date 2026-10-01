@@ -1,2 +1,3 @@
 # r15 progress log (HEAD e2b72f0)
 - Part 1 DONE: 51/51 files; tsc 0; 781 tests, 779 pass, 1 skip (chrome-cmd win32), 1 todo (conformance-ops playwright O18, PASSED as todo; cdp pass), 0 fail; no re-runs. chain 110/110, chain-e2e 13/13 incl. E9-E13, pick-e2e 2/2, browse-step-surface 7/7, conformance 28/28, conformance-ops 40 pass + 1 todo. lazy-chrome ok; known-bad tool-call FAIL answered=true. KB-r15 proof: chain 7 fail (T-post-notready, T-post-reload, T-repeat-resume required; plus T-repeat-pick, T-repeat-dialog, T-late-landing-notready, T-late-landing-reload), chain-e2e E12 and E13 fail (11 pass/2 fail); restored clean.
+- Phase V DONE (phase-v.json) total_usd=0.981121: V1 playwright ok 42.7s 0.465439 | V2 ok 23.1s 0.138917 | V3 ok 40.3s 0.376765 -> 3/3 control OK
