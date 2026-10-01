@@ -1,0 +1,497 @@
+{
+  "date": "2026-10-01-112332.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 20.814594,
+  "aborted": null,
+  "total_usd": 1.520098,
+  "runs": [
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 50410,
+      "browser_tool_calls": 7,
+      "per_step_ms": 7201,
+      "llm": {
+        "input_tokens": 20,
+        "output_tokens": 2347,
+        "cache_read_tokens": 527285,
+        "cache_write_tokens": 34186,
+        "usd": 0.321648,
+        "cli_reported_usd": 0.26571100000000003
+      },
+      "typesafe": {
+        "calls": 5,
+        "input_tokens": 124473,
+        "output_tokens": 30572,
+        "usd": 0.005228
+      },
+      "wingman": {
+        "calls": 5,
+        "fallback": 5,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 130,
+        "first_observe_ms": 25,
+        "observe_ms": 9,
+        "jev_ms": 144,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 60
+      },
+      "usd": 0.326876,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 16,
+          "rounds": 36,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "wrong-page",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 4,
+          "rounds": 11,
+          "pick": true,
+          "progress": {
+            "step_index": 3,
+            "steps_done": 2,
+            "steps_total": 3
+          },
+          "why": "low-confidence",
+          "candidates": 1
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 7,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 2
+          },
+          "why": "low-confidence",
+          "candidates": 2
+        }
+      ],
+      "handoffs": 5,
+      "picks": 2,
+      "wingman_acts": 27,
+      "nav_by_wingman": 2,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 2,
+        "mcp__jev-browser-wingman__browse_step": 5,
+        "mcp__playwright__browser_snapshot": 2
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 32538,
+      "browser_tool_calls": 19,
+      "per_step_ms": 1713,
+      "llm": {
+        "input_tokens": 28,
+        "output_tokens": 1808,
+        "cache_read_tokens": 831380,
+        "cache_write_tokens": 8522,
+        "usd": 0.308576,
+        "cli_reported_usd": 0.2185
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.308576,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 17,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 2,
+        "mcp__playwright__browser_click": 8,
+        "mcp__playwright__browser_navigate": 6,
+        "mcp__playwright__browser_select_option": 1,
+        "mcp__playwright__browser_type": 2
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 43676,
+      "browser_tool_calls": 5,
+      "per_step_ms": 8735,
+      "llm": {
+        "input_tokens": 16,
+        "output_tokens": 1965,
+        "cache_read_tokens": 441652,
+        "cache_write_tokens": 3267,
+        "usd": 0.17427,
+        "cli_reported_usd": 0.1210804
+      },
+      "typesafe": {
+        "calls": 4,
+        "input_tokens": 117311,
+        "output_tokens": 28929,
+        "usd": 0.004927
+      },
+      "wingman": {
+        "calls": 4,
+        "fallback": 3,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 122,
+        "first_observe_ms": 16,
+        "observe_ms": 10,
+        "jev_ms": 154,
+        "act_ms": 12,
+        "settle_ms": 109,
+        "rounds": 54
+      },
+      "usd": 0.179197,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 16,
+          "rounds": 35,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 4,
+          "rounds": 10,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "low-confidence",
+          "candidates": 1
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 3,
+          "rounds": 6,
+          "pick": true,
+          "progress": {
+            "step_index": 7,
+            "steps_done": 7,
+            "steps_total": 7
+          }
+        }
+      ],
+      "handoffs": 4,
+      "picks": 1,
+      "wingman_acts": 27,
+      "nav_by_wingman": 2,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 2,
+        "mcp__jev-browser-wingman__browse_step": 4,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 32016,
+      "browser_tool_calls": 19,
+      "per_step_ms": 1685,
+      "llm": {
+        "input_tokens": 30,
+        "output_tokens": 1614,
+        "cache_read_tokens": 884866,
+        "cache_write_tokens": 10243,
+        "usd": 0.328171,
+        "cli_reported_usd": 0.23414520000000005
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.328171,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 17,
+      "raw_script": 1,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 8,
+        "mcp__playwright__browser_evaluate": 1,
+        "mcp__playwright__browser_navigate": 6,
+        "mcp__playwright__browser_select_option": 1,
+        "mcp__playwright__browser_type": 2
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 47043,
+      "browser_tool_calls": 7,
+      "per_step_ms": 6720,
+      "llm": {
+        "input_tokens": 18,
+        "output_tokens": 2039,
+        "cache_read_tokens": 499528,
+        "cache_write_tokens": 4027,
+        "usd": 0.195599,
+        "cli_reported_usd": 0.1364396
+      },
+      "typesafe": {
+        "calls": 5,
+        "input_tokens": 120183,
+        "output_tokens": 29194,
+        "usd": 0.005048
+      },
+      "wingman": {
+        "calls": 5,
+        "fallback": 5,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 167,
+        "first_observe_ms": 15,
+        "observe_ms": 9,
+        "jev_ms": 154,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 59
+      },
+      "usd": 0.200646,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 16,
+          "rounds": 36,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 5,
+            "steps_done": 4,
+            "steps_total": 7
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 4,
+          "rounds": 10,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 2
+          },
+          "why": "no-match",
+          "candidates": 1
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 6,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 2
+          },
+          "why": "low-confidence",
+          "candidates": 2
+        }
+      ],
+      "handoffs": 5,
+      "picks": 2,
+      "wingman_acts": 28,
+      "nav_by_wingman": 2,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 5,
+        "mcp__playwright__browser_snapshot": 2
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t9-long-chain",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 22746,
+      "browser_tool_calls": 17,
+      "per_step_ms": 1338,
+      "llm": {
+        "input_tokens": 14,
+        "output_tokens": 1571,
+        "cache_read_tokens": 393382,
+        "cache_write_tokens": 9336,
+        "usd": 0.176632,
+        "cli_reported_usd": 0.1317584
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.176632,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 16,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 7,
+        "mcp__playwright__browser_navigate": 6,
+        "mcp__playwright__browser_select_option": 1,
+        "mcp__playwright__browser_type": 2
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 32016,
+      "median_usd": 0.308576,
+      "fallback_rate": 0
+    },
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 47043,
+      "median_usd": 0.200646,
+      "fallback_rate": 1
+    }
+  }
+}
