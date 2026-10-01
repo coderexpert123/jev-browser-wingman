@@ -5,3 +5,12 @@
   - V1 playwright ok=True wall=34.9s usd=None
   - V2 playwright ok=True wall=22.6s usd=None
   - V3 playwright ok=True wall=21.3s usd=None
+- Phase M DONE (phase-m.json): total_usd=1.801689; forced-verdict overall FAIL (see forced-verdict-m.txt)
+  - M1 forced ok=True wall=42.9s usd=0.344571 handoffs=6 picks=1 wingman_acts=18 raw_acts=0 raw_script=0
+  - M2 playwright ok=True wall=23.6s usd=0.177938 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+  - M3 forced ok=True wall=46.8s usd=0.270415 handoffs=6 picks=3 wingman_acts=18 raw_acts=0 raw_script=0
+  - M4 playwright ok=True wall=38.5s usd=0.397811 handoffs=0 picks=0 wingman_acts=0 raw_acts=17 raw_script=0
+  - M5 forced ok=True wall=78.9s usd=0.440795 handoffs=12 picks=9 wingman_acts=26 raw_acts=0 raw_script=0
+  - M6 playwright ok=True wall=23.7s usd=0.170159 handoffs=0 picks=0 wingman_acts=0 raw_acts=16 raw_script=0
+  - Phase M bars missed: handoffs (max 12 > 4), picks (13/24, needs <50%), median-steps (2.00 < 4); passed: completion 3/3, wingman-share, raw-acts, zero-step-done, first-call-success, no-page-error-end, raw-script
+- scan note: 2-char bound values (digit strings) cannot be scanned in numeric telemetry (actMs, element ids e<n>); evidence/ excluded from the bare-token short scan but every file is scanned for the value as a quoted JSON string.
