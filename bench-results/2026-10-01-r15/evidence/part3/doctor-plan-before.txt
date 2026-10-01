@@ -1,0 +1,10 @@
+client: claude
+[todo] O1: wingman is registered, but the top-level mode is off, not on
+  - set "mode": "on" in /root/.jev-browser-wingman/config.json
+[todo] O2: nothing withholds the caller's in-page action tools yet
+  - replace server playwright in /root/.claude.json with: {"command":"jev-browser-wingman","args":["with-browser","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"]}
+[met] O3: wingman launches its own shared browser at first use; no separate step is needed
+  - none (wingman launches the shared browser at first use)
+[met] O4: a TypeSafe key is available
+[todo] O5: doctor has not verified this setup
+  - run jev-browser-wingman doctor --client claude
