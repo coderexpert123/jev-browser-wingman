@@ -2331,15 +2331,19 @@ test('T-stuck-shares-recover-budget: a stuck act spends one of the clause recove
   assert.deepEqual(actsOf(h).map((a) => a[0]), ['back', 'wait'], 'stuck back + one error wait = RECOVER_MAX_PER_CLAUSE');
 });
 
-test('T-stuck-query-hub: a url binding that differs from the page only by query or hash is still offered (the page we are on is the full address)', async () => {
-  for (const [i, pageUrl] of ['https://example.com/?view=item', 'https://example.com/#/item'].entries()) {
+test('T-stuck-query-hub: a url binding differing from the page by query is offered; a hash-only difference (href="#") is still the same page', async () => {
+  const cases: Array<[string, string[]]> = [
+    ['https://example.com/?view=item', ['back', 'open_home', 'give-up']],
+    ['https://example.com/#', ['back', 'give-up']],
+  ];
+  for (const [i, [pageUrl, keys]] of cases.entries()) {
     const onSpoke = observation({ url: pageUrl, title: 'Item' });
     const h = harness({
       observations: { p1: [onSpoke] },
       script: [NONE(), NONE(), STUCK('give-up')],
     });
     await h.call({ goal: `chain-stuck-queryhub goal ${i}`, steps: ['open the Form page'], values: HOME });
-    assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), ['back', 'open_home', 'give-up'], pageUrl);
+    assert.deepEqual(Object.keys(recoverCriteria(h.requests[2])), keys, pageUrl);
   }
 });
 

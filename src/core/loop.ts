@@ -889,14 +889,17 @@ function isNavigableBinding(name: string, values: Record<string, string>): boole
   return name in values && typeHint(values[name]) === 'url' && /^https?:\/\//i.test(values[name]);
 }
 
-/** r13 D3: the supplied address IS the page we are already on — full normalized
- * address equality (origin, path, query AND hash); false on any parse error.
- * Origin plus pathname alone (the first cut) hid a query- or hash-routed hub
- * (`/?view=home` vs `/?view=item`, `/#/` vs `/#/item`) from the offer, losing
- * the handoff on exactly the sites whose spokes differ only by route. */
+/** r13 D3 (amended by the verifier wave): the supplied address IS the page we
+ * are already on — origin, path AND query equal, hash ignored; false on any
+ * parse error. Origin plus pathname alone (the spec's first cut) hid a
+ * query-routed hub (`/?view=home` vs `/?view=item`) from the offer. The hash
+ * stays ignored so a page that became `/#` after an `href="#"` click still
+ * counts as the supplied `/`. Hash-routed hubs keep only `back`. */
 function sameDocument(a: string, b: string): boolean {
   try {
-    return new URL(a).href === new URL(b).href;
+    const ua = new URL(a);
+    const ub = new URL(b);
+    return ua.origin === ub.origin && ua.pathname === ub.pathname && ua.search === ub.search;
   } catch {
     return false;
   }
