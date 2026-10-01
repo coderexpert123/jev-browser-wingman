@@ -2290,6 +2290,20 @@ test('T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence t
   assert.equal(stuckReqs(h).length, 1);
 });
 
+test('T-stuck-two-nones: a multi-match first look followed by a none is NOT two consecutive none looks, so it bounces without the stuck ask', async () => {
+  const AMBIG = (): SeqEntry => CS({ target: ['ambiguous', { ambiguous: 0.9, e1: 0.05, none: 0.05 }] });
+  const h = harness({
+    observations: { p1: [spoke] },
+    script: [AMBIG(), NONE(), STUCK('back')],
+  });
+  const r = await h.call({ goal: 'chain-stuck-twonones goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.requests.length, 2);
+  assert.equal(stuckReqs(h).length, 0);
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
 test('T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)', async () => {
   const goal = 'chain-stuck-memused goal';
   const steps = ['open the Form page'];

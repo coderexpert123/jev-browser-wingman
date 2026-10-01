@@ -224,6 +224,10 @@ interface ChainState {
   cursorActed: boolean;
   stuckUsed: boolean;
   stuckPending: StuckPending | null;
+  // r13 D1 guard 1: the look that consumed the clause's retry was itself a
+  // confident none (verb in STUCK_VERBS, target none >= STUCK_NONE_MIN), so a
+  // stuck recovery follows two consecutive none looks, never an ambiguous one.
+  retryNone: boolean;
 }
 
 /** r13: the bounce a stuck recovery defers (why + the candidates captured at trigger time). */
@@ -2220,6 +2224,7 @@ async function runTool(
         cursorActed: mem?.cursorActed ?? false,
         stuckUsed: mem?.stuckTried ?? false,
         stuckPending: null,
+        retryNone: false,
       };
     }
 
@@ -2403,6 +2408,12 @@ async function runTool(
       );
     /** r13 D1: may this would-be bounce attempt a stuck recovery instead? All
      * of rules 1-9, in order. */
+    const confidentNoneLook = (): boolean => {
+      const action = decisionAnswers['action'] as JevChoiceAnswer | undefined; // 7
+      if (!action || typeof action.choice !== 'string' || !STUCK_VERBS.has(action.choice)) return false;
+      const target = decisionAnswers['target'] as JevChoiceAnswer | undefined; // 8
+      return !!target && target.choice === 'none' && (target.probabilities?.['none'] ?? 0) >= STUCK_NONE_MIN;
+    };
     const stuckEligible = (why: ReviewWhy): boolean => {
       if (why !== 'no-match' && why !== 'low-confidence' && why !== 'wrong-page') return false; // 1
       if (participation !== 'execute') return false; // 2
@@ -2411,10 +2422,10 @@ async function runTool(
       if (c.stuckUsed || c.stuckPending !== null) return false; // 4
       if (c.recoverActs >= RECOVER_MAX_PER_CLAUSE) return false; // 5
       if (steps >= maxSteps || remaining() < TIME_FLOOR_MS) return false; // 6
-      const action = decisionAnswers['action'] as JevChoiceAnswer | undefined; // 7
-      if (!action || typeof action.choice !== 'string' || !STUCK_VERBS.has(action.choice)) return false;
-      const target = decisionAnswers['target'] as JevChoiceAnswer | undefined; // 8
-      if (!target || target.choice !== 'none' || (target.probabilities?.['none'] ?? 0) < STUCK_NONE_MIN) return false;
+      if (!confidentNoneLook()) return false; // 7-8
+      // D1 guard 1: with the retry on, the retry round must have been a
+      // confident none too (two consecutive looks), never an ambiguous one.
+      if (takeoverOf(deps.config).retry && !c.retryNone) return false;
       // 9: a destination exists.
       if (offeredSet.has('back')) return true;
       return offeredSet.has('navigate') && Object.keys(urlBindings(values)).length > 0;
@@ -2431,6 +2442,7 @@ async function runTool(
     ): WingmanResult | null => {
       if (takeoverOf(deps.config).retry && !chain!.clauseRetried && remaining() >= TIME_FLOOR_MS) {
         chain!.clauseRetried = true;
+        chain!.retryNone = confidentNoneLook();
         return null; // the next round retries the clause
       }
       if (stuckEligible(why)) {
@@ -2661,6 +2673,7 @@ async function runTool(
         chain!.cursorActed = false;
         chain!.stuckUsed = false;
         chain!.stuckPending = null;
+        chain!.retryNone = false;
         if (chain!.cursor === N) {
           return { t: 'result', result: endOfChain() };
         }
