@@ -1,0 +1,134 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+not ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: 'expected the Alpha task record'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:321:16)
+    runNextTicks (node:internal/process/task_queues:65:5)
+    process.processImmediate (node:internal/timers:453:9)
+    process.callbackTrampoline (node:internal/async_hooks:130:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+not ok 20 - verify re-finds hidden-control records through the label and their own path
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: 'expected a proxied element named Alpha task'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:430:20)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 18
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=20 pass=18 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

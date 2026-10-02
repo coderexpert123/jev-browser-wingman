@@ -1,0 +1,194 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+not ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    the unnamed hidden input must not enumerate
+    + actual - expected
+    
+    + {
+    +   ariaLabel: '',
+    +   attrName: '',
+    +   autocomplete: '',
+    +   controlPath: '#t7',
+    +   editable: false,
+    +   fingerprint: {
+    +     name: 'Fine print',
+    +     role: 'checkbox',
+    +     tag: 'input',
+    +     x: 136,
+    +     y: 80
+    +   },
+    +   form: -1,
+    +   htmlId: 't7',
+    +   id: 'e7',
+    +   inViewport: true,
+    +   name: 'Fine print',
+    +   obscured: false,
+    +   path: '#l-t6',
+    +   placeholder: '',
+    +   rect: {
+    +     h: 17,
+    +     w: 63,
+    +     x: 136,
+    +     y: 80
+    +   },
+    +   role: 'checkbox',
+    +   state: {
+    +     checked: false,
+    +     disabled: false
+    +   },
+    +   tag: 'input',
+    +   type: 'checkbox'
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    id: 'e7'
+    path: '#l-t6'
+    tag: 'input'
+    role: 'checkbox'
+    name: 'Fine print'
+    type: 'checkbox'
+    attrName: ''
+    placeholder: ''
+    htmlId: 't7'
+    ariaLabel: ''
+    autocomplete: ''
+    state:
+      disabled: false
+      checked: false
+    editable: false
+    inViewport: true
+    rect:
+      x: 136
+      y: 80
+      w: 63
+      h: 17
+    form: -1
+    fingerprint:
+      tag: 'input'
+      role: 'checkbox'
+      name: 'Fine print'
+      x: 136
+      y: 80
+    controlPath: '#t7'
+    obscured: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:361:16)
+    runNextTicks (node:internal/process/task_queues:65:5)
+    process.processImmediate (node:internal/timers:453:9)
+    process.callbackTrampoline (node:internal/async_hooks:130:17)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+ok 20 - verify re-finds hidden-control records through the label and their own path
+  ---
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 19
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=20 pass=19 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

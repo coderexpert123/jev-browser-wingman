@@ -1,0 +1,36 @@
+FLAG KB_CDP_PRESS_NONE flipped:  1 file changed, 1 insertion(+), 1 deletion(-)
+KB_CDP_PRESS_NONE conformance-ops rc=1 # tests 45 # pass 43 # fail 1 # todo 1 
+KB_CDP_PRESS_NONE adapter-cdp rc=0 # tests 9 # pass 9 # fail 0 # todo 0 
+KB_CDP_PRESS_NONE adapter-playwright rc=0 # tests 8 # pass 8 # fail 0 # todo 0 
+KB_CDP_PRESS_NONE page-scripts rc=1 # tests 20 # pass 19 # fail 1 # todo 0 
+KB_CDP_PRESS_NONE chain-e2e rc=1 # tests 19 # pass 16 # fail 3 # todo 0 
+FLAG KB_CDP_PRESS_NONE restored; git status: []
+FLAG KB_CDP_DIALOG flipped:  1 file changed, 1 insertion(+), 1 deletion(-)
+KB_CDP_DIALOG conformance-ops rc=1 # tests 45 # pass 43 # fail 1 # todo 1 
+KB_CDP_DIALOG adapter-cdp rc=1 # tests 9 # pass 8 # fail 1 # todo 0 
+KB_CDP_DIALOG adapter-playwright rc=0 # tests 8 # pass 8 # fail 0 # todo 0 
+KB_CDP_DIALOG page-scripts rc=1 # tests 20 # pass 19 # fail 1 # todo 0 
+KB_CDP_DIALOG chain-e2e rc=1 # tests 19 # pass 15 # fail 4 # todo 0 
+FLAG KB_CDP_DIALOG restored; git status: []
+FLAG KB_PW_PRESS_NONE flipped:  1 file changed, 1 insertion(+), 1 deletion(-)
+KB_PW_PRESS_NONE conformance-ops rc=1 # tests 45 # pass 43 # fail 1 # todo 1 
+KB_PW_PRESS_NONE adapter-cdp rc=0 # tests 9 # pass 9 # fail 0 # todo 0 
+KB_PW_PRESS_NONE adapter-playwright rc=0 # tests 8 # pass 8 # fail 0 # todo 0 
+KB_PW_PRESS_NONE page-scripts rc=1 # tests 20 # pass 19 # fail 1 # todo 0 
+KB_PW_PRESS_NONE chain-e2e rc=1 # tests 19 # pass 17 # fail 2 # todo 0 
+FLAG KB_PW_PRESS_NONE restored; git status: []
+FLAG KB_PW_DIALOG flipped:  1 file changed, 1 insertion(+), 1 deletion(-)
+KB_PW_DIALOG conformance-ops rc=1 # tests 45 # pass 43 # fail 1 # todo 1 
+KB_PW_DIALOG adapter-cdp rc=0 # tests 9 # pass 9 # fail 0 # todo 0 
+KB_PW_DIALOG adapter-playwright rc=0 # tests 8 # pass 8 # fail 0 # todo 0 
+KB_PW_DIALOG page-scripts rc=1 # tests 20 # pass 19 # fail 1 # todo 0 
+KB_PW_DIALOG chain-e2e rc=1 # tests 19 # pass 17 # fail 2 # todo 0 
+FLAG KB_PW_DIALOG restored; git status: []
+FLAG KB_HIDDEN_SIBLING flipped:  1 file changed, 1 insertion(+), 1 deletion(-)
+KB_HIDDEN_SIBLING conformance-ops rc=0 # tests 45 # pass 44 # fail 0 # todo 1 
+KB_HIDDEN_SIBLING adapter-cdp rc=0 # tests 9 # pass 9 # fail 0 # todo 0 
+KB_HIDDEN_SIBLING adapter-playwright rc=0 # tests 8 # pass 8 # fail 0 # todo 0 
+KB_HIDDEN_SIBLING page-scripts rc=1 # tests 20 # pass 18 # fail 2 # todo 0 
+KB_HIDDEN_SIBLING chain-e2e rc=1 # tests 19 # pass 17 # fail 2 # todo 0 
+FLAG KB_HIDDEN_SIBLING restored; git status: []
+KBDONE

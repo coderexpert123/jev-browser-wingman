@@ -1,0 +1,7 @@
+A events: ["Page.javascriptDialogOpening"]
+B attach -> "ok"
+B (A still attached) handleJavaScriptDialog -> {"code":-32602,"message":"No dialog is showing"}
+--- round 2: dialog open, A detaches, then C
+A re-open -> {"message":"TIMEOUT Runtime.evaluate after 6000ms"}
+C attach -> "ok"
+C (A detached) handleJavaScriptDialog -> {"code":-32602,"message":"No dialog is showing"}

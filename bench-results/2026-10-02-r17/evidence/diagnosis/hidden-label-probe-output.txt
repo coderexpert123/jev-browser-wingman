@@ -1,0 +1,8 @@
+Probe: dist enumerate script on fixtures/pages/hidden-controls.html, then a click on the record's `path`, with Chrome 141 headless (playwright-core, channel chrome via the wrapper):
+{"htmlId":"t1","name":"Alpha task","path":"html > body:nth-of-type(1) > label:nth-of-type(1)","controlPath":"#t1","state":{"disabled":false,"checked":false},"role":"checkbox"}
+{"htmlId":"t2","name":"Beta task","path":"html > body:nth-of-type(1) > label:nth-of-type(2)","controlPath":"#t2",...}
+{"htmlId":"t6","name":"Fine print","path":"#l-t6","controlPath":"#t6",...}
+{"htmlId":"t7","name":"Fine print","path":"#l-t6","controlPath":"#t7",...}      <- t7 has no label of its own; it adopted t6's label[for=t6]
+after click on proxy path (the sibling label)  -> #t1.checked = false          <- the sibling label is not associated with the input: clicking it does not toggle
+after FORCE click on controlPath #t1            -> #t1.checked = true
+label[for] proxy (t6) click                     -> #t6.checked = true
