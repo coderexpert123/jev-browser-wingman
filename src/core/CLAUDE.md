@@ -1,5 +1,17 @@
 # src/core — page-scripts gotchas
 
+- **settle.ts's raced-poll shape punishes a naive fake clock** (2026-10-02,
+  r17c WP-2): `waitForScrollGrowth` (and `settleByProbe`) race each probe
+  against `clock.sleep(remaining)`, and the sleep's body runs SYNCHRONOUSLY at
+  race construction — a fake clock whose sleep advances virtual time inline
+  therefore advances the clock for sleeps the wait ABANDONED (the probe won
+  the race), so `{changed: true}` reports `ms = budget` and the poll-interval
+  assertions see `[remaining]` instead of the poll cap. The working fake
+  (tests/settle.test.ts `fakeClock`) resolves sleeps via `setTimeout(0)` (so
+  answered probes always win the microtask race) and records only the NEWEST
+  pending sleep (a superseded raced sleep resolves silently). Any new
+  settle-family test with an injected clock must copy both properties.
+
 - **The irreversible gate is config-switchable** (2026-09-20; Q6 flip
   2026-09-26): `config.json` `gate.mode` accepts `"off"` (default since 0.3.0)
   and `"confirm"` (opt-in). Read it only through `gateModeOf()`, which returns
@@ -618,3 +630,13 @@
   sub-clause ends `blocked/dialog-open` before the dismiss word is ever the
   active step text — the shipped e2e clauses deliberately say `cancel`/`accept`
   for this reason (WP-C note 1).
+- **A hard-killed mutants runner leaves KB flags flipped in src** (2026-10-02, r17c WP-3): the
+  runner's byte-identical restore lives in a `finally`, which a taskkill/reap does not run —
+  KB_SCROLL_SIGNAL_Y was found `= true` after the memory-pressure reaper killed a mid-pass run,
+  and KB_PW_CHECK_TOGGLE was found `= true` from an EARLIER killed run (a pre-poisoned flag makes
+  the runner's anchor check and its flip vacuous). Before AND after every `.build-r17*-mutants.py`
+  pass, `grep -n 'const KB_\w* = true' src` must return nothing; a flipped flag is restored to
+  `= false` immediately. Relatedly: the full pass takes ~25+ min (14 unit flips + 2 Chrome-backed
+  legs), past the 10-min foreground cap — run it as a DETACHED process (`Start-Process python -u`,
+  output redirected, PID saved) and poll the log; the reaper only kills Claude's own background
+  shells, and `python -u` streams per-flag OK lines so liveness is visible.

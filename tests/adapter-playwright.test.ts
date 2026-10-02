@@ -337,6 +337,39 @@ test('check on a sibling-label hidden checkbox activates the control itself (r17
   }
 });
 
+// r17c (D-B): the post-wheel growth wait. The fixture's append is armed by
+// the wheel event itself and lands 600 ms later via setTimeout — settleProbe
+// (element count + innerText length) is stable long before that, so only the
+// adapter's own growth wait can have the act return AFTER the append. This is
+// the only test that drives that branch through the playwright adapter;
+// KB_PW_GROWTH_WAIT's expected-fail leg in .build-r17-mutants.py maps to this
+// title.
+test('scroll waits out a wheel-triggered append (r17c)', async () => {
+  const fx = await withFixture('/chain-scroll-async.html', 'Fixture chain scroll async');
+  try {
+    const pageId = await waitForPage(fx.driver, fx.pageUrl);
+    // Read the count over a SEPARATE Playwright connection so the assert is
+    // not the adapter grading its own write.
+    const countNow = async (): Promise<number> => {
+      const browser2 = await chromium.connectOverCDP(fx.endpoint, { timeout: 5_000, noDefaults: true });
+      try {
+        const page2 = browser2.contexts()[0]?.pages().find((p) => p.url() === fx.pageUrl);
+        assert.ok(page2, 'the fixture page is reachable over the second connection');
+        return await page2.evaluate(() => document.querySelectorAll('.item').length);
+      } finally {
+        await browser2.close().catch(() => {});
+      }
+    };
+    assert.equal(await countNow(), 2, 'the fixture starts with 2 items');
+    await fx.driver.act(pageId, null, 'scroll');
+    // The act returns only after the growth wait saw the 600 ms append (or
+    // 1.5 s expired), so the count is already 4 here — no sleep after the act.
+    assert.equal(await countNow(), 4, 'the wheel-triggered append landed inside the act');
+  } finally {
+    await fx.close();
+  }
+});
+
 test('attach retries a cold endpoint within its budget', async () => {
   const chrome = await launchTestChrome();
   try {

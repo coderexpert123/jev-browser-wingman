@@ -3627,6 +3627,70 @@ test('T-count question is never asked without a parsed count', async () => {
   }
 });
 
+// r17c (D-A): a wheel that moves the viewport but appends nothing yet must
+// read 'page changed' — the scrollY suffix in the targetless signal — so the
+// no-progress guard stops killing the second scroll round of every call.
+test('T-scroll-y: a moved viewport is scroll evidence', async () => {
+  const h = harness({
+    observations: { p1: [observation({ scrollY: 0 }), observation({ scrollY: 600 })] },
+    script: [
+      CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      ADV(),
+    ],
+  });
+  const r = await h.call({ goal: 'r17c-scroll-y goal', steps: ['scroll down'] });
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['scroll', 'scroll'], `a moved viewport lets the second scroll act: got ${JSON.stringify(ops)}`);
+  assert.notEqual(`${r.status}/${r.reason}`, 'fallback/no-progress', `a moved viewport must not bounce no-progress: got ${r.status}/${r.reason}`);
+});
+
+// r17c (D-A): the moved-viewport evidence feeds hasScrollEvidence, so the
+// count_met advance fires even when repeatedGroups are still below N (only
+// the scroll-evidence arm can advance here).
+test('T-scroll-y feeds count evidence on a moved viewport', async () => {
+  const withGroups = (n: number, scrollY: number): Observation =>
+    observation({ text: 'one item', scrollY, repeatedGroups: [{ signature: 'div.item', count: n }] });
+  const r1 = CS({
+    action: ['scroll', { scroll: 0.9, none: 0.05 }],
+    target: ['none', { none: 0.9, ambiguous: 0.05 }],
+    count_met: 0.3,
+  });
+  const r2 = {
+    done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05,
+    step_done: 0.05, ready: 0.95, right_page: 0.95, count_met: 0.9,
+    action: ['scroll', { scroll: 0.9, none: 0.05 }] as [string, Record<string, number>],
+    target: ['none', { none: 0.9, ambiguous: 0.05 }] as [string, Record<string, number>],
+  };
+  const h = harness({
+    observations: { p1: [withGroups(1, 0), withGroups(2, 600)] },
+    script: [r1, r2, CS(), ADV()],
+  });
+  const result = await h.call({
+    goal: 'r17c-scroll-y-count goal',
+    steps: ['scroll until at least 3 items show', 'click the button'],
+  });
+  assert.equal(result.status, 'done', `expected done, got ${result.status}/${result.reason}`);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].countEvidence, 3, 'the clause advanced on the moved-viewport scroll evidence');
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['scroll', 'click']);
+});
+
+// r17c (D-A): guard semantics otherwise unchanged — an unchanged viewport
+// with no growth still reads 'no visible change' and still bounces. This pin
+// is NOT a KB leg: flipping KB_SCROLL_SIGNAL_Y changes nothing here.
+test('T-scroll-y unchanged viewport still bounces', async () => {
+  const h = harness({
+    observations: { p1: [observation({ scrollY: 0 }), observation({ scrollY: 0 })] },
+    script: [CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] })],
+  });
+  const r = await h.call({ goal: 'r17c-scroll-y-stuck goal', steps: ['scroll the list'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.deepEqual(h.driver.actCalls().map((a) => a.op), ['scroll'], 'the second no-effect scroll never acts');
+});
+
 test('T-count question is never asked on wingman_do', async () => {
   const h = harness({
     observations: { p1: [observation()] },

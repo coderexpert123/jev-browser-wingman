@@ -467,6 +467,9 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     signals: signals,
     text: text,
     truncated: truncated,
+    // r17c (D-A): the viewport offset, always a number — evidence for the
+    // loop's scroll-specific targetless signal; never sent to Jev.
+    scrollY: Math.round(window.scrollY),
   };
   if (focus !== undefined) out.focus = focus;
   if (repeatedGroups.length > 0) out.repeatedGroups = repeatedGroups;

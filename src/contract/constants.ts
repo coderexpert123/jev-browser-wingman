@@ -78,6 +78,11 @@ export const SELECT_CHUNK = 250;
 export const ACT_TIMEOUT_MS = 3_000;
 export const EVAL_TIMEOUT_MS = 5_000;    // bound on every adapter Runtime.evaluate; a modal dialog blocks evaluation
 export const SETTLE_MAX_MS = 3_000;
+// r17c (D-B): after a scroll-family wheel, adapters poll until the page's
+// scroll position or growth differs from the pre-act baseline, or this
+// budget expires. In-round wall time only — no extra rounds, no extra asks.
+export const SCROLL_GROWTH_WAIT_MS = 1_500;
+export const SCROLL_GROWTH_POLL_MS = 200;
 export const TIME_FLOOR_MS = 1_500;      // stop before any step when less than this remains
 export const TYPESAFE_DEFAULT_BASE_URL = 'https://api.typesafe.ai';
 export const TYPESAFE_PATH = '/v1/systemone';

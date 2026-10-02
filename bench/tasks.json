@@ -97,9 +97,9 @@
   {
     "id": "t14-key-press",
     "path": "/key_presses",
-    "goal": "Click the input field, then press the Enter key.",
+    "goal": "Click the input field, then press the Escape key.",
     "values": {},
-    "oracle": "document.querySelector('#result').innerText.toLowerCase().includes('enter')",
+    "oracle": "(() => { const r = document.querySelector('#result'); return !!r && r.innerText.toLowerCase().includes('escape'); })()",
     "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
   }
 ]

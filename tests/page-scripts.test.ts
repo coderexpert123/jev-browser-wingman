@@ -18,6 +18,7 @@ interface Observation {
   truncated: boolean;
   focus?: { path: string; role: string; name: string };
   repeatedGroups?: Array<{ signature: string; count: number }>;
+  scrollY?: number;
 }
 
 let fixtureUrl: string;
@@ -440,6 +441,24 @@ test('repeatedGroups counts div.item once the list crosses the group floor', asy
     for (const g of after.repeatedGroups ?? []) {
       assert.ok(g.count >= 3, `group ${g.signature} below the >= 3 floor`);
     }
+  } finally {
+    await close();
+  }
+});
+
+// r17c (D-A): the page's scroll offset rides the observation as evidence —
+// the input to the scroll-specific targetless signal in the loop.
+test('enumerate reports the page scroll offset', async () => {
+  const { page, close } = await withPage('/chain-scroll.html');
+  try {
+    await page.evaluate(() => window.scrollTo(0, 1234));
+    await page.waitForTimeout(150);
+    const scrolled = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(scrolled.scrollY, 1234);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(150);
+    const back = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(back.scrollY, 0);
   } finally {
     await close();
   }

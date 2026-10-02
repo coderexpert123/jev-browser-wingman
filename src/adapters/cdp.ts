@@ -13,6 +13,7 @@ import {
   EVAL_TIMEOUT_MS,
   MAX_ENUMERATED,
   NAV_TIMEOUT_MS,
+  SCROLL_GROWTH_WAIT_MS,
   WAIT_OP_MS,
 } from '../contract/constants.js';
 import {
@@ -46,7 +47,7 @@ import {
   buildVerifyExpression,
   buildVisibilityExpression,
 } from '../core/page-scripts.js';
-import { settleByProbe } from '../core/settle.js';
+import { settleByProbe, buildScrollGrowthProbeExpression, waitForScrollGrowth, type ScrollGrowthSnapshot } from '../core/settle.js';
 import { CdpConnection } from './cdp-connection.js';
 
 export function createCdpDriver(): Driver {
@@ -63,6 +64,10 @@ const KB_CDP_DIALOG = false;
  * activate the CONTROL itself (a bare sibling label has no association with
  * the input, so clicking it toggles nothing). */
 const KB_CDP_CHECK_TOGGLE = false;
+/** KB proof switch (r17c D-B mutant): composed into the scroll growth wait so
+ * a flipped build skips the post-wheel wait and the act returns before an
+ * async append lands. Never flip in shipped code. */
+const KB_CDP_GROWTH_WAIT = false;
 
 const cap = (s: unknown, n: number): string => String(s ?? '').slice(0, n);
 
@@ -333,6 +338,19 @@ class CdpDriver implements Driver {
     return this.evalOnSession(pageId, sessionId, expression, timeoutMs);
   }
 
+  // r17c (D-B): one scroll-growth probe over the page's isolated world,
+  // EVAL_TIMEOUT_MS-bounded like every other CDP round-trip (the outer race in
+  // waitForScrollGrowth bounds the wait itself). A failed evaluation answers
+  // null — a probe failure must never block an act, and a null baseline skips
+  // the post-wheel wait entirely.
+  private async probeScrollGrowth(pageId: string): Promise<ScrollGrowthSnapshot | null> {
+    try {
+      return (await this.evalIsolated(pageId, buildScrollGrowthProbeExpression())) as ScrollGrowthSnapshot;
+    } catch {
+      return null;
+    }
+  }
+
   async pages(): Promise<PageInfo[]> {
     const conn = this.requireConn();
     const r = await conn.send<{ targetInfos?: TargetInfo[] }>('Target.getTargets');
@@ -414,6 +432,10 @@ class CdpDriver implements Driver {
       switch (op) {
         case 'scroll':
         case 'scroll_up': {
+          // r17c (D-B): baseline before the wheel, growth wait after — the
+          // wait is in-round wall time only (absorbed into act_ms), never an
+          // extra round or ask. A null baseline (probe failed) skips it.
+          const baseline = KB_CDP_GROWTH_WAIT ? null : await this.probeScrollGrowth(pageId);
           const viewport = await this.evalIsolated(pageId, '({ w: window.innerWidth, h: window.innerHeight })');
           const w = Number(viewport?.w ?? 0);
           const h = Number(viewport?.h ?? 0);
@@ -429,6 +451,9 @@ class CdpDriver implements Driver {
             },
             sessionId,
           );
+          if (baseline !== null) {
+            await waitForScrollGrowth(() => this.probeScrollGrowth(pageId), baseline, SCROLL_GROWTH_WAIT_MS);
+          }
           return;
         }
         case 'wait': {
@@ -559,6 +584,9 @@ class CdpDriver implements Driver {
         return;
       }
       case 'scroll': {
+        // r17c (D-B): same baseline/wait shape as the targetless wheel — the
+        // legacy element-targeted scroll waits for growth too.
+        const baseline = KB_CDP_GROWTH_WAIT ? null : await this.probeScrollGrowth(pageId);
         const viewport = await this.evalIsolated(pageId, '({ w: window.innerWidth, h: window.innerHeight })');
         const w = Number(viewport?.w ?? 0);
         const h = Number(viewport?.h ?? 0);
@@ -573,6 +601,9 @@ class CdpDriver implements Driver {
           },
           sessionId,
         );
+        if (baseline !== null) {
+          await waitForScrollGrowth(() => this.probeScrollGrowth(pageId), baseline, SCROLL_GROWTH_WAIT_MS);
+        }
         return;
       }
       case 'hover': {

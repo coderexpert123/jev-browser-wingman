@@ -304,6 +304,28 @@ test('answerDialog with no open dialog rejects', async () => {
   }
 });
 
+// r17c (D-B): the post-wheel growth wait, through the raw-CDP adapter. The
+// fixture's append is armed by the wheel event itself (Input.dispatchMouseEvent
+// mouseWheel) and lands 600 ms later via setTimeout — settleProbe (element
+// count + innerText length) is stable long before that, so only the adapter's
+// own growth wait can have the act return AFTER the append. This is the local
+// leg KB_CDP_GROWTH_WAIT's expected-fail proof maps to (the cdp rig runs a
+// real Chrome over CDP, so the flag is locally provable, unlike the r17 cdp
+// flags that stayed cloud-deferred).
+test('scroll waits out a wheel-triggered append (r17c)', async () => {
+  const rig = await openRig('chain-scroll-async.html', 'Fixture chain scroll async');
+  try {
+    const countExpr = "document.querySelectorAll('.item').length";
+    assert.equal(await evalMain(rig, countExpr), 2, 'the fixture starts with 2 items');
+    await rig.driver.act(rig.pageId, null, 'scroll');
+    // The act returns only after the growth wait saw the 600 ms append (or
+    // 1.5 s expired), so the count is already 4 here — no sleep after the act.
+    assert.equal(await evalMain(rig, countExpr), 4, 'the wheel-triggered append landed inside the act');
+  } finally {
+    await closeRig(rig);
+  }
+});
+
 test('attach retries a cold endpoint within its budget', async () => {
   const browser = await launchTestChrome();
   const version = (await (await fetch(`${browser.endpoint}/json/version`)).json()) as unknown;

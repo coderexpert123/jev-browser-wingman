@@ -93,6 +93,9 @@ export interface Observation {
   // r17 (C8): repeated-element group tallies over the whole document —
   // emitted only when non-empty (never `[]`).
   repeatedGroups?: Array<{ signature: string; count: number }>;
+  // r17c (D-A): the page's scroll offset at enumerate time, rounded.
+  // Evidence-only — never sent to Jev (buildState does not carry it).
+  scrollY?: number;
 }
 
 export interface PageInfo { id: string; url: string; title: string; visible: boolean }   // id = CDP targetId

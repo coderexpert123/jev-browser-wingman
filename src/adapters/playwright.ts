@@ -6,7 +6,7 @@
 // and never opens pages, closes contexts or closes targets.
 
 import { chromium as defaultChromium, type Browser, type BrowserContext, type CDPSession, type Dialog, type Page } from 'playwright-core';
-import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED, NAV_TIMEOUT_MS, WAIT_OP_MS } from '../contract/constants.js';
+import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED, NAV_TIMEOUT_MS, SCROLL_GROWTH_WAIT_MS, WAIT_OP_MS } from '../contract/constants.js';
 import {
   ActFailedError,
   AttachError,
@@ -35,7 +35,7 @@ import {
   buildVerifyExpression,
   buildVisibilityExpression,
 } from '../core/page-scripts.js';
-import { settleByProbe } from '../core/settle.js';
+import { settleByProbe, buildScrollGrowthProbeExpression, waitForScrollGrowth, type ScrollGrowthSnapshot } from '../core/settle.js';
 import { ADAPTER_OPS } from './capabilities.js';
 import { ensureChrome } from '../browser/chrome.js';
 import { killTree } from '../browser/process-list.js';
@@ -91,6 +91,10 @@ const KB_PW_DIALOG = false;
  * so a flipped build skips the direct control toggle when the label click did
  * not flip. Never flip in shipped code. */
 const KB_PW_CHECK_TOGGLE = false;
+/** KB proof switch (r17c D-B mutant): composed into the scroll growth wait so
+ * a flipped build skips the post-wheel wait and the act returns before an
+ * async append lands. Never flip in shipped code. */
+const KB_PW_GROWTH_WAIT = false;
 
 async function connectBounded(
   chromium: typeof import('playwright-core').chromium,
@@ -219,6 +223,17 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
       throw new ActFailedError(cap(text, 200));
     }
     return raced.r.result.value;
+  }
+
+  // r17c (D-B): one scroll-growth probe over the page's isolated world. A
+  // failed evaluation answers null — a probe failure must never block an act,
+  // and a null baseline skips the post-wheel wait entirely.
+  async function probeScrollGrowth(rec: PageRecord): Promise<ScrollGrowthSnapshot | null> {
+    try {
+      return (await evaluateOnPage(rec, buildScrollGrowthProbeExpression())) as ScrollGrowthSnapshot;
+    } catch {
+      return null;
+    }
   }
 
   function normalizeDialogType(t: string): DialogEvent['type'] {
@@ -380,11 +395,18 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
           switch (op) {
             case 'scroll':
             case 'scroll_up': {
+              // r17c (D-B): baseline before the wheel, growth wait after — the
+              // wait is in-round wall time only (absorbed into act_ms), never
+              // an extra round or ask. A null baseline (probe failed) skips it.
+              const baseline = KB_PW_GROWTH_WAIT ? null : await probeScrollGrowth(rec);
               const innerHeight = Number(
                 (await evaluateOnPage(rec, 'window.innerHeight')) ?? 0,
               );
               const delta = Math.round(innerHeight * 0.8) * (op === 'scroll_up' ? -1 : 1);
               await raceAgainstDialog(rec, () => rec.page.mouse.wheel(0, delta));
+              if (baseline !== null) {
+                await waitForScrollGrowth(() => probeScrollGrowth(rec), baseline, SCROLL_GROWTH_WAIT_MS);
+              }
               break;
             }
             case 'wait':
@@ -546,10 +568,16 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
             break;
           }
           case 'scroll': {
+            // r17c (D-B): same baseline/wait shape as the targetless wheel —
+            // the legacy element-targeted scroll waits for growth too.
+            const baseline = KB_PW_GROWTH_WAIT ? null : await probeScrollGrowth(rec);
             const innerHeight = Number(
               (await evaluateOnPage(rec, 'window.innerHeight')) ?? 0,
             );
             await raceAgainstDialog(rec, () => rec.page.mouse.wheel(0, Math.round(innerHeight * 0.8)));
+            if (baseline !== null) {
+              await waitForScrollGrowth(() => probeScrollGrowth(rec), baseline, SCROLL_GROWTH_WAIT_MS);
+            }
             break;
           }
           case 'dblclick':

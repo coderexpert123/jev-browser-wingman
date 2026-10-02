@@ -803,3 +803,21 @@ withheld — this file rides a public-bound repository). Gates:
   re-added viewport. tsc catches this only when it is a redeclaration;
   read the whole file after any edit that deletes a block sitting next to
   a structurally identical one.
+
+## Gotchas from the r17c pass (2026-10-02)
+
+- **Scroll rounds' `act_ms` includes the r17c growth wait** (up to
+  `SCROLL_GROWTH_WAIT_MS` = 1500 ms) — never read it as Jev latency. A moved
+  viewport now reads `page changed` for scroll evidence; any "the guard should
+  have caught this scroll loop" diagnosis must check `scrollY` movement first.
+- **Adapter-level waits are invisible to FakeDriver unit tests** — only the
+  adapter and chain-e2e files exercise the growth wait or its timing.
+- **chain-e2e runs `adapter: 'cdp'`** — e2e results discriminate CDP-side
+  flags; a playwright-adapter e2e claim needs the adapter-playwright rig.
+- **A hard-killed mutants runner leaves KB flags flipped** (`finally`-restore
+  does not survive taskkill): grep `const KB_\w+ = true` in src BEFORE and
+  AFTER every pass, or a pre-poisoned tree produces vacuous proofs (caught
+  for real this pass). The >10-min full pass runs as detached `python -u`.
+- **This box: adapter-cdp's full file run can wedge under ~2.3 GB free even
+  serially** (103 chromes, killed + swept this pass). Prefer a single-chrome
+  diagnostic probe for shape-refresh work; defer the full file to the cloud.

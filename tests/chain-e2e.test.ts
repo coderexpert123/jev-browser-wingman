@@ -354,6 +354,19 @@ async function startChainStub(opts: {
         cho('action', 'scroll', { scroll: 0.9, none: 0.05 });
         cho('target', 'none', { none: 0.9, ambiguous: 0.05 });
       }
+    } else if (title === 'Fixture chain scroll async') {
+      // r17c (E18b): the same shape as E18's arm over the async fixture —
+      // scroll until >= 4 .item cards (2 initial + one 600 ms wheel-armed
+      // append of 2). count_met graded off repeatedGroups (the div.item group
+      // is BELOW the >= 3 repeatedGroups floor at 2 items, so it appears in
+      // state only after the append); step_done NEVER answered high.
+      const groups = state.repeatedGroups ?? [];
+      const items = groups.find((g) => g.signature === 'div.item')?.count ?? 0;
+      noul('count_met', items >= 4 ? 0.9 : 0.05);
+      if (items < 4) {
+        cho('action', 'scroll', { scroll: 0.9, none: 0.05 });
+        cho('target', 'none', { none: 0.9, ambiguous: 0.05 });
+      }
     } else if (title === 'Fixture hidden controls') {
       // r17 (E19): the hidden checkbox proxies through its sibling label —
       // the caller's clause names the LABEL text, the act lands on the input
@@ -1133,6 +1146,39 @@ test('E18: scroll until at least 6 items show advances on count evidence (r17)',
     const rounds = ((rec.phases as { rounds?: Array<{ countMetP?: number }> } | undefined)?.rounds ?? []);
     assert.ok(rounds.some((x) => x.countMetP !== undefined), `count_met was asked: ${JSON.stringify(rounds)}`);
     assert.ok(rounds.some((x) => x.countMetP === 0.9), 'a round graded count_met 0.9 off repeatedGroups');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+// r17c (E18b): the async case E18 cannot cover. chain-scroll.html appends
+// synchronously inside its scroll handler, so the post-act observation always
+// sees the growth; chain-scroll-async.html arms a 600 ms setTimeout append on
+// the wheel event, so the append lands AFTER settleProbe has already gone
+// stable (element count + innerText length). The pre-append round annotates
+// `no visible change` (scrollY never moves on this non-scrollable fixture),
+// which the no-progress guard punishes with fallback/no-progress — only the
+// adapter's post-wheel growth wait (KB_CDP_GROWTH_WAIT; chain-e2e runs
+// adapter: 'cdp', see mkHome) can have round 2 observe the landed append and
+// advance on count evidence. Fail-first: flipping KB_CDP_GROWTH_WAIT ends the
+// call fallback/no-progress with 2 items, failing both assertions below.
+test('E18b: an async wheel-triggered append is waited out, not bounced (r17c)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-scroll-async');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E18b async scroll count goal',
+      steps: ['scroll until at least 4 items show'],
+      url_match: 'chain-scroll-async.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    const count = await pageEval('chain-scroll-async.html', () => document.querySelectorAll('.item').length);
+    assert.ok((Number(count) ?? 0) >= 4, `item count ${String(count)} >= 4`);
+    const rec = lastLogRecord(s.home);
+    assert.ok(((rec.acts_by_op as Record<string, number>)?.scroll ?? 0) >= 1, 'at least one scroll act ran');
   } finally {
     await s.close();
     await stub.close();

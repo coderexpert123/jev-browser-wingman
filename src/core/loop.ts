@@ -135,6 +135,9 @@ const KB_LOGIN_SUPPRESS = false;
  * history entry's `result` — a check that flips state is progress, the way a
  * landed fill carries 'filled'. */
 const KB_CHECK_FLIP = false;
+/** r17c (D-A): the scroll-specific targetless signal — scrolls append the
+ * viewport offset to the page signal. Flipping restores the pre-r17c signal. */
+const KB_SCROLL_SIGNAL_Y = false;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -466,6 +469,16 @@ function pageSignal(obs: Observation, el?: ElementRecord): string {
   return parts.join('\u0000');
 }
 
+/** r17c (D-A): the targetless-act signal. Scrolls append the viewport
+ * offset so a wheel that moves the page reads 'page changed' even before
+ * any DOM growth lands; every other targetless verb keeps the plain
+ * page signal. Flipping KB_SCROLL_SIGNAL_Y restores the pre-r17c signal. */
+function targetlessSignal(verb: Op, obs: Observation): string {
+  const base = pageSignal(obs);
+  if (KB_SCROLL_SIGNAL_Y || (verb !== 'scroll' && verb !== 'scroll_up')) return base;
+  return base + '\u0000scrollY:' + String(obs.scrollY ?? 0);
+}
+
 /** The outcome signal for one (verb, el, obs) at either end of an act: the
  * pre-act `before` and the post-act `result` are the same function applied to
  * two different observations. `el` is the acted-on element from THAT obs
@@ -474,7 +487,7 @@ function pageSignal(obs: Observation, el?: ElementRecord): string {
 function outcomeSignal(verb: Op, el: ElementRecord | undefined, obs: Observation): string | undefined {
   if (ELEMENT_STATE_VERBS.has(verb) && el) return elementStateSignal(verb, el);
   if (el) return pageSignal(obs, el); // click-family: cheap page-level signal
-  if (signalTargetlessOp(verb)) return pageSignal(obs); // targetless signal op (nav/press/scroll): page-level signal, no element
+  if (signalTargetlessOp(verb)) return targetlessSignal(verb, obs); // targetless signal op (nav/press/scroll): page-level signal, no element
   return undefined; // remaining targetless / binding-only verb: no signal, no guard, no result
 }
 
@@ -501,7 +514,7 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
       result = fresh ? (pageSignal(obs, fresh) !== last.before ? 'page changed' : 'no visible change') : 'element gone';
     }
   } else {
-    result = pageSignal(obs) !== last.before ? 'page changed' : 'no visible change';
+    result = targetlessSignal(last.verb, obs) !== last.before ? 'page changed' : 'no visible change';
   }
   // r17 (D2): a moved focus counts as evidence — when the computed result is
   // 'no visible change' and the act's pre-act focus (beforeFocus) differs
