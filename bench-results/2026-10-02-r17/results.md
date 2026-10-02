@@ -1,40 +1,59 @@
-# r17 — generalization-fix round: Part 1 NOT GREEN (4 deterministic failures, 2 are product defects); Part 2 (bench) not run
+# r17 - generalization-fix round (HEAD be0128c)
 
-HEAD f9b21b9 (descendant check OK). Environment: cloud Linux, Chrome 141.0.7390.37 headless via the chromium-wrapper, Xvfb :99, TYPESAFE_API_KEY present, `claude -p` works. Spend: USD 0 (no bench ran).
-Missing inputs: `.build-r17-spec.md` and `.build-r17-mutants.py` named in the instructions are NOT in the repo or on this machine; the five KB flags exist in `src` as `const|var KB_... = false` and the leg mapping was inferred from test names and `src/core/CLAUDE.md` (r17 notes). The "8 telemetry items" list is therefore not available; no telemetry was collected (no bench).
+Environment: cloud Linux, Chrome 141 headless via chromium-wrapper, cloud Sonnet caller, gate off, policy off, `--purpose measure`, `--cap-usd 3.00`, `--phase-cap-usd 30.814594` (ledger 5.814594 + 25). `.build-r17-spec.md` is not in the repo or any branch, so the "8 telemetry items" below follow the items the prompt names, not the spec's numbering.
 
-## Part 1 — full suite (5 serial chunks, one file per invocation; `npm ci && npm run build` ok, `tsc --noEmit` exit 0)
-| chunk | files | result |
+## Part 1 re-run (51 files, 5 serial chunks) - 852 tests, 849 pass, 1 fail, 1 skip, 1 todo
+- browse-step-surface 7/7, chain-e2e 19/19, page-scripts 20/20, adapter-playwright 9/9 (new r17b check test passes). lazy-chrome ok; `--known-bad tool-call` fails with answered=true.
+- One failure: doctor "all ten checks pass on a clean ephemeral setup" - `coexistence: observer fingerprint changed across attach/detach`. Isolated re-runs: PASS once, FAIL once (3 runs, 2 fails): intermittent, not in a r17-touched file, not fixed. Logs: part1-rerun/logs/doctor*.log (doctor runs on a temp home; no wingman log slice exists).
+
+## Part 1b cloud KB proof (.build/kb-r17c, src restored byte-clean)
+| flag | mapped leg(s) that FAILED under the flag | note |
 |---|---|---|
-| 1 (11 files) | acquire, adapter-cdp, adapter-playwright, bench-browse, bench-cap, bench-oracle, bounce-escalation, boundary, browse-step-surface, cdp-connection, chain-e2e | **failed: browse-step-surface, chain-e2e**; rest pass |
-| 2 (11 files) | chain, chrome-cmd, chrome, classify-tools, cli, config, conformance-ops, conformance, contract, doc-safety, doctor | all pass |
-| 3 (11 files) | egress, ephemeral-sweep, gate, jev-client, log, loop, mcp-server, outcome-evidence, page-scripts, pick-e2e, pick | **failed: page-scripts**; rest pass |
-| 4 (11 files) | plugin, policy, profiles, questions, readme-bench, registrations, runner-sweep-leak, runner-sweep, scaffold, settle, setup-plan | all pass |
-| 5 (7 files) | takeover-config, takeover, tokens, typesafe-stub, with-chrome-forced, with-chrome, withhold | all pass |
-Totals (first run): **51 files, 849 tests, 843 pass, 4 FAIL, 1 skip (chrome-cmd win32), 1 todo (conformance-ops playwright O18)**. After every chunk: 0 live chromes. Gates: `LAZY-CHROME: ok listed=24 chrome=0 answered=false`; `--known-bad tool-call` -> `LAZY-CHROME: FAIL listed=24 chrome=10 answered=true`.
-**Re-run of each failing file alone: identical failures (deterministic, not load flakes).** Per-file counts: part1/logs/runner-summary.txt; failing-test logs: part1/logs/{browse-step-surface,chain-e2e,page-scripts}.log and rerun-*.log.
+| KB_HIDDEN_SIBLING | page-scripts hidden-controls names; page-scripts verify re-find; chain-e2e E19 | OK |
+| KB_CDP_PRESS_NONE | conformance-ops O19 (cdp); chain-e2e E17 | OK |
+| KB_CDP_DIALOG | conformance-ops O20 (cdp); adapter-cdp answerDialog-no-dialog; chain-e2e E14, E15 | OK |
+| KB_CDP_CHECK_TOGGLE | chain-e2e E19 | OK (expected) |
+| KB_PW_PRESS_NONE | conformance-ops O19 (playwright) | OK; adapter-playwright passes (not a discriminator) |
+| KB_PW_DIALOG | conformance-ops O20 (playwright) | OK; adapter-playwright answerDialog leg PASSES under the flag (non-discriminating) |
 
-### The 4 failures — diagnosis (hypotheses labelled; probes in evidence/diagnosis/)
-1. **browse-step-surface #3 "browse_step schema matches the pinned schema" — stale test pin.** The live schema now has `pick.key` (enum Enter/Tab/ShiftTab/Escape/Space/Backspace/SelectAll/ArrowUp/ArrowDown/ArrowLeft/ArrowRight, added by D-A) which the pinned expectation lacks; the test was last touched before r17. Product behaviour as designed.
-2. **page-scripts #16 "hidden-controls.html names hidden inputs through sibling labels..." — PRODUCT DEFECT in D-D.** The fixture has `<input t6 hidden><label for="t6" id="l-t6">Fine print</label><input t7 hidden>`. `siblingLabel` (src/core/page-scripts.ts) accepts the adjacent previous `<label>` without checking its `for` target, so the unnamed hidden `#t7` is enumerated as a SECOND proxy record named "Fine print" with `path '#l-t6'` (a duplicate of #t6's record); the test says it must not enumerate. Reproduced with plain DOM semantics in a probe (evidence/diagnosis/hidden-label-probe-output.txt) — nothing browser-specific.
-3. **chain-e2e E19 "a hidden checkbox is checked through its sibling label" — PRODUCT DEFECT in D-D (same area).** `check Alpha task` ends `fallback/no-progress`. Probe: for the sibling-label arm the label is not associated with the input (no `for`, not wrapping), so the adapter's `check` click on the proxy `path` (the label) does NOT toggle the input (`#t1.checked` stays false; it becomes true only when the input itself is clicked, and for the `label[for]` arm clicking the label works). The adapters comment says `path` "is the visible wrapping label that toggles it", which is true for wrap/`for` arms but not for the sibling arm — the check act is a no-op, the state signal does not change, and the no-progress guard bounces. This is also the TodoMVC shape D-D was written for (r16b t11), so I would expect t11 to hit it live. The user-stated local result (462/462) differs from this; I cannot explain why from here.
-4. **chain-e2e E16 "a prompt is never answered; the clause ends blocked/dialog-open" — test artifact on Chrome 141, not a product failure.** The test's own post-call `Page.handleJavaScriptDialog` throws `{"code":-32602,"message":"No dialog is showing"}`. Probe (evidence/diagnosis/chrome141-cross-session-dialog-probe.txt): with a prompt opened from a CDP session that has Page enabled, a SECOND CDP client attaches fine but `Page.handleJavaScriptDialog` returns "No dialog is showing" although the page is still blocked (the first session's own next Runtime.evaluate times out at 6 s). So on this Chrome a dialog can only be answered by the session that holds it; the test's assumption that an independent observer connection can dismiss it fails. The assertions before that line passed (`blocked/dialog-open`, so the loop's behaviour was correct). This matches the r16 t12 deadlock (the caller's separately attached Playwright MCP could not answer the dialog) and supports D-G's design (wingman answers dialogs from its own session) over "answer it with your own tools".
+## Part 2 per-cell table (A = playwright x2; B = forced x3; B aborted after 14 cells on a harness `cdp timeout: Page.navigate`; the missing t14 rep3 was re-run as a 1-cell supplement S, same flags/caps)
+| cell | task | route | ok | wall s | usd | handoffs | picks | wingman_acts | end_state |
+|---|---|---|---|---|---|---|---|---|---|
+| A1/A2 | t10 | playwright | T/T | 27.1/19.0 | .276/.162 | 0 | 0 | 0 | |
+| A1/A2 | t11 | playwright | T/T | 15.4/14.6 | .256/.148 | 0 | 0 | 0 | |
+| A1/A2 | t12 | playwright | T/T | 10.1/55.9 | .202/.112 | 0 | 0 | 0 | "You clicked: Ok \| focus=button" |
+| A1/A2 | t13 | playwright | T/T | 15.2/15.4 | .185/.087 | 0 | 0 | 0 | "10 items \| scrollY=3148" / "10 items \| scrollY=3164" |
+| A1/A2 | t14 | playwright | F/F | 11.3/10.0 | .202/.080 | 0 | 0 | 0 | " \| focus=body" x2 |
+| B1-3 | t10 | forced | T/T/T | 26.2/23.9/25.4 | .276/.136/.163 | 4/4/3 | 0 | 12/12/11 | |
+| B1-3 | t11 | forced | T/T/T | 24.9/21.1/20.3 | .309/.159/.131 | 4/3/4 | 2/2/3 | 8/7/7 | |
+| B1-3 | t12 | forced | T/T/T | 14.3/13.7/42.9 | .226/.116/.182 | 1/1/3 | 0/0/1 | 1/1/1 | "You clicked: Ok \| focus=button" x3 |
+| B1-3 | t13 | forced | T/T/F | 37.8/38.1/34.1 | .597/.398/.189 | 8/6/4 | 1/3/3 | 8/9/3 | "10 items \| scrollY=3180" / "11 items \| scrollY=3548" / "0 items \| scrollY=0" |
+| B1-2,S | t14 | forced | F/F/F | 9.4/11.2/9.6 | .165/.076/.055 | 1/2/0 | 0/1/0 | 2/2/0 | " \| focus=body" x3 |
+Spend: A 1.709, B 3.124, S 0.055. Forced-verdict not run (bars are t9-tuned, as in r16b).
 
-## Part 1b — KB-r17 cloud proof (one build each, `src/` restored with `git checkout -- src`, `git status` clean after each; baseline failures present in every run: page-scripts #16, chain-e2e E16 and E19)
-| flag | mapped legs | observed FAIL under the flag | verdict |
+## r16 vs r17 (forced unless stated)
+| task | r16 | r17 | note |
 |---|---|---|---|
-| KB_CDP_PRESS_NONE | conformance-ops O19 (cdp), chain-e2e E17 | **O19 cdp FAIL, E17 FAIL** | proven |
-| KB_CDP_DIALOG | conformance-ops O20 (cdp), adapter-cdp answerDialog leg, chain-e2e E14/E15 | **O20 cdp FAIL, adapter-cdp "answerDialog with no open dialog rejects" FAIL, E14 FAIL, E15 FAIL** | proven |
-| KB_PW_PRESS_NONE | conformance-ops O19 (playwright) | **O19 playwright FAIL** | proven |
-| KB_PW_DIALOG | conformance-ops O20 (playwright), adapter-playwright answerDialog leg | **O20 playwright FAIL**; adapter-playwright 8/8 still pass | **partial MISS: the adapter-playwright answerDialog leg does not fail under its flag** (non-discriminating; only O20 covers it) |
-| KB_HIDDEN_SIBLING | page-scripts hidden-controls pins, chain-e2e E19 | page-scripts "verify re-finds hidden-control records..." (#20) newly FAILS; #16 and E19 already fail unflipped | proven only by #20; #16 and E19 cannot discriminate (they fail without the flip) |
-(The spec-mapped legs are my inference — the mutants file was not available.)
+| t10 | 3/3, 5 handoffs/cell, 12 login ends | 3/3, 4/4/3 handoffs, 3 login ends (1 per cell) | login ends 12 -> 3 as predicted |
+| t11 | 0/3 (press + hidden checkbox failed) | 3/3 | press + check both executed, keyEvidence on 8 rounds |
+| t12 | 0/3 (deadlock, ~100 s) | 3/3, 13.7-42.9 s | 3 dialogs answered "accept" |
+| t13 | 2/3 | 2/3 | **not** via count evidence (see below) |
+| t14 | 0/3 forced, 0/2 playwright | 0/3 forced (incl. supplement), 0/2 playwright | oracle still false on both routes |
 
-## Part 2 — NOT RUN
-Rule: bench only if Part 1 and 1b are green. They are not (4 deterministic Part 1 failures; one KB MISS). Nothing was spent. Per-cell tables, the r16-vs-r17 comparison, the 8 telemetry items, dialog telemetry, end_state quotes and the safety set were therefore not collected.
+## The five r16 defects
+1. **t10 login ends: mostly closed.** 12 -> 3. All 3 occur on the final "click Login" round (no named binding in that step text); `loginSuppressed` was true on 15 rounds, all on "type the value named ..." steps. The expect-0 on named-binding steps holds (0); one residual `login/login-page` end per cell remains.
+2. **t11 press / hidden checkbox: closed.** 3/3 oracle true; the check ran as a single `check` act in 2 of 3 cells.
+3. **t12 dialog: closed.** 3/3. See dialog telemetry. Two `error/act-failed` ends (0 steps, no round data) preceded the successful call in rep 3 (cell wall 42.9 s); cause not diagnosed.
+4. **t13 count evidence: NOT closed.** Zero `countEvidence`/count-met stops anywhere: every wingman t13 call ended `fallback/no-progress` (23 of 24 calls; 1 `ambiguous/target-uncertain`), the scroll act reading `historyResult: "no visible change"`, `countMetP` 0.28-0.32 each time. 2/3 oracle passes came from the caller's repeated delegation (6-8 handoffs), not from the wingman stopping at >=10. Rep 3: "0 items | scrollY=0" (page not scrolled/loaded) and the harness then died on `Page.navigate`.
 
-## Recommendation / is each r16 defect closed?
-Not provable this round. By code and tests: press (D-A/B) and dialog answering (D-G) are covered by passing O19/O20/E14/E15/E17 and proven KB flags; D-E (scroll count) and D-C (login suppression) have passing tests but no live bench; **D-D (hidden checkboxes) has two reproduced product defects** (duplicate/stolen sibling label; sibling-label click does not toggle), so r16b's t11 would likely still fail at the checkbox step. Suggested next steps for the owner (not applied): update the pinned `browse_step` schema; make `siblingLabel` skip labels that carry a `for` pointing elsewhere (or already claimed) and make the sibling-arm check/uncheck act on the input (or `controlPath`) instead of the label; change E16's cleanup to answer the dialog from the wingman's own session or via a path that works on Chrome 141; add an adapter-playwright answerDialog leg that fails under KB_PW_DIALOG. If you want the bench anyway (e.g. to measure t10/t12/t13/t14 independently of D-D), say so and I will run Invocations A/B within the USD 25 cap.
+5. **t14 oracle: NOT closed, still unexplained.** <redacted4>man pressed Enter (`press`, `keyEvidence: true`, historyResult "page changed") and ended `done/goal-met` 3 times; `end_state` is `" | focus=body"` on all 3 forced cells and both playwright cells: `#result` empty and focus lost from the input. Consistent hypothesis, not proven: Enter submits the page's form, the page reloads, #result clears. The playwright control (click + press_key) behaves identically (0/2), so the oracle fails independent of route; in this reading the `done` ends are not premature, but I did not probe it.
+
+## Telemetry (50 forced-round log records, evidence/telemetry-r17-log-slice.jsonl)
+- Statuses: done/goal-met 11, fallback/no-progress 26, fallback/step-uncertain 7, login/login-page 3, error/act-failed 2, ambiguous/target-uncertain 1.
+- Expect-0: login on named-binding steps 0 (see item 1); `focus` / `repeatedGroups` literals in log.jsonl 0; no-match stalls on hidden-controls 0 (no `no-match` end at all).
+- Dialogs: 3 `rounds[].dialog = "accept"`, each in round 0 of a `click the button for a JS Confirm` call whose only act was the click (acts_by_op {click:1}); 0 dialogs without a preceding wingman act. Oracle text "You clicked: Ok" in all 3.
+- Safety set: re-submits 0, `repeat`/`post-action` ends 0, reloads after effective clicks 0 observed (t14's "page changed" follows a press, not a click), `act_error` fields 0 (but 2 `error/act-failed` ends, above), stuck/recover rounds 0, premature advances 0 in t10-t13 by oracle (t14 unresolved), `loginSuppressed` 15, keyEvidence 8, clickEvidence 26.
+- Not measured: tier-level post-action behaviour beyond the statuses above.
 
 ## Caveats
-Cloud Linux/Chrome 141 headless behind the proxy wrapper; E16's failure is specific to how Chrome 141 scopes dialog handling; the user-stated local gates (462/462, wave verifier PASS) were not reproducible here for the four tests above.
+Live third-party sites (saucedemo, todomvc); the doctor failure is intermittent; invocation B's abort was a harness navigate timeout (the cell that preceded it, t13 rep 3, already showed an unloaded page); cell counts are small.

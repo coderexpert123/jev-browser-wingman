@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-02-153338.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 30.814594,
+  "aborted": null,
+  "total_usd": 0.05455,
+  "runs": [
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 9624,
+      "browser_tool_calls": 1,
+      "per_step_ms": 9624,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 209,
+        "cache_read_tokens": 168074,
+        "cache_write_tokens": 260,
+        "usd": 0.05455,
+        "cli_reported_usd": 0.036756800000000006
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.05455,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": " | focus=body"
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 9624,
+      "median_usd": 0.05455,
+      "fallback_rate": 0
+    }
+  }
+}
