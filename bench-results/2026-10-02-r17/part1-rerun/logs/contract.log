@@ -1,0 +1,102 @@
+TAP version 13
+# Subtest: REASONS covers every status in STATUSES
+ok 1 - REASONS covers every status in STATUSES
+  ---
+  duration_ms: 0.992972
+  type: 'test'
+  ...
+# Subtest: every sensitive host category has a sensitive-<category> fallback reason
+ok 2 - every sensitive host category has a sensitive-<category> fallback reason
+  ---
+  duration_ms: 0.277232
+  type: 'test'
+  ...
+# Subtest: DEFAULT_BUDGETS sit inside BUDGET_LIMITS
+ok 3 - DEFAULT_BUDGETS sit inside BUDGET_LIMITS
+  ---
+  duration_ms: 0.135021
+  type: 'test'
+  ...
+# Subtest: default max_steps budget is 24 (whole-goal delegation)
+ok 4 - default max_steps budget is 24 (whole-goal delegation)
+  ---
+  duration_ms: 0.111495
+  type: 'test'
+  ...
+# Subtest: max_ms default is 90 s and the ceiling is 120 s
+ok 5 - max_ms default is 90 s and the ceiling is 120 s
+  ---
+  duration_ms: 0.089845
+  type: 'test'
+  ...
+# Subtest: DOCTOR_CHECK_IDS has 10 unique ids in the pinned order
+ok 6 - DOCTOR_CHECK_IDS has 10 unique ids in the pinned order
+  ---
+  duration_ms: 1.186254
+  type: 'test'
+  ...
+# Subtest: OPS, TARGETLESS_OPS, LEGACY_OPS and PRESS_KEYS are pinned (§ 5.1)
+ok 7 - OPS, TARGETLESS_OPS, LEGACY_OPS and PRESS_KEYS are pinned (§ 5.1)
+  ---
+  duration_ms: 0.452826
+  type: 'test'
+  ...
+# Subtest: WITHHOLDABLE_CLASSES and RETAINED_CLASSES are pinned and disjoint (§ 5.2, amended 2026-09-28: script moved to withholdable)
+ok 8 - WITHHOLDABLE_CLASSES and RETAINED_CLASSES are pinned and disjoint (§ 5.2, amended 2026-09-28: script moved to withholdable)
+  ---
+  duration_ms: 0.184348
+  type: 'test'
+  ...
+# Subtest: CLASS_OPS keys are exactly WITHHOLDABLE_CLASSES, and every op it lists is in OPS
+ok 9 - CLASS_OPS keys are exactly WITHHOLDABLE_CLASSES, and every op it lists is in OPS
+  ---
+  duration_ms: 0.473255
+  type: 'test'
+  ...
+# Subtest: HANDOFF_REFUSAL_TEXT is the pinned literal (§ 5.2)
+ok 10 - HANDOFF_REFUSAL_TEXT is the pinned literal (§ 5.2)
+  ---
+  duration_ms: 0.331716
+  type: 'test'
+  ...
+# Subtest: REASONS.fallback includes unsupported-op
+ok 11 - REASONS.fallback includes unsupported-op
+  ---
+  duration_ms: 0.359365
+  type: 'test'
+  ...
+# Subtest: constants.ts never names a browsing product except the marked ENV.PLAYWRIGHT_CDP line
+ok 12 - constants.ts never names a browsing product except the marked ENV.PLAYWRIGHT_CDP line
+  ---
+  duration_ms: 0.452017
+  type: 'test'
+  ...
+# Subtest: wingmanHome honours WINGMAN_HOME and falls back to ~/.jev-browser-wingman
+ok 13 - wingmanHome honours WINGMAN_HOME and falls back to ~/.jev-browser-wingman
+  ---
+  duration_ms: 1.298704
+  type: 'test'
+  ...
+# Subtest: expandHome expands ~/ and ~\\ only
+ok 14 - expandHome expands ~/ and ~\\ only
+  ---
+  duration_ms: 0.153476
+  type: 'test'
+  ...
+# Subtest: error classes carry their codes
+ok 15 - error classes carry their codes
+  ---
+  duration_ms: 0.309717
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 98.505948
+RUN-TESTS: files=1 tests=15 pass=15 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

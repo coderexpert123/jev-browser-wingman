@@ -1,0 +1,66 @@
+TAP version 13
+# Subtest: attaches to the default context and lists the page
+ok 1 - attaches to the default context and lists the page
+  ---
+  duration_ms: 1842.897631
+  type: 'test'
+  ...
+# Subtest: observe matches the pinned form.html table
+ok 2 - observe matches the pinned form.html table
+  ---
+  duration_ms: 743.626224
+  type: 'test'
+  ...
+# Subtest: click Continue writes continued
+ok 3 - click Continue writes continued
+  ---
+  duration_ms: 701.105322
+  type: 'test'
+  ...
+# Subtest: fill never leaves the value in observe output
+ok 4 - fill never leaves the value in observe output
+  ---
+  duration_ms: 711.349167
+  type: 'test'
+  ...
+# Subtest: dialog is reported and stays open
+ok 5 - dialog is reported and stays open
+  ---
+  duration_ms: 14199.019407
+  type: 'test'
+  ...
+# Subtest: detach leaves the browser answering
+ok 6 - detach leaves the browser answering
+  ---
+  duration_ms: 676.147306
+  type: 'test'
+  ...
+# Subtest: act surfaces an operation failure
+ok 7 - act surfaces an operation failure
+  ---
+  duration_ms: 661.076514
+  type: 'test'
+  ...
+# Subtest: answerDialog with no open dialog rejects
+ok 8 - answerDialog with no open dialog rejects
+  ---
+  duration_ms: 640.838233
+  type: 'test'
+  ...
+# Subtest: attach retries a cold endpoint within its budget
+ok 9 - attach retries a cold endpoint within its budget
+  ---
+  duration_ms: 1053.950755
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21376.48653
+RUN-TESTS: files=1 tests=9 pass=9 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

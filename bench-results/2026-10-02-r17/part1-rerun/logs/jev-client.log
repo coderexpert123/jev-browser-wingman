@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: returns answers on 200
+ok 1 - returns answers on 200
+  ---
+  duration_ms: 40.35725
+  type: 'test'
+  ...
+# Subtest: retries a 500 once then reports http
+ok 2 - retries a 500 once then reports http
+  ---
+  duration_ms: 15.404109
+  type: 'test'
+  ...
+# Subtest: honours retry-after-ms on 429
+ok 3 - honours retry-after-ms on 429
+  ---
+  duration_ms: 11.069138
+  type: 'test'
+  ...
+# Subtest: invalid answers report invalid-response
+ok 4 - invalid answers report invalid-response
+  ---
+  duration_ms: 6.438957
+  type: 'test'
+  ...
+# Subtest: a hung server reports timeout within the budget
+ok 5 - a hung server reports timeout within the budget
+  ---
+  duration_ms: 155.135854
+  type: 'test'
+  ...
+# Subtest: sends Bearer auth and the jev-latest model
+ok 6 - sends Bearer auth and the jev-latest model
+  ---
+  duration_ms: 6.640925
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2213.630419
+RUN-TESTS: files=1 tests=6 pass=6 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

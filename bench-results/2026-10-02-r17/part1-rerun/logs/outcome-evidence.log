@@ -1,0 +1,306 @@
+TAP version 13
+# Subtest: T-repeat: fill takes effect and the chain call ends done, filling exactly once
+ok 1 - T-repeat: fill takes effect and the chain call ends done, filling exactly once
+  ---
+  duration_ms: 12.47988
+  type: 'test'
+  ...
+# Subtest: T-select: select takes effect and the chain call ends done, selecting exactly once
+ok 2 - T-select: select takes effect and the chain call ends done, selecting exactly once
+  ---
+  duration_ms: 2.636961
+  type: 'test'
+  ...
+# Subtest: T-check: check takes effect and the chain call ends done, checking exactly once
+ok 3 - T-check: check takes effect and the chain call ends done, checking exactly once
+  ---
+  duration_ms: 1.560133
+  type: 'test'
+  ...
+# Subtest: T-no-progress: a repeated no-effect fill ends fallback/no-progress, not budget-steps
+ok 4 - T-no-progress: a repeated no-effect fill ends fallback/no-progress, not budget-steps
+  ---
+  duration_ms: 1.726945
+  type: 'test'
+  ...
+# Subtest: T-no-progress (wingman_do): a repeated no-effect fill ends fallback/no-progress with no step_review
+ok 5 - T-no-progress (wingman_do): a repeated no-effect fill ends fallback/no-progress with no step_review
+  ---
+  duration_ms: 1.381152
+  type: 'test'
+  ...
+# Subtest: redaction: a select result carrying a bound value is tokenized before it reaches the request
+ok 6 - redaction: a select result carrying a bound value is tokenized before it reaches the request
+  ---
+  duration_ms: 2.378397
+  type: 'test'
+  ...
+# Subtest: T-click-repeat: clicking the same button twice, page text/count changing, must NOT trip no-progress
+ok 7 - T-click-repeat: clicking the same button twice, page text/count changing, must NOT trip no-progress
+  ---
+  duration_ms: 1.567359
+  type: 'test'
+  ...
+# Subtest: T-click-no-progress: a repeated no-effect click ends fallback/no-progress, not budget-steps
+ok 8 - T-click-no-progress: a repeated no-effect click ends fallback/no-progress, not budget-steps
+  ---
+  duration_ms: 1.243449
+  type: 'test'
+  ...
+# Subtest: T-navigate-no-progress: a repeated no-effect navigate ends fallback/no-progress, not budget-steps
+ok 9 - T-navigate-no-progress: a repeated no-effect navigate ends fallback/no-progress, not budget-steps
+  ---
+  duration_ms: 2.267912
+  type: 'test'
+  ...
+# Subtest: T-step-boundary: the same element+verb on two different chain steps ends done, not no-progress
+ok 10 - T-step-boundary: the same element+verb on two different chain steps ends done, not no-progress
+  ---
+  duration_ms: 2.437459
+  type: 'test'
+  ...
+# Subtest: T-recover-continue: continue retries land (exempt from no-progress); give-up still ends page-error
+ok 11 - T-recover-continue: continue retries land (exempt from no-progress); give-up still ends page-error
+  ---
+  duration_ms: 1.271024
+  type: 'test'
+  ...
+# Subtest: WP-evidence-a: step_done 0.6 with a confirmed fill result advances (evidence-backed bar)
+ok 12 - WP-evidence-a: step_done 0.6 with a confirmed fill result advances (evidence-backed bar)
+  ---
+  duration_ms: 0.919777
+  type: 'test'
+  ...
+# Subtest: WP-evidence-b: step_done 0.4 with a confirmed fill result does not advance (below the evidence bar)
+ok 13 - WP-evidence-b: step_done 0.4 with a confirmed fill result does not advance (below the evidence bar)
+  ---
+  duration_ms: 1.005688
+  type: 'test'
+  ...
+# Subtest: WP-evidence-c: click step at step_done 0.6 with a page-changed result advances on bare-click evidence, not hasStepEvidence
+ok 14 - WP-evidence-c: click step at step_done 0.6 with a page-changed result advances on bare-click evidence, not hasStepEvidence
+  ---
+  duration_ms: 0.951263
+  type: 'test'
+  ...
+# Subtest: WP-evidence-d: fill step at step_done 0.6 with an unconfirmed (empty) result does not advance
+ok 15 - WP-evidence-d: fill step at step_done 0.6 with an unconfirmed (empty) result does not advance
+  ---
+  duration_ms: 0.732011
+  type: 'test'
+  ...
+# Subtest: WP-evidence-e: evidence from a previous step's act does not count for the next step
+ok 16 - WP-evidence-e: evidence from a previous step's act does not count for the next step
+  ---
+  duration_ms: 1.35387
+  type: 'test'
+  ...
+# Subtest: WP-evidence-f: select landing on the WRONG option does not advance on the evidence bar (intended-option mismatch)
+ok 17 - WP-evidence-f: select landing on the WRONG option does not advance on the evidence bar (intended-option mismatch)
+  ---
+  duration_ms: 1.78679
+  type: 'test'
+  ...
+# Subtest: WP-evidence-g: a field already filled BEFORE the act does not advance on the evidence bar (pre-filled, not confirmed by this act)
+ok 18 - WP-evidence-g: a field already filled BEFORE the act does not advance on the evidence bar (pre-filled, not confirmed by this act)
+  ---
+  duration_ms: 0.697937
+  type: 'test'
+  ...
+# Subtest: WP-evidence-h: a compound step naming two bindings does not advance on the evidence bar after only the first fills
+ok 19 - WP-evidence-h: a compound step naming two bindings does not advance on the evidence bar after only the first fills
+  ---
+  duration_ms: 2.270966
+  type: 'test'
+  ...
+# Subtest: WP-count-a: chain step "click the Add button twice" advances after exactly 2 clicks (count evidence, no threshold)
+ok 20 - WP-count-a: chain step "click the Add button twice" advances after exactly 2 clicks (count evidence, no threshold)
+  ---
+  duration_ms: 1.269399
+  type: 'test'
+  ...
+# Subtest: WP-count-b: chain step "click the Add button 3 times" advances after exactly 3 clicks
+ok 21 - WP-count-b: chain step "click the Add button 3 times" advances after exactly 3 clicks
+  ---
+  duration_ms: 1.274437
+  type: 'test'
+  ...
+# Subtest: WP-count-c: a step with no count word never advances on count evidence (falls back to the ordinary stepDone bar)
+ok 22 - WP-count-c: a step with no count word never advances on count evidence (falls back to the ordinary stepDone bar)
+  ---
+  duration_ms: 1.352255
+  type: 'test'
+  ...
+# Subtest: WP-count-d: clicks that produce no visible change do not count toward the repeat count
+ok 23 - WP-count-d: clicks that produce no visible change do not count toward the repeat count
+  ---
+  duration_ms: 0.538079
+  type: 'test'
+  ...
+# Subtest: WP-count-e: two clicks on DIFFERENT targets for a "twice" step do not satisfy the count
+ok 24 - WP-count-e: two clicks on DIFFERENT targets for a "twice" step do not satisfy the count
+  ---
+  duration_ms: 1.320759
+  type: 'test'
+  ...
+# Subtest: WP-count-f: legacy/single browse_step "click the Add button twice" ends done/goal-met after exactly 2 clicks
+ok 25 - WP-count-f: legacy/single browse_step "click the Add button twice" ends done/goal-met after exactly 2 clicks
+  ---
+  duration_ms: 1.382438
+  type: 'test'
+  ...
+# Subtest: parseRepeatCount: explicit count words, digit/word "N times", and ambiguity
+ok 26 - parseRepeatCount: explicit count words, digit/word "N times", and ambiguity
+  ---
+  duration_ms: 0.267852
+  type: 'test'
+  ...
+# Subtest: WP-click-a: chain step "click the Add button" (no count) advances after exactly 1 page-changing click at stepDoneP 0.55
+ok 27 - WP-click-a: chain step "click the Add button" (no count) advances after exactly 1 page-changing click at stepDoneP 0.55
+  ---
+  duration_ms: 0.839025
+  type: 'test'
+  ...
+# Subtest: WP-click-b: chain step "click the Add button" (no count) hands back why repeat when the same target is picked again below the evidence bar
+ok 28 - WP-click-b: chain step "click the Add button" (no count) hands back why repeat when the same target is picked again below the evidence bar
+  ---
+  duration_ms: 0.832294
+  type: 'test'
+  ...
+# Subtest: WP-click-c: a step WITH a count word still uses count evidence, not bare-click evidence (2 clicks, not 1)
+ok 29 - WP-click-c: a step WITH a count word still uses count evidence, not bare-click evidence (2 clicks, not 1)
+  ---
+  duration_ms: 0.744475
+  type: 'test'
+  ...
+# Subtest: WP-click-d: bare-click evidence does not fire when the click produced no visible change
+ok 30 - WP-click-d: bare-click evidence does not fire when the click produced no visible change
+  ---
+  duration_ms: 0.641897
+  type: 'test'
+  ...
+# Subtest: WP-click-e: a fill step at stepDoneP 0.55 still advances via hasStepEvidence, never via bare-click evidence
+ok 31 - WP-click-e: a fill step at stepDoneP 0.55 still advances via hasStepEvidence, never via bare-click evidence
+  ---
+  duration_ms: 0.716342
+  type: 'test'
+  ...
+# Subtest: WP-click-f: legacy/single browse_step "click the Add button" (no count) ends done/goal-met after exactly 1 click at done 0.55
+ok 32 - WP-click-f: legacy/single browse_step "click the Add button" (no count) ends done/goal-met after exactly 1 click at done 0.55
+  ---
+  duration_ms: 0.740532
+  type: 'test'
+  ...
+# Subtest: readyP 0.4 (>= 0.3) proceeds: a chain call does not bounce not-ready
+ok 33 - readyP 0.4 (>= 0.3) proceeds: a chain call does not bounce not-ready
+  ---
+  duration_ms: 1.006918
+  type: 'test'
+  ...
+# Subtest: readyP 0.2 (< 0.3) still waits, then bounces not-ready
+ok 34 - readyP 0.2 (< 0.3) still waits, then bounces not-ready
+  ---
+  duration_ms: 0.883007
+  type: 'test'
+  ...
+# Subtest: log redaction: step_text and step_texts_start carry the redacted step, never the bound value
+ok 35 - log redaction: step_text and step_texts_start carry the redacted step, never the bound value
+  ---
+  duration_ms: 2.894822
+  type: 'test'
+  ...
+# Subtest: T-wait-shadow: a click whose target re-renders away, followed by a wait answer, ends done — never storms
+ok 36 - T-wait-shadow: a click whose target re-renders away, followed by a wait answer, ends done — never storms
+  ---
+  duration_ms: 0.78972
+  type: 'test'
+  ...
+# Subtest: T-element-gone-click: an element-gone click result counts as click evidence at the 0.5 bar
+ok 37 - T-element-gone-click: an element-gone click result counts as click evidence at the 0.5 bar
+  ---
+  duration_ms: 0.80154
+  type: 'test'
+  ...
+# Subtest: T-wait-transparency-state: a wait act between a fill and its confirm round still advances on the fill evidence
+ok 38 - T-wait-transparency-state: a wait act between a fill and its confirm round still advances on the fill evidence
+  ---
+  duration_ms: 0.709719
+  type: 'test'
+  ...
+# Subtest: T-wait-shadow-landed: a landed wait after an element-gone click does not shadow the click evidence
+ok 39 - T-wait-shadow-landed: a landed wait after an element-gone click does not shadow the click evidence
+  ---
+  duration_ms: 0.821083
+  type: 'test'
+  ...
+# Subtest: T-repeatcount-wait: a landed wait between two same-target clicks does not break the trailing-run count
+ok 40 - T-repeatcount-wait: a landed wait between two same-target clicks does not break the trailing-run count
+  ---
+  duration_ms: 1.143658
+  type: 'test'
+  ...
+# Subtest: T-repeatcount-element-gone: an element-gone click satisfies a count clause (count walk, count=1)
+ok 41 - T-repeatcount-element-gone: an element-gone click satisfies a count clause (count walk, count=1)
+  ---
+  duration_ms: 0.687002
+  type: 'test'
+  ...
+# Subtest: T-no-progress-unchanged: a wait between two identical no-effect clicks leaves the literal-tail guard semantics intact
+ok 42 - T-no-progress-unchanged: a wait between two identical no-effect clicks leaves the literal-tail guard semantics intact
+  ---
+  duration_ms: 0.933455
+  type: 'test'
+  ...
+# Subtest: T-navigate-evidence: step_done 0.6 after a page-changing navigate advances on navigate evidence
+ok 43 - T-navigate-evidence: step_done 0.6 after a page-changing navigate advances on navigate evidence
+  ---
+  duration_ms: 0.902582
+  type: 'test'
+  ...
+# Subtest: T-navigate-unchanged-not-evidence: step_done 0.6 after a navigate that left the page unchanged does NOT advance on evidence
+ok 44 - T-navigate-unchanged-not-evidence: step_done 0.6 after a navigate that left the page unchanged does NOT advance on evidence
+  ---
+  duration_ms: 1.659002
+  type: 'test'
+  ...
+# Subtest: T-back-not-evidence: step_done 0.6 after a page-changing back does NOT advance on the evidence bar
+ok 45 - T-back-not-evidence: step_done 0.6 after a page-changing back does NOT advance on the evidence bar
+  ---
+  duration_ms: 0.956465
+  type: 'test'
+  ...
+# Subtest: r17-SIGNAL: a targetless press records its result and a same-key no-effect repeat bounces no-progress
+ok 46 - r17-SIGNAL: a targetless press records its result and a same-key no-effect repeat bounces no-progress
+  ---
+  duration_ms: 1.139144
+  type: 'test'
+  ...
+# Subtest: r17-SIGNAL: a scroll that moves the page reads page changed; a no-effect repeat bounces no-progress
+ok 47 - r17-SIGNAL: a scroll that moves the page reads page changed; a no-effect repeat bounces no-progress
+  ---
+  duration_ms: 0.933753
+  type: 'test'
+  ...
+# Subtest: r17-focus: focus moving onto an enumerated editable reads focus changed and fires the key advance
+ok 48 - r17-focus: focus moving onto an enumerated editable reads focus changed and fires the key advance
+  ---
+  duration_ms: 0.866084
+  type: 'test'
+  ...
+# Subtest: r17-focus: focus moving onto a non-editable element stays no visible change
+ok 49 - r17-focus: focus moving onto a non-editable element stays no visible change
+  ---
+  duration_ms: 0.568178
+  type: 'test'
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 210.372049
+RUN-TESTS: files=1 tests=49 pass=49 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

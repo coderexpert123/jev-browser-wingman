@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: loads an ESM plugin exporting wingmanPlugin
+ok 1 - loads an ESM plugin exporting wingmanPlugin
+  ---
+  duration_ms: 3.296863
+  type: 'test'
+  ...
+# Subtest: loads a CommonJS plugin through default
+ok 2 - loads a CommonJS plugin through default
+  ---
+  duration_ms: 3.788075
+  type: 'test'
+  ...
+# Subtest: rejects a module without wingmanPlugin
+ok 3 - rejects a module without wingmanPlugin
+  ---
+  duration_ms: 1.168102
+  type: 'test'
+  ...
+# Subtest: rejects a non-function ask
+ok 4 - rejects a non-function ask
+  ---
+  duration_ms: 0.943573
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 107.696316
+RUN-TESTS: files=1 tests=4 pass=4 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

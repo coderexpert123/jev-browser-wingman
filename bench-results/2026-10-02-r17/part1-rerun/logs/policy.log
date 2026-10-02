@@ -1,0 +1,138 @@
+TAP version 13
+# Subtest: mail.google.com is sensitive-webmail
+ok 1 - mail.google.com is sensitive-webmail
+  ---
+  duration_ms: 1.354655
+  type: 'test'
+  ...
+# Subtest: a subdomain of a listed bank matches
+ok 2 - a subdomain of a listed bank matches
+  ---
+  duration_ms: 0.153503
+  type: 'test'
+  ...
+# Subtest: a host that merely contains a listed name does not match
+ok 3 - a host that merely contains a listed name does not match
+  ---
+  duration_ms: 0.517917
+  type: 'test'
+  ...
+# Subtest: the bank.in suffix matches any Indian bank domain
+ok 4 - the bank.in suffix matches any Indian bank domain
+  ---
+  duration_ms: 0.180238
+  type: 'test'
+  ...
+# Subtest: gov suffix matches irs.gov and www.gov.uk
+ok 5 - gov suffix matches irs.gov and www.gov.uk
+  ---
+  duration_ms: 0.216247
+  type: 'test'
+  ...
+# Subtest: config extras extend a category
+ok 6 - config extras extend a category
+  ---
+  duration_ms: 0.14366
+  type: 'test'
+  ...
+# Subtest: /login and /oauth2/authorize paths are sensitive-auth-path
+ok 7 - /login and /oauth2/authorize paths are sensitive-auth-path
+  ---
+  duration_ms: 0.336856
+  type: 'test'
+  ...
+# Subtest: /blog/logins-are-hard is not an auth path
+ok 8 - /blog/logins-are-hard is not an auth path
+  ---
+  duration_ms: 0.264076
+  type: 'test'
+  ...
+# Subtest: chrome:// and about: pages are unsupported-page
+ok 9 - chrome:// and about: pages are unsupported-page
+  ---
+  duration_ms: 0.357372
+  type: 'test'
+  ...
+# Subtest: localhost fixtures are never sensitive
+ok 10 - localhost fixtures are never sensitive
+  ---
+  duration_ms: 0.627869
+  type: 'test'
+  ...
+# Subtest: password signal wins over a clean URL
+ok 11 - password signal wins over a clean URL
+  ---
+  duration_ms: 0.28925
+  type: 'test'
+  ...
+# Subtest: otp text signal is sensitive-otp
+ok 12 - otp text signal is sensitive-otp
+  ---
+  duration_ms: 0.081503
+  type: 'test'
+  ...
+# Subtest: cc autocomplete is sensitive-payment-field
+ok 13 - cc autocomplete is sensitive-payment-field
+  ---
+  duration_ms: 0.058653
+  type: 'test'
+  ...
+# Subtest: policySelfTest passes on built-ins
+ok 14 - policySelfTest passes on built-ins
+  ---
+  duration_ms: 0.177348
+  type: 'test'
+  ...
+# Subtest: policySelfTest fails on an emptied identity list
+ok 15 - policySelfTest fails on an emptied identity list
+  ---
+  duration_ms: 0.158038
+  type: 'test'
+  ...
+# Subtest: registrableDomain reduces a.b.example.co.uk to example.co.uk
+ok 16 - registrableDomain reduces a.b.example.co.uk to example.co.uk
+  ---
+  duration_ms: 0.97815
+  type: 'test'
+  ...
+# Subtest: trailing dots, ports and case never hide a listed host
+ok 17 - trailing dots, ports and case never hide a listed host
+  ---
+  duration_ms: 0.187152
+  type: 'test'
+  ...
+# Subtest: userinfo in the URL never changes the classified host
+ok 18 - userinfo in the URL never changes the classified host
+  ---
+  duration_ms: 0.121978
+  type: 'test'
+  ...
+# Subtest: policy.mode off classifies a listed banking host as non-sensitive
+ok 19 - policy.mode off classifies a listed banking host as non-sensitive
+  ---
+  duration_ms: 0.106491
+  type: 'test'
+  ...
+# Subtest: policy.mode off proceeds past a password-field page signal
+ok 20 - policy.mode off proceeds past a password-field page signal
+  ---
+  duration_ms: 0.133904
+  type: 'test'
+  ...
+# Subtest: default/absent policy mode is off; only explicit enforce falls back
+ok 21 - default/absent policy mode is off; only explicit enforce falls back
+  ---
+  duration_ms: 0.150627
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 134.994755
+RUN-TESTS: files=1 tests=21 pass=21 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

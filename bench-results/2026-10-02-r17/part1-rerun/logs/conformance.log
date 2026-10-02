@@ -1,0 +1,201 @@
+TAP version 13
+# Subtest: cross-adapter
+    # Subtest: element table for form.html is identical across adapters
+    ok 1 - element table for form.html is identical across adapters
+      ---
+      duration_ms: 375.610374
+      type: 'test'
+      ...
+    # Subtest: element table for styled-controls.html is identical across adapters
+    ok 2 - element table for styled-controls.html is identical across adapters
+      ---
+      duration_ms: 241.455269
+      type: 'test'
+      ...
+    # Subtest: element table for big-select.html is identical across adapters
+    ok 3 - element table for big-select.html is identical across adapters
+      ---
+      duration_ms: 242.7946
+      type: 'test'
+      ...
+    # Subtest: element table for many.html is identical across adapters
+    ok 4 - element table for many.html is identical across adapters
+      ---
+      duration_ms: 290.295948
+      type: 'test'
+      ...
+    1..4
+ok 1 - cross-adapter
+  ---
+  duration_ms: 1721.521606
+  type: 'suite'
+  ...
+# Subtest: playwright
+    # Subtest: click writes the expected log text
+    ok 1 - click writes the expected log text
+      ---
+      duration_ms: 267.784725
+      type: 'test'
+      ...
+    # Subtest: fill sets the value
+    ok 2 - fill sets the value
+      ---
+      duration_ms: 255.571852
+      type: 'test'
+      ...
+    # Subtest: select sets the value on big-select.html option v290
+    ok 3 - select sets the value on big-select.html option v290
+      ---
+      duration_ms: 211.525521
+      type: 'test'
+      ...
+    # Subtest: check and uncheck toggle the styled checkbox through its label
+    ok 4 - check and uncheck toggle the styled checkbox through its label
+      ---
+      duration_ms: 300.21063
+      type: 'test'
+      ...
+    # Subtest: press Enter submits form.html
+    ok 5 - press Enter submits form.html
+      ---
+      duration_ms: 211.004847
+      type: 'test'
+      ...
+    # Subtest: scroll moves many.html down
+    ok 6 - scroll moves many.html down
+      ---
+      duration_ms: 281.745389
+      type: 'test'
+      ...
+    # Subtest: settle waits out delayed navigation within 3000 ms
+    ok 7 - settle waits out delayed navigation within 3000 ms
+      ---
+      duration_ms: 1334.96825
+      type: 'test'
+      ...
+    # Subtest: settle picks up the SPA items
+    ok 8 - settle picks up the SPA items
+      ---
+      duration_ms: 1037.530141
+      type: 'test'
+      ...
+    # Subtest: dialog is reported and never answered
+    ok 9 - dialog is reported and never answered
+      ---
+      duration_ms: 5428.40249
+      type: 'test'
+      ...
+    # Subtest: covered target raises CoveredTargetError
+    ok 10 - covered target raises CoveredTargetError
+      ---
+      duration_ms: 128.809372
+      type: 'test'
+      ...
+    # Subtest: stale element raises StaleElementError
+    ok 11 - stale element raises StaleElementError
+      ---
+      duration_ms: 129.264819
+      type: 'test'
+      ...
+    # Subtest: detach leaves no residue and never closes the browser
+    ok 12 - detach leaves no residue and never closes the browser
+      ---
+      duration_ms: 127.426007
+      type: 'test'
+      ...
+    1..12
+ok 2 - playwright
+  ---
+  duration_ms: 10293.2366
+  type: 'suite'
+  ...
+# Subtest: cdp
+    # Subtest: click writes the expected log text
+    ok 1 - click writes the expected log text
+      ---
+      duration_ms: 157.068917
+      type: 'test'
+      ...
+    # Subtest: fill sets the value
+    ok 2 - fill sets the value
+      ---
+      duration_ms: 143.571962
+      type: 'test'
+      ...
+    # Subtest: select sets the value on big-select.html option v290
+    ok 3 - select sets the value on big-select.html option v290
+      ---
+      duration_ms: 118.096538
+      type: 'test'
+      ...
+    # Subtest: check and uncheck toggle the styled checkbox through its label
+    ok 4 - check and uncheck toggle the styled checkbox through its label
+      ---
+      duration_ms: 122.07324
+      type: 'test'
+      ...
+    # Subtest: press Enter submits form.html
+    ok 5 - press Enter submits form.html
+      ---
+      duration_ms: 108.30916
+      type: 'test'
+      ...
+    # Subtest: scroll moves many.html down
+    ok 6 - scroll moves many.html down
+      ---
+      duration_ms: 462.86068
+      type: 'test'
+      ...
+    # Subtest: settle waits out delayed navigation within 3000 ms
+    ok 7 - settle waits out delayed navigation within 3000 ms
+      ---
+      duration_ms: 1209.868184
+      type: 'test'
+      ...
+    # Subtest: settle picks up the SPA items
+    ok 8 - settle picks up the SPA items
+      ---
+      duration_ms: 909.266667
+      type: 'test'
+      ...
+    # Subtest: dialog is reported and never answered
+    ok 9 - dialog is reported and never answered
+      ---
+      duration_ms: 15361.93815
+      type: 'test'
+      ...
+    # Subtest: covered target raises CoveredTargetError
+    ok 10 - covered target raises CoveredTargetError
+      ---
+      duration_ms: 3132.084616
+      type: 'test'
+      ...
+    # Subtest: stale element raises StaleElementError
+    ok 11 - stale element raises StaleElementError
+      ---
+      duration_ms: 91.034877
+      type: 'test'
+      ...
+    # Subtest: detach leaves no residue and never closes the browser
+    ok 12 - detach leaves no residue and never closes the browser
+      ---
+      duration_ms: 83.357683
+      type: 'test'
+      ...
+    1..12
+ok 3 - cdp
+  ---
+  duration_ms: 22455.353056
+  type: 'suite'
+  ...
+1..3
+# tests 28
+# suites 3
+# pass 28
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 34963.561488
+RUN-TESTS: files=1 tests=28 pass=28 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,36 @@
+TAP version 13
+# Subtest: settles after three stable polls
+ok 1 - settles after three stable polls
+  ---
+  duration_ms: 203.139413
+  type: 'test'
+  ...
+# Subtest: null probes reset stability
+ok 2 - null probes reset stability
+  ---
+  duration_ms: 503.307653
+  type: 'test'
+  ...
+# Subtest: returns settled false when the budget runs out
+ok 3 - returns settled false when the budget runs out
+  ---
+  duration_ms: 400.80214
+  type: 'test'
+  ...
+# Subtest: a rejecting probe is treated as not answering, never an unhandled rejection
+ok 4 - a rejecting probe is treated as not answering, never an unhandled rejection
+  ---
+  duration_ms: 400.582282
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3297.946971
+RUN-TESTS: files=1 tests=4 pass=4 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

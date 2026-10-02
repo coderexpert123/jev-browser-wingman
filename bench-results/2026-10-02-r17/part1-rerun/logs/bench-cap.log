@@ -1,0 +1,72 @@
+TAP version 13
+# Subtest: refuses without a cap
+ok 1 - refuses without a cap
+  ---
+  duration_ms: 2.473171
+  type: 'test'
+  ...
+# Subtest: refuses a cap above the operator ceiling
+ok 2 - refuses a cap above the operator ceiling
+  ---
+  duration_ms: 0.794013
+  type: 'test'
+  ...
+# Subtest: refuses without prices
+ok 3 - refuses without prices
+  ---
+  duration_ms: 0.792944
+  type: 'test'
+  ...
+# Subtest: refuses when the phase cap is already spent
+ok 4 - refuses when the phase cap is already spent
+  ---
+  duration_ms: 0.948101
+  type: 'test'
+  ...
+# Subtest: a 0.01 cap stops after the first run
+ok 5 - a 0.01 cap stops after the first run
+  ---
+  duration_ms: 1.762807
+  type: 'test'
+  ...
+# Subtest: a harness without the abort check would run all 42
+ok 6 - a harness without the abort check would run all 42
+  ---
+  duration_ms: 1.549613
+  type: 'test'
+  ...
+# Subtest: the phase cap counts earlier results files
+ok 7 - the phase cap counts earlier results files
+  ---
+  duration_ms: 1.743594
+  type: 'test'
+  ...
+# Subtest: BENCH_MODEL overrides the configured caller model
+ok 8 - BENCH_MODEL overrides the configured caller model
+  ---
+  duration_ms: 0.984246
+  type: 'test'
+  ...
+# Subtest: resultsFileName stamps seconds and suffixes a taken name
+ok 9 - resultsFileName stamps seconds and suffixes a taken name
+  ---
+  duration_ms: 2.241134
+  type: 'test'
+  ...
+# Subtest: two runs in the same second never overwrite and both count toward the phase cap
+ok 10 - two runs in the same second never overwrite and both count toward the phase cap
+  ---
+  duration_ms: 2.093066
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 109.913211
+RUN-TESTS: files=1 tests=10 pass=10 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

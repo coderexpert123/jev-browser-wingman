@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: state carries origin and path but no query or fragment
+ok 1 - state carries origin and path but no query or fragment
+  ---
+  duration_ms: 2.06075
+  type: 'test'
+  ...
+# Subtest: state never contains a binding value even when page text echoes it
+ok 2 - state never contains a binding value even when page text echoes it
+  ---
+  duration_ms: 0.641347
+  type: 'test'
+  ...
+# Subtest: text is cut to max_text_chars
+ok 3 - text is cut to max_text_chars
+  ---
+  duration_ms: 0.354524
+  type: 'test'
+  ...
+# Subtest: an oversized state shrinks text first then reports ok false
+ok 4 - an oversized state shrinks text first then reports ok false
+  ---
+  duration_ms: 0.349394
+  type: 'test'
+  ...
+# Subtest: log record has exactly the <redacted4>manLogRecord keys
+ok 5 - log record has exactly the <redacted4>manLogRecord keys
+  ---
+  duration_ms: 1.887592
+  type: 'test'
+  ...
+# Subtest: log record carries no path, title, label, value or page text
+ok 6 - log record carries no path, title, label, value or page text
+  ---
+  duration_ms: 0.228223
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82.967001
+RUN-TESTS: files=1 tests=6 pass=6 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

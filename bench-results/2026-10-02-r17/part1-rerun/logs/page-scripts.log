@@ -1,0 +1,132 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  duration_ms: 397.591725
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  duration_ms: 121.122539
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  duration_ms: 122.878618
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  duration_ms: 104.428502
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  duration_ms: 100.744656
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  duration_ms: 241.664231
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  duration_ms: 93.694248
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  duration_ms: 106.922326
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  duration_ms: 123.048951
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  duration_ms: 111.584776
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  duration_ms: 111.015688
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  duration_ms: 96.236155
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  duration_ms: 100.141953
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  duration_ms: 101.051933
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  duration_ms: 115.641094
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  duration_ms: 97.100428
+  type: 'test'
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  duration_ms: 126.29044
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  duration_ms: 207.149029
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  duration_ms: 407.069646
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+ok 20 - verify re-finds hidden-control records through the label and their own path
+  ---
+  duration_ms: 102.999496
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3611.914615
+RUN-TESTS: files=1 tests=20 pass=20 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,198 @@
+TAP version 13
+# Subtest: every instruction ends with the untrusted-data sentence
+ok 1 - every instruction ends with the untrusted-data sentence
+  ---
+  duration_ms: 1.794235
+  type: 'test'
+  ...
+# Subtest: round 1 has no error question and round 2 has one
+ok 2 - round 1 has no error question and round 2 has one
+  ---
+  duration_ms: 0.903037
+  type: 'test'
+  ...
+# Subtest: value question only when bindings exist
+ok 3 - value question only when bindings exist
+  ---
+  duration_ms: 2.003146
+  type: 'test'
+  ...
+# Subtest: target criteria render role, name and state suffixes
+ok 4 - target criteria render role, name and state suffixes
+  ---
+  duration_ms: 0.294649
+  type: 'test'
+  ...
+# Subtest: form-control criteria carry the machine attributes in § 3.5 order
+ok 5 - form-control criteria carry the machine attributes in § 3.5 order
+  ---
+  duration_ms: 0.140639
+  type: 'test'
+  ...
+# Subtest: machine attributes are omitted when absent or empty
+ok 6 - machine attributes are omitted when absent or empty
+  ---
+  duration_ms: 0.17132
+  type: 'test'
+  ...
+# Subtest: an empty name renders (no label)
+ok 7 - an empty name renders (no label)
+  ---
+  duration_ms: 0.172775
+  type: 'test'
+  ...
+# Subtest: target criteria include none and ambiguous
+ok 8 - target criteria include none and ambiguous
+  ---
+  duration_ms: 0.150294
+  type: 'test'
+  ...
+# Subtest: 300 elements produce a group request with 10 groups and no target
+ok 9 - 300 elements produce a group request with 10 groups and no target
+  ---
+  duration_ms: 0.838442
+  type: 'test'
+  ...
+# Subtest: the target request covers only the top 3 groups
+ok 10 - the target request covers only the top 3 groups
+  ---
+  duration_ms: 2.409126
+  type: 'test'
+  ...
+# Subtest: 300 options produce 2 chunk requests of at most 251 criteria
+ok 11 - 300 options produce 2 chunk requests of at most 251 criteria
+  ---
+  duration_ms: 1.72691
+  type: 'test'
+  ...
+# Subtest: binding values never appear in any request
+ok 12 - binding values never appear in any request
+  ---
+  duration_ms: 1.907211
+  type: 'test'
+  ...
+# Subtest: check request carries only the answer question
+ok 13 - check request carries only the answer question
+  ---
+  duration_ms: 1.402197
+  type: 'test'
+  ...
+# Subtest: Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in order
+ok 14 - Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in order
+  ---
+  duration_ms: 0.525928
+  type: 'test'
+  ...
+# Subtest: Q2: offeredOps never offers navigate or back to wingman_do; browse_step gets back always, navigate only with a url binding, upload only with a path binding
+ok 15 - Q2: offeredOps never offers navigate or back to wingman_do; browse_step gets back always, navigate only with a url binding, upload only with a path binding
+  ---
+  duration_ms: 0.599112
+  type: 'test'
+  ...
+# Subtest: Q3: the url question rides only with navigate offered plus a url binding; its criteria are the url bindings plus none
+ok 16 - Q3: the url question rides only with navigate offered plus a url binding; its criteria are the url bindings plus none
+  ---
+  duration_ms: 1.020622
+  type: 'test'
+  ...
+# Subtest: Q4: the file question rides only with upload offered plus a path binding; its criteria are the path bindings plus none
+ok 17 - Q4: the file question rides only with upload offered plus a path binding; its criteria are the path bindings plus none
+  ---
+  duration_ms: 0.691112
+  type: 'test'
+  ...
+# Subtest: Q5: the key question criteria keys are the KEY_CRITERIA keys
+ok 18 - Q5: the key question criteria keys are the KEY_CRITERIA keys
+  ---
+  duration_ms: 0.269704
+  type: 'test'
+  ...
+# Subtest: Q6: chain adds step_done and the focus sentence immediately before the untrusted sentence in action, target, value and group
+ok 19 - Q6: chain adds step_done and the focus sentence immediately before the untrusted sentence in action, target, value and group
+  ---
+  duration_ms: 0.646836
+  type: 'test'
+  ...
+# Subtest: Q7: every INSTRUCTIONS entry, including the new chain entries, ends with the untrusted sentence
+ok 20 - Q7: every INSTRUCTIONS entry, including the new chain entries, ends with the untrusted sentence
+  ---
+  duration_ms: 0.613702
+  type: 'test'
+  ...
+# Subtest: Q8: the error instruction equals the reworded spec literal
+ok 21 - Q8: the error instruction equals the reworded spec literal
+  ---
+  duration_ms: 0.106378
+  type: 'test'
+  ...
+# Subtest: Q9: chain requests never leak binding values planted in names and criterion text
+ok 22 - Q9: chain requests never leak binding values planted in names and criterion text
+  ---
+  duration_ms: 1.065633
+  type: 'test'
+  ...
+# Subtest: Q10: right_page and ready ride iff chain; recover rides iff recover and only where error rides; two-stage keeps all three on request 1
+ok 23 - Q10: right_page and ready ride iff chain; recover rides iff recover and only where error rides; two-stage keeps all three on request 1
+  ---
+  duration_ms: 0.627772
+  type: 'test'
+  ...
+# Subtest: Q11: KEY_CRITERIA keys are the 11 PRESS_KEYS plus none in order; RECOVER_CRITERIA keys are exact; DEFAULT_OFFERED_OPS ends with scroll_to and never contains reload
+ok 24 - Q11: KEY_CRITERIA keys are the 11 PRESS_KEYS plus none in order; RECOVER_CRITERIA keys are exact; DEFAULT_OFFERED_OPS ends with scroll_to and never contains reload
+  ---
+  duration_ms: 0.193102
+  type: 'test'
+  ...
+# Subtest: Q12: right_page, ready and recover instructions, press and scroll_to criteria, KEY_CRITERIA and RECOVER_CRITERIA equal the spec literals
+ok 25 - Q12: right_page, ready and recover instructions, press and scroll_to criteria, KEY_CRITERIA and RECOVER_CRITERIA equal the spec literals
+  ---
+  duration_ms: 0.124716
+  type: 'test'
+  ...
+# Subtest: Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the spec literals, back, open_<name>, give-up in order
+ok 26 - Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the spec literals, back, open_<name>, give-up in order
+  ---
+  duration_ms: 0.466223
+  type: 'test'
+  ...
+# Subtest: Q-r13-stuck-noback: back:false and no url names leaves give-up as the only criterion; the error-path recover is untouched
+ok 27 - Q-r13-stuck-noback: back:false and no url names leaves give-up as the only criterion; the error-path recover is untouched
+  ---
+  duration_ms: 0.118426
+  type: 'test'
+  ...
+# Subtest: Q-r17-count-met: the count_met instruction equals the spec literal (C12)
+ok 28 - Q-r17-count-met: the count_met instruction equals the spec literal (C12)
+  ---
+  duration_ms: 0.059429
+  type: 'test'
+  ...
+# Subtest: Q-r17-count-met: count_met rides iff countFor, in both builders, chain and non-chain
+ok 29 - Q-r17-count-met: count_met rides iff countFor, in both builders, chain and non-chain
+  ---
+  duration_ms: 0.396806
+  type: 'test'
+  ...
+# Subtest: Q-r17-count-met: position — immediately after the chain nouls in a group request; last in a round request
+ok 30 - Q-r17-count-met: position — immediately after the chain nouls in a group request; last in a round request
+  ---
+  duration_ms: 2.370685
+  type: 'test'
+  ...
+# Subtest: Q-r17-count-met: a count_met request never carries a binding value
+ok 31 - Q-r17-count-met: a count_met request never carries a binding value
+  ---
+  duration_ms: 0.4368
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 169.638324
+RUN-TESTS: files=1 tests=31 pass=31 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
