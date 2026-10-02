@@ -109,8 +109,9 @@ export interface Driver {
   pages(): Promise<PageInfo[]>;                            // default-context page targets only
   observe(pageId: string): Promise<Observation>;
   /** elementId is null only for ops in TARGETLESS_OPS, and for `press` (OPTIONAL_TARGET_OPS) when the press targets the already-focused element; scroll also accepts an element id (legacy form, same wheel).
-   * value: fill text, select option value, press key (a PressKey; absent = Enter), navigate URL (http/https), upload absolute file path. */
-  act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void>;
+   * value: fill text, select option value, press key (a PressKey; absent = Enter), navigate URL (http/https), upload absolute file path.
+   * r17b (F3): a check/uncheck whose click flipped the control returns 'checked'/'unchecked' — the act's own state-change result, stored as the history entry's `result` (evidence, like a landed fill's 'filled'). Any other op returns void; a non-flipping check falls back to the loop's fresh-observation annotation. */
+  act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void | string>;
   settle(pageId: string, budgetMs: number): Promise<{ settled: boolean; ms: number }>;
   onDialog(handler: (e: DialogEvent) => void): void;
   /** r17 (C5, required): answer the page's currently open JavaScript dialog — accept or dismiss per the step's own text. */

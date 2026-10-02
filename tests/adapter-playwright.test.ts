@@ -304,6 +304,39 @@ test('detach leaves the browser answering', async () => {
   }
 });
 
+// r17b: a bare sibling label (no `for`, not wrapping) has NO association with
+// its hidden control, so the label click toggles nothing — the adapter must
+// activate the control itself and report the flip. This is the only test that
+// drives that branch through the playwright adapter; KB_PW_CHECK_TOGGLE's
+// expected-fail leg in .build-r17-mutants.py maps to this title.
+test('check on a sibling-label hidden checkbox activates the control itself (r17b)', async () => {
+  const fx = await withFixture('/hidden-controls.html', 'Fixture hidden controls');
+  try {
+    const pageId = await waitForPage(fx.driver, fx.pageUrl);
+    const el = await elementNamed(fx.driver, pageId, 'Alpha task');
+    assert.equal(el.role, 'checkbox', 'the #t1 sibling-label proxy enumerates as a checkbox');
+    assert.equal(el.state.checked, false, 'the hidden #t1 input starts unchecked');
+    const result = await fx.driver.act(pageId, el.id, 'check');
+    assert.equal(result, 'checked');
+    // Read the flip over a SEPARATE Playwright connection so the assert is
+    // not the adapter grading its own write.
+    const browser2 = await chromium.connectOverCDP(fx.endpoint, { timeout: 5_000, noDefaults: true });
+    try {
+      const page2 = browser2.contexts()[0]?.pages().find((p) => p.url() === fx.pageUrl);
+      assert.ok(page2, 'the fixture page is reachable over the second connection');
+      const checked = await page2.evaluate(() => {
+        const input = document.getElementById('t1') as HTMLInputElement | null;
+        return input ? input.checked : null;
+      });
+      assert.equal(checked, true, 'the hidden #t1 input is checked');
+    } finally {
+      await browser2.close().catch(() => {});
+    }
+  } finally {
+    await fx.close();
+  }
+});
+
 test('attach retries a cold endpoint within its budget', async () => {
   const chrome = await launchTestChrome();
   try {

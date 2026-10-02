@@ -719,3 +719,55 @@ withheld — this file rides a public-bound repository). Gates:
 - **page-scripts' KB flags ride `var` inside the stringified function body**,
   not module-level `const` — the mutant runner's anchor matches both
   declarations (`const`|`var KB_X = false;`).
+
+## Gotchas from the r17b cloud-failure fix pass (2026-10-02)
+
+- **`prompt()` never resolves after the driver detaches on this machine's
+  headless Chrome** — the detach clears the browser-side dialog
+  (`Page.handleJavaScriptDialog` from a second session then answers
+  `No dialog is showing`) but the renderer stays WEDGED on the unresolved
+  prompt forever: every later `Runtime.evaluate` on that tab times out, and
+  dialog.html's `'dismissed'` write NEVER lands (locally or — provably — in
+  the cloud, whose E16 failure happened at the dismiss step before any read;
+  `'dismissed'` has never actually been observed anywhere). E16 therefore
+  fails only on a RESOLVED prompt (`#log === ''`); `'dismissed'` or a read
+  timeout both pass. Don't "simplify" that back to `assert.equal(log,
+  'dismissed')` — it is unreachable here (4 repro runs).
+- **Clicking a bare sibling `<label>` does NOT toggle the hidden control**
+  (no wrap, no `for` → no labeled control → click is inert). The r17 D7
+  sibling-proxy shape could never actually check its box by label click; the
+  adapters now activate the control itself when the label click did not flip
+  (`KB_CDP_CHECK_TOGGLE` / `KB_PW_CHECK_TOGGLE`, cloud-deferred mutant flags;
+  E19 is the live proof — it failed `fallback/no-progress` 4/4 runs before
+  the toggle, because the fresh obs kept reading `(unchecked)`).
+  **The flags are composed `if (!KB_X)`, default `false` — the direct control
+  toggle runs in shipped builds and E19 needs NO flag flip; flipping a flag
+  is what must make E19 fail (that failure is the cloud mutant proof, not a
+  regression).** **`KB_PW_CHECK_TOGGLE`'s vacuousness (verifier, 2026-10-02)
+  is FIXED: `tests/adapter-playwright.test.ts` "check on a sibling-label
+  hidden checkbox activates the control itself (r17b)" now drives t1
+  (hidden-controls.html) through the real playwright adapter and asserts both
+  `t1.checked` (read over a SECOND connectOverCDP, not the adapter's own
+  observe) and the act's `'checked'` return. It is mapped as KB_PW_CHECK_
+  TOGGLE's expected-fail leg in `.build-r17-mutants.py` — the flag moved out
+  of CLOUD into UNIT, so the local runner proves it (one Chrome-backed run
+  inside the serial script); the cloud KB-r17c run no longer owns that proof.**
+  E19 still maps only `KB_CDP_CHECK_TOGGLE`.
+- **`Driver.act` now returns `Promise<void | string>`** — a check/uncheck
+  that flipped returns `'checked'`/`'unchecked'`; the loop stores it as the
+  history entry's `result` at act time behind `KB_CHECK_FLIP` (loop.ts), and
+  `annotateLastOutcome` leaves pre-annotated entries alone. FakeDriver
+  scripts it via `nextActResult`. The old "act read 'no visible change'"
+  diagnosis for E19 was impossible code-wise: annotateLastOutcome can never
+  produce that string for an element-state verb with a found element.
+- **`/json/new`'s target shows the new URL in `/json/list` BEFORE the
+  document swaps** — a loop attach in between enumerates the pre-navigation
+  document and the round's `state.url` reads `scrubUrl('about:blank')` =
+  `'nullblank'` with zero elements (E1/E2's intermittent
+  `no-match`/`step-uncertain` flakes, 3/3 runs on 2026-10-02). Wait for the
+  target's `<title>` (a document property), not its URL — `openFixturePage`
+  does now.
+- **A label with `for` — or a wrapped control — is OWNED**: `siblingLabel`
+  must skip owned labels or a hidden input adjacent to a `label[for=x]`
+  steals x's name (the page-scripts #16 cloud failure: #t7 next to
+  `label[for=t6]` enumerated as "Fine print" with `controlPath: '#t7'`).

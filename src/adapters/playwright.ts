@@ -87,6 +87,10 @@ const KB_PW_PRESS_NONE = false;
 /** KB proof switch (r17 WP-B mutant): composed into answerDialog so a flipped
  * build never answers. Never flip in shipped code. */
 const KB_PW_DIALOG = false;
+/** KB proof switch (r17b F3/E19 mutant): composed into the check/uncheck act
+ * so a flipped build skips the direct control toggle when the label click did
+ * not flip. Never flip in shipped code. */
+const KB_PW_CHECK_TOGGLE = false;
 
 async function connectBounded(
   chromium: typeof import('playwright-core').chromium,
@@ -356,7 +360,7 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
       return obs;
     },
 
-    async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
+    async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void | string> {
       if (!(ADAPTER_OPS.playwright as readonly Op[]).includes(op)) {
         throw new ActFailedError(`unsupported op ${op}`);
       }
@@ -497,15 +501,39 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
           case 'check':
           case 'uncheck': {
             const wanted = op === 'check';
-            const state = (await evaluateOnPage(
-              rec,
-              buildControlStateExpression(el.controlPath ?? el.path),
-            )) as { checked: boolean };
+            const controlPath = el.controlPath ?? el.path;
+            const state = (await evaluateOnPage(rec, buildControlStateExpression(controlPath))) as {
+              checked: boolean;
+            };
             if (state.checked !== wanted) {
               // Click `path`, not `controlPath`: for a proxied control the
               // real input can be visually hidden, and `path` is the visible
-              // wrapping label that toggles it.
+              // label that toggles it — when it is associated (wrap or for).
               await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(timeout));
+              // r17b (F3): report the act's own state change — the loop
+              // stores a flip as evidence the way it stores a landed fill's
+              // 'filled'.
+              let after = (await evaluateOnPage(rec, buildControlStateExpression(controlPath))) as {
+                checked: boolean;
+              } | null;
+              if (after && after.checked === wanted) {
+                return wanted ? 'checked' : 'unchecked';
+              }
+              // r17b (E19 mechanism): a bare sibling label has no association
+              // with the control, so the label click toggled nothing.
+              // Activate the control itself, then re-read.
+              if (!KB_PW_CHECK_TOGGLE) {
+                await evaluateOnPage(
+                  rec,
+                  `(() => { const el = document.querySelector(${JSON.stringify(controlPath)}); if (!el) return false; el.click(); return true; })()`,
+                );
+                after = (await evaluateOnPage(rec, buildControlStateExpression(controlPath))) as {
+                  checked: boolean;
+                } | null;
+                if (after && after.checked === wanted) {
+                  return wanted ? 'checked' : 'unchecked';
+                }
+              }
             }
             break;
           }

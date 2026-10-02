@@ -53,6 +53,11 @@ export class FakeDriver implements Driver {
   /** Thrown by the next act() call (StaleElementError, CoveredTargetError, …). */
   failNextAct: Error | null = null;
 
+  /** r17b (F3): the result the next act() returns (a check/uncheck flip:
+   * 'checked'/'unchecked', the real adapters' act-returned state change), or
+   * null for the plain void act. Consumed by exactly one act call. */
+  nextActResult: string | null = null;
+
   /** r17 (C5): thrown by the next answerDialog() call — an answer that failed
    * leaves the dialog open, which the loop degrades to blocked/dialog-open. */
   failNextAnswer: Error | null = null;
@@ -94,7 +99,7 @@ export class FakeDriver implements Driver {
     return queue.length > 1 ? (queue.shift() as Observation) : queue[0];
   }
 
-  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
+  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void | string> {
     this.events.push({ kind: 'act', pageId, elementId, op, value });
     if (this.dialogOnNextAct !== null) {
       if (Array.isArray(this.dialogOnNextAct)) {
@@ -116,6 +121,9 @@ export class FakeDriver implements Driver {
       this.failNextAct = null;
       throw e;
     }
+    const result = this.nextActResult;
+    this.nextActResult = null;
+    return result ?? undefined;
   }
 
   /** r17 (C5): records the call; throws failNextAnswer when armed. */

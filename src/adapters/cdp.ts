@@ -59,6 +59,10 @@ const KB_CDP_PRESS_NONE = false;
 /** KB proof switch (r17 WP-B mutant): composed into answerDialog so a flipped
  * build never answers. Never flip in shipped code. */
 const KB_CDP_DIALOG = false;
+/** r17b (F3/E19): when the label click does not flip a check/uncheck target,
+ * activate the CONTROL itself (a bare sibling label has no association with
+ * the input, so clicking it toggles nothing). */
+const KB_CDP_CHECK_TOGGLE = false;
 
 const cap = (s: unknown, n: number): string => String(s ?? '').slice(0, n);
 
@@ -400,7 +404,7 @@ class CdpDriver implements Driver {
     op: Op,
     value: string | undefined,
     point: { x: number; y: number } | null,
-  ): Promise<void> {
+  ): Promise<void | string> {
     const conn = this.requireConn();
     const sessionId = await this.ensureSession(pageId);
 
@@ -522,6 +526,26 @@ class CdpDriver implements Driver {
           return;
         }
         await this.mouseClick(sessionId, point as { x: number; y: number });
+        // r17b (F3): report the act's own state change — the loop stores a
+        // flip as evidence the way it stores a landed fill's 'filled'.
+        let after = await this.evalIsolated(pageId, buildControlStateExpression(controlPath));
+        if (after && typeof after.checked === 'boolean' && after.checked === wanted) {
+          return wanted ? 'checked' : 'unchecked';
+        }
+        // r17b (E19 mechanism): the record's visible element is only a real
+        // toggle target when it WRAPS or labels[for] the control — a bare
+        // sibling label has no association, so the click toggled nothing.
+        // Activate the control itself, then re-read.
+        if (!KB_CDP_CHECK_TOGGLE) {
+          await this.evalIsolated(
+            pageId,
+            `(() => { const el = document.querySelector(${JSON.stringify(controlPath)}); if (!el) return false; el.click(); return true; })()`,
+          );
+          after = await this.evalIsolated(pageId, buildControlStateExpression(controlPath));
+          if (after && typeof after.checked === 'boolean' && after.checked === wanted) {
+            return wanted ? 'checked' : 'unchecked';
+          }
+        }
         return;
       }
       case 'press': {
@@ -624,7 +648,7 @@ class CdpDriver implements Driver {
     }
   }
 
-  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
+  async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void | string> {
     if (!(ADAPTER_OPS.cdp as readonly Op[]).includes(op)) {
       throw new ActFailedError(`unsupported op ${op}`);
     }
@@ -684,14 +708,14 @@ class CdpDriver implements Driver {
     op: Op,
     value: string | undefined,
     point: { x: number; y: number } | null,
-  ): Promise<void> {
+  ): Promise<void | string> {
     const dialogPromise = this.dialogWait(pageId);
     let opError: unknown = null;
     const opPromise = this.performOp(pageId, el, op, value, point).then(
-      () => 'op' as const,
+      (flip) => ({ ok: true as const, flip }),
       (err) => {
         opError = err;
-        return 'op' as const;
+        return { ok: false as const };
       },
     );
     const winner = await Promise.race([
@@ -703,9 +727,10 @@ class CdpDriver implements Driver {
       await opPromise.catch(() => {});
       return;
     }
-    if (opError !== null) {
+    if (!winner.ok) {
       throw opError instanceof Error ? opError : new Error(String(opError));
     }
+    return winner.flip;
   }
 
   async settle(pageId: string, budgetMs: number): Promise<{ settled: boolean; ms: number }> {

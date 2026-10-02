@@ -3431,6 +3431,58 @@ test('T-repeat press same key bounces no-progress', async () => {
   assert.equal(h.driver.actCalls().length, 1, 'the second identical press never acts');
 });
 
+// ---- r17b (F3): a check that flips state is progress ----
+
+const checkEl = (checked: boolean): ElementRecord =>
+  el({
+    tag: 'input',
+    role: 'checkbox',
+    name: 'Notify me',
+    type: 'checkbox',
+    path: '#notify',
+    state: { disabled: false, checked },
+    fingerprint: { tag: 'input', role: 'checkbox', name: 'Notify me', x: 0, y: 0 },
+  });
+
+/** A committing check decision on the checkbox fixture. */
+const CHECK = (over: SeqEntry = {}): SeqEntry =>
+  CS({
+    action: ['check', { check: 0.9, none: 0.05 }],
+    target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }],
+    ...over,
+  });
+
+test('T-check-flip advances on the act-returned flip', async () => {
+  // r17b (F3): the driver's check act reports its own state change; the loop
+  // stores it as the history entry's result and the clause advances on it
+  // exactly like a landed fill. Round 2's step_done 0.6 sits below the
+  // ungated 0.85 branch, so ONLY the check evidence can advance the clause.
+  const h = harness({
+    observations: { p1: [observation({ elements: [checkEl(false)] })] },
+    script: [CHECK(), CHECK({ step_done: 0.6 })],
+  });
+  h.driver.nextActResult = 'checked';
+  const r = await h.call({ goal: 'r17b-check-flip goal', steps: ['check the notify box'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the flip advanced the clause without a second act');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].historyResult, 'checked', 'the act-returned flip is the entry result');
+});
+
+test('T-check without a flip result is still a no-progress bounce', async () => {
+  // The no-flip fallback: with no act-returned result the fresh observation
+  // still reads unchecked, the repeat check is a zero-change repeat and the
+  // guard bounces — a check that flips nothing is not progress.
+  const h = harness({
+    observations: { p1: [observation({ elements: [checkEl(false)] })] },
+    script: [CHECK(), CHECK()],
+  });
+  const r = await h.call({ goal: 'r17b-check-noflip goal', steps: ['check the notify box'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the second identical check never acts');
+});
+
 test('T-press different keys is not a repeat', async () => {
   // Legacy browse_step: both rounds ride stepKey 'single', so the key — not
   // a clause boundary — is the only identity a targetless press pair has.

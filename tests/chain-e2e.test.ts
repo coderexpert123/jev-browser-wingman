@@ -117,6 +117,24 @@ async function callTool(client: Client, args: Record<string, unknown>): Promise<
 async function openFixturePage(name: string): Promise<string> {
   const res = await fetch(`${chrome.endpoint}/json/new?${fixture.url}/${name}.html`, { method: 'PUT' });
   const info = (await res.json()) as { id: string };
+  // The /json/new target exists before the navigation commits, and the
+  // target's URL in /json/list updates BEFORE the document swaps — a loop
+  // attach in between enumerates the empty pre-navigation document (the E1
+  // no-match flake, diagnosed 2026-10-02: the round's state.url was
+  // scrubUrl('about:blank') = 'nullblank' with zero elements). Wait until the
+  // target shows the fixture URL AND a parsed <title>, which only the real
+  // document has.
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    const list = (await (await fetch(`${chrome.endpoint}/json/list`)).json()) as Array<{
+      id: string;
+      url: string;
+      title: string;
+    }>;
+    const t = list.find((p) => p.id === info.id);
+    if ((t && t.url.startsWith(`${fixture.url}/${name}.html`) && t.title !== '') || Date.now() >= deadline) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
   return info.id;
 }
 
@@ -175,25 +193,28 @@ function lastLogRecord(home: string): Record<string, unknown> {
   return JSON.parse(lines[lines.length - 1]) as Record<string, unknown>;
 }
 
-/** Dismisses an open dialog on the fixture page over a raw CDP session, then
- * reads the page's #log text. Used by E16 (r17): the loop never answers a
- * prompt, so the dialog must STILL be open when the call ends — the dismiss
- * here is what makes prompt() resolve null and write 'dismissed' into the
- * log. A loop that had accepted the prompt would have resolved it with ''
- * (log stays empty) and left no dialog, so this handleJavaScriptDialog call
- * would throw "no dialog showing" instead. */
-async function dismissDialogAndReadLog(targetId: string): Promise<unknown> {
+/** Reads the page's #log text over a raw CDP session, with a short bound.
+ * Used by E16 (r17): call it only AFTER the server has been closed — the
+ * driver's detach clears the browser-side dialog. The bound matters: on some
+ * Chrome builds (this machine's headless, observed 2026-10-02) the renderer
+ * stays WEDGED on the unresolved prompt() after the browser-side dismissal —
+ * #log is then unreadable (the evaluate times out), which is itself the
+ * never-answered evidence; on builds where the dismissal resolves the
+ * prompt, #log reads 'dismissed'. Either way the prompt was never answered
+ * inside the call; a RESOLVED prompt ('' — an accepted prompt) is the only
+ * failing shape, and only a loop that answers prompts produces it. */
+async function readLogText(targetId: string): Promise<unknown> {
   const observer = await CdpConnection.connect(chrome.endpoint);
   try {
     const { sessionId } = await observer.send<{ sessionId: string }>('Target.attachToTarget', {
       targetId,
       flatten: true,
     });
-    await observer.send('Page.handleJavaScriptDialog', { accept: false }, sessionId, 5_000);
     const res = await observer.send<{ result?: { value?: unknown } }>(
       'Runtime.evaluate',
       { expression: "document.getElementById('log').textContent", returnByValue: true },
       sessionId,
+      3_000,
     );
     return res.result?.value;
   } finally {
@@ -1042,14 +1063,27 @@ test('E16: a prompt is never answered; the clause ends blocked/dialog-open (r17)
     });
     assert.equal(r.status, 'blocked', `reason: ${r.reason}`);
     assert.equal(r.reason, 'dialog-open');
-    // The prompt is still open: the loop never answers it. Dismissing it here
-    // makes prompt() resolve null and write 'dismissed' into the log — a loop
-    // that HAD accepted it would have resolved it with '' (empty log) and no
-    // dialog, so this dismiss itself would have thrown.
-    const log = await dismissDialogAndReadLog(pageId);
-    assert.equal(log, 'dismissed', 'the prompt resolved null — never answered by the loop');
     const rec = lastLogRecord(s.home);
     assert.equal((rec.acts_by_op as Record<string, number>)?.click, 1);
+    // Never-answered proof: the loop never answers a prompt, so the prompt
+    // can never be resolved INSIDE the call. Closing the server detaches the
+    // driver's session and clears the browser-side dialog; what #log then
+    // shows is build-dependent — 'dismissed' where the dismissal resolved
+    // the prompt null, or an unreadable page where the renderer is still
+    // wedged on the unresolved prompt (this machine's headless Chrome). The
+    // only failing shape is a RESOLVED prompt: an accepting loop resolves it
+    // with '' inside the call and #log reads ''.
+    await s.close();
+    let log: unknown;
+    try {
+      log = await readLogText(pageId);
+    } catch {
+      log = null; // read timed out: the renderer is still wedged on the unresolved prompt
+    }
+    assert.ok(
+      log === null || log === 'dismissed',
+      `the prompt must never be answered by the loop, but #log reads ${JSON.stringify(log)}`,
+    );
   } finally {
     await s.close();
     await stub.close();

@@ -130,6 +130,11 @@ const KB_COUNT_MET = false;
 const KB_DIALOG_ANSWER = false;
 /** r17 (D6): the three-arm login suppression predicate. */
 const KB_LOGIN_SUPPRESS = false;
+/** r17b (F3): a check/uncheck act's own flip result ('checked'/'unchecked'
+ * returned by the driver when the act flipped the control) is stored as the
+ * history entry's `result` — a check that flips state is progress, the way a
+ * landed fill carries 'filled'. */
+const KB_CHECK_FLIP = false;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -515,6 +520,18 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
   }
   const updated: HistoryEntry = { ...last, result };
   return [...history.slice(0, -1), updated];
+}
+
+/** r17b (F3): a driver may return the act's own state-change result from a
+ * check/uncheck ('checked'/'unchecked' — the adapter reads `checked` before
+ * and after the act and reports a flip). When it does, that result is stored
+ * on the history entry at act time and annotateLastOutcome leaves it alone;
+ * the evidence rules already read it exactly like a landed fill's 'filled'
+ * (hasStepEvidence's check/uncheck branches). Anything else — void, or a
+ * non-flip — falls back to the fresh-observation annotation as before. */
+function checkFlipResult(actResult: string | void): string | undefined {
+  if (KB_CHECK_FLIP) return undefined;
+  return actResult === 'checked' || actResult === 'unchecked' ? actResult : undefined;
 }
 
 /** r15 (verifier pass 1): `annotateLastOutcome` reads each act's result ONCE,
@@ -2443,7 +2460,8 @@ async function runTool(
     // r17 (C4): dialogs are correlated with this act temporally — only events
     // at or after this index are this act's to answer (or block on).
     const dialogBase = dialogEvents.length;
-    await driver.act(pageId, el.id, action.verb, actValue);
+    // r17b (F3): a check/uncheck that flipped reports its own result.
+    const actFlip = checkFlipResult(await driver.act(pageId, el.id, action.verb, actValue));
     inFlightOp = null;
     if (cur) cur.actMs += now() - tAct0;
     if (action.verb === 'wait') {
@@ -2465,6 +2483,7 @@ async function runTool(
         before: outcomeSignal(action.verb, el, obs),
         beforeUrl: obs.url,
         stepKey,
+        ...(actFlip !== undefined ? { result: actFlip } : {}),
         ...(action.verb === 'select' && action.optionValue !== undefined
           ? { intendedLabel: el.options?.find((o) => o.value === action.optionValue)?.label }
           : {}),
@@ -4021,8 +4040,10 @@ async function runTool(
         // r17 (C4): only events at or after this index are this act's to
         // answer or block on.
         const dialogBase = dialogEvents.length;
+        // r17b (F3): a check/uncheck that flipped reports its own result.
+        let actFlip: string | undefined;
         try {
-          await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue);
+          actFlip = checkFlipResult(await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue));
         } catch (e) {
           // r13 D7: a stuck-recover back with no history is the deferred
           // bounce, not an act failure; every other error propagates.
@@ -4067,6 +4088,7 @@ async function runTool(
               : {}),
             beforeUrl: obs.url,
             stepKey: currentStepKey,
+            ...(actFlip !== undefined ? { result: actFlip } : {}),
             ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
               ? { intendedLabel: decision.el.options?.find((o) => o.value === decision.optionValue)?.label }
               : {}),

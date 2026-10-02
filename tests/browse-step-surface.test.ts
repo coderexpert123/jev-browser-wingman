@@ -64,6 +64,13 @@ const SPEC_58_BROWSE_STEP_SCHEMA = {
         },
         nth: { type: 'integer', minimum: 1, maximum: 20 },
         value: { type: 'string', pattern: '^[a-z][a-z0-9_]{0,39}$' },
+        key: {
+          type: 'string',
+          enum: [
+            'Enter', 'Tab', 'ShiftTab', 'Escape', 'Space', 'Backspace',
+            'SelectAll', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+          ],
+        },
       },
     },
     url_match: { type: 'string', maxLength: 200 },

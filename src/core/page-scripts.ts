@@ -96,12 +96,19 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
   }
   // r17 (D7): a visually hidden input can resolve its name through an
   // adjacent visible sibling <label> (the TodoMVC shape). Checks the next
-  // element sibling, then the previous one.
+  // element sibling, then the previous one. A label with its OWN association —
+  // a `for` attribute or a wrapped control — is owned by that control and
+  // never names a sibling (r17b: a hidden #t7 next to a label[for=#t6] must
+  // not steal that label's text as its name).
   function siblingLabel(el: Element): HTMLElement | null {
+    function owned(node: Element): boolean {
+      if (node.hasAttribute('for')) return true;
+      return node.querySelectorAll('input,select,textarea,button').length > 0;
+    }
     var next = el.nextElementSibling;
-    if (next && next.tagName === 'LABEL' && isVisible(next)) return next as HTMLElement;
+    if (next && next.tagName === 'LABEL' && !owned(next) && isVisible(next)) return next as HTMLElement;
     var prev = el.previousElementSibling;
-    if (prev && prev.tagName === 'LABEL' && isVisible(prev)) return prev as HTMLElement;
+    if (prev && prev.tagName === 'LABEL' && !owned(prev) && isVisible(prev)) return prev as HTMLElement;
     return null;
   }
   function accessibleName(el: Element): string {
