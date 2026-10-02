@@ -1,0 +1,26 @@
+TAP version 13
+# Subtest: true only when the expression returns true
+ok 1 - true only when the expression returns true
+  ---
+  type: 'test'
+  ...
+# Subtest: evaluateExpression returns the verbatim value
+ok 2 - evaluateExpression returns the verbatim value
+  ---
+  type: 'test'
+  ...
+# Subtest: a throwing expression is false
+ok 3 - a throwing expression is false
+  ---
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=3 pass=3 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

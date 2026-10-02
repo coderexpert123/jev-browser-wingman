@@ -1,0 +1,271 @@
+TAP version 13
+# Subtest: tools/list in shadow mode lists three tools in the pinned order
+ok 1 - tools/list in shadow mode lists three tools in the pinned order
+  ---
+  type: 'test'
+  ...
+# Subtest: browse_step carries the pinned description
+ok 2 - browse_step carries the pinned description
+  ---
+  type: 'test'
+  ...
+# Subtest: browse_step schema matches the pinned schema
+not ok 3 - browse_step schema matches the pinned schema
+  ---
+  type: 'test'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        additionalProperties: false,
+        properties: {
+          confirm_token: {
+            maxLength: 64,
+    ...
+              },
+    +         key: {
+    +           enum: [
+    +             'Enter',
+    +             'Tab',
+    +             'ShiftTab',
+    +             'Escape',
+    +             'Space',
+    +             'Backspace',
+    +             'SelectAll',
+    +             'ArrowUp',
+    +             'ArrowDown',
+    +             'ArrowLeft',
+    +             'ArrowRight'
+    +           ],
+    +           type: 'string'
+    +         },
+              name: {
+                maxLength: 200,
+                type: 'string'
+              },
+              nth: {
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    type: 'object'
+    additionalProperties: false
+    required:
+      0: 'goal'
+    properties:
+      goal:
+        type: 'string'
+        minLength: 1
+        maxLength: 2000
+      steps:
+        type: 'array'
+        minItems: 1
+        maxItems: 12
+        items:
+          type: 'string'
+          minLength: 1
+          maxLength: 300
+      step:
+        type: 'string'
+        minLength: 1
+        maxLength: 300
+      values:
+        type: 'object'
+        maxProperties: 20
+        additionalProperties:
+          type:
+            0: 'string'
+            1: 'number'
+            2: 'boolean'
+      pick:
+        type: 'object'
+        additionalProperties: false
+        required:
+          0: 'action'
+        properties:
+          role:
+            type: 'string'
+            maxLength: 40
+          name:
+            type: 'string'
+            maxLength: 200
+          action:
+            type: 'string'
+            enum:
+              0: 'click'
+              1: 'fill'
+              2: 'select'
+              3: 'check'
+              4: 'uncheck'
+              5: 'press'
+              6: 'scroll'
+              7: 'scroll_up'
+              8: 'dblclick'
+              9: 'hover'
+              10: 'upload'
+              11: 'navigate'
+              12: 'back'
+              13: 'wait'
+              14: 'scroll_to'
+              15: 'reload'
+          nth:
+            type: 'integer'
+            minimum: 1
+            maximum: 20
+          value:
+            type: 'string'
+            pattern: '^[a-z][a-z0-9_]{0,39}$'
+      url_match:
+        type: 'string'
+        maxLength: 200
+      confirm_token:
+        type: 'string'
+        maxLength: 64
+      takeover:
+        type: 'boolean'
+      max_steps:
+        type: 'integer'
+        minimum: 1
+        maximum: 24
+      max_ms:
+        type: 'integer'
+        minimum: 1000
+        maximum: 120000
+  actual:
+    type: 'object'
+    properties:
+      goal:
+        type: 'string'
+        minLength: 1
+        maxLength: 2000
+      steps:
+        type: 'array'
+        minItems: 1
+        maxItems: 12
+        items:
+          type: 'string'
+          minLength: 1
+          maxLength: 300
+      step:
+        type: 'string'
+        minLength: 1
+        maxLength: 300
+      values:
+        type: 'object'
+        maxProperties: 20
+        additionalProperties:
+          type:
+            0: 'string'
+            1: 'number'
+            2: 'boolean'
+      pick:
+        type: 'object'
+        additionalProperties: false
+        required:
+          0: 'action'
+        properties:
+          role:
+            type: 'string'
+            maxLength: 40
+          name:
+            type: 'string'
+            maxLength: 200
+          action:
+            type: 'string'
+            enum:
+              0: 'click'
+              1: 'fill'
+              2: 'select'
+              3: 'check'
+              4: 'uncheck'
+              5: 'press'
+              6: 'scroll'
+              7: 'scroll_up'
+              8: 'dblclick'
+              9: 'hover'
+              10: 'upload'
+              11: 'navigate'
+              12: 'back'
+              13: 'wait'
+              14: 'scroll_to'
+              15: 'reload'
+          nth:
+            type: 'integer'
+            minimum: 1
+            maximum: 20
+          value:
+            type: 'string'
+            pattern: '^[a-z][a-z0-9_]{0,39}$'
+          key:
+            type: 'string'
+            enum:
+              0: 'Enter'
+              1: 'Tab'
+              2: 'ShiftTab'
+              3: 'Escape'
+              4: 'Space'
+              5: 'Backspace'
+              6: 'SelectAll'
+              7: 'ArrowUp'
+              8: 'ArrowDown'
+              9: 'ArrowLeft'
+              10: 'ArrowRight'
+      url_match:
+        type: 'string'
+        maxLength: 200
+      confirm_token:
+        type: 'string'
+        maxLength: 64
+      takeover:
+        type: 'boolean'
+      max_steps:
+        type: 'integer'
+        minimum: 1
+        maximum: 24
+      max_ms:
+        type: 'integer'
+        minimum: 1000
+        maximum: 120000
+    required:
+      0: 'goal'
+    additionalProperties: false
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/dist/tests/browse-step-surface.test.js:230:16)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: the default config lists only browse_step
+ok 4 - the default config lists only browse_step
+  ---
+  type: 'test'
+  ...
+# Subtest: a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+ok 5 - a first call with the verbatim t9 goal, seven steps and a numeric value is not invalid-input
+  ---
+  type: 'test'
+  ...
+# Subtest: browse_step dispatches a committed takeover result through tools/call
+ok 6 - browse_step dispatches a committed takeover result through tools/call
+  ---
+  type: 'test'
+  ...
+# Subtest: <redacted4>man.step validates input and returns error invalid-input
+ok 7 - <redacted4>man.step validates input and returns error invalid-input
+  ---
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 6
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=7 pass=6 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
