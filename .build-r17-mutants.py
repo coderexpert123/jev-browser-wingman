@@ -10,11 +10,13 @@
 # afterwards (a KB-proof run poisons a scoped .build until it is rebuilt).
 #
 # The cloud-deferred flags whose proofs need a real Chrome (page-scripts'
-# hidden-sibling flag plus the CDP adapter's three) are asserted present and
+# hidden-sibling flag plus the CDP adapter's four) are asserted present and
 # reported DEFERRED-CLOUD — the cloud KB-r17c run owns their live proof (spec,
-# cloud gate step 3). KB_PW_CHECK_TOGGLE is the one adapter flag proven HERE:
-# its leg is a Chrome-backed adapter-playwright test (added 2026-10-02, the
-# flag was vacuous before), run in isolation inside the serial UNIT loop.
+# cloud gate step 3). The Chrome-backed adapter flags proven HERE are
+# KB_PW_CHECK_TOGGLE (added 2026-10-02, the flag was vacuous before) and
+# KB_PW_GROWTH_WAIT (added 2026-10-02, r17c) — the SECOND such leg; each has
+# a Chrome-backed adapter-playwright test and runs in isolation inside the
+# serial UNIT loop, so only one Chrome-backed run ever executes per pass.
 # Exit 0 only when every unit flag's mapped tests failed and every restore
 # matched.
 
@@ -77,6 +79,10 @@ UNIT = [
     ('KB_CHECK_FLIP', 'loop', [
         ('chain', 'T-check-flip advances on the act-returned flip'),
     ]),
+    ('KB_SCROLL_SIGNAL_Y', 'loop', [
+        ('chain', 'T-scroll-y: a moved viewport is scroll evidence'),
+        ('chain', 'T-scroll-y feeds count evidence on a moved viewport'),
+    ]),
     # KB_PW_CHECK_TOGGLE's proof was VACUOUS until 2026-10-02 (verifier): no
     # test drove a bare-sibling-label check through the playwright adapter.
     # The adapter-playwright leg below launches a real Chrome (unlike the unit
@@ -85,16 +91,26 @@ UNIT = [
     ('KB_PW_CHECK_TOGGLE', 'playwright', [
         ('adapter-playwright', 'check on a sibling-label hidden checkbox activates the control itself (r17b)'),
     ]),
+    # r17c: the second Chrome-backed unit leg (see header). Its flip proof is
+    # the adapter test below; E18b in chain-e2e discriminates the CDP twin
+    # (KB_CDP_GROWTH_WAIT) through the full loop and stays cloud-deferred.
+    ('KB_PW_GROWTH_WAIT', 'playwright', [
+        ('adapter-playwright', 'scroll waits out a wheel-triggered append'),
+    ]),
 ]
 # Flag proofs that still need the cloud Chrome run (spec: DEFERRED-CLOUD):
-# page-scripts' hidden-sibling flag plus the CDP adapter's three. The fourth
-# former cloud flag, KB_PW_CHECK_TOGGLE, moved up to UNIT on 2026-10-02 once
+# page-scripts' hidden-sibling flag plus the CDP adapter's four (r17c adds
+# KB_CDP_GROWTH_WAIT; its E18b e2e leg exists locally but is not run inside
+# this serial script — chain-e2e is a second browser-heavy file and would add
+# a second Chrome-backed run per pass). The former cloud flag,
+# KB_PW_CHECK_TOGGLE, moved up to UNIT on 2026-10-02 once
 # the playwright-adapter sibling-label check test existed (previously vacuous).
 CLOUD = [
     ('KB_HIDDEN_SIBLING', 'page-scripts'),
     ('KB_CDP_PRESS_NONE', 'cdp'),
     ('KB_CDP_DIALOG', 'cdp'),
     ('KB_CDP_CHECK_TOGGLE', 'cdp'),
+    ('KB_CDP_GROWTH_WAIT', 'cdp'),
     ('KB_PW_PRESS_NONE', 'playwright'),
     ('KB_PW_DIALOG', 'playwright'),
 ]
