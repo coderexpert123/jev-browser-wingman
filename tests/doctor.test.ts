@@ -22,6 +22,7 @@ import { createDefaultAsk } from '../src/core/jev-client.js';
 import { resolveEndpoint } from '../src/browser/acquire.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
 import { createCdpDriver } from '../src/adapters/cdp.js';
+import { fingerprint } from '../src/cli/coexistence-probe.js';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { closePageOnDetach, injectGlobal, createContextOnAttach } from './helpers/known-bad-drivers.js';
@@ -325,6 +326,87 @@ test('coexistence fails with a driver that injects a global', async () => {
   } finally {
     await ephemeral.close();
   }
+});
+
+// Flake fix 2026-10-02 (cloud Part-1): one sentinel eval timeout must NOT be
+// read as a dialog — a slow renderer answers the retry, a real dialog never
+// does. Drives the REAL fingerprint over a scripted connection; no Chrome.
+type SendLog = Array<[string, object?, string?, number?]>;
+function scriptedConn(evalPlan: (callIndex: number, expression: string) => unknown): {
+  conn: CdpConnection;
+  sent: SendLog;
+} {
+  let evalCalls = 0;
+  const sent: SendLog = [];
+  const fake = {
+    send: (method: string, params?: object, sessionId?: string, timeoutMs?: number) => {
+      sent.push([method, params, sessionId, timeoutMs]);
+      if (method === 'Target.getBrowserContexts') {
+        return Promise.resolve({ browserContextIds: [] });
+      }
+      if (method === 'Target.getTargets') {
+        return Promise.resolve({ targetInfos: [{ targetId: 't1', type: 'page', url: 'about:blank#frag' }] });
+      }
+      if (method === 'Target.attachToTarget') {
+        return Promise.resolve({ sessionId: 's1' });
+      }
+      if (method === 'Target.detachFromTarget') {
+        return Promise.resolve({});
+      }
+      if (method === 'Runtime.evaluate') {
+        const outcome = evalPlan(++evalCalls, String((params as { expression?: string })?.expression));
+        if (outcome instanceof Error) return Promise.reject(outcome);
+        return Promise.resolve({ result: { value: outcome } });
+      }
+      return Promise.reject(new Error(`unexpected method ${method}`));
+    },
+    on: () => () => {},
+    close: () => Promise.resolve(),
+  };
+  return { conn: fake as unknown as CdpConnection, sent };
+}
+
+const TIMEOUT = new Error('cdp timeout: Runtime.evaluate');
+const EVAL_ANSWERS: Record<string, unknown> = {
+  '1': 1,
+  'JSON.stringify(Object.getOwnPropertyNames(globalThis).sort())': '["a"]',
+  'document.documentElement.attributes.length + ":" + (document.body ? document.body.attributes.length : -1)': '0:0',
+  'JSON.stringify({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio })':
+    '{"w":800,"h":600,"dpr":1}',
+};
+
+test('coexistence probe: one slow sentinel is not a dialog; the retry answers (flake fix)', async () => {
+  const { conn, sent } = scriptedConn((callIndex, expression) => {
+    if (callIndex === 1) return TIMEOUT; // first sentinel: slow, not blocked
+    return EVAL_ANSWERS[expression] ?? new Error(`unplanned eval: ${expression}`);
+  });
+  const fp = await fingerprint(conn);
+  const page = fp.pages[0];
+  assert.equal(page.url, 'about:blank'); // fragment stripped
+  assert.equal(page.dialogOpen, false, 'a slow-but-answering sentinel must not be reported as a dialog');
+  assert.equal(page.globalsHash, '0eb5b8d6f81b'); // sha256('["a"]') slice 12
+  assert.equal(page.htmlAttrs, '0:0');
+  assert.deepEqual(page.viewport, { w: 800, h: 600, dpr: 1 });
+  assert.deepEqual(
+    Object.keys(page).sort(),
+    ['dialogOpen', 'globalsHash', 'htmlAttrs', 'targetId', 'url', 'viewport'],
+    'visibility is ambient renderer state, not write evidence — it must stay out of the fingerprint',
+  );
+  // The sentinel retry gets the long budget; a real dialog never answers it.
+  const sentinelBudgets = sent
+    .filter(([m, p]) => m === 'Runtime.evaluate' && (p as { expression?: string })?.expression === '1')
+    .map(([, , , t]) => t);
+  assert.deepEqual(sentinelBudgets, [500, 4000]);
+});
+
+test('coexistence probe: a persistently blocked page is still reported as a dialog', async () => {
+  const { conn } = scriptedConn(() => TIMEOUT);
+  const fp = await fingerprint(conn);
+  const page = fp.pages[0];
+  assert.equal(page.dialogOpen, true, 'a page that never answers the sentinel is a dialog');
+  assert.equal(page.globalsHash, null);
+  assert.equal(page.htmlAttrs, null);
+  assert.equal(page.viewport, null);
 });
 
 test('jev-round fails against a stub answering 500', async () => {

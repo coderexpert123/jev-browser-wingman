@@ -1,6 +1,18 @@
 // WP-F2: the coexistence observer fingerprint (§ WP-F2 item 3). Everything
 // is read through the observer's own CdpConnection, per page through a
 // flatten-attached session that is detached again; nothing is written.
+//
+// Flake fix (2026-10-02, cloud Part-1): the fingerprint must contain only
+// state whose change proves a WRITE into the page. Two former fields were
+// noise sources instead:
+// - `visibility` is ambient renderer/scheduler state the browser controls
+//   (first-render/activation settling); the driver's attach (cdp.ts) sends
+//   no page-touching message at all, so a visibility flip is never observer
+//   mutation. Dropped.
+// - `dialogOpen` was signalled by a single 500 ms eval timeout, conflating
+//   "renderer starved" with "dialog open". A modal dialog blocks evaluation
+//   INDEFINITELY; a slow renderer answers eventually. The sentinel now
+//   retries once with a long budget before declaring a dialog.
 
 import { createHash } from 'node:crypto';
 import type { CdpConnection } from '../adapters/cdp-connection.js';
@@ -12,7 +24,6 @@ export interface ProbePage {
   globalsHash: string | null;
   htmlAttrs: string | null;
   viewport: { w: number | null; h: number | null; dpr: number | null } | null;
-  visibility: string | null;
 }
 
 export interface ProbeFingerprint {
@@ -21,6 +32,9 @@ export interface ProbeFingerprint {
 }
 
 const EVAL_TIMEOUT_MS = 500;
+/** Second-chance budget for the dialog sentinel: a real dialog never answers
+ * within it; a merely slow renderer does. */
+const SENTINEL_RETRY_MS = 4000;
 
 async function evalValue(conn: CdpConnection, sessionId: string, expression: string): Promise<unknown> {
   const r = await conn.send<{ result?: { value?: unknown } }>(
@@ -34,7 +48,7 @@ async function evalValue(conn: CdpConnection, sessionId: string, expression: str
 
 async function probePage(conn: CdpConnection, targetId: string, rawUrl: string): Promise<ProbePage> {
   const url = rawUrl.split('#')[0];
-  const nulls = { globalsHash: null, htmlAttrs: null, viewport: null, visibility: null };
+  const nulls = { globalsHash: null, htmlAttrs: null, viewport: null };
   let sessionId: string | undefined;
   try {
     const attached = await conn.send<{ sessionId: string }>(
@@ -49,10 +63,16 @@ async function probePage(conn: CdpConnection, targetId: string, rawUrl: string):
     return { targetId, url, dialogOpen: false, ...nulls };
   }
   try {
-    // A modal dialog blocks evaluation; the timeout is the dialog signal.
+    // A modal dialog blocks evaluation indefinitely; a slow renderer answers
+    // eventually. One short timeout is retried with a long budget, so a
+    // loaded machine is not misread as a dialog (see the header comment).
     await conn.send('Runtime.evaluate', { expression: '1', returnByValue: true }, sessionId, EVAL_TIMEOUT_MS);
   } catch {
-    return { targetId, url, dialogOpen: true, ...nulls };
+    try {
+      await conn.send('Runtime.evaluate', { expression: '1', returnByValue: true }, sessionId, SENTINEL_RETRY_MS);
+    } catch {
+      return { targetId, url, dialogOpen: true, ...nulls };
+    }
   }
 
   let globalsHash: string | null = null;
@@ -100,20 +120,12 @@ async function probePage(conn: CdpConnection, targetId: string, rawUrl: string):
     // stays null
   }
 
-  let visibility: string | null = null;
-  try {
-    const v = await evalValue(conn, sessionId, 'document.visibilityState');
-    if (typeof v === 'string') visibility = v;
-  } catch {
-    // stays null
-  }
-
   try {
     await conn.send('Target.detachFromTarget', { sessionId });
   } catch {
     // the session may already be gone
   }
-  return { targetId, url, dialogOpen: false, globalsHash, htmlAttrs, viewport, visibility };
+  return { targetId, url, dialogOpen: false, globalsHash, htmlAttrs, viewport };
 }
 
 export async function fingerprint(conn: CdpConnection): Promise<ProbeFingerprint> {

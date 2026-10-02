@@ -771,3 +771,35 @@ withheld — this file rides a public-bound repository). Gates:
   must skip owned labels or a hidden input adjacent to a `label[for=x]`
   steals x's name (the page-scripts #16 cloud failure: #t7 next to
   `label[for=t6]` enumerated as "Fine print" with `controlPath: '#t7'`).
+
+## Gotchas from the coexistence flake fix (2026-10-02)
+
+- **The doctor coexistence fingerprint must contain only state whose change
+  proves a WRITE into the page.** Two former fields were noise: a single
+  500 ms sentinel-eval timeout was read as `dialogOpen` (conflating a
+  starved renderer with a modal dialog — a dialog blocks INDEFINITELY, so
+  the sentinel now retries once with a 4 s budget before declaring one),
+  and `visibility` is ambient renderer/scheduler state no known-bad driver
+  pins (dropped from `ProbePage`; the key-set pin in doctor.test.ts keeps
+  it out). Cloud Part-1's 2-of-3 intermittent "fingerprint changed" was
+  one of these; not locally reproducible (0 fails in 8 whole-test runs and
+  a 25-iteration attach/detach loop).
+- **`driver.attach`/`detach` (cdp.ts) provably sends no page-touching CDP**
+  — connect + `Target.getBrowserContexts` + `conn.on(...)` subscriptions,
+  and `CdpConnection.on` is a pure listener registry that sends nothing.
+  So ANY coexistence fingerprint flip is ambient Chrome state or a
+  probe-eval timeout, never the wingman's own attach; diagnose there first.
+- **Timeout flakes need real renderer starvation, not node-side CPU load**:
+  8 CPU-burner processes kept every probe eval under 300 ms of its 500 ms
+  budget. The cloud failure mode is the 160-chrome suite wedge starving
+  Chrome itself; a local load rig that starves node proves nothing about it.
+- **`pa_claim` cannot reserve jev-browser-wingman paths** — reservation
+  paths resolve against the PA repo, so repo-relative wingman paths do not
+  exist there and absolute paths are rejected. Fall back to checking
+  `pa_claims` for conflicts plus a clean `git diff HEAD` on the files.
+- **An `Edit` whose `new_string` re-includes a block adjacent to the deleted
+  one duplicates it** (hit for real this time): the removed `visibility`
+  read sat right before an identical `viewport` block, and the replacement
+  re-added viewport. tsc catches this only when it is a redeclaration;
+  read the whole file after any edit that deletes a block sitting next to
+  a structurally identical one.
