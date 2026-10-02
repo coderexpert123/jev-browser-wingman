@@ -19,3 +19,7 @@
 - KB_CDP_CHECK_TOGGLE: FAIL chain-e2e E19 (expected).
 - KB_PW_PRESS_NONE: FAIL conformance-ops O19 (playwright); adapter-playwright passes (not a mapped discriminator).
 - KB_PW_DIALOG: FAIL conformance-ops O20 (playwright); adapter-playwright answerDialog leg PASSES under the flag (non-discriminating, as in the f9b21b9 pass).
+
+## Invocation A (playwright x2, t10-t14, cap 3.00, phase cap 30.814594 = ledger 5.814594 + 25) - results/A-playwright-2026-10-02-152648.json, total 1.709121 USD
+- t10 ok x2 (27.1 s/0.276, 19.0 s/0.162) | t11 ok x2 (15.4/0.256, 14.6/0.148) | t12 ok x2 (10.1/0.202, 55.9/0.112; end_state "You clicked: Ok | focus=button")
+- t13 ok x2 (15.2/0.185, 15.4/0.087; end_state "10 items | scrollY=3148/3164") | t14 FALSE x2 (11.3/0.202, 10.0/0.080; end_state " | focus=body" both)
