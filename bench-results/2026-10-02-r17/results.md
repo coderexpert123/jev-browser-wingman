@@ -6,11 +6,11 @@ Missing inputs: `.build-r17-spec.md` and `.build-r17-mutants.py` named in the in
 ## Part 1 — full suite (5 serial chunks, one file per invocation; `npm ci && npm run build` ok, `tsc --noEmit` exit 0)
 | chunk | files | result |
 |---|---|---|
-| 1 | acquire, adapter-cdp, adapter-playwright, bench-browse, bench-cap, bench-oracle, bounce-escalation, boundary, browse-step-surface, cdp-connection, chain-e2e | **browse-step-surface 6/7, chain-e2e 17/19**; rest pass |
-| 2 | next 10 files (alphabetical through the second chunk) | all pass |
-| 3 | ... through page-scripts | **page-scripts 19/20**; rest pass |
-| 4 | next 10 files | all pass |
-| 5 | remaining files | all pass |
+| 1 (11 files) | acquire, adapter-cdp, adapter-playwright, bench-browse, bench-cap, bench-oracle, bounce-escalation, boundary, browse-step-surface, cdp-connection, chain-e2e | **failed: browse-step-surface, chain-e2e**; rest pass |
+| 2 (11 files) | chain, chrome-cmd, chrome, classify-tools, cli, config, conformance-ops, conformance, contract, doc-safety, doctor | all pass |
+| 3 (11 files) | egress, ephemeral-sweep, gate, jev-client, log, loop, mcp-server, outcome-evidence, page-scripts, pick-e2e, pick | **failed: page-scripts**; rest pass |
+| 4 (11 files) | plugin, policy, profiles, questions, readme-bench, registrations, runner-sweep-leak, runner-sweep, scaffold, settle, setup-plan | all pass |
+| 5 (7 files) | takeover-config, takeover, tokens, typesafe-stub, with-chrome-forced, with-chrome, withhold | all pass |
 Totals (first run): **51 files, 849 tests, 843 pass, 4 FAIL, 1 skip (chrome-cmd win32), 1 todo (conformance-ops playwright O18)**. After every chunk: 0 live chromes. Gates: `LAZY-CHROME: ok listed=24 chrome=0 answered=false`; `--known-bad tool-call` -> `LAZY-CHROME: FAIL listed=24 chrome=10 answered=true`.
 **Re-run of each failing file alone: identical failures (deterministic, not load flakes).** Per-file counts: part1/logs/runner-summary.txt; failing-test logs: part1/logs/{browse-step-surface,chain-e2e,page-scripts}.log and rerun-*.log.
 
