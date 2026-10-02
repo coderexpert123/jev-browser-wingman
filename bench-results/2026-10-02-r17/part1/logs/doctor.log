@@ -1,0 +1,416 @@
+TAP version 13
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# FAIL adapter-attach  nothing listening on port 59999 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: key-present fails with no key and never prints a planted key
+ok 1 - key-present fails with no key and never prints a planted key
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# FAIL config-loaded  malformed JSON in /tmp/wingman-doctor-badcfg-6n53B3/config.json
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# SKIP policy-loaded  skipped: config-loaded failed
+# SKIP profile-safe  skipped: config-loaded failed
+# SKIP adapter-attach  skipped: config-loaded failed
+# SKIP default-context  skipped: config-loaded failed
+# SKIP coexistence  skipped: config-loaded failed
+# SKIP handoff  skipped: config-loaded failed
+# SKIP jev-round  skipped: config-loaded failed
+# verdict: FAIL
+# Subtest: config-loaded fails on malformed JSON
+ok 2 - config-loaded fails on malformed JSON
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# FAIL registration-portable  absolute-path:C:/evil/jev-mcp.js
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# FAIL adapter-attach  nothing listening on port 59999 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: registration-portable fails on a planted absolute path
+ok 3 - registration-portable fails on a planted absolute path
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# FAIL policy-loaded  category identity is empty
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# FAIL adapter-attach  nothing listening on port 59999 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: policy-loaded fails on an emptied list
+ok 4 - policy-loaded fails on an emptied list
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# FAIL profile-safe  profile_dir /root/.config/google-chrome is Chrome's default user-data dir
+# FAIL adapter-attach  nothing listening on port 59999 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: profile-safe fails on the default user-data dir
+ok 5 - profile-safe fails on the default user-data dir
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# FAIL profile-safe  Chrome pid(s) 4242 hold /tmp/wingman-doctor-profile-stub without a debug port
+# FAIL adapter-attach  nothing listening on port 59999 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: profile-safe fails on a holder without a debug port
+ok 6 - profile-safe fails on a holder without a debug port
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# FAIL adapter-attach  nothing listening on port 32891 and no endpoint env is set
+# SKIP default-context  skipped: adapter-attach failed
+# SKIP coexistence  skipped: adapter-attach failed
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: adapter-attach fails with nothing listening
+ok 7 - adapter-attach fails with nothing listening
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# PASS adapter-attach  attached to http://127.0.0.1:37773; 1 page(s)
+# FAIL default-context  pages outside the default context: 0; contexts changed by attach/detach: true
+# FAIL coexistence  observer fingerprint changed across attach/detach
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: default-context fails with a driver that creates a context
+ok 8 - default-context fails with a driver that creates a context
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# PASS adapter-attach  attached to http://127.0.0.1:39869; 4 page(s)
+# PASS default-context  attach stayed in the default context; cookies=0
+# FAIL coexistence  observer fingerprint changed across attach/detach
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: coexistence fails with a driver that closes a page on detach
+ok 9 - coexistence fails with a driver that closes a page on detach
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# PASS adapter-attach  attached to http://127.0.0.1:44249; 1 page(s)
+# PASS default-context  attach stayed in the default context; cookies=0
+# FAIL coexistence  observer fingerprint changed across attach/detach
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  skipped: key-present failed
+# verdict: FAIL
+# Subtest: coexistence fails with a driver that injects a global
+ok 10 - coexistence fails with a driver that injects a global
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# PASS adapter-attach  attached to http://127.0.0.1:34635; 1 page(s)
+# PASS default-context  attach stayed in the default context; cookies=0
+# PASS coexistence  observer fingerprint identical across attach/detach (1 page(s))
+# PASS handoff  optional: nothing withheld
+# FAIL jev-round  runCheck returned status=fallback reason=jev-error jev_calls=1
+# verdict: FAIL
+# Subtest: jev-round fails against a stub answering 500
+ok 11 - jev-round fails against a stub answering 500
+  ---
+  type: 'test'
+  ...
+# PASS key-present  source=env
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  2 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# PASS adapter-attach  attached to http://127.0.0.1:40869; 1 page(s)
+# PASS default-context  attach stayed in the default context; cookies=0
+# PASS coexistence  observer fingerprint identical across attach/detach (1 page(s))
+# PASS handoff  optional: nothing withheld
+# PASS jev-round  runCheck answered with 1 jev call(s)
+# verdict: PASS
+# Subtest: all ten checks pass on a clean ephemeral setup
+ok 12 - all ten checks pass on a clean ephemeral setup
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  optional: nothing withheld (wingman mode is off; forced needs mode on)
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: json output is one parseable line with the pinned check order
+ok 13 - json output is one parseable line with the pinned check order
+  ---
+  type: 'test'
+  ...
+# Subtest: handoff PASSes optional when the config has no handoff key (hand-built object)
+ok 14 - handoff PASSes optional when the config has no handoff key (hand-built object)
+  ---
+  type: 'test'
+  ...
+# Subtest: handoff PASSes optional with the mode-off suffix when wingman mode is not on
+ok 15 - handoff PASSes optional with the mode-off suffix when wingman mode is not on
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  1 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# SKIP handoff  no browsing tool registered
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  2 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  enforced by proxy: playwright (playwright-mcp); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff SKIPs when no browsing tool is registered
+ok 16 - handoff SKIPs when no browsing tool is registered
+  ---
+  type: 'test'
+  ...
+# Subtest: handoff PASSes "enforced by proxy" for a wrapped, profile-matched server
+ok 17 - handoff PASSes "enforced by proxy" for a wrapped, profile-matched server
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  1 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  enforced by proxy after auto-classification: some-other-browser (first session classifies; needs a TypeSafe key); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script; not yet classified
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff PASSes "enforced by proxy after auto-classification" for a wrapped, unmatched server
+ok 18 - handoff PASSes "enforced by proxy after auto-classification" for a wrapped, unmatched server
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  1 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  enforced by proxy after auto-classification: some-other-browser (first session classifies; needs a TypeSafe key); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script; left with the caller (unclassified): weird_tool
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff appends the unclassified tool names once an auto profile exists
+ok 19 - handoff appends the unclassified tool names once an auto profile exists
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  enforced by deny config: playwright; withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff PASSes "enforced by deny config" when the client settings list every withheld tool
+ok 20 - handoff PASSes "enforced by deny config" when the client settings list every withheld tool
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# FAIL handoff  not enforced: wrap playwright with with-browser (doctor --plan prints the entry); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff FAILs a proxiable, unwrapped server with no deny entries
+ok 21 - handoff FAILs a proxiable, unwrapped server with no deny entries
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  1 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# FAIL handoff  enforced by proxy: playwright (playwright-mcp); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script; not enforced: wrap devtools with with-browser (doctor --plan prints the entry); withheld classes: element-act, type, select, key, hover, upload, navigate, back, scroll, script
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff aggregates: one enforced + one unenforced server yields FAIL with both details
+ok 22 - handoff aggregates: one enforced + one unenforced server yields FAIL with both details
+  ---
+  type: 'test'
+  ...
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# SKIP handoff  no browsing tool registered; WARNING: policy.mode enforce with forced handoff: sensitive pages come back for pick or the user
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# PASS registration-portable  1 registration(s) portable
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# FAIL key-present  TYPESAFE_API_KEY is not set in the environment or in secrets_file
+# PASS config-loaded  config loaded; gate: confirm
+# SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+# PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+# PASS profile-safe  profile_dir is not the default dir and nothing answers on the port
+# SKIP adapter-attach  not run: doctor --plan is offline only
+# SKIP default-context  not run: doctor --plan is offline only
+# SKIP coexistence  not run: doctor --plan is offline only
+# PASS handoff  optional: nothing withheld
+# SKIP jev-round  not run: doctor --plan is offline only
+# verdict: FAIL
+# Subtest: handoff Q4: forced + policy.mode enforce appends the WARNING, status unchanged
+ok 23 - handoff Q4: forced + policy.mode enforce appends the WARNING, status unchanged
+  ---
+  type: 'test'
+  ...
+# Subtest: registration-portable counts a with-browser-wrapped entry as relevant
+ok 24 - registration-portable counts a with-browser-wrapped entry as relevant
+  ---
+  type: 'test'
+  ...
+# Subtest: config-loaded ends with the off gate suffix by default (Q6)
+ok 25 - config-loaded ends with the off gate suffix by default (Q6)
+  ---
+  type: 'test'
+  ...
+# Subtest: config-loaded ends with the confirm gate suffix when gate.mode is confirm (Q6)
+ok 26 - config-loaded ends with the confirm gate suffix when gate.mode is confirm (Q6)
+  ---
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=26 pass=26 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

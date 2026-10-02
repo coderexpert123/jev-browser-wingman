@@ -1,0 +1,51 @@
+TAP version 13
+# Subtest: typeHint classifies email, phone, number, date, url and text
+ok 1 - typeHint classifies email, phone, number, date, url and text
+  ---
+  type: 'test'
+  ...
+# Subtest: redactValues replaces every occurrence case-insensitively
+ok 2 - redactValues replaces every occurrence case-insensitively
+  ---
+  type: 'test'
+  ...
+# Subtest: values shorter than 4 chars are left alone
+ok 3 - values shorter than 4 chars are left alone
+  ---
+  type: 'test'
+  ...
+# Subtest: longest value is replaced first when values overlap
+ok 4 - longest value is replaced first when values overlap
+  ---
+  type: 'test'
+  ...
+# Subtest: assertNoValues throws on a planted leak
+ok 5 - assertNoValues throws on a planted leak
+  ---
+  type: 'test'
+  ...
+# Subtest: redactDeep walks nested arrays and objects
+ok 6 - redactDeep walks nested arrays and objects
+  ---
+  type: 'test'
+  ...
+# Subtest: isPathLike accepts drive-letter, absolute-slash and UNC paths
+ok 7 - isPathLike accepts drive-letter, absolute-slash and UNC paths
+  ---
+  type: 'test'
+  ...
+# Subtest: isPathLike rejects urls, bare names, oversized and multiline values
+ok 8 - isPathLike rejects urls, bare names, oversized and multiline values
+  ---
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=8 pass=8 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

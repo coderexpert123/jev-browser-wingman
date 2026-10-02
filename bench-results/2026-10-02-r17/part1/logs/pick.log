@@ -1,0 +1,126 @@
+TAP version 13
+# Subtest: validatePick rejects non-objects, arrays and scalars
+ok 1 - validatePick rejects non-objects, arrays and scalars
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick rejects unknown keys
+ok 2 - validatePick rejects unknown keys
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick requires action to be a member of OPS
+ok 3 - validatePick requires action to be a member of OPS
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick requires role and name for a targeted action
+ok 4 - validatePick requires role and name for a targeted action
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick enforces role typing: string, 1..40 characters
+ok 5 - validatePick enforces role typing: string, 1..40 characters
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick enforces name typing: string, 0..200 characters
+ok 6 - validatePick enforces name typing: string, 0..200 characters
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick makes role and name optional but typed for targetless actions
+ok 7 - validatePick makes role and name optional but typed for targetless actions
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick enforces nth: integer 1..PICK_NTH_MAX
+ok 8 - validatePick enforces nth: integer 1..PICK_NTH_MAX
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick requires value exactly for PICK_VALUE_OPS
+ok 9 - validatePick requires value exactly for PICK_VALUE_OPS
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick requires value to match BINDING_RE and name a binding
+ok 10 - validatePick requires value to match BINDING_RE and name a binding
+  ---
+  type: 'test'
+  ...
+# Subtest: validatePick returns the typed pick on success
+ok 11 - validatePick returns the typed pick on success
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick is case- and whitespace-insensitive
+ok 12 - resolvePick is case- and whitespace-insensitive
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick with nth returns the nth match
+ok 13 - resolvePick with nth returns the nth match
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick with an out-of-range nth returns no-match with up to 3 matches
+ok 14 - resolvePick with an out-of-range nth returns no-match with up to 3 matches
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick without nth returns multi-match with the first 3
+ok 15 - resolvePick without nth returns multi-match with the first 3
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick returns no-match with the first 3 same-role elements on zero matches
+ok 16 - resolvePick returns no-match with the first 3 same-role elements on zero matches
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick matches a single element exactly
+ok 17 - resolvePick matches a single element exactly
+  ---
+  type: 'test'
+  ...
+# Subtest: resolvePick resolves a targetless action to el null
+ok 18 - resolvePick resolves a targetless action to el null
+  ---
+  type: 'test'
+  ...
+# Subtest: candidateOf redacts a planted value in the name and the label
+ok 19 - candidateOf redacts a planted value in the name and the label
+  ---
+  type: 'test'
+  ...
+# Subtest: candidateOf caps label and name at 80 characters
+ok 20 - candidateOf caps label and name at 80 characters
+  ---
+  type: 'test'
+  ...
+# Subtest: r17 pick: key is press-only and must be a PRESS_KEYS member
+ok 21 - r17 pick: key is press-only and must be a PRESS_KEYS member
+  ---
+  type: 'test'
+  ...
+# Subtest: r17 pick: a press pick takes role and name together or neither
+ok 22 - r17 pick: a press pick takes role and name together or neither
+  ---
+  type: 'test'
+  ...
+# Subtest: r17 resolvePick: a press pick with no role and name resolves targetless (el null)
+ok 23 - r17 resolvePick: a press pick with no role and name resolves targetless (el null)
+  ---
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=23 pass=23 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

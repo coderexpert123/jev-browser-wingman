@@ -1,0 +1,211 @@
+TAP version 13
+# Subtest: log record carries the phases breakdown (fail-first shape test)
+ok 1 - log record carries the phases breakdown (fail-first shape test)
+  ---
+  type: 'test'
+  ...
+# Subtest: a chain round's log carries step_done/ready/right_page probabilities; a non-chain round omits them
+ok 2 - a chain round's log carries step_done/ready/right_page probabilities; a non-chain round omits them
+  ---
+  type: 'test'
+  ...
+# Subtest: a multi-round non-chain wingman_do call still carries errorP on round >= 2 (error is gated on round alone, not on chain)
+ok 3 - a multi-round non-chain wingman_do call still carries errorP on round >= 2 (error is gated on round alone, not on chain)
+  ---
+  type: 'test'
+  ...
+# Subtest: check-path record carries phases with one round
+ok 4 - check-path record carries phases with one round
+  ---
+  type: 'test'
+  ...
+# Subtest: done after one click then goal-met
+ok 5 - done after one click then goal-met
+  ---
+  type: 'test'
+  ...
+# Subtest: action none with done 0.6 is done
+ok 6 - action none with done 0.6 is done
+  ---
+  type: 'test'
+  ...
+# Subtest: action none with done 0.3 is ambiguous no-action with top-3 candidates
+ok 7 - action none with done 0.3 is ambiguous no-action with top-3 candidates
+  ---
+  type: 'test'
+  ...
+# Subtest: target below 0.5 is ambiguous target-uncertain
+ok 8 - target below 0.5 is ambiguous target-uncertain
+  ---
+  type: 'test'
+  ...
+# Subtest: fill without bindings is ambiguous no-value
+ok 9 - fill without bindings is ambiguous no-value
+  ---
+  type: 'test'
+  ...
+# Subtest: two visible tabs are ambiguous tab-ambiguous and url_match picks one
+ok 10 - two visible tabs are ambiguous tab-ambiguous and url_match picks one
+  ---
+  type: 'test'
+  ...
+# Subtest: budget-steps after max_steps acts
+ok 11 - budget-steps after max_steps acts
+  ---
+  type: 'test'
+  ...
+# Subtest: a non-done wingman_do result carries the continuation line (fail-first shape test)
+ok 12 - a non-done wingman_do result carries the continuation line (fail-first shape test)
+  ---
+  type: 'test'
+  ...
+# Subtest: done carries no continuation line; needs_confirmation keeps the token and adds it
+ok 13 - done carries no continuation line; needs_confirmation keeps the token and adds it
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_check results never carry the goal continuation line
+ok 14 - wingman_check results never carry the goal continuation line
+  ---
+  type: 'test'
+  ...
+# Subtest: budget-time stops before the floor (fake clock)
+ok 15 - budget-time stops before the floor (fake clock)
+  ---
+  type: 'test'
+  ...
+# Subtest: a concurrent call is blocked busy
+ok 16 - a concurrent call is blocked busy
+  ---
+  type: 'test'
+  ...
+# Subtest: mode off returns fallback mode-off without attaching
+ok 17 - mode off returns fallback mode-off without attaching
+  ---
+  type: 'test'
+  ...
+# Subtest: no key returns fallback no-key without attaching
+ok 18 - no key returns fallback no-key without attaching
+  ---
+  type: 'test'
+  ...
+# Subtest: no endpoint returns fallback no-browser
+ok 19 - no endpoint returns fallback no-browser
+  ---
+  type: 'test'
+  ...
+# Subtest: jev http error is fallback jev-error and circuit-open is breaker-open
+ok 20 - jev http error is fallback jev-error and circuit-open is breaker-open
+  ---
+  type: 'test'
+  ...
+# Subtest: stale element is error stale-element
+ok 21 - stale element is error stale-element
+  ---
+  type: 'test'
+  ...
+# Subtest: covered target is blocked covered-target
+ok 22 - covered target is blocked covered-target
+  ---
+  type: 'test'
+  ...
+# Subtest: native select picks the option locally when the value matches a label
+ok 23 - native select picks the option locally when the value matches a label
+  ---
+  type: 'test'
+  ...
+# Subtest: two-stage selection above max_elements
+ok 24 - two-stage selection above max_elements
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_check returns done answered with the rounded answer
+ok 25 - wingman_check returns done answered with the rounded answer
+  ---
+  type: 'test'
+  ...
+# Subtest: an unresolvable target id is target-uncertain, never an act on another element
+ok 26 - an unresolvable target id is target-uncertain, never an act on another element
+  ---
+  type: 'test'
+  ...
+# Subtest: an out-of-set action choice is target-uncertain
+ok 27 - an out-of-set action choice is target-uncertain
+  ---
+  type: 'test'
+  ...
+# Subtest: gate off submits a gated button without a token
+ok 28 - gate off submits a gated button without a token
+  ---
+  type: 'test'
+  ...
+# Subtest: gate off with Jev p(irreversible) 0.9 still acts
+ok 29 - gate off with Jev p(irreversible) 0.9 still acts
+  ---
+  type: 'test'
+  ...
+# Subtest: default (absent) gate config acts without needs_confirmation (Q6)
+ok 30 - default (absent) gate config acts without needs_confirmation (Q6)
+  ---
+  type: 'test'
+  ...
+# Subtest: a wingman_do fill round below the value threshold is unchanged: ambiguous no-value
+ok 31 - a wingman_do fill round below the value threshold is unchanged: ambiguous no-value
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 32 - wingman_do on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_check on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 33 - wingman_check on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  type: 'test'
+  ...
+# Subtest: browse_step on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 34 - browse_step on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  type: 'test'
+  ...
+# Subtest: the same sensitive host under policy.mode off never yields the sensitive-page note
+ok 35 - the same sensitive host under policy.mode off never yields the sensitive-page note
+  ---
+  type: 'test'
+  ...
+# Subtest: a step-uncertain browse_step bounce still carries the HEAD caller line and bounce tier 1
+ok 36 - a step-uncertain browse_step bounce still carries the HEAD caller line and bounce tier 1
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do press-none commits a targetless press (focused element)
+ok 37 - wingman_do press-none commits a targetless press (focused element)
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do press-none with irreversible refuses ambiguous no-action with zero acts
+ok 38 - wingman_do press-none with irreversible refuses ambiguous no-action with zero acts
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do press with no key answer falls back to Enter
+ok 39 - wingman_do press with no key answer falls back to Enter
+  ---
+  type: 'test'
+  ...
+# Subtest: wingman_do token act answers the page dialog per the goal text
+ok 40 - wingman_do token act answers the page dialog per the goal text
+  ---
+  type: 'test'
+  ...
+1..40
+# tests 40
+# suites 0
+# pass 40
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=40 pass=40 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

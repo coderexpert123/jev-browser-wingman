@@ -1,0 +1,91 @@
+TAP version 13
+# Subtest: build.mjs scoped build emits BUILD ok
+ok 1 - build.mjs scoped build emits BUILD ok
+  ---
+  type: 'test'
+  ...
+# Subtest: build.mjs refuses entries without --out
+ok 2 - build.mjs refuses entries without --out
+  ---
+  type: 'test'
+  ...
+# Subtest: build.mjs reports a type error without BUILD ok
+ok 3 - build.mjs reports a type error without BUILD ok
+  ---
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on a basename that matches nothing
+ok 4 - run-tests.mjs fails on a basename that matches nothing
+  ---
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on a file with zero tests
+ok 5 - run-tests.mjs fails on a file with zero tests
+  ---
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on an empty file beside a file with tests
+ok 6 - run-tests.mjs fails on an empty file beside a file with tests
+  ---
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails when the dist has no test files
+ok 7 - run-tests.mjs fails when the dist has no test files
+  ---
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs child env carries no TypeSafe key and a temp WINGMAN_HOME
+ok 8 - run-tests.mjs child env carries no TypeSafe key and a temp WINGMAN_HOME
+  ---
+  type: 'test'
+  ...
+# Subtest: import-boundary flags a path outside the package
+ok 9 - import-boundary flags a path outside the package
+  ---
+  type: 'test'
+  ...
+# Subtest: import-boundary flags an undeclared bare package
+ok 10 - import-boundary flags an undeclared bare package
+  ---
+  type: 'test'
+  ...
+# Subtest: notices flags a marker without an entry
+ok 11 - notices flags a marker without an entry
+  ---
+  type: 'test'
+  ...
+# Subtest: notices flags an entry without a marker
+ok 12 - notices flags an entry without a marker
+  ---
+  type: 'test'
+  ...
+# Subtest: packageRoot resolves from a nested build dir
+ok 13 - packageRoot resolves from a nested build dir
+  ---
+  type: 'test'
+  ...
+# Subtest: fixture server serves form.html and 404s traversal
+ok 14 - fixture server serves form.html and 404s traversal
+  ---
+  type: 'test'
+  ...
+# Subtest: npm pack ships every dir the runtime reads from packageRoot
+ok 15 - npm pack ships every dir the runtime reads from packageRoot
+  ---
+  type: 'test'
+  ...
+# Subtest: fixture server sets the persistent cookie on cookie.html
+ok 16 - fixture server sets the persistent cookie on cookie.html
+  ---
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+RUN-TESTS: files=1 tests=16 pass=16 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
