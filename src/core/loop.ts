@@ -42,6 +42,7 @@ import type {
   Observation,
   Op,
   PickInput,
+  PressKey,
   Reason,
   Status,
   WingmanConfig,
@@ -106,6 +107,71 @@ const VALUE_NAMED_RE = /\bvalue named ([a-z][a-z0-9_]{0,39})\b/gi;
 /** KB proof switch (KB-D b / WP-D Db): composed into the pick obscured check.
  * Never flip in shipped code. */
 const KB_PICK_OBSCURED = false;
+
+// r17 KB proof switches (WP-B mutant targets): each is `false`, composed into
+// the condition it guards, never flipped in shipped code.
+/** r17 (D1/C6): the `press` + `target: none` commit preceding the margin rule. */
+const KB_PRESS_NONE = false;
+/** r17 (D1): the targetless-press irreversible refusal. */
+const KB_PRESS_IRREV = false;
+/** r17 (D2): the 'focus changed' promotion in annotateLastOutcome. */
+const KB_FOCUS_PROMOTE = false;
+/** r17 (D3): the deterministic key-press advance in runChainEarly rule 3. */
+const KB_KEY_EVIDENCE = false;
+/** r17 (C10/D2): the key identity compare in isNoProgress's targetless branch. */
+const KB_PRESS_KEY_EQ = false;
+/** r17 (C11/D2): scroll/scroll_up carrying outcome signals. */
+const KB_SIGNAL_SCROLL = false;
+/** r17 (D2): the scroll-entry skip in lastEvidenceEntry/hasRepeatCountEvidence. */
+const KB_SCROLL_NOSKIP = false;
+/** r17 (D4): the count_met noul read and the count advance. */
+const KB_COUNT_MET = false;
+/** r17 (D5): answering a dialog per the step text. */
+const KB_DIALOG_ANSWER = false;
+/** r17 (D6): the three-arm login suppression predicate. */
+const KB_LOGIN_SUPPRESS = false;
+
+// r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
+// longest-first so `arrow down` beats `down`; `delete` is deliberately absent
+// (not a PRESS_KEYS member — "press Delete" parses undefined rather than
+// mispressing Backspace, R9). Exactly one match required, mirroring
+// parseRepeatCount's ambiguity contract.
+const KEY_NAME_RE =
+  /\b(?:press|hit|push)\s+(?:the\s+)?(arrow\s*down|arrow\s*up|arrow\s*left|arrow\s*right|shift\s*tab|shift\s*\+\s*tab|ctrl\s*\+\s*a|cmd\s*\+\s*a|select\s*all|backspace|space|space\s*bar|escape|esc|enter|return|tab|down|up|left|right)\b(?:\s+key|\s+button)?/gi;
+const KEY_NAMES: Readonly<Record<string, PressKey>> = {
+  enter: 'Enter',
+  return: 'Enter',
+  tab: 'Tab',
+  'shift tab': 'ShiftTab',
+  'shift+tab': 'ShiftTab',
+  escape: 'Escape',
+  esc: 'Escape',
+  space: 'Space',
+  'space bar': 'Space',
+  backspace: 'Backspace',
+  'ctrl+a': 'SelectAll',
+  'cmd+a': 'SelectAll',
+  'select all': 'SelectAll',
+  'arrow down': 'ArrowDown',
+  down: 'ArrowDown',
+  'arrow up': 'ArrowUp',
+  up: 'ArrowUp',
+  'arrow left': 'ArrowLeft',
+  left: 'ArrowLeft',
+  'arrow right': 'ArrowRight',
+  right: 'ArrowRight',
+};
+
+// r17 (D4): "at least N" / "a minimum of N" / "no fewer than N" phrase before a
+// digit (1–50) or spelled-out count word; exactly one match required.
+const AT_LEAST_RE =
+  /\b(?:at least|a minimum of|minimum of|no fewer than|no less than|atleast)\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\b/gi;
+
+// r17 (D5): a confirm dialog is answered from the STEP text, never the dialog
+// message (C3 — the message is page content, a prompt-injection surface). Both
+// regexes matching is ambiguous → no answer; neither matching → no answer.
+const DIALOG_ACCEPT_RE = /\b(accept|confirm|ok(?:ay)?|yes|approve|agree|allow|proceed|submit)\b/i;
+const DIALOG_DISMISS_RE = /\b(dismiss|cancel|decline|reject|close|deny)\b/i;
 
 // Result-text steering (2026-09-21): a wingman_do run that ends for any reason
 // other than done carries this static line so the calling model re-calls the
@@ -202,7 +268,7 @@ const bounceCounts = new Map<string, number>();
 // CHAIN_MEMORY_MAX.
 // r15 D3: `clicks` = the stored cursor clause's effective clicks (element path and name; in-process only).
 type ClickRef = { path: string; name: string };
-interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean; clicks?: ClickRef[] }
+interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean; clicks?: ClickRef[]; loginSeen?: true }
 const chainMemory = new Map<string, ChainMemoryEntry>();
 
 /** Chain state for the current browse_step call, when it runs chain mode
@@ -240,6 +306,10 @@ interface ChainState {
   // runDoRounds installs so finish() stores this call's clicks too.
   priorClicks: ClickRef[];
   clicksNow?: () => ClickRef[];
+  // r17 (D6): the current cursor clause already produced a login/login-page
+  // end once (this call or a stored one). Set ONLY where such a result is
+  // produced (C1), reset on every clause advance.
+  loginSeen: boolean;
 }
 
 /** r13: the bounce a stuck recovery defers (why + the candidates captured at trigger time). */
@@ -312,6 +382,13 @@ interface HistoryEntry {
   // effectiveClicks reads it; `result` itself stays untouched, so no evidence
   // rule changes. Internal only.
   late?: true;
+  // r17 (D2): the focused element's `path` before the act — evidence for the
+  // 'focus changed' promotion in annotateLastOutcome. Internal only.
+  beforeFocus?: string;
+  // r17 (D2/C10): the pressed key on a targetless press entry only — compared
+  // in isNoProgress's targetless branch, where path identity is absent.
+  // Internal only.
+  key?: PressKey;
 }
 
 /** § outcome evidence: element-state verbs read `state` directly (no new
@@ -326,19 +403,33 @@ const ELEMENT_STATE_VERBS: ReadonlySet<Op> = new Set(['fill', 'select', 'check',
 const CLICK_FAMILY_OPS: ReadonlySet<Op> = new Set(['click', 'dblclick', 'press']);
 
 /** § outcome evidence fix (2026-09-28, r6 Finding 2 / diagnosis 3): the
- * targetless verbs whose whole point is to leave the current page. They get
- * a page-level before/result like click-family (pageSignal with no `el`,
- * since there is no acted-on element) so a repeated navigate/back/reload
+ * targetless verbs whose whole point is to leave the current page, renamed
+ * r17 (C11) so no future read gives a scroll the "leaves the page" semantics.
+ * They get a page-level before/result like click-family (pageSignal with no
+ * `el`, since there is no acted-on element) so a repeated navigate/back/reload
  * that lands on the same page can trip the no-progress guard — r6 showed
  * a fresh-install task repeat `navigate` 24x to budget-steps because no
- * signal was ever recorded for it. Also read by runChainEarly (below) to
- * skip the ready/right_page gate for these verbs: "is the CURRENT page
- * ready" is asked about the page the step is about to abandon, so it was
- * bouncing not-ready on effectively every first-navigate step (r6:
- * part3-wingman-log.jsonl — every not-ready round's decided action was
- * navigate, actionP 0.94-0.98). scroll/scroll_up/wait stay outside this set:
- * they aren't navigation and keep their existing no-signal/no-guard behavior. */
-const NAVIGATION_OPS: ReadonlySet<Op> = new Set(['navigate', 'back', 'reload']);
+ * signal was ever recorded for it. r17 adds `press` and the scrolls: a
+ * targetless press (focused element) and a scroll that moved the page now
+ * carry the same page-level signal. `wait` stays outside: a wait's "no
+ * change" is not evidence against progress. */
+const SIGNAL_TARGETLESS_OPS: ReadonlySet<Op> = new Set(['navigate', 'back', 'reload', 'press', 'scroll', 'scroll_up']);
+
+/** r17 (C11): the verbs whose decided action skips the ready gate in
+ * runChainEarly rule 5 — the three navigation ops (they abandon the current
+ * page) plus the scrolls and scroll_to (a scroll-until-N clause's own scroll
+ * is the wait-substitute). `press` is deliberately NOT here: it acts on the
+ * current page and keeps the ready gate (R8). */
+const READY_GATE_SKIP_OPS: ReadonlySet<Op> = new Set(['navigate', 'back', 'reload', 'scroll', 'scroll_up', 'scroll_to']);
+
+/** r17 (C11): the targetless ops that carry an outcome signal, with the
+ * KB_SIGNAL_SCROLL mutant composed in — a flipped build drops the scrolls
+ * from the signal set. The one predicate outcomeSignal and isNoProgress share. */
+function signalTargetlessOp(op: Op): boolean {
+  if (!SIGNAL_TARGETLESS_OPS.has(op)) return false;
+  if (KB_SIGNAL_SCROLL && (op === 'scroll' || op === 'scroll_up')) return false;
+  return true;
+}
 
 function elementStateSignal(verb: Op, el: ElementRecord): string {
   if (verb === 'fill') return el.state.filled ? 'filled' : 'empty';
@@ -378,7 +469,7 @@ function pageSignal(obs: Observation, el?: ElementRecord): string {
 function outcomeSignal(verb: Op, el: ElementRecord | undefined, obs: Observation): string | undefined {
   if (ELEMENT_STATE_VERBS.has(verb) && el) return elementStateSignal(verb, el);
   if (el) return pageSignal(obs, el); // click-family: cheap page-level signal
-  if (NAVIGATION_OPS.has(verb)) return pageSignal(obs); // targetless nav: page-level signal, no element
+  if (signalTargetlessOp(verb)) return pageSignal(obs); // targetless signal op (nav/press/scroll): page-level signal, no element
   return undefined; // remaining targetless / binding-only verb: no signal, no guard, no result
 }
 
@@ -406,6 +497,21 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
     }
   } else {
     result = pageSignal(obs) !== last.before ? 'page changed' : 'no visible change';
+  }
+  // r17 (D2): a moved focus counts as evidence — when the computed result is
+  // 'no visible change' and the act's pre-act focus (beforeFocus) differs
+  // from this obs's focus AND the element focus moved TO is an enumerated
+  // editable, promote to 'focus changed'. Applies to the targeted arm too: a
+  // targeted `press Tab` on a field is the same evidence. A targetless press
+  // onto a NON-editable element stays 'no visible change' by design.
+  if (!KB_FOCUS_PROMOTE && result === 'no visible change' && last.beforeFocus !== undefined && CLICK_FAMILY_OPS.has(last.verb) && obs.focus !== undefined) {
+    const focusPath = obs.focus.path;
+    if (focusPath !== last.beforeFocus) {
+      const movedTo = obs.elements.find((e) => e.path === focusPath);
+      if (movedTo !== undefined && movedTo.editable === true) {
+        result = 'focus changed';
+      }
+    }
   }
   const updated: HistoryEntry = { ...last, result };
   return [...history.slice(0, -1), updated];
@@ -451,23 +557,33 @@ function noteLateChange(history: HistoryEntry[], obs: Observation): HistoryEntry
  * `decision.el`) never match: they carry no path and no signal.
  * Deliberate asymmetry (r11 Q3): unlike lastEvidenceEntry, this guard reads only the literal last entry — a wait may itself change the page. */
 function isNoProgress(
-  decision: { el: ElementRecord | null; verb: Op },
+  decision: { el: ElementRecord | null; verb: Op; optionValue?: string },
   history: HistoryEntry[],
   currentStepKey: string,
 ): boolean {
   if (history.length === 0) return false;
   const last = history[history.length - 1];
   if (decision.el === null) {
-    // Targetless: no element identity to compare, so only the navigation
-    // verbs (navigate/back/reload) carry a signal at all (outcomeSignal
-    // above) — scroll/scroll_up/wait never do and correctly never match here.
-    if (!NAVIGATION_OPS.has(decision.verb)) return false;
+    // Targetless: no element identity to compare, so only the signal
+    // targetless verbs (SIGNAL_TARGETLESS_OPS: nav, press, scrolls) carry a
+    // signal at all (outcomeSignal above) — wait never does and correctly
+    // never matches here.
+    if (!signalTargetlessOp(decision.verb)) return false;
     if (
       last.path !== undefined ||
       last.verb !== decision.verb ||
       last.result === undefined ||
       last.stepKey !== currentStepKey
     ) {
+      return false;
+    }
+    // r17 (C10): the key compare stays in the targetless branch — for a press
+    // the key is part of the act's identity, so "same verb different key"
+    // (press ArrowRight then ArrowLeft) is never a repeat. Element-targeted
+    // presses ride the path-identity branch above and keep keys out of it —
+    // `press Tab` then `press Enter` on the same field must not read as a
+    // repeat either, which a shared key compare would produce.
+    if (!KB_PRESS_KEY_EQ && decision.verb === 'press' && last.key !== decision.optionValue) {
       return false;
     }
     return last.result === 'no visible change';
@@ -494,9 +610,12 @@ function isNoProgress(
 
 /** § r11 Q3: the last signal-carrying history entry for `stepKey`. Walks back
  * from the end, skipping entries whose `before === undefined` (signal-less
- * acts — wait, bare scroll/scroll_up, any verb with no outcome signal), which
- * previously shadowed the evidence of the act before them for the rest of the
- * call. Returns the FIRST entry that carries `before`, but only when its
+ * acts — wait, any verb with no outcome signal), which previously shadowed
+ * the evidence of the act before them for the rest of the call. r17 (D2):
+ * scroll/scroll_up entries are skipped too — now that scrolls carry signals
+ * an unsuppressed skip would let a scroll shadow the fill/press evidence it
+ * belongs to ("click twice, scroll, click" must still anchor on the click
+ * run). Returns the FIRST entry that carries `before`, but only when its
  * stepKey matches — a signal-less entry is skipped unconditionally (a
  * pre-advance wait is incidental), never allowed to leak the previous
  * clause's evidence, which the stepKey check on the carried entry still
@@ -504,7 +623,7 @@ function isNoProgress(
 function lastEvidenceEntry(history: HistoryEntry[], stepKey: string): HistoryEntry | undefined {
   for (let i = history.length - 1; i >= 0; i--) {
     const h = history[i];
-    if (h.before === undefined) continue;
+    if (h.before === undefined || (!KB_SCROLL_NOSKIP && (h.verb === 'scroll' || h.verb === 'scroll_up'))) continue;
     return h.stepKey === stepKey ? h : undefined;
   }
   return undefined;
@@ -598,6 +717,44 @@ export function parseRepeatCount(step: string): number | undefined {
     count = REPEAT_WORD_COUNTS[m[1].toLowerCase()];
   }
   return matches === 1 ? count : undefined;
+}
+
+/** r17 (D3): the key a `press|hit|push` instruction names, or undefined when
+ * the step doesn't name exactly one. Alternation is longest-first (KEY_NAME_RE)
+ * so `arrow down` beats `down`; `delete` is deliberately absent (R9). */
+export function parseKeyPress(step: string): PressKey | undefined {
+  const matches = Array.from(step.matchAll(KEY_NAME_RE));
+  if (matches.length !== 1) return undefined;
+  const norm = matches[0][1].toLowerCase().replace(/\s*\+\s*/g, '+').replace(/\s+/g, ' ');
+  return KEY_NAMES[norm];
+}
+
+/** r17 (D4): the count a "scroll until at least N items" clause names —
+ * digit (1–50) or spelled-out word, exactly one match required (same
+ * ambiguity contract as parseRepeatCount). */
+export function parseAtLeastCount(step: string): number | undefined {
+  let count: number | undefined;
+  let matches = 0;
+  for (const m of step.matchAll(AT_LEAST_RE)) {
+    const g = m[1];
+    const n = /^\d+$/.test(g) ? Number(g) : REPEAT_WORD_COUNTS[g.toLowerCase()];
+    if (n !== undefined && n >= 1 && n <= 50) {
+      matches += 1;
+      count = n;
+    }
+  }
+  return matches === 1 ? count : undefined;
+}
+
+/** r17 (C6): the press-none commit — `press` with `target` choice 'none' at or
+ * above `gate` commits targetless (el: null) BEFORE any margin check, in
+ * decideTarget and at the chain/legacy uncertainty call sites alike; a
+ * margin-dominating element never steals a committed key press. Below the
+ * gate the ordinary no-match/low-confidence path applies. */
+function pressNoneCommits(verb: Op | string | undefined, answers: AnswerMap, gate: number): boolean {
+  if (KB_PRESS_NONE || verb !== 'press') return false;
+  const target = answers['target'] as JevChoiceAnswer | undefined;
+  return target?.choice === 'none' && (target.probabilities?.['none'] ?? 0) >= gate;
 }
 
 /** § r11 Q1 compound-clause decomposition: the action words observed in
@@ -769,6 +926,9 @@ function hasRepeatCountEvidence(history: HistoryEntry[], currentStepKey: string,
   for (let i = history.length - 1; i >= 0; i--) {
     const h = history[i];
     if (h.before === undefined) continue; // signal-less act: skip, don't break
+    // r17 (D2): scrolls carry signals now, but a scroll between click-family
+    // acts must not break or shadow the run — skip it the same way.
+    if (!KB_SCROLL_NOSKIP && (h.verb === 'scroll' || h.verb === 'scroll_up')) continue;
     if (anchor === undefined) anchor = h;
     if (
       h.stepKey !== currentStepKey ||
@@ -828,6 +988,85 @@ function effectiveClicks(history: HistoryEntry[], stepKey: string): ClickRef[] {
         (h.result !== 'no visible change' || h.late === true),
     )
     .map((h) => ({ path: h.path as string, name: h.label }));
+}
+
+/** r17 (D2): the last SIGNAL-CARRYING history entry for `stepKey`, scrolls
+ * INCLUDED — unlike lastEvidenceEntry (which skips scrolls so they can't
+ * shadow fill/press evidence), this walk lets a scroll shadow: the key/scroll
+ * evidence of a clause is its most recent moving act, and a scroll after the
+ * presses ends the press run here the same way it ends a repeat-count run in
+ * hasRepeatCountEvidence's own walk. */
+function lastSignalEntry(history: HistoryEntry[], stepKey: string): HistoryEntry | undefined {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i];
+    if (h.before === undefined) continue;
+    return h.stepKey === stepKey ? h : undefined;
+  }
+  return undefined;
+}
+
+/** r17 (D3): the last signal-carrying entry of `stepKey` is a `press` whose
+ * observed result is a real outcome — 'page changed', 'element gone' or the
+ * r17 'focus changed' promotion. */
+function hasKeyEvidence(history: HistoryEntry[], stepKey: string): boolean {
+  const last = lastSignalEntry(history, stepKey);
+  if (last === undefined || last.verb !== 'press') return false;
+  return last.result === 'page changed' || last.result === 'element gone' || last.result === 'focus changed';
+}
+
+/** r17 (D4): the last signal-carrying entry of `stepKey` is a `scroll` or
+ * `scroll_up` with result 'page changed' — a scroll that moved nothing reads
+ * 'no visible change' and never counts. */
+function hasScrollEvidence(history: HistoryEntry[], stepKey: string): boolean {
+  const last = lastSignalEntry(history, stepKey);
+  if (last === undefined || (last.verb !== 'scroll' && last.verb !== 'scroll_up')) return false;
+  return last.result === 'page changed';
+}
+
+/** r17 (D6): a login read is suppressed while any arm holds — (1) the step or
+ * goal names a supplied binding (the caller told us the credentials); (2) the
+ * current step is making progress (the last signal-carrying act's observed
+ * result differs from its baseline) and this call hasn't already ended login
+ * on it; (3) a resumed cursor already ended login once (chain memory's
+ * loginSeen). Pure predicate — never mutates, and suppression itself never
+ * sets loginSeen/loginEnded (C1: those are set only where a login/login-page
+ * result is produced, so a suppressed-then-still-login page keeps
+ * re-checking progress each round). */
+function loginSuppressedNow(a: {
+  text?: string;
+  values: Record<string, string>;
+  history: HistoryEntry[];
+  stepKey: string;
+  alreadyEnded: boolean;
+}): boolean {
+  if (KB_LOGIN_SUPPRESS) return false;
+  if (bindingsInStep(a.text ?? '', a.values).length > 0) return true;
+  if (!a.alreadyEnded) {
+    const last = lastEvidenceEntry(a.history, a.stepKey);
+    if (
+      last !== undefined &&
+      last.result !== undefined &&
+      (ELEMENT_STATE_VERBS.has(last.verb) ? last.result !== last.before : last.result !== 'no visible change')
+    ) {
+      return true;
+    }
+  }
+  return a.alreadyEnded;
+}
+
+/** r17 (D5/C3): the outcome a STEP wants for an open dialog — 'accept' always
+ * for an alert (no choice), never for prompt/beforeunload (nothing to type,
+ * no undo for navigation), and for a confirm the matched side of the step's
+ * own words; both regexes matching or neither is ambiguous → null (blocked).
+ * The dialog's own message is NEVER parsed. */
+function dialogOutcome(e: DialogEvent, stepText: string): 'accept' | 'dismiss' | null {
+  if (e.type === 'alert') return 'accept';
+  if (e.type === 'prompt' || e.type === 'beforeunload') return null;
+  if (KB_DIALOG_ANSWER) return null;
+  const accepts = DIALOG_ACCEPT_RE.test(stepText);
+  const dismisses = DIALOG_DISMISS_RE.test(stepText);
+  if (accepts === dismisses) return null; // both or neither
+  return accepts ? 'accept' : 'dismiss';
 }
 
 /** § 3.5 fingerprint rule: stale when tag, role or name differ, or |Δ| > 64 px. */
@@ -1279,6 +1518,48 @@ async function runTool(
     would: undefined as WingmanLogRecord['would'],
   };
   const dialogEvents: DialogEvent[] = [];
+  // r17 (D5/C4): events this call has already answered — an answered event is
+  // invisible to every later scan (at most one dialog is answered per act and
+  // per round).
+  const answeredDialogs = new Set<DialogEvent>();
+  /** An unanswered dialog event is pending on this page (r17 D5). */
+  const dialogOpenOn = (pid: string): boolean =>
+    dialogEvents.some((e) => e.pageId === pid && !answeredDialogs.has(e));
+  /** r17 (D5): the post-act dialog rule, shared by runTokenAction and the
+   * shared act tail. Scans only events at or after `dialogBase` (temporal
+   * correlation with this act). At most one answer per act: the first
+   * unanswered event is judged by dialogOutcome on the STEP text — an
+   * unanswerable one ends the call blocked/dialog-open; an answerable one is
+   * answered, and any SECOND unanswered event in the slice then ends the call
+   * blocked (a dialog cascade is never answered blind). Returns the blocking
+   * result, or null when the act continues. */
+  const dialogAfterAct = async (
+    driver: Driver,
+    pageId: string,
+    dialogBase: number,
+    stepText: string,
+    answeredThisAct: boolean,
+  ): Promise<WingmanResult | null> => {
+    const pending = dialogEvents
+      .slice(dialogBase)
+      .find((e) => e.pageId === pageId && !answeredDialogs.has(e));
+    if (pending === undefined) return null;
+    if (answeredThisAct) return mk('blocked', 'dialog-open');
+    const outcome = dialogOutcome(pending, stepText);
+    if (outcome === null) return mk('blocked', 'dialog-open');
+    try {
+      await driver.answerDialog(pageId, outcome === 'accept');
+      answeredDialogs.add(pending);
+      if (cur) cur.dialog = outcome;
+    } catch {
+      return mk('blocked', 'dialog-open');
+    }
+    // A second open dialog in the same act lands unanswered → blocked (C4).
+    if (dialogEvents.slice(dialogBase).some((e) => e.pageId === pageId && !answeredDialogs.has(e))) {
+      return mk('blocked', 'dialog-open');
+    }
+    return null;
+  };
   let steps = 0;
   let lastAction: { verb: Op; label: string } | undefined;
   let pageUrl: string | null = null;
@@ -1324,6 +1605,10 @@ async function runTool(
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
+    countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
+    loginSuppressed?: true;    // r17: a login read was suppressed this round
+    dialog?: 'accept' | 'dismiss'; // r17: the dialog answer this round performed
+    keyEvidence?: true;        // r17: the deterministic key-press advance fired this round
   };
   const phaseAcc: {
     attachMs?: number;
@@ -1393,6 +1678,8 @@ async function runTool(
     if (rightPage !== undefined) cur.rightPageP = rightPage;
     const error = noulOf('error');
     if (error !== undefined) cur.errorP = error;
+    const countMet = noulOf('count_met');
+    if (countMet !== undefined) cur.countMetP = countMet;
   };
 
   const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => ({
@@ -1463,6 +1750,9 @@ async function runTool(
           cursorActed: chainState.cursorActed,
           stuckTried: chainState.stuckUsed,
           clicks: chainState.clicksNow ? chainState.clicksNow() : chainState.priorClicks,
+          // r17 (D6): the flag is `true` or ABSENT — never `false` (the
+          // optional-field/deepStrictEqual gotcha applies to memory too).
+          loginSeen: chainState.loginSeen === true ? true : undefined,
         });
         while (chainMemory.size > CHAIN_MEMORY_MAX) {
           const oldest = chainMemory.keys().next().value;
@@ -1616,6 +1906,12 @@ async function runTool(
       raw.step_number = chain.stepNumber;
       raw.steps_total = chain.stepsTotal;
     }
+    // r17 (D4): the repeated-group tallies are the count_met answer's
+    // evidence — page-derived but never a value, so redactDeep still wraps
+    // the whole raw object. Emitted only when present and non-empty.
+    if (obs.repeatedGroups !== undefined && obs.repeatedGroups.length > 0) {
+      raw.repeatedGroups = obs.repeatedGroups;
+    }
     return redactDeep(raw, values);
   }
 
@@ -1704,14 +2000,30 @@ async function runTool(
     hasOp: (op: Op) => boolean,
     history: HistoryEntry[],
     stepText: string | undefined,
+    goalText: string,
+    loginAlreadyEnded: boolean,
   ): { result: WingmanResult } | { mechanical: Op } | { recovered: true } | null {
     const noulOf = (id: string): number => {
       const a = answers[id];
       return a && a.type === 'noul' ? a.noul : 0;
     };
-    // 1. login
+    // 1. login — suppressed (r17 D6) when the step/goal names a supplied
+    // binding, the call's own step is making progress, or it already ended
+    // login once. Suppression marks telemetry and falls through to rule 2;
+    // it never ends the call and never sets loginEnded itself (C1).
     if (noulOf('login') >= THRESHOLDS.login) {
-      return { result: mk('login', 'login-page') };
+      const suppress = loginSuppressedNow({
+        text: stepText ?? goalText,
+        values,
+        history,
+        stepKey: 'single',
+        alreadyEnded: loginAlreadyEnded,
+      });
+      if (suppress) {
+        if (cur) cur.loginSuppressed = true;
+      } else {
+        return { result: mk('login', 'login-page') };
+      }
     }
     // 2. blocked
     if (noulOf('blocked') >= THRESHOLDS.blocked) {
@@ -1742,6 +2054,22 @@ async function runTool(
         noulOf('error') < THRESHOLDS.error
       ) {
         if (cur) cur.clickEvidence = true;
+        return { result: mk('done', 'goal-met') };
+      }
+      // r17 (D4): a legacy step naming "at least N" ends done when Jev says
+      // the count is met AND a scroll has already visibly moved the page OR
+      // the observed group count independently meets the target — mirroring
+      // the bare-click branch's evidence bar and error gate.
+      const countFor = parseAtLeastCount(stepText);
+      if (
+        countFor !== undefined &&
+        !KB_COUNT_MET &&
+        noulOf('count_met') >= THRESHOLDS.stepDoneWithEvidence &&
+        noulOf('error') < THRESHOLDS.error &&
+        (hasScrollEvidence(history, 'single') ||
+          (obs.repeatedGroups?.some((g) => g.count >= countFor) ?? false))
+      ) {
+        if (cur) cur.countEvidence = countFor;
         return { result: mk('done', 'goal-met') };
       }
     }
@@ -1827,9 +2155,21 @@ async function runTool(
     const target = answers['target'] as JevChoiceAnswer | undefined;
     const targetId = target?.choice ?? 'none';
     const targetProb = target ? (target.probabilities[targetId] ?? 0) : 0;
-    // 6. target uncertainty — skipped for targetless verbs (§ 5.5.3).
+    // r17 (C6): a `press` whose target answer is `none` at the bar commits
+    // targetless BEFORE the targeted block (and its margin rule) can run —
+    // `press + none ≥ gate` is "Jev affirmatively said the focused element",
+    // and a margin-dominating element never steals a committed key press.
+    // The gate is the takeover threshold under takeover, THRESHOLDS.target
+    // off it — the same bars the targetless-verb arm already uses.
+    const pressNone = pressNoneCommits(
+      verb,
+      answers,
+      takeover ? takeoverOf(deps.config).threshold : THRESHOLDS.target,
+    );
+    // 6. target uncertainty — skipped for targetless verbs (§ 5.5.3) and for
+    // a committed press-none.
     let el: ElementRecord | null = null;
-    if (!(TARGETLESS_OPS as readonly string[]).includes(verb)) {
+    if (!pressNone && !(TARGETLESS_OPS as readonly string[]).includes(verb)) {
       let elId = targetId;
       if (takeover) {
         const threshold = takeoverOf(deps.config).threshold;
@@ -1977,6 +2317,21 @@ async function runTool(
         optionValue = 'Enter';
       }
     }
+    // r17 (D1): an element-free press with a high irreversible read refuses —
+    // a targetless submit keypress cannot mint a confirm token (no element
+    // identity), so the call hands back for a pick instead of gating on
+    // nothing. `irreversible` rides every round request, so no new ask.
+    if (!KB_PRESS_IRREV && el === null && verb === 'press') {
+      const irr = answers['irreversible'];
+      const irrP = irr && irr.type === 'noul' ? irr.noul : 0;
+      if (irrP >= THRESHOLDS.irreversible) {
+        return {
+          result: mk('ambiguous', 'no-action', { candidates: topTargetCandidates(answers, obs, values) }),
+          el,
+          verb,
+        };
+      }
+    }
     return {
       el,
       verb,
@@ -2043,6 +2398,7 @@ async function runTool(
     history: HistoryEntry[],
     driverOps: readonly Op[],
     stepKey: string,
+    stepText: string,
   ): Promise<{ result: WingmanResult | null; history: HistoryEntry[] }> {
     const action = deps.tokens.consume(token);
     if (!action) {
@@ -2084,6 +2440,9 @@ async function runTool(
     }
     const tAct0 = now();
     inFlightOp = action.verb;
+    // r17 (C4): dialogs are correlated with this act temporally — only events
+    // at or after this index are this act's to answer (or block on).
+    const dialogBase = dialogEvents.length;
     await driver.act(pageId, el.id, action.verb, actValue);
     inFlightOp = null;
     if (cur) cur.actMs += now() - tAct0;
@@ -2111,9 +2470,11 @@ async function runTool(
           : {}),
       },
     ];
-    // § 3.7 rule 11.
-    if (dialogEvents.some((e) => e.pageId === pageId)) {
-      return { result: mk('blocked', 'dialog-open'), history: next };
+    // § 3.7 rule 11, r17 (D5): a dialog this act opened is answered from the
+    // step text — unanswerable or a second one ends blocked as before.
+    const actDialog = await dialogAfterAct(driver, pageId, dialogBase, stepText, false);
+    if (actDialog) {
+      return { result: actDialog, history: next };
     }
     const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
     if (settleBudget > 0) {
@@ -2121,8 +2482,12 @@ async function runTool(
       await driver.settle(pageId, settleBudget);
       if (cur) cur.settleMs += now() - tSettle0;
     }
-    if (dialogEvents.some((e) => e.pageId === pageId)) {
-      return { result: mk('blocked', 'dialog-open'), history: next };
+    // Per-act bound (C4): "answered already" means answered within THIS act's
+    // slice — an earlier round's answered dialog must not pre-empt this one.
+    const answeredThisAct = dialogEvents.slice(dialogBase).some((e) => answeredDialogs.has(e));
+    const settleDialog = await dialogAfterAct(driver, pageId, dialogBase, stepText, answeredThisAct);
+    if (settleDialog) {
+      return { result: settleDialog, history: next };
     }
     return { result: null, history: next };
   }
@@ -2322,6 +2687,7 @@ async function runTool(
         stuckPending: null,
         retryNone: false,
         priorClicks: mem?.clicks ?? [],
+        loginSeen: mem?.loginSeen === true,
       };
     }
 
@@ -2417,6 +2783,11 @@ async function runTool(
     let waits = 0;
     // § 5.5.4 recover acts for legacy browse_step (per call).
     let legacyRecoverActs = 0;
+    // r17 (D6/C1): set only where a decideEarly-produced login/login-page
+    // result ends this call — its live read is arm (a) of the suppression
+    // predicate (always false there within the same call); it exists so the
+    // predicate's arm ordering stays uniform across chain and legacy.
+    let loginEnded = false;
     // § outcome evidence WP-B scope rule 2 (orchestrator decision,
     // 2026-09-28): true for a round whose decision fell through from an
     // error+recover 'continue' — set by decideEarly/runChainEarly right
@@ -2573,11 +2944,14 @@ async function runTool(
      * element as the answer's choice; the top-candidate margin rule
      * (amendment 2026-09-22) does not — it commits on the dominating listed
      * element even when the answer chose the `ambiguous` or `none`
-     * meta-answer. */
+     * meta-answer. r17 (C6): a committed press-none precedes the margin rule
+     * here too — a margin-dominating element never steals a key press. */
     function targetUncertainty(
       answers: AnswerMap,
       obs: Observation,
+      verb?: Op | string,
     ): 'no-match' | 'multi-match' | 'low-confidence' | null {
+      if (pressNoneCommits(verb, answers, takeoverOf(deps.config).threshold)) return null;
       const target = answers['target'] as JevChoiceAnswer | undefined;
       const choice = target?.choice;
       if (!target || typeof choice !== 'string') return 'no-match';
@@ -2611,7 +2985,9 @@ async function runTool(
         if ((probs[choice] ?? 0) >= takeoverOf(deps.config).threshold) return null;
         return marginCommitOp(probs, offered) !== null ? null : 'low-confidence';
       }
-      return targetUncertainty(answers, obs);
+      // r17 (C6): the press-none commit precedes the target margin rule.
+      if (pressNoneCommits(choice, answers, takeoverOf(deps.config).threshold)) return null;
+      return targetUncertainty(answers, obs, choice);
     }
 
     /** § 5.5.2 step 7 early answers, in order: login → blocked → advance →
@@ -2631,9 +3007,24 @@ async function runTool(
         const a = answers[id];
         return a && a.type === 'noul' ? a.noul : 0;
       };
-      // 1. login
+      // 1. login — suppressed (r17 D6) when the clause names a supplied
+      // binding, the clause is making progress, or this cursor already ended
+      // login once. Suppression marks telemetry and falls to rule 2; it never
+      // ends the call and never sets loginSeen itself (C1).
       if (noulOf('login') >= THRESHOLDS.login) {
-        return { kind: 'result', result: mk('login', 'login-page') };
+        if (
+          loginSuppressedNow({
+            text: chain!.clauses[chain!.cursor],
+            values,
+            history,
+            stepKey: `c${chain!.cursor}`,
+            alreadyEnded: chain!.loginSeen,
+          })
+        ) {
+          if (cur) cur.loginSuppressed = true;
+        } else {
+          return { kind: 'result', result: mk('login', 'login-page') };
+        }
       }
       // 2. blocked
       if (noulOf('blocked') >= THRESHOLDS.blocked) {
@@ -2675,6 +3066,24 @@ async function runTool(
       // r15 D2: below the confident stepDone bar no advance passes an error the
       // page shows (rule 3 precedes rule 4); the 0.85 bar keeps C2's done-first order.
       const errorClear = noulOf('error') < THRESHOLDS.error;
+      // r17 (D3): a clause naming a key ("press Enter", "hit Tab") advances
+      // once its last signal-carrying act was a press that produced evidence —
+      // deterministic like repeatCountMet, no stepDone bar.
+      const keyWanted = parseKeyPress(chain!.clauses[chain!.cursor]);
+      const keyAdvance =
+        !KB_KEY_EVIDENCE && keyWanted !== undefined && hasKeyEvidence(history, `c${chain!.cursor}`);
+      // r17 (D4): a "scroll until at least N" clause advances when Jev's
+      // count_met noul says the count is met AND (a scroll has already
+      // visibly moved the page OR the observed repeated-group count
+      // independently meets the target). A first-round count_met high on an
+      // already-satisfied page advances with zero scrolls, by design.
+      const countFor = parseAtLeastCount(chain!.clauses[chain!.cursor]);
+      const countAdvance =
+        !KB_COUNT_MET &&
+        countFor !== undefined &&
+        noulOf('count_met') >= THRESHOLDS.stepDoneWithEvidence &&
+        (hasScrollEvidence(history, `c${chain!.cursor}`) ||
+          (obs.repeatedGroups?.some((g) => g.count >= countFor) ?? false));
       const priorAdvance =
         stepDone >= THRESHOLDS.stepDone ||
         (errorClear &&
@@ -2683,6 +3092,8 @@ async function runTool(
               stepBindingCount <= 1 &&
               hasStepEvidence(history, `c${chain!.cursor}`)) ||
             repeatCountMet ||
+            keyAdvance ||
+            countAdvance ||
             (stepDone >= THRESHOLDS.stepDoneWithEvidence && bareClickEvidence)));
       // r14 D1: landed-navigation evidence (below the 0.5 evidence bar, never
       // through an error). Condition 6 (orchestrator R2b): never on the final
@@ -2698,6 +3109,8 @@ async function runTool(
       if (priorAdvance || navAdvance) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
         if (bareClickEvidence && cur) cur.clickEvidence = true;
+        if (keyAdvance && cur) cur.keyEvidence = true;
+        if (countAdvance && cur && countFor !== undefined) cur.countEvidence = countFor;
         if (navAdvance && cur) cur.navEvidence = true;
         return { kind: 'advance' };
       }
@@ -2729,7 +3142,11 @@ async function runTool(
       // 5. ready (Q5) — skipped outright when this round's decided action is
       // a targetless navigation verb (diagnosis 2026-09-28, r6 Part 3
       // Finding: every not-ready bounce in the fresh-install sample carried
-      // a decided action of navigate at actionP 0.94-0.98). `ready` asks
+      // a decided action of navigate at actionP 0.94-0.98) or a scroll
+      // (r17 C11: a scroll-until-N clause's own scroll IS the wait-substitute —
+      // gating it on readiness would bounce every scroll-until clause; press
+      // is deliberately NOT in READY_GATE_SKIP_OPS — it acts on the current
+      // page and keeps the gate, R8). `ready` asks
       // about the CURRENT page's state, but a navigate/back/reload step is,
       // by definition, the one that leaves the current page — gating it on
       // the current page's readiness was bouncing not-ready on effectively
@@ -2752,7 +3169,7 @@ async function runTool(
       // cleanly bouncing wrong-page.
       const decidedAction = action?.choice;
       const skipsReadyGate =
-        typeof decidedAction === 'string' && (NAVIGATION_OPS as ReadonlySet<string>).has(decidedAction);
+        typeof decidedAction === 'string' && (READY_GATE_SKIP_OPS as ReadonlySet<string>).has(decidedAction);
       if (!skipsReadyGate) {
         // 5. ready (Q5)
         if (noulOf('ready') < THRESHOLDS.ready) {
@@ -2791,7 +3208,12 @@ async function runTool(
       bucket: PhaseRound,
     ): Promise<{ t: 'result'; result: WingmanResult } | { t: 'continue' } | { t: 'decision'; decision: Decision } | { t: 'proceed' }> {
       if (early === null) return { t: 'proceed' };
-      if (early.kind === 'result') return { t: 'result', result: early.result };
+      if (early.kind === 'result') {
+        // r17 (D6): a login/login-page end marks the cursor clause so a later
+        // resume of it suppresses the (likely unchanged) login page once.
+        if (early.result.status === 'login') chain!.loginSeen = true;
+        return { t: 'result', result: early.result };
+      }
       if (early.kind === 'advance') {
         chain!.cursor += 1;
         chain!.clauseRetried = false;
@@ -2803,6 +3225,7 @@ async function runTool(
         chain!.stuckPending = null;
         chain!.retryNone = false;
         chain!.priorClicks = [];
+        chain!.loginSeen = false; // r17 (D6): per-clause flag
         if (chain!.cursor === N) {
           return { t: 'result', result: endOfChain() };
         }
@@ -2881,9 +3304,33 @@ async function runTool(
       const lastEntry = history.length > 0 ? history[history.length - 1] : undefined;
       if (chain && lastEntry?.beforeUrl !== undefined) bucket.leftPage = leftDocument(lastEntry.beforeUrl, obs.url);
 
-      // A dialog reported through onDialog before an act.
-      if (dialogEvents.some((e) => e.pageId === pageId)) {
-        return mk('blocked', 'dialog-open');
+      // r17 (D5): the step text the dialog parser and the missing-binding
+      // detector read this round — assigned BEFORE the dialog check (it is
+      // pure text; moving it earlier changes nothing else).
+      activeStepText = chain
+        ? chain.clauses[chain.cursor]
+        : entry?.kind === 'legacy'
+          ? entry.step
+          : '';
+      // A dialog reported through onDialog before an act (r17 D5): at round
+      // top the first UNANSWERED event decides the round — the step text
+      // judges it answerable → answerDialog then `continue` (a fresh
+      // observe+settle round; the old event is marked answered and invisible
+      // to the next round-top scan), unanswerable → blocked/dialog-open.
+      if (dialogOpenOn(pageId)) {
+        const pending = dialogEvents.find((e) => e.pageId === pageId && !answeredDialogs.has(e))!;
+        const outcome = dialogOutcome(pending, activeStepText || doInput.goal);
+        if (outcome === null) {
+          return mk('blocked', 'dialog-open');
+        }
+        try {
+          await driver.answerDialog(pageId, outcome === 'accept');
+          answeredDialogs.add(pending);
+          if (cur) cur.dialog = outcome;
+        } catch {
+          return mk('blocked', 'dialog-open');
+        }
+        continue;
       }
       if (obs.signals.captcha) {
         return mk('blocked', 'captcha');
@@ -2899,12 +3346,6 @@ async function runTool(
         // A policy hit leaves a confirm token unconsumed.
         return mk('fallback', policy.reason as Reason);
       }
-      // The missing-binding detector reads this round's step text.
-      activeStepText = chain
-        ? chain.clauses[chain.cursor]
-        : entry?.kind === 'legacy'
-          ? entry.step
-          : '';
 
       // The confirm token is handled at one fixed point: after tab
       // resolution, the first observe and the policy check, before any ask.
@@ -2915,6 +3356,7 @@ async function runTool(
           const outcome = await runTokenAction(
             pageId, driver, obs, token, values, maxSteps, remaining, history, driverOps,
             chain ? `c${chain.cursor}` : 'single',
+            activeStepText || doInput.goal,
           );
           // r15 D4: an executed act is in history even when the call ends here
           // (dialog-open), so finish() stores its click in chain memory.
@@ -2983,7 +3425,7 @@ async function runTool(
             pickOption = local.value;
           }
         } else if (pickVerb === 'press') {
-          pickOption = 'Enter'; // a pick press uses 'Enter' (§ 5.6)
+          pickOption = pick.key ?? 'Enter'; // a pick press defaults to 'Enter' (§ 5.6); r17: pick.key may name the key
         }
         if (pickEl !== null && !opFits(pickVerb, pickEl)) {
           return mk('ambiguous', 'target-uncertain', { candidates: [candidateOf(pickEl, values)] });
@@ -3043,6 +3485,14 @@ async function runTool(
           ? chainRoundState(obs)
           : buildState(obs, history, doInput.goal, values, entryStep !== undefined && round === 1 ? entryStep : undefined);
         const anchorBindings = chain ? bindingsInStep(chain.clauses[chain.cursor], values) : entryBindings;
+        // r17 (C9): the count_met question rides this round's request only
+        // where a clause or step exists — chain clauses and the legacy step;
+        // wingman_do never passes it.
+        const countFor = chain
+          ? parseAtLeastCount(chain.clauses[chain.cursor])
+          : legacyStepText !== undefined
+            ? parseAtLeastCount(legacyStepText)
+            : undefined;
         const twoStage = obs.elements.length > deps.config.budgets.max_elements;
         let primary: AnswerMap;
         let secondary: AnswerMap | null = null;
@@ -3061,6 +3511,7 @@ async function runTool(
                 ops: offered,
                 chain: chain !== null,
                 recover: isBrowse,
+                ...(countFor !== undefined ? { countFor } : {}),
               }),
             (p) => p.request,
           );
@@ -3088,7 +3539,7 @@ async function runTool(
             if (stop.t === 'continue') continue;
             if (stop.t === 'decision') decision = stop.decision;
           } else {
-            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText);
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText, doInput.goal, loginEnded);
             if (early) {
               if (mode === 'shadow') return shadowResult();
               if ('recovered' in early) {
@@ -3102,6 +3553,9 @@ async function runTool(
                 decision = { el: null, verb: early.mechanical, gate: false };
               } else {
                 const e = early.result;
+                // r17 (C1): the only place loginEnded is set — a produced
+                // login/login-page result.
+                if (e.status === 'login') loginEnded = true;
                 // § 5.5.4 zero-step entry done (defence, C4): a non-commit.
                 if (entryPending && e.reason === 'goal-met' && steps === 0) {
                   if (canRetry()) {
@@ -3185,6 +3639,7 @@ async function runTool(
                 ops: offered,
                 chain: chain !== null,
                 recover: isBrowse,
+                ...(countFor !== undefined ? { countFor } : {}),
               }),
             (p) => p,
           );
@@ -3213,7 +3668,7 @@ async function runTool(
             if (stop.t === 'continue') continue;
             if (stop.t === 'decision') decision = stop.decision;
           } else {
-            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText);
+            const early = decideEarly(primary, round, obs, values, legacyRecoverActs, hasOp, history, legacyStepText, doInput.goal, loginEnded);
             if (early) {
               if (mode === 'shadow') return shadowResult();
               if ('recovered' in early) {
@@ -3223,6 +3678,9 @@ async function runTool(
                 decision = { el: null, verb: early.mechanical, gate: false };
               } else {
                 const e = early.result;
+                // r17 (C1): the only place loginEnded is set — a produced
+                // login/login-page result.
+                if (e.status === 'login') loginEnded = true;
                 if (entryPending && e.reason === 'goal-met' && steps === 0) {
                   if (canRetry()) {
                     retried = true;
@@ -3276,8 +3734,9 @@ async function runTool(
               // § 5.5.2 rule 8: a targeted verb uses the § 3.19
               // threshold-or-margin rule; failure is a non-commit with its
               // why — except scroll_to, whose non-committing target becomes a
-              // targetless scroll down and acts (never a non-commit).
-              const tWhy = targetUncertainty(merged, obs);
+              // targetless scroll down and acts (never a non-commit). r17
+              // (C6): the press-none commit precedes this rule.
+              const tWhy = targetUncertainty(merged, obs, choice);
               if (tWhy !== null && choice !== 'scroll_to') {
                 const r = chainNonCommit(tWhy, cands());
                 if (r !== null) return r;
@@ -3285,7 +3744,7 @@ async function runTool(
               }
             }
             let chainDecision: Decision | null =
-              choice === 'scroll_to' && targetUncertainty(merged, obs) !== null
+              choice === 'scroll_to' && targetUncertainty(merged, obs, choice) !== null
                 ? { el: null, verb: 'scroll', gate: false }
                 : null;
             if (chainDecision === null) {
@@ -3347,9 +3806,17 @@ async function runTool(
             let entryCommit = false;
             if (entryPending) {
               entryPending = false;
+              // r17 (C6/R15): a committed press-none precedes the entry
+              // uncertainty (and therefore the margin rule) — the exact
+              // OG-9 defect class if missed on this path.
+              const pressNoneEntry = pressNoneCommits(
+                (merged['action'] as JevChoiceAnswer | undefined)?.choice,
+                merged,
+                takeoverOf(deps.config).threshold,
+              );
               // Amendment 2026-09-21h (two-stage action carry): the entry
               // decision reads request 1 merged under request 2.
-              const uncertainty = entryUncertainty(merged, obs);
+              const uncertainty = pressNoneEntry ? null : entryUncertainty(merged, obs);
               if (uncertainty !== null) {
                 if (canRetry()) {
                   retried = true;
@@ -3361,12 +3828,15 @@ async function runTool(
               entryCommit = true;
               // Amendment 2026-09-21h (obstruction gate): a committed entry
               // target the enumerate-time probe reports covered never acts.
+              // r17: a committed press-none has no element to probe — the
+              // margin fallback here would steal the key press, so it skips.
               const targetAnswer = merged['target'] as JevChoiceAnswer | undefined;
-              const chosenId =
-                targetAnswer !== undefined &&
-                targetAnswer.choice !== 'none' &&
-                targetAnswer.choice !== 'ambiguous' &&
-                obs.elements.some((e) => e.id === targetAnswer.choice)
+              const chosenId = pressNoneEntry
+                ? null
+                : targetAnswer !== undefined &&
+                    targetAnswer.choice !== 'none' &&
+                    targetAnswer.choice !== 'ambiguous' &&
+                    obs.elements.some((e) => e.id === targetAnswer.choice)
                   ? targetAnswer.choice
                   : marginCommitTarget(targetAnswer?.probabilities ?? {}, obs.elements);
               const chosen = chosenId !== null ? obs.elements.find((e) => e.id === chosenId) : undefined;
@@ -3548,6 +4018,9 @@ async function runTool(
         const tAct = now();
         const stuckPend = decision.stuck;
         inFlightOp = decision.verb;
+        // r17 (C4): only events at or after this index are this act's to
+        // answer or block on.
+        const dialogBase = dialogEvents.length;
         try {
           await driver.act(pageId, decision.el ? decision.el.id : null, decision.verb, actValue);
         } catch (e) {
@@ -3568,7 +4041,11 @@ async function runTool(
         }
         if (chain && decision.el !== null) chain.cursorActed = true;
         actsByOp[decision.verb] = (actsByOp[decision.verb] ?? 0) + 1;
-        const actLabel = decision.el ? decision.el.name : (decision.binding ?? '');
+        // r17: a targetless press's label is the pressed key — there is no
+        // element name and no binding.
+        const actLabel = decision.el
+          ? decision.el.name
+          : (decision.binding ?? (decision.verb === 'press' ? (decision.optionValue ?? '') : ''));
         lastAction = { verb: decision.verb, label: capLabel(redactValues(actLabel, values)) };
         // r15 D4: the executed act enters history before any dialog return, so a
         // click that opened a dialog still reaches chain memory through finish().
@@ -3576,9 +4053,18 @@ async function runTool(
           ...history,
           {
             verb: decision.verb,
-            label: decision.el ? decision.el.name : (decision.binding ?? ''),
+            label: decision.el
+              ? decision.el.name
+              : (decision.binding ?? (decision.verb === 'press' ? (decision.optionValue ?? '') : '')),
             ...(decision.el ? { path: decision.el.path, fingerprint: decision.el.fingerprint } : {}),
             before: outcomeSignal(decision.verb, decision.el ?? undefined, obs),
+            // r17 (D2): focus evidence for the 'focus changed' promotion, and
+            // the pressed key on a targetless press (key-identity repeat
+            // compare). Internal only — never reaches buildState's history map.
+            ...(obs.focus !== undefined ? { beforeFocus: obs.focus.path } : {}),
+            ...(decision.el === null && decision.verb === 'press' && decision.optionValue !== undefined
+              ? { key: decision.optionValue as PressKey }
+              : {}),
             beforeUrl: obs.url,
             stepKey: currentStepKey,
             ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
@@ -3594,8 +4080,17 @@ async function runTool(
               : {}),
           },
         ];
-        if (dialogEvents.some((e) => e.pageId === pageId)) {
-          return mk('blocked', 'dialog-open');
+        // r17 (D5): the dialog this act opened is answered from the step text —
+        // after the act has entered history (the r15 ordering holds verbatim).
+        const actDialog = await dialogAfterAct(
+          driver,
+          pageId,
+          dialogBase,
+          activeStepText || doInput.goal,
+          dialogEvents.slice(dialogBase).some((e) => answeredDialogs.has(e)),
+        );
+        if (actDialog) {
+          return actDialog;
         }
         const settleBudget = Math.min(SETTLE_MAX_MS, remaining() - 1000);
         if (settleBudget > 0) {
@@ -3603,8 +4098,15 @@ async function runTool(
           await driver.settle(pageId, settleBudget);
           bucket.settleMs += now() - tSettle;
         }
-        if (dialogEvents.some((e) => e.pageId === pageId)) {
-          return mk('blocked', 'dialog-open');
+        const settleDialog = await dialogAfterAct(
+          driver,
+          pageId,
+          dialogBase,
+          activeStepText || doInput.goal,
+          dialogEvents.slice(dialogBase).some((e) => answeredDialogs.has(e)),
+        );
+        if (settleDialog) {
+          return settleDialog;
         }
       }
       // next round

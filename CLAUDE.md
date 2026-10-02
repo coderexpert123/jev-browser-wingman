@@ -688,3 +688,34 @@ withheld — this file rides a public-bound repository). Gates:
   assigned when the source value is undefined: `assert.deepStrictEqual` treats
   `{k: undefined}` as different from `{}`, and `tests/loop.test.ts` pins the exact
   round shape. Guard every such write with `!== undefined`.
+
+## Gotchas from the r17 WP-B pass (2026-10-02)
+
+- **`isNoProgress` fires before any count/repeat semantics on a scripted
+  repeat**: a fixture that acts the same (verb, element) twice against a
+  static observation bounces `no-progress` on the second decision whatever
+  the clause says — the "count clause exempts the repeat GUARD" rule does not
+  exempt the no-progress guard. A count-clause test needs every click's
+  observation to change (or the count already met before any repeat).
+- **The scripted ask's entry index is shared across calls on one harness.**
+  A two-call test (login resume) must script call 2's rounds explicitly —
+  forgetting call 2's `login: 0.9` entry makes the call pass vacuously via
+  the ordinary advance, and only the `loginSuppressed` telemetry assert
+  catches it.
+- **`dialogOutcome`'s alert arm returns BEFORE the `KB_DIALOG_ANSWER` gate**
+  (src/core/loop.ts): `T-alert is always accepted` cannot fail under that
+  flag — the flag owns the confirm-parse arms only. The spec's mutant table
+  row mapping the alert test to KB_DIALOG_ANSWER is unsatisfiable without
+  reordering src; the runner maps it as a pin.
+- **`FakeDriver.dialogOnNextAct` array is a CASCADE, not a per-act drain**
+  (changed this pass): every event in the array delivers, in order, during
+  the ONE act — the C4 second-dialog-in-the-same-act scenario is otherwise
+  unscriptable (the second dialog would arrive a round later, after a
+  `repeat` bounce, and never be raised).
+- **outcome-evidence's `el()` helper defaults `editable: true`** — a "plain
+  button" fixture must override `editable: false` (and tag/role) explicitly,
+  or the focus-promotion rule fires and the negative pin reads
+  `focus changed`.
+- **page-scripts' KB flags ride `var` inside the stringified function body**,
+  not module-level `const` — the mutant runner's anchor matches both
+  declarations (`const`|`var KB_X = false;`).

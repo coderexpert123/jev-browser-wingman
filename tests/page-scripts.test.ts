@@ -16,6 +16,8 @@ interface Observation {
   signals: Record<string, unknown>;
   text: string;
   truncated: boolean;
+  focus?: { path: string; role: string; name: string };
+  repeatedGroups?: Array<{ signature: string; count: number }>;
 }
 
 let fixtureUrl: string;
@@ -322,6 +324,150 @@ test('a labelled file input enumerates as button and verifies (A1)', async () =>
     const fp = doc!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
     const result = await page.evaluate(buildVerifyExpression(doc!.path as string, fp));
     assert.deepStrictEqual(result, { ok: true });
+  } finally {
+    await close();
+  }
+});
+
+// r17 (D7): a visually hidden checkbox/radio resolves its name through an
+// adjacent visible sibling <label> (the TodoMVC shape) — PROXY arm, path is
+// the label, controlPath is the input; failing a label, a non-empty
+// accessibleName (aria-label → placeholder → title here) keeps the record
+// NON-proxy on the input's own path; with no name source at all the input is
+// never enumerated.
+test('hidden-controls.html names hidden inputs through sibling labels and their own names', async () => {
+  const { page, close } = await withPage('/hidden-controls.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const byId = new Map(obs.elements.map((e) => [e.htmlId as string, e]));
+    // Proxy arm — sibling label AFTER the input.
+    const alpha = byId.get('t1');
+    assert.ok(alpha, 'expected the Alpha task record');
+    assert.strictEqual(alpha!.name, 'Alpha task');
+    assert.strictEqual(alpha!.role, 'checkbox');
+    assert.strictEqual(alpha!.controlPath, '#t1');
+    assert.notStrictEqual(alpha!.path, '#t1');
+    // Proxy arm — sibling label BEFORE the input.
+    const beta = byId.get('t2');
+    assert.ok(beta, 'expected the Beta task record');
+    assert.strictEqual(beta!.name, 'Beta task');
+    assert.strictEqual(beta!.role, 'checkbox');
+    assert.strictEqual(beta!.controlPath, '#t2');
+    assert.notStrictEqual(beta!.path, '#t2');
+    // Named-only arm — aria-label: the record stays on the input's own path.
+    const aria = byId.get('t3');
+    assert.ok(aria, 'expected the aria-named record');
+    assert.strictEqual(aria!.name, 'Hidden aria');
+    assert.strictEqual(aria!.role, 'checkbox');
+    assert.strictEqual(aria!.path, '#t3');
+    assert.strictEqual(aria!.controlPath, undefined);
+    // Named-only arm — title, on a radio.
+    const titled = byId.get('t4');
+    assert.ok(titled, 'expected the title-named record');
+    assert.strictEqual(titled!.name, 'Hidden title');
+    assert.strictEqual(titled!.role, 'radio');
+    assert.strictEqual(titled!.path, '#t4');
+    assert.strictEqual(titled!.controlPath, undefined);
+    // Named-only arm — placeholder.
+    const phased = byId.get('t5');
+    assert.ok(phased, 'expected the placeholder-named record');
+    assert.strictEqual(phased!.name, 'Hidden placeholder');
+    assert.strictEqual(phased!.path, '#t5');
+    assert.strictEqual(phased!.controlPath, undefined);
+    // Proxy through a visible label[for] on a display:none input (the byFor
+    // arm still works under the new sibling fallback).
+    const fine = byId.get('t6');
+    assert.ok(fine, 'expected the Fine print record');
+    assert.strictEqual(fine!.name, 'Fine print');
+    assert.strictEqual(fine!.path, '#l-t6');
+    assert.strictEqual(fine!.controlPath, '#t6');
+    // No label, no aria-label, no title, no placeholder: never enumerated.
+    assert.strictEqual(byId.get('t7'), undefined, 'the unnamed hidden input must not enumerate');
+  } finally {
+    await close();
+  }
+});
+
+// r17 (D2): the focused element rides the observation as evidence (computed
+// once beside textExcerpt).
+test('enumeration reports the focused element', async () => {
+  const { page, close } = await withPage('/ops.html');
+  try {
+    await page.focus('#first');
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.ok(obs.focus, 'expected a focus record on the observation');
+    assert.strictEqual(obs.focus!.path, '#first');
+    assert.strictEqual(obs.focus!.role, 'textbox');
+    assert.strictEqual(obs.focus!.name, 'First');
+  } finally {
+    await close();
+  }
+});
+
+// r17 (C8): repeated-element group tallies over ALL nodes, groups with count
+// >= 3 kept. many.html's 300 class-less buttons give the deterministic pin;
+// chain-scroll.html crosses the floor only once its .item list reaches 3+.
+test('repeatedGroups counts the many.html button field', async () => {
+  const { page, close } = await withPage('/many.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 400, maxTextChars: 3000 });
+    const group = obs.repeatedGroups?.find((g) => g.signature === 'button.');
+    assert.ok(group, 'expected a button. group on many.html');
+    assert.strictEqual(group!.count, 300);
+  } finally {
+    await close();
+  }
+});
+
+test('repeatedGroups counts div.item once the list crosses the group floor', async () => {
+  const { page, close } = await withPage('/chain-scroll.html');
+  try {
+    const before = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    // The fixture starts with 2 items — below the >= 3 floor, no div.item
+    // group (repeatedGroups itself is absent when no group qualifies).
+    assert.ok(
+      !before.repeatedGroups?.some((g) => g.signature === 'div.item'),
+      'two items sit below the >= 3 group floor',
+    );
+    await page.evaluate(() => window.scrollTo(0, 2000));
+    await page.waitForTimeout(150);
+    await page.evaluate(() => window.scrollTo(0, 4000));
+    await page.waitForTimeout(150);
+    const after = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const items = after.repeatedGroups?.find((g) => g.signature === 'div.item');
+    assert.ok(items, 'expected a div.item group after scrolling');
+    assert.ok((items!.count ?? 0) >= 4, `div.item count ${String(items!.count)} >= 4`);
+    for (const g of after.repeatedGroups ?? []) {
+      assert.ok(g.count >= 3, `group ${g.signature} below the >= 3 floor`);
+    }
+  } finally {
+    await close();
+  }
+});
+
+// r17 (D7 mirror): verify re-finds the sibling-labeled hidden input through
+// the label record, and the named-only arm re-verifies on the input's own
+// path with no proxy rewrite.
+test('verify re-finds hidden-control records through the label and their own path', async () => {
+  const { page, close } = await withPage('/hidden-controls.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    for (const expectedName of ['Alpha task', 'Beta task', 'Fine print']) {
+      const el = obs.elements.find((e) => e.name === expectedName);
+      assert.ok(el, `expected a proxied element named ${expectedName}`);
+      assert.ok(el!.controlPath, `expected ${expectedName} to be a proxy record`);
+      const fp = el!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+      const result = await page.evaluate(buildVerifyExpression(el!.path as string, fp));
+      assert.deepStrictEqual(result, { ok: true });
+    }
+    for (const expectedName of ['Hidden aria', 'Hidden title', 'Hidden placeholder']) {
+      const el = obs.elements.find((e) => e.name === expectedName);
+      assert.ok(el, `expected a named-only element named ${expectedName}`);
+      assert.strictEqual(el!.controlPath, undefined);
+      const fp = el!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+      const result = await page.evaluate(buildVerifyExpression(el!.path as string, fp));
+      assert.deepStrictEqual(result, { ok: true });
+    }
   } finally {
     await close();
   }

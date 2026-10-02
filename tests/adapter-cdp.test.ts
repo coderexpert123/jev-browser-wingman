@@ -14,6 +14,7 @@ import { launchTestChrome } from './helpers/chrome.js';
 import { startFixtureServer, type FixtureServer } from '../src/fixture-server.js';
 import { createCdpDriver } from '../src/adapters/cdp.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
+import { ActFailedError } from '../src/contract/errors.js';
 import type { Driver, ElementRecord } from '../src/contract/types.js';
 
 interface Rig {
@@ -285,6 +286,19 @@ test('act surfaces an operation failure', async () => {
     // fill without a value makes performOp fail; act must reject, never
     // resolve as if the operation had run.
     await assert.rejects(rig.driver.act(rig.pageId, el.id, 'fill'));
+  } finally {
+    await closeRig(rig);
+  }
+});
+
+// r17: answerDialog on a page with no open dialog rejects — Chrome answers
+// "no dialog is showing" and the adapter wraps it in ActFailedError (the loop
+// degrades that to blocked/dialog-open, an answer that failed leaves the
+// dialog open, which is exactly what the reason means).
+test('answerDialog with no open dialog rejects', async () => {
+  const rig = await openRig('form.html', 'Fixture form');
+  try {
+    await assert.rejects(rig.driver.answerDialog(rig.pageId, true), ActFailedError);
   } finally {
     await closeRig(rig);
   }

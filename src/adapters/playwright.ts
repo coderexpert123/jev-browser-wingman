@@ -26,7 +26,7 @@ import type {
   Op,
   PressKey,
 } from '../contract/types.js';
-import { PRESS_KEYS, TARGETLESS_OPS } from '../contract/types.js';
+import { OPTIONAL_TARGET_OPS, PRESS_KEYS, TARGETLESS_OPS } from '../contract/types.js';
 import {
   buildControlStateExpression,
   buildEnumerateExpression,
@@ -47,6 +47,10 @@ interface PageRecord {
   session: CDPSession;
   dialogOpen: boolean;
   dialogWaiters: Array<() => void>;
+  // r17: the currently open Dialog object, stashed by the context 'dialog'
+  // handler and cleared on Page.javascriptDialogClosed — answerDialog calls
+  // accept()/dismiss() on it.
+  dialog?: Dialog;
 }
 
 function cap(text: string, max: number): string {
@@ -76,6 +80,13 @@ const PW_KEYS: Record<PressKey, string> = {
 // single attempt fails every cold attach. The pin stays per attempt; the driver
 // retries within this budget so a slow start fails late, never early.
 const CONNECT_RETRY_BUDGET_MS = 20_000;
+
+/** KB proof switch (r17 WP-B mutant): composed into the null-element guard so
+ * a flipped build rejects targetless press. Never flip in shipped code. */
+const KB_PW_PRESS_NONE = false;
+/** KB proof switch (r17 WP-B mutant): composed into answerDialog so a flipped
+ * build never answers. Never flip in shipped code. */
+const KB_PW_DIALOG = false;
 
 async function connectBounded(
   chromium: typeof import('playwright-core').chromium,
@@ -149,6 +160,8 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
     });
     session.on('Page.javascriptDialogClosed', () => {
       rec.dialogOpen = false;
+      // r17: mirror of dialogOpen — a closed dialog is no longer answerable.
+      rec.dialog = undefined;
     });
     records.set(page, rec);
     recordsById.set(pageId, rec);
@@ -298,6 +311,14 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
               pageId = '';
             }
           }
+          // r17: stash the Dialog BEFORE report(...) so answerDialog can reach
+          // it even when the caller's handler runs first.
+          if (rec) {
+            rec.dialog = dialog;
+          } else if (dialogPage) {
+            const ensured = records.get(dialogPage);
+            if (ensured) ensured.dialog = dialog;
+          }
           report({ pageId, type: dialogTypeOfPlaywright(dialog), message: cap(dialog.message(), 80) });
         })();
       });
@@ -345,7 +366,10 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
       // `scroll` with an element id keeps the legacy verified-element path
       // below unchanged.
       if (elementId === null) {
-        if (!(TARGETLESS_OPS as readonly Op[]).includes(op)) {
+        if (
+          !(TARGETLESS_OPS as readonly Op[]).includes(op) &&
+          !(!KB_PW_PRESS_NONE && (OPTIONAL_TARGET_OPS as readonly Op[]).includes(op))
+        ) {
           throw new ActFailedError(`op ${op} needs an element`);
         }
         try {
@@ -418,6 +442,15 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
                 NAV_TIMEOUT_MS + 2_000,
               );
               break;
+            case 'press': {
+              // r17: a targetless press goes to the focused element.
+              const key = value ?? 'Enter';
+              if (!(PRESS_KEYS as readonly string[]).includes(key)) {
+                throw new ActFailedError(`unsupported press key ${key}`);
+              }
+              await raceAgainstDialog(rec, () => rec.page.keyboard.press(PW_KEYS[key as PressKey]));
+              break;
+            }
             default:
               throw new ActFailedError(`op ${op} needs an element`);
           }
@@ -534,6 +567,22 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
 
     onDialog(handler: (e: DialogEvent) => void): void {
       dialogHandler = handler;
+    },
+
+    // r17 (C5): answer the page's open dialog via the stashed Dialog object.
+    async answerDialog(pageId: string, accept: boolean): Promise<void> {
+      const rec = recordOfPageId(pageId);
+      const d = rec.dialog;
+      if (!d) throw new ActFailedError('no open dialog');
+      try {
+        if (!KB_PW_DIALOG) {
+          if (accept) await d.accept();
+          else await d.dismiss();
+        }
+        rec.dialog = undefined;
+      } catch (e) {
+        throw new ActFailedError(e instanceof Error ? e.message : String(e));
+      }
     },
 
     async detach(): Promise<void> {

@@ -45,6 +45,7 @@ const TITLES: Record<string, string> = {
   'form.html': 'Fixture form',
   'styled-controls.html': 'Fixture styled controls',
   'chain-index.html': 'Fixture chain index',
+  'dialog.html': 'Fixture dialogs',
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -54,7 +55,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 export const OP_TEST_IDS: Record<Op, string[]> = {
   hover: ['O1'],
   dblclick: ['O2'],
-  press: ['O3', 'O12', 'O15', 'O16', 'O17'],
+  press: ['O3', 'O12', 'O15', 'O16', 'O17', 'O19'],
   fill: ['O4', 'O12', 'O16', 'O17'],
   upload: ['O5'],
   navigate: ['O6', 'O7'],
@@ -483,6 +484,52 @@ function adapterSuite(adapter: 'playwright' | 'cdp'): void {
         'the emptied field',
       );
     });
+
+    // O19 (r17): `press` is an OPTIONAL_TARGET op — elementId null means the
+    // press targets the already-focused element. Same assertion shape as O3,
+    // but the press itself carries no element id.
+    run('O19', 'targetless press Tab moves focus from First to Second', async (ctx) => {
+      const first = await elementNamed(ctx, 'First');
+      await ctx.driver.act(ctx.pageId, first.id, 'click');
+      await ctx.driver.act(ctx.pageId, null, 'press', 'Tab');
+      await pollUntil(
+        async () => (await evalMain(ctx, 'document.activeElement.id')) === 'second',
+        'focus on #second',
+      );
+    });
+
+    // O20 (r17): Driver.answerDialog on both adapters — accept a confirm on
+    // one page, dismiss one on a second. Registered directly (not via run/runOn)
+    // because the proof needs two sequential pages; a dialog blocks every
+    // evaluate on its page, so the answer must land before the log is polled.
+    {
+      const title = 'O20 answerDialog accepts a confirm, then dismisses on a second page';
+      REGISTERED_TITLES.push(title);
+      test(title, async () => {
+        const answer = async (accept: boolean, want: string): Promise<void> => {
+          await withPage(suite.env, adapter, 'dialog.html', async (ctx) => {
+            const el = await elementNamed(ctx, 'Remove item');
+            await ctx.driver.act(ctx.pageId, el.id, 'click');
+            // The dialog-opening event can trail the click act's reply by a
+            // tick; a bounded retry keeps the answer temporal, not racy. Five
+            // consecutive ActFailedError rejections mean no dialog ever
+            // opened — a real failure.
+            for (let attempt = 0; ; attempt++) {
+              try {
+                await ctx.driver.answerDialog(ctx.pageId, accept);
+                break;
+              } catch (e) {
+                if (attempt >= 4) throw e;
+                await sleep(100);
+              }
+            }
+            await pollUntil(async () => (await logText(ctx)) === want, `the ${want} log`);
+          });
+        };
+        await answer(true, 'confirmed');
+        await answer(false, 'cancelled');
+      });
+    }
   });
 }
 

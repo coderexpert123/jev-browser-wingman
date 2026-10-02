@@ -43,6 +43,10 @@ export const INSTRUCTIONS: Record<string, string> = {
   right_page: `Is the page shown the page where the state's step can be done, or a page from which a listed element leads toward it? ${UNTRUSTED_SENTENCE}`,
   ready: `Has the page finished loading what the state's step needs, so the next action can be taken now? ${UNTRUSTED_SENTENCE}`,
   recover: `If the page shows an error, which response fits best? ${UNTRUSTED_SENTENCE}`,
+  // r17 (C12): the scroll-until-N question. Names "step or goal" so it works
+  // for chain and legacy states alike; the count itself rides in the state's
+  // `repeatedGroups` and the element table, never in the instruction text.
+  count_met: `Does the page already show at least the number of matching listed items the step or goal asks for? ${UNTRUSTED_SENTENCE}`,
 };
 
 export const ACTION_CRITERIA: Record<string, string> = {
@@ -333,6 +337,11 @@ export interface RoundParams {
   ops?: readonly Op[];
   chain?: boolean;
   recover?: boolean;
+  // r17 (D4/C9): the parsed "at least N" count of the current clause/step —
+  // the `count_met` noul is asked only when this is set. wingman_do never
+  // passes it (a bare "at least N" inside a whole-task goal is not
+  // necessarily a scroll-until clause), so it costs zero tokens there.
+  countFor?: number;
 }
 
 /** Single-round request (§ 3.6): done, blocked, login, error (round ≥ 2), irreversible, action, target, value (bindings only), plus the § 5.4 questions (key, url, file, recover on round ≥ 2; the chain Nouls with `chain`). */
@@ -383,6 +392,8 @@ export function buildRoundRequest(a: {
     questions.right_page = noul('right_page', a.bindings);
     questions.ready = noul('ready', a.bindings);
   }
+  // r17 (D4): count_met rides this request only when a count was parsed.
+  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.bindings);
   return { state: a.state, questions };
 }
 
@@ -429,6 +440,8 @@ export function buildGroupRequest(a: {
     questions.right_page = noul('right_page', a.bindings);
     questions.ready = noul('ready', a.bindings);
   }
+  // r17 (D4): immediately after the chain nouls in the questions object.
+  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.bindings);
   if (a.recover === true && a.round >= 2) questions.recover = recoverQuestion(a.bindings);
   if (ops.includes('press')) questions.key = keyQuestion(a.bindings);
   if (ops.includes('navigate')) {

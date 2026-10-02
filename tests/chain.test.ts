@@ -14,7 +14,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { runDo, runStep, expandClauses, parseRepeatCount, splitCompoundClause, describeActError, type LoopDeps } from '../src/core/loop.js';
 import { ActFailedError, NoHistoryError } from '../src/contract/errors.js';
-import { FakeDriver } from './helpers/fake-driver.js';
+import { FakeDriver, type FakeDriverEvent } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
 import { assertNoValues } from '../src/core/withhold.js';
@@ -144,6 +144,7 @@ type NoulAnswers = {
   step_done?: number;
   right_page?: number;
   ready?: number;
+  count_met?: number;
 };
 type ChoiceAnswers = {
   action?: [string, Record<string, number>];
@@ -162,7 +163,7 @@ function choice(c: string, probabilities: Record<string, number>): JevAnswer {
   return { type: 'choice', choice: c, probabilities, confidence: 0.9 };
 }
 
-const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible', 'step_done', 'right_page', 'ready'] as const;
+const NOUL_KEYS = ['done', 'blocked', 'login', 'error', 'irreversible', 'step_done', 'right_page', 'ready', 'count_met'] as const;
 const CHOICE_KEYS = ['action', 'target', 'value', 'group', 'option', 'key', 'url', 'file', 'recover'] as const;
 
 /** A standard committing chain round: click e1 0.9, page ready and right. */
@@ -594,7 +595,9 @@ test('T7: every § 5.5.5 forced-table row is exact under forced; optional keeps 
       name: 'dialog-open',
       run: async () => {
         const h = harness({ observations: { p1: [observation()] }, script: [CS()], config: FORCED });
-        h.driver.dialogOnNextObserve = { pageId: 'p1', type: 'alert', message: 'Hello' };
+        // r17: an alert at round top is answered unconditionally (D5), so the
+        // dialog-open row pins the unanswerable kind (prompt) instead.
+        h.driver.dialogOnNextObserve = { pageId: 'p1', type: 'prompt', message: 'Hello' };
         return h.call({ goal: 'chain-t7 dialog goal', steps: ['dg1'] });
       },
       forced: FORCED_DIALOG_LINE,
@@ -3238,4 +3241,587 @@ test('T-post-error-branches: every rule-4 page-error end after an effective clic
   assert.equal(rc.status, 'error');
   assert.deepEqual(rc.step_review, POST_REVIEW);
   assert.deepEqual(actsOf(hc), [['click', 'e1', undefined]]);
+});
+
+// ===================================================================
+// r17 (spec .build-r17-spec.md, WP-B): optional-target press, focus
+// evidence, count_met, dialog answering, login suppression, ready-gate
+// split. FakeDriver only; every goal text unique (module-level memory).
+// ===================================================================
+
+/** A press-none CS round: Jev commits a targetless `press` on `none >= the
+ * takeover threshold (0.7 default)`. `key` names the asked key. */
+function PRESS(noneP: number, key: string, over: SeqEntry = {}): SeqEntry {
+  return CS({
+    action: ['press', { press: 0.9, none: 0.05 }],
+    target: ['none', { none: noneP, ambiguous: 0.05 }],
+    key: [key, { [key]: 0.9, none: 0.05 }],
+    ...over,
+  });
+}
+
+const answerDialogEvents = (h: Harness): Array<FakeDriverEvent> =>
+  h.driver.events.filter((e) => e.kind === 'answerDialog');
+
+test('T-press-none commits a targetless press', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.9, 'Enter'), ADV()],
+  });
+  const r = await h.call({ goal: 'r17-press-none-commit goal', steps: ['press Enter to submit'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(r.steps, 1);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].elementId, null, 'a committed press-none acts targetless');
+  assert.equal(acts[0].op, 'press');
+  assert.equal(acts[0].value, 'Enter');
+});
+
+test('T-press-none carries the asked key', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.9, 'Escape'), ADV()],
+  });
+  const r = await h.call({ goal: 'r17-press-none-key goal', steps: ['press Escape to close the panel'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].elementId, null);
+  assert.equal(acts[0].value, 'Escape');
+});
+
+test('T-press-none under the threshold does not commit', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.3, 'Enter')],
+  });
+  const r = await h.call({ goal: 'r17-press-none-low goal', steps: ['press Enter to submit'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.driver.actCalls().length, 0);
+});
+
+test('T-press-none is never margin-stolen', async () => {
+  // threshold 0.3 so the committed press-none (none 0.4) and a
+  // margin-dominating element (e1 0.9: none*2 = 0.8 <= 0.9) coexist —
+  // the commit must win BEFORE the margin rule can pick e1.
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.4, 'Enter'), ADV()],
+    config: { takeover: { threshold: 0.3 } },
+  });
+  const r = await h.call({ goal: 'r17-press-none-margin goal', steps: ['press Enter to submit'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].elementId, null, 'a margin-dominating element must not steal a committed key press');
+  assert.equal(acts[0].op, 'press');
+});
+
+test('T-press-none refuses on irreversible', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.9, 'Enter', { irreversible: 0.9 })],
+  });
+  const r = await h.call({ goal: 'r17-press-none-irrev goal', steps: ['press Enter to submit the payment'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  assert.equal(h.driver.actCalls().length, 0, 'an element-free irreversible press never acts');
+  assert.equal(r.confirm_token, undefined, 'no element identity, no confirm token');
+});
+
+test('T-press-none is a browse_step pick', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [ADV()],
+  });
+  const r = await h.call({
+    goal: 'r17-press-none-pick goal',
+    steps: ['submit the focused field'],
+    pick: { action: 'press', key: 'Tab' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].elementId, null);
+  assert.equal(acts[0].op, 'press');
+  assert.equal(acts[0].value, 'Tab');
+});
+
+/** Two same-signal observations whose only difference is which element holds
+ * focus — the focus-promotion fixture. `movedToEditable` decides whether the
+ * focused-to element is an enumerated editable field or a plain button. */
+function focusPair(movedToEditable: boolean): Observation[] {
+  const first = el({
+    id: 'e1', path: '#first', tag: 'input', role: 'textbox', name: 'First', type: 'text',
+    editable: true, state: { disabled: false, filled: false },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'First', x: 0, y: 0 },
+  });
+  const second = movedToEditable
+    ? el({
+        id: 'e2', path: '#second', tag: 'input', role: 'textbox', name: 'Second', type: 'text',
+        editable: true, state: { disabled: false, filled: false },
+        fingerprint: { tag: 'input', role: 'textbox', name: 'Second', x: 0, y: 0 },
+      })
+    : el({ id: 'e2', path: '#second', name: 'Second button' });
+  const base = { elements: [first, second] };
+  return [
+    observation({ ...base, focus: { path: '#first', role: 'textbox', name: 'First' } }),
+    observation({ ...base, focus: { path: '#second', role: movedToEditable ? 'textbox' : 'button', name: 'Second' } }),
+  ];
+}
+
+test('T-key-advance on focus moved', async () => {
+  const h = harness({
+    observations: { p1: focusPair(true) },
+    script: [PRESS(0.9, 'Tab'), { done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05, step_done: 0.05, ready: 0.95, right_page: 0.95 }, CS(), ADV()],
+  });
+  const r = await h.call({
+    goal: 'r17-key-focus goal',
+    steps: ['press Tab to move to the next field', 'click the button'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].historyResult, 'focus changed', 'focus moved onto an enumerated editable promotes the result');
+  assert.equal(rounds[1].keyEvidence, true, 'the key advance fired on the focus-changed evidence');
+  const acts = h.driver.actCalls();
+  assert.equal(acts[0].elementId, null);
+  assert.equal(acts[0].value, 'Tab');
+});
+
+test('T-key-advance on page changed', async () => {
+  const changed = observation({ text: 'the submit landed' });
+  const h = harness({
+    observations: { p1: [observation(), changed] },
+    script: [PRESS(0.9, 'Enter'), { done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05, step_done: 0.05, ready: 0.95, right_page: 0.95 }, CS(), ADV()],
+  });
+  const r = await h.call({
+    goal: 'r17-key-page goal',
+    steps: ['press Enter', 'click the button'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].historyResult, 'page changed');
+  assert.equal(rounds[1].keyEvidence, true);
+});
+
+test('T-press Tab onto a non-editable element is not evidence', async () => {
+  const h = harness({
+    observations: { p1: focusPair(false) },
+    script: [PRESS(0.9, 'Tab'), { done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05, step_done: 0.05, ready: 0.95, right_page: 0.95 }],
+  });
+  const r = await h.call({ goal: 'r17-key-noneditable goal', steps: ['press Tab to move to the next field'] });
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].historyResult, 'no visible change', 'focus onto a non-editable stays quiet');
+  assert.equal('keyEvidence' in rounds[1], false);
+  assert.notEqual(r.status, 'done');
+});
+
+test('T-repeat press same key bounces no-progress', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.9, 'ArrowRight')],
+  });
+  const r = await h.call({ goal: 'r17-repeat-key goal', steps: ['press the arrow right key'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the second identical press never acts');
+});
+
+test('T-press different keys is not a repeat', async () => {
+  // Legacy browse_step: both rounds ride stepKey 'single', so the key — not
+  // a clause boundary — is the only identity a targetless press pair has.
+  const press = (key: string): SeqEntry => ({
+    done: 0.05,
+    blocked: 0.05,
+    login: 0.05,
+    error: 0.05,
+    irreversible: 0.05,
+    action: ['press', { press: 0.9, none: 0.05 }],
+    target: ['none', { none: 0.9, ambiguous: 0.05 }],
+    key: [key, { [key]: 0.9, none: 0.05 }],
+  });
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [press('ArrowRight'), press('ArrowLeft'), { done: 0.9 }],
+  });
+  const r = await h.call({ goal: 'r17-different-keys goal', step: 'press the arrow right key' });
+  assert.equal(r.status, 'done', `a different key is a different act, never a repeat: got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 2, 'the second press with a different key executes');
+  assert.equal(acts[1].value, 'ArrowLeft');
+});
+
+test('T-scroll carries a signal and repeat scroll bounces', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] })],
+  });
+  const r = await h.call({ goal: 'r17-scroll-signal goal', steps: ['scroll the list'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the second no-effect scroll never acts');
+});
+
+test('T-scroll shadow: click twice, scroll, click', async () => {
+  // "click the button 3 times": three page-changing clicks with a scroll
+  // between click2 and click3. The count evidence must anchor on the click
+  // run ACROSS the scroll (r17 D2 skip) — step_done stays at 0.3 throughout,
+  // so the count is the only advance path, and the run only reaches 3 AFTER
+  // the scroll (r4's walk crosses it: click3 is not yet acted).
+  const obsAt = (n: string): Observation => observation({ text: `${n} state` });
+  const click = CS({ target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] });
+  const scroll = CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] });
+  const low = { done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05, step_done: 0.3, ready: 0.95, right_page: 0.95 };
+  const h = harness({
+    observations: { p1: [obsAt('a'), obsAt('b'), obsAt('c'), obsAt('d'), obsAt('e')] },
+    script: [click, click, scroll, click, low],
+  });
+  const r = await h.call({ goal: 'r17-scroll-shadow goal', steps: ['click the button 3 times'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[4].countEvidence, 3, 'the click run anchors across the scroll');
+  assert.equal(h.driver.actCalls().length, 4, 'click, click, scroll, click — no further acts');
+});
+
+test('T-count-met advances on scroll evidence', async () => {
+  const withGroups = (n: number, text: string): Observation =>
+    observation({ text, repeatedGroups: [{ signature: 'div.item', count: n }] });
+  const r1 = CS({
+    action: ['scroll', { scroll: 0.9, none: 0.05 }],
+    target: ['none', { none: 0.9, ambiguous: 0.05 }],
+    count_met: 0.3,
+  });
+  const r2 = {
+    done: 0.05, blocked: 0.05, login: 0.05, error: 0.05, irreversible: 0.05,
+    step_done: 0.05, ready: 0.95, right_page: 0.95, count_met: 0.9,
+    action: ['scroll', { scroll: 0.9, none: 0.05 }] as [string, Record<string, number>],
+    target: ['none', { none: 0.9, ambiguous: 0.05 }] as [string, Record<string, number>],
+  };
+  const h = harness({
+    observations: { p1: [withGroups(1, 'one item'), withGroups(2, 'two items')] },
+    script: [r1, r2, CS(), ADV()],
+  });
+  const result = await h.call({
+    goal: 'r17-count-scroll goal',
+    steps: ['scroll until the page shows at least 3 item cards', 'click the button'],
+  });
+  assert.equal(result.status, 'done', `expected done, got ${result.status}/${result.reason}`);
+  assert.equal('count_met' in (h.requests[0].questions as Record<string, unknown>), true, 'the count question rides the clause request');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].countMetP, 0.9);
+  assert.equal(rounds[1].countEvidence, 3, 'the clause advanced on count evidence, not stepDone drift');
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['scroll', 'click']);
+});
+
+test('T-count-met advances with zero scrolls when the page already has them', async () => {
+  const loaded = observation({ text: 'all items', repeatedGroups: [{ signature: 'div.item', count: 3 }] });
+  const h = harness({
+    observations: { p1: [loaded] },
+    script: [
+      CS({
+        action: ['scroll', { scroll: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+        count_met: 0.9,
+      }),
+      CS(),
+      ADV(),
+    ],
+  });
+  const r = await h.call({
+    goal: 'r17-count-zero goal',
+    steps: ['scroll until at least 3 items show', 'click the button'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal('count_met' in (h.requests[0].questions as Record<string, unknown>), true);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[0].countEvidence, 3, 'advanced on round 1 with the groups already meeting N');
+  assert.equal(rounds[0].countMetP, 0.9);
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['click'], 'zero scroll acts — the page already showed the count');
+});
+
+test('T-count-met alone without scroll or groups does not advance', async () => {
+  const h = harness({
+    observations: { p1: [observation({ repeatedGroups: [{ signature: 'div.item', count: 1 }] })] },
+    script: [
+      CS({
+        action: ['scroll', { scroll: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+        count_met: 0.9,
+      }),
+    ],
+  });
+  const r = await h.call({ goal: 'r17-count-alone goal', steps: ['scroll until at least 3 items show'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  for (const round of rounds) assert.equal('countEvidence' in round, false, 'a high count_met alone never advances');
+});
+
+test('T-count question is never asked without a parsed count', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] })],
+  });
+  await h.call({ goal: 'r17-count-absent goal', steps: ['scroll down'] });
+  assert.ok(h.requests.length >= 1);
+  for (const req of h.requests) {
+    assert.equal('count_met' in (req.questions as Record<string, unknown>), false, 'no count word, no count_met question');
+  }
+});
+
+test('T-count question is never asked on wingman_do', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] })],
+  });
+  await h.callDo({ goal: 'r17-count-wingman goal: scroll until at least 3 items show' });
+  assert.ok(h.requests.length >= 1);
+  for (const req of h.requests) {
+    assert.equal('count_met' in (req.questions as Record<string, unknown>), false, 'C9: wingman_do never carries count_met');
+  }
+});
+
+// ---- dialogs answered per the step (r17 D5) ----
+
+test('T-dialog answered accept per the step', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r = await h.call({ goal: 'r17-dialog-accept goal', steps: ['click Remove and accept the dialog'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].pageId, 'p1');
+  assert.equal(answers[0].accept, true);
+  assert.equal(h.records[0].phases?.rounds[0].dialog, 'accept');
+  assert.equal(h.driver.actCalls().length, 1);
+});
+
+test('T-dialog answered dismiss', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r = await h.call({ goal: 'r17-dialog-dismiss goal', steps: ['click Remove and cancel the dialog'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].accept, false);
+});
+
+test('T-alert is always accepted', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'alert', message: 'Boom' };
+  const r = await h.call({ goal: 'r17-dialog-alert goal', steps: ['click Show alert'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].accept, true);
+});
+
+test('T-confirm without a dialog word stays blocked', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r = await h.call({ goal: 'r17-dialog-plain goal', steps: ['click the Remove item button'] });
+  assert.equal(r.status, 'blocked');
+  assert.equal(r.reason, 'dialog-open');
+  assert.equal(answerDialogEvents(h).length, 0, 'the loop never guesses a dialog outcome');
+  assert.equal(r.steps, 1, 'the executed act still enters history (r15 D4)');
+});
+
+test('T-prompt is never answered', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'prompt', message: 'Name?' };
+  const r = await h.call({ goal: 'r17-dialog-prompt goal', steps: ['click Ask name and accept the dialog'] });
+  assert.equal(r.status, 'blocked');
+  assert.equal(r.reason, 'dialog-open');
+  assert.equal(answerDialogEvents(h).length, 0, 'the loop has no text to give a prompt');
+});
+
+test('T-both words in the step stay blocked', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really?' };
+  const r = await h.call({ goal: 'r17-dialog-both goal', steps: ['click Remove and accept or cancel the dialog'] });
+  assert.equal(r.status, 'blocked');
+  assert.equal(r.reason, 'dialog-open');
+  assert.equal(answerDialogEvents(h).length, 0);
+});
+
+test('T-second dialog in one act ends blocked', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS()],
+  });
+  h.driver.dialogOnNextAct = [
+    { pageId: 'p1', type: 'confirm', message: 'First' },
+    { pageId: 'p1', type: 'confirm', message: 'Second' },
+  ];
+  const r = await h.call({ goal: 'r17-dialog-cascade goal', steps: ['click Remove and accept the dialog'] });
+  assert.equal(r.status, 'blocked');
+  assert.equal(r.reason, 'dialog-open');
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1, 'at most one dialog is answered per act (C4)');
+  assert.equal(answers[0].accept, true);
+});
+
+test('T-round-top dialog answered then round continues', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS(), ADV()],
+  });
+  h.driver.dialogOnNextObserve = { pageId: 'p1', type: 'confirm', message: 'Really?' };
+  const r = await h.call({ goal: 'r17-dialog-roundtop goal', steps: ['accept the dialog'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].accept, true);
+  assert.equal(h.records[0].phases?.rounds[0].dialog, 'accept');
+  assert.equal(h.driver.actCalls().length, 1, 'the round after the answer acts normally');
+});
+
+test('T-answerDialog failure ends blocked', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS()],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  h.driver.failNextAnswer = new Error('nope');
+  const r = await h.call({ goal: 'r17-dialog-fail goal', steps: ['click Remove and accept the dialog'] });
+  assert.equal(r.status, 'blocked');
+  assert.equal(r.reason, 'dialog-open');
+  assert.equal(answerDialogEvents(h).length, 1, 'the answer was attempted');
+});
+
+// ---- login suppression (r17 D6) ----
+
+test('T-login suppressed by named bindings', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ login: 0.9 }), ADV(), CS(), ADV()],
+  });
+  const r = await h.call({
+    goal: 'r17-login-bindings goal',
+    steps: ['sign in with the values named user and pass', 'click the button'],
+    values: { user: 'secret-user', pass: 'secret-pass' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.records[0].phases?.rounds[0].loginSuppressed, true, 'the bindings arm suppressed the login read');
+  assert.equal(h.driver.actCalls().length, 2, 'the round proceeded to act under suppression');
+});
+
+test('T-login suppressed on progress', async () => {
+  const progressed = observation({ text: 'credentials accepted state' });
+  const h = harness({
+    observations: { p1: [observation(), progressed] },
+    script: [
+      CS(),
+      CS({ login: 0.9, action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      ADV(),
+      ADV(),
+    ],
+  });
+  const r = await h.call({
+    goal: 'r17-login-progress goal',
+    steps: ['enter the credentials', 'click the button'],
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.records[0].phases?.rounds[1].loginSuppressed, true, 'the progress arm suppressed the login read');
+});
+
+test('T-login suppressed on resume', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [{ login: 0.9 }, CS({ login: 0.9 }), ADV()],
+  });
+  const r1 = await h.call({ goal: 'r17-login-resume goal', steps: ['enter the credentials'] });
+  assert.equal(r1.status, 'login', `got ${r1.status}/${r1.reason}`);
+  const r2 = await h.call({ goal: 'r17-login-resume goal', steps: ['enter the credentials'] });
+  assert.equal(r2.status, 'done', `the resumed cursor suppresses the login page once: got ${r2.status}/${r2.reason}`);
+  assert.equal(h.records[1].phases?.rounds[0].loginSuppressed, true, 'the resume arm (chain memory loginSeen) suppressed it');
+});
+
+test('T-login unsuppressed without bindings or progress', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [{ login: 0.9 }],
+  });
+  const r = await h.call({ goal: 'r17-login-plain goal', steps: ['click the button'] });
+  assert.equal(r.status, 'login');
+  assert.equal(r.reason, 'login-page');
+  assert.equal('loginSuppressed' in (h.records[0].phases?.rounds[0] ?? {}), false);
+});
+
+test('T-login suppressed on wingman_do via the goal', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ login: 0.9 }), { done: 0.9 }],
+  });
+  const r = await h.callDo({
+    goal: 'r17-login-wingman goal: sign in with the values named user and pass',
+    values: { user: 'secret-user', pass: 'secret-pass' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.records[0].phases?.rounds[0].loginSuppressed, true, 'C2: the goal text feeds the bindings arm for wingman_do');
+});
+
+test('T-advance resets loginSeen', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    // call 1 ends login on clause 1 (memory stores loginSeen);
+    // call 2: suppressed round 1, acts, advances (reset), then clause 2
+    // reads login fresh and ends login — the flag is per-clause.
+    script: [{ login: 0.9 }, CS({ login: 0.9 }), ADV(), { login: 0.9 }],
+  });
+  await h.call({ goal: 'r17-login-reset goal', steps: ['enter the credentials', 'click the button'] });
+  const r2 = await h.call({ goal: 'r17-login-reset goal', steps: ['enter the credentials', 'click the button'] });
+  assert.equal(r2.status, 'login', `clause 2 must read login fresh after the advance: got ${r2.status}/${r2.reason}`);
+  const rounds = h.records[1].phases?.rounds ?? [];
+  assert.equal(rounds[0].loginSuppressed, true, 'round 1 suppressed via the resume arm');
+  assert.equal('loginSuppressed' in (rounds[2] ?? {}), false, 'clause 2 was not suppressed');
+});
+
+// ---- ready-gate split (r17 C11) ----
+
+test('T-ready gate skipped for scroll', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      CS({ action: ['scroll', { scroll: 0.9, none: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }], ready: 0.1 }),
+      ADV(),
+    ],
+  });
+  const r = await h.call({ goal: 'r17-ready-scroll goal', steps: ['scroll until at least 3 items show'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls()[0].op, 'scroll', 'a not-ready page never bounces a scroll-until clause');
+  assert.equal(h.driver.actCalls().some((a) => a.op === 'wait'), false);
+});
+
+test('T-ready gate still applies to press', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [PRESS(0.9, 'Enter', { ready: 0.1 })],
+  });
+  await h.call({ goal: 'r17-ready-press goal', steps: ['press Enter to submit'] });
+  assert.equal(h.driver.actCalls()[0].op, 'wait', 'press keeps the ready gate (R8) — it acts on the current page');
 });

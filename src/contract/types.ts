@@ -5,6 +5,8 @@ export const OPS = [
 export type Op = (typeof OPS)[number];
 /** Ops that act on no element: the loop always passes elementId null for them. Adapters still accept an element id for `scroll` (today's verified-element wheel; tests/conformance.test.ts:280 uses it). `scroll_to` is targeted (it scrolls one element into view). */
 export const TARGETLESS_OPS: readonly Op[] = ['scroll', 'scroll_up', 'wait', 'navigate', 'back', 'reload'];
+/** Ops that also act with elementId null (r17): a `press` with no element targets the already-focused element. */
+export const OPTIONAL_TARGET_OPS: readonly Op[] = ['press'];
 /** Ops a Driver without an `ops` declaration is assumed to support (the pre-0.3.0 set). */
 export const LEGACY_OPS: readonly Op[] = ['click', 'fill', 'select', 'check', 'uncheck', 'press', 'scroll'];
 /** Fixed key enumeration for `press` (§ 5.4 key Choice ids = these). ShiftTab = Shift+Tab; SelectAll = Ctrl+A (Cmd+A on macOS). */
@@ -12,8 +14,8 @@ export const PRESS_KEYS = [
   'Enter', 'Tab', 'ShiftTab', 'Escape', 'Space', 'Backspace', 'SelectAll', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
 ] as const;
 export type PressKey = (typeof PRESS_KEYS)[number];
-/** browse_step `pick` (§ 5.6). */
-export interface PickInput { role?: string; name?: string; action: Op; nth?: number; value?: string }
+/** browse_step `pick` (§ 5.6). `key` is press-only (r17). */
+export interface PickInput { role?: string; name?: string; action: Op; nth?: number; value?: string; key?: PressKey }
 
 export const STATUSES = ['done', 'needs_confirmation', 'blocked', 'login', 'ambiguous', 'error', 'fallback'] as const;
 export type Status = (typeof STATUSES)[number];
@@ -85,6 +87,12 @@ export interface Observation {
   signals: PageSignals;
   text: string;              // visible text excerpt, ≤ max_text_chars
   truncated: boolean;        // true when more than MAX_ENUMERATED candidates existed
+  // r17: the focused element at enumerate time ({path, role, name}).
+  // Evidence-only — never sent to Jev (buildState does not carry it).
+  focus?: { path: string; role: string; name: string };
+  // r17 (C8): repeated-element group tallies over the whole document —
+  // emitted only when non-empty (never `[]`).
+  repeatedGroups?: Array<{ signature: string; count: number }>;
 }
 
 export interface PageInfo { id: string; url: string; title: string; visible: boolean }   // id = CDP targetId
@@ -100,11 +108,13 @@ export interface Driver {
   attach(target: AttachTarget): Promise<void>;
   pages(): Promise<PageInfo[]>;                            // default-context page targets only
   observe(pageId: string): Promise<Observation>;
-  /** elementId is null only for ops in TARGETLESS_OPS; scroll also accepts an element id (legacy form, same wheel).
+  /** elementId is null only for ops in TARGETLESS_OPS, and for `press` (OPTIONAL_TARGET_OPS) when the press targets the already-focused element; scroll also accepts an element id (legacy form, same wheel).
    * value: fill text, select option value, press key (a PressKey; absent = Enter), navigate URL (http/https), upload absolute file path. */
   act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void>;
   settle(pageId: string, budgetMs: number): Promise<{ settled: boolean; ms: number }>;
   onDialog(handler: (e: DialogEvent) => void): void;
+  /** r17 (C5, required): answer the page's currently open JavaScript dialog — accept or dismiss per the step's own text. */
+  answerDialog(pageId: string, accept: boolean): Promise<void>;
   detach(): Promise<void>;
 }
 
@@ -214,6 +224,14 @@ export interface WingmanLogRecord {
       leftPage?: boolean;
       // r15: browse_step rounds where the error rule fired: the validated recover answer (give-up when below the bar).
       recover?: string;
+      // r17: the count_met noul's probability, present only when the question was asked this round.
+      countMetP?: number;
+      // r17: a login read was suppressed this round (loginSuppressedNow).
+      loginSuppressed?: true;
+      // r17: the dialog answer this round performed (set only on a round that answered one).
+      dialog?: 'accept' | 'dismiss';
+      // r17: the deterministic key-press advance fired this round (runChainEarly rule 3).
+      keyEvidence?: true;
     }>;
   };
 }

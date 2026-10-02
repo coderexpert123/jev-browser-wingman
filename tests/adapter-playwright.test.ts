@@ -12,7 +12,7 @@ import { chromium } from 'playwright-core';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startFixtureServer } from '../src/fixture-server.js';
 import { createPlaywrightDriver } from '../src/adapters/playwright.js';
-import { DialogOpenError } from '../src/contract/errors.js';
+import { ActFailedError, DialogOpenError } from '../src/contract/errors.js';
 import type { Driver, ElementRecord } from '../src/contract/types.js';
 
 interface Fixture {
@@ -275,6 +275,18 @@ test('dialog is reported and stays open', async () => {
     } finally {
       ws2.close();
     }
+  } finally {
+    await fx.close();
+  }
+});
+
+// r17: answerDialog with nothing stashed rejects — the adapter never fakes an
+// answer; the loop degrades the throw to blocked/dialog-open.
+test('answerDialog with no open dialog rejects', async () => {
+  const fx = await withFixture('/form.html', 'Fixture form');
+  try {
+    const pageId = await waitForPage(fx.driver, fx.pageUrl);
+    await assert.rejects(fx.driver.answerDialog(pageId, true), ActFailedError);
   } finally {
     await fx.close();
   }

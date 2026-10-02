@@ -22,6 +22,10 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     'button', 'link', 'checkbox', 'radio', 'switch', 'tab', 'menuitem', 'menuitemcheckbox',
     'menuitemradio', 'option', 'combobox', 'textbox', 'searchbox', 'slider', 'spinbutton',
   ];
+  /** KB proof switch (r17 WP-B mutant): composed into the hidden-input
+   * sibling-label resolution. Lives INSIDE enumerate's function body so it
+   * stringifies along; never flip in shipped code. */
+  var KB_HIDDEN_SIBLING = false;
 
   function clip(s: string, n: number): string {
     return s.length > n ? s.slice(0, n) : s;
@@ -88,6 +92,16 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
       if (node.tagName === 'LABEL') return node as HTMLElement;
       node = node.parentElement;
     }
+    return null;
+  }
+  // r17 (D7): a visually hidden input can resolve its name through an
+  // adjacent visible sibling <label> (the TodoMVC shape). Checks the next
+  // element sibling, then the previous one.
+  function siblingLabel(el: Element): HTMLElement | null {
+    var next = el.nextElementSibling;
+    if (next && next.tagName === 'LABEL' && isVisible(next)) return next as HTMLElement;
+    var prev = el.previousElementSibling;
+    if (prev && prev.tagName === 'LABEL' && isVisible(prev)) return prev as HTMLElement;
     return null;
   }
   function accessibleName(el: Element): string {
@@ -217,13 +231,20 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     if (tag === 'input' && (type === 'checkbox' || type === 'radio') && !isVisible(el)) {
       var wrap = wrappingLabel(el);
       var byFor = el.id ? labelForOf(el.id) : null;
-      var label = wrap || byFor;
+      // r17 (D7/C7): a hidden checkbox/radio resolves its name through a
+      // wrap label, a label[for], or an adjacent VISIBLE sibling label —
+      // all three take the PROXY arm (path = the label, controlPath = the
+      // input, name = the label's textContent). Failing that, a non-empty
+      // accessibleName (aria-label → placeholder → title here, since
+      // wrap/for/labelledby already failed) keeps the record on the input's
+      // own path (named-only arm); anything else still enumerates null.
+      var label = wrap || byFor || (KB_HIDDEN_SIBLING ? null : siblingLabel(el));
       if (label && isVisible(label)) {
         isProxy = true;
         labelEl = label;
         pathEl = label;
         controlPath = pathFor(el);
-      } else {
+      } else if (accessibleName(el) === '') {
         return null;
       }
     } else if (!isVisible(el)) {
@@ -408,7 +429,30 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
   var text = textExcerpt(opts.maxTextChars);
   var signals = computeSignals(text);
 
-  return {
+  // r17 (D2): the focused element, computed once beside textExcerpt — evidence
+  // for the loop's focus-changed promotion; evidence-only, never sent to Jev.
+  var ae = document.activeElement;
+  var focus = ae ? { path: pathFor(ae), role: roleOf(ae), name: clip(accessibleName(ae), 80) } : undefined;
+
+  // r17 (C8): repeated-element group tallies, document-wide over all nodes —
+  // candidate or not (lazy-load lists are <li>/<div> items, not interactive
+  // elements). Signature = tag.className(collapsed, clipped to 60); groups with
+  // count >= 3 kept, top 5 by count desc then signature asc.
+  var groupCounts: Record<string, number> = {};
+  for (var gi = 0; gi < allNodes.length; gi++) {
+    var gn = allNodes[gi];
+    var sig = gn.tagName.toLowerCase() + '.' + clip(collapse(String(gn.className)), 60);
+    groupCounts[sig] = (groupCounts[sig] ?? 0) + 1;
+  }
+  var repeatedGroups = Object.keys(groupCounts)
+    .map(function (s) { return { signature: s, count: groupCounts[s] }; })
+    .filter(function (g) { return g.count >= 3; })
+    .sort(function (a, b) {
+      return b.count - a.count || (a.signature < b.signature ? -1 : a.signature > b.signature ? 1 : 0);
+    })
+    .slice(0, 5);
+
+  var out: Record<string, unknown> = {
     url: location.href,
     title: clip(document.title || '', 80),
     elements: records,
@@ -417,6 +461,9 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     text: text,
     truncated: truncated,
   };
+  if (focus !== undefined) out.focus = focus;
+  if (repeatedGroups.length > 0) out.repeatedGroups = repeatedGroups;
+  return out;
 }
 
 export function buildVerifyExpression(path: string, fp: Fingerprint): string {
@@ -541,6 +588,24 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
     if (!ctrl) {
       var inner = labelEl.querySelectorAll('input[type="checkbox"],input[type="radio"]');
       if (inner.length > 0) ctrl = inner[0] as HTMLInputElement;
+    }
+    // r17 (D7 mirror): enumerate also proxies a hidden checkbox/radio through
+    // an adjacent sibling label, so when `path` names that label the sibling
+    // probe finds the hidden input — the tag/role/name rewrite below then
+    // applies unchanged.
+    if (!ctrl) {
+      var sib: Element | null = labelEl.nextElementSibling;
+      if (sib && sib.tagName === 'INPUT') {
+        var st = (sib.getAttribute('type') || '').toLowerCase();
+        if (st === 'checkbox' || st === 'radio') ctrl = sib as HTMLInputElement;
+      }
+      if (!ctrl) {
+        sib = labelEl.previousElementSibling;
+        if (sib && sib.tagName === 'INPUT') {
+          var st2 = (sib.getAttribute('type') || '').toLowerCase();
+          if (st2 === 'checkbox' || st2 === 'radio') ctrl = sib as HTMLInputElement;
+        }
+      }
     }
     var ctrlType = ctrl ? (ctrl.getAttribute('type') || '').toLowerCase() : '';
     if (ctrl && (ctrlType === 'checkbox' || ctrlType === 'radio') && !isVisible(ctrl) && isVisible(labelEl)) {

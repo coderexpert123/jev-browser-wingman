@@ -83,20 +83,23 @@
     "path": "/javascript_alerts",
     "goal": "Click the button for a JS Confirm, then accept the dialog that appears.",
     "values": {},
-    "oracle": "document.querySelector('#result').innerText.includes('Ok')"
+    "oracle": "document.querySelector('#result').innerText.includes('Ok')",
+    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
   },
   {
     "id": "t13-infinite-scroll",
     "path": "/infinite_scroll",
     "goal": "Scroll down the page until at least ten result blocks have loaded.",
     "values": {},
-    "oracle": "document.querySelectorAll('.jscroll-added').length >= 10"
+    "oracle": "document.querySelectorAll('.jscroll-added').length >= 10",
+    "end_state": "document.querySelectorAll('.jscroll-added').length + ' items | scrollY=' + Math.round(window.scrollY)"
   },
   {
     "id": "t14-key-press",
     "path": "/key_presses",
     "goal": "Click the input field, then press the Enter key.",
     "values": {},
-    "oracle": "document.querySelector('#result').innerText.toLowerCase().includes('enter')"
+    "oracle": "document.querySelector('#result').innerText.toLowerCase().includes('enter')",
+    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
   }
 ]

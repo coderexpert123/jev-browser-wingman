@@ -533,3 +533,88 @@
   can click it again. (5) The token-act dialog-open end stores the click but not
   `cursorActed`. Probe-test trap: `FakeDriver` repeats the last scripted observation, so a
   two-observation script with a changed second entry is how a test shows a late landing.
+
+- **r17: optional-target press, focus evidence, count_met, dialog answering,
+  login suppression, hidden labels** (spec `.build-r17-spec.md`, 2026-10-02).
+  `OPTIONAL_TARGET_OPS` (`contract/types.ts`) = `['press']`: `elementId` may be
+  null for a `press` (the focused element is the target). The **press-none
+  commit** — `press` + `target` choice `none` at the bar (`takeoverOf().threshold`
+  under takeover, `THRESHOLDS.target` off it) commits `el: null` — precedes the
+  margin rule at ALL THREE sites: `decideTarget`, `targetUncertainty` (chain
+  merged-decide) and the legacy entry decision (which also skips the obstruction
+  gate; a margin element there would steal the key press). The
+  **irreversible-press refusal**: an `el: null` press with
+  `irreversible >= 0.5` returns `ambiguous/no-action` (zero tokens minted, no
+  element to gate on); chain maps it through `chainNonCommit('no-match')`, a
+  legacy entry round bounces `no-match`, wingman_do returns it as-is.
+  **Focus evidence**: `Observation.focus` (evidence-only, never sent to Jev)
+  + `HistoryEntry.beforeFocus` drive the `'focus changed'` promotion in
+  `annotateLastOutcome` — it fires only when the result computed 'no visible
+  change', the verb is click-family, focus MOVED, and the moved-to element is
+  an enumerated `editable` (a Tab onto a non-field stays quiet).
+  **Two op sets, do not merge**: `SIGNAL_TARGETLESS_OPS`
+  (navigate/back/reload/press/scroll/scroll_up — outcomeSignal + the
+  isNoProgress targetless branch) vs `READY_GATE_SKIP_OPS`
+  (nav + scroll/scroll_up/scroll_to — runChainEarly rule 5 only). `press` is
+  signal but NOT ready-skip; `scroll_to` is ready-skip but not signal.
+  **Parsers**: `parseKeyPress`/`parseAtLeastCount` follow
+  `parseRepeatCount`'s exactly-one-match contract; `KEY_NAME_RE`'s alternation
+  is longest-first (`arrow down` before `down`) because JS alternation is
+  ordered, and `delete` is deliberately absent (not a PRESS_KEYS member — R9).
+  **count_met** rides request 1 / the single-round request ONLY when
+  `countFor` is passed — chain clauses and the legacy step parse it;
+  `wingman_do` never does (C9), so it costs zero tokens there. The advance
+  needs `noulOf('count_met') >= stepDoneWithEvidence` AND
+  (`hasScrollEvidence` OR the fresh obs's `repeatedGroups` already meet N) —
+  the count N compare is the loop's own `groupsMeet`-shaped check, never
+  instruction text. `hasScrollEvidence`/`hasKeyEvidence` walk the last
+  signal-carrying entry INCLUDING scrolls (unlike `lastEvidenceEntry`, which
+  now skips scroll entries so they cannot shadow fill/press evidence).
+  **Dialogs** are answered from the STEP text only (`dialogOutcome` never
+  reads `e.message` — prompt-injection surface, C3): alerts always accepted,
+  prompt/beforeunload never, confirm per `DIALOG_ACCEPT_RE`/`DIALOG_DISMISS_RE`
+  (both or neither → blocked). One answer per act (`dialogBase` temporal scan)
+  and per round (`answeredDialogs`); a second open dialog in the same act ends
+  `blocked/dialog-open`. `Driver.answerDialog` is a REQUIRED method (C5): cdp
+  sends `Page.handleJavaScriptDialog` on the page session (3 s, ActFailedError
+  wrap), playwright calls the stashed `Dialog` object's accept()/dismiss()
+  (stash before report, cleared on javascriptDialogClosed; no dialog →
+  `ActFailedError('no open dialog')`). **Login suppression**
+  (`loginSuppressedNow`): three OR arms — step/goal names a supplied binding,
+  the step is making progress (last signal-carrying result differs from its
+  baseline), or `alreadyEnded` (chain memory's `loginSeen`, restored in
+  `runBrowse`, written by `finish()` as `true`/absent, reset on advance).
+  Suppression sets `cur.loginSuppressed` telemetry but NEVER
+  `loginSeen`/`loginEnded` — those are set only where a `login/login-page`
+  result is produced (C1), so a suppressed-then-still-login page loops on the
+  round budget, not on the flag. **Hidden labels** (D7): a visually hidden
+  checkbox/radio resolves its name through an adjacent visible sibling
+  `<label>` (next sibling, then previous) → PROXY arm (`path` = the label,
+  `controlPath` = the input, name = label text); failing that, a non-empty
+  `accessibleName` (aria-label → placeholder → title here) keeps the record
+  NON-proxy on its own path; else still enumerated null. `verify` mirrors the
+  sibling probe inside its LABEL branch; the named-only arm needs no verify
+  change (the input itself is at `path`). The `KB_HIDDEN_SIBLING` flag lives
+  INSIDE `enumerate`'s function body so it stringifies along. Test traps:
+  (1) a scripted `press` with `target: none >= 0.5` must commit targetless —
+  watch the takeover margin branch, which previously never saw `none` as a
+  commit; (2) a `press` whose result is `focus changed` requires `obs.focus`
+  on the observation AND the moved-to element `editable` in `obs.elements` —
+  tests must set both; (3) `count_met` is asked only when `countFor` is
+  passed (chain/legacy steps parse it, wingman_do does not); (4)
+  `dialogOutcome` reads the STEP text, never `e.message` — a confirm dialog
+  with no accept/dismiss word in the step still ends `blocked/dialog-open`
+  (the mcp-server confirm-token test relies on this); (5)
+  `FakeDriver.dialogOnNextAct` accepts `DialogEvent | DialogEvent[]` (array
+  drains in order); (6) `loginSuppressed` rounds set the telemetry flag but
+  never `loginSeen`; (7) the round-top dialog answer (r17 D5) sits BEFORE the
+  pick-round check and consumes a `continue`: a dialog observed at round top
+  of a round-1 pick call is answered (or blocks), and round 2 no longer
+  matches `pickRound` (`round === 1`), so the caller's explicit pick silently
+  degrades to an ordinary Jev round — only reachable when a page opens a
+  dialog between attach and the first observe; (8) `VERB_RE` contains
+  `dismiss`/`close`/`submit` but NOT `accept`/`cancel`, so a caller clause
+  "click X and dismiss the dialog" SPLITS at the `and` and the click
+  sub-clause ends `blocked/dialog-open` before the dismiss word is ever the
+  active step text — the shipped e2e clauses deliberately say `cancel`/`accept`
+  for this reason (WP-C note 1).

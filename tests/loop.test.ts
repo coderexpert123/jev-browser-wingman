@@ -106,6 +106,7 @@ type ChoiceAnswers = {
   value?: [string, Record<string, number>];
   group?: [string, Record<string, number>];
   option?: [string, Record<string, number>];
+  key?: [string, Record<string, number>];
 };
 type SeqEntry = (NoulAnswers & ChoiceAnswers) | { fail: string };
 
@@ -140,7 +141,7 @@ function scriptedAsk(seq: SeqEntry[]): { ask: JevAsk; requests: JevRequest[] } {
     for (const key of ['done', 'blocked', 'login', 'error', 'irreversible', 'answer'] as const) {
       if (step[key] !== undefined) answers[key] = { type: 'noul', noul: step[key] as number };
     }
-    for (const key of ['action', 'target', 'value', 'group', 'option'] as const) {
+    for (const key of ['action', 'target', 'value', 'group', 'option', 'key'] as const) {
       const spec = step[key];
       if (spec) answers[key] = choice(spec[0], spec[1]);
     }
@@ -876,4 +877,85 @@ test('a step-uncertain browse_step bounce still carries the HEAD caller line and
   assert.equal(r.status, 'fallback');
   assert.equal(r.reason, 'step-uncertain');
   assert.equal(r.note, `${CALLER_LINE} ${TIER1}`);
+});
+
+// ---- r17 (spec .build-r17-spec.md, WP-B): wingman_do legs ----
+
+test('wingman_do press-none commits a targetless press (focused element)', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({
+        action: ['press', { press: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+        key: ['Enter', { Enter: 0.9, none: 0.05 }],
+      }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'r17-do-press-none goal' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].elementId, null, 'wingman_do commits press-none at the plain 0.5 target bar');
+  assert.equal(acts[0].op, 'press');
+  assert.equal(acts[0].value, 'Enter');
+});
+
+test('wingman_do press-none with irreversible refuses ambiguous no-action with zero acts', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({
+        action: ['press', { press: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+        key: ['Enter', { Enter: 0.9, none: 0.05 }],
+        irreversible: 0.9,
+      }),
+    ],
+  });
+  const r = await h.call({ goal: 'r17-do-press-none-irrev goal' });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'no-action');
+  assert.equal(h.driver.actCalls().length, 0, 'an element-free irreversible press never acts');
+  assert.equal(r.confirm_token, undefined, 'no element identity, no confirm token');
+});
+
+test('wingman_do press with no key answer falls back to Enter', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({
+        action: ['press', { press: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+      }),
+      { done: 0.9 },
+    ],
+  });
+  const r = await h.call({ goal: 'r17-do-press-nokey goal' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 1);
+  assert.equal(acts[0].value, 'Enter', 'the unchanged line: a missing key answer defaults to Enter off takeover');
+});
+
+test('wingman_do token act answers the page dialog per the goal text', async () => {
+  const h = harness({
+    observations: { p1: [observation({ elements: [el({ name: 'Remove item' })] })] },
+    script: [S({ irreversible: 0.9 }), { done: 0.9 }],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const minted = await h.call({ goal: 'r17-do-token-dialog setup goal' });
+  assert.equal(minted.status, 'needs_confirmation');
+  assert.ok(minted.confirm_token);
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r = await h.call({
+    goal: 'Remove the item and confirm it',
+    confirm_token: minted.confirm_token ?? '',
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const answers = h.driver.events.filter((e) => e.kind === 'answerDialog');
+  assert.equal(answers.length, 1);
+  assert.equal((answers[0] as { accept?: boolean }).accept, true, 'the goal text (the call step text) said confirm');
+  assert.equal(h.driver.actCalls().length, 1, 'the token click executed');
 });

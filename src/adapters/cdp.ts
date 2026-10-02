@@ -34,7 +34,7 @@ import type {
   PageInfo,
   AttachTarget,
 } from '../contract/types.js';
-import { TARGETLESS_OPS } from '../contract/types.js';
+import { OPTIONAL_TARGET_OPS, TARGETLESS_OPS } from '../contract/types.js';
 import { ADAPTER_OPS } from './capabilities.js';
 import { ensureChrome } from '../browser/chrome.js';
 import { killTree } from '../browser/process-list.js';
@@ -52,6 +52,13 @@ import { CdpConnection } from './cdp-connection.js';
 export function createCdpDriver(): Driver {
   return new CdpDriver();
 }
+
+/** KB proof switch (r17 WP-B mutant): composed into the null-element guard so
+ * a flipped build rejects targetless press. Never flip in shipped code. */
+const KB_CDP_PRESS_NONE = false;
+/** KB proof switch (r17 WP-B mutant): composed into answerDialog so a flipped
+ * build never answers. Never flip in shipped code. */
+const KB_CDP_DIALOG = false;
 
 const cap = (s: unknown, n: number): string => String(s ?? '').slice(0, n);
 
@@ -462,6 +469,14 @@ class CdpDriver implements Driver {
           await conn.send('Page.reload', {}, sessionId, NAV_TIMEOUT_MS);
           return;
         }
+        case 'press': {
+          // r17: a targetless press goes to the focused element — no focus
+          // eval; the focused element is the target by definition.
+          const [down, up] = cdpKeyEvents(value ?? 'Enter');
+          await conn.send('Input.dispatchKeyEvent', down, sessionId);
+          await conn.send('Input.dispatchKeyEvent', up, sessionId);
+          return;
+        }
         default: {
           throw new ActFailedError(`op ${op} needs an element`);
         }
@@ -617,7 +632,10 @@ class CdpDriver implements Driver {
     // Targetless ops (spec § 6 WP-A A4): no cached element, no verify, no hit
     // test — straight into the dialog race.
     if (elementId === null) {
-      if (!(TARGETLESS_OPS as readonly Op[]).includes(op)) {
+      if (
+        !(TARGETLESS_OPS as readonly Op[]).includes(op) &&
+        !(!KB_CDP_PRESS_NONE && (OPTIONAL_TARGET_OPS as readonly Op[]).includes(op))
+      ) {
         throw new ActFailedError(`op ${op} needs an element`);
       }
       await this.actRaced(pageId, null, op, value, null);
@@ -703,6 +721,17 @@ class CdpDriver implements Driver {
 
   onDialog(handler: (e: DialogEvent) => void): void {
     this.dialogHandlers.push(handler);
+  }
+
+  async answerDialog(pageId: string, accept: boolean): Promise<void> {
+    const sessionId = await this.ensureSession(pageId);
+    try {
+      if (!KB_CDP_DIALOG) {
+        await this.requireConn().send('Page.handleJavaScriptDialog', { accept }, sessionId, 3_000);
+      }
+    } catch (e) {
+      throw new ActFailedError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   async detach(): Promise<void> {

@@ -349,7 +349,9 @@ test('a token on a different URL is confirm-token-invalid', async () => {
 
 test('an open dialog returns blocked dialog-open and never acts', async () => {
   const h = harness({ observations: { p1: [observation()] }, script: [S()] });
-  h.driver.dialogOnNextObserve = { pageId: 'p1', type: 'alert', message: 'Hello' };
+  // r17: the round-top loop ANSWERS an alert unconditionally (D5), so the
+  // unanswerable-dialog pin uses a prompt — never answered (C3).
+  h.driver.dialogOnNextObserve = { pageId: 'p1', type: 'prompt', message: 'Hello' };
   const r = await h.call({ goal: 'g' });
   assert.equal(r.status, 'blocked');
   assert.equal(r.reason, 'dialog-open');

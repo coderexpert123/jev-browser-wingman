@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { launchTestChrome } from './helpers/chrome.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
 import { startFixtureServer } from '../src/fixture-server.js';
-import { evaluateOracle } from '../bench/oracle.js';
+import { evaluateOracle, evaluateExpression } from '../bench/oracle.js';
 
 // Attach to a page target BEFORE navigating it: a session attached after
 // Target.createTarget has already navigated stays bound to the page's
@@ -51,6 +51,38 @@ test('true only when the expression returns true', async () => {
       assert.equal(await evaluateOracle(conn, targetId, '1 === 2'), false);
       assert.equal(await evaluateOracle(conn, targetId, "'0'"), false);
       assert.equal(await evaluateOracle(conn, targetId, 'undefined'), false);
+    } finally {
+      await conn.close();
+    }
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+// r17 D8: evaluateExpression is the raw value — the verbatim-capture leg the
+// bench end_state field reads through. No boolean coercion: a string comes
+// back as a string, undefined comes back as undefined.
+test('evaluateExpression returns the verbatim value', async () => {
+  const browser = await launchTestChrome();
+  const server = await startFixtureServer();
+  try {
+    const { conn, targetId } = await openFormPage(browser.endpoint, `${server.url}/form.html`);
+    try {
+      // String round-trip (the end_state shape).
+      assert.equal(await evaluateExpression(conn, targetId, "'ver' + 'batim'"), 'verbatim');
+      // A real page read, verbatim.
+      assert.equal(await evaluateExpression(conn, targetId, 'location.pathname'), '/form.html');
+      // Numbers stay numbers.
+      assert.equal(await evaluateExpression(conn, targetId, '2 * 21'), 42);
+      // No coercion: undefined and throws come back undefined, not false.
+      assert.equal(await evaluateExpression(conn, targetId, 'undefined'), undefined);
+      assert.equal(
+        await evaluateExpression(conn, targetId, "(() => { throw new Error('boom'); })()"),
+        undefined,
+      );
+      // evaluateOracle's literal-true contract rides on top, unchanged.
+      assert.equal(await evaluateOracle(conn, targetId, "'true as a string'"), false);
     } finally {
       await conn.close();
     }

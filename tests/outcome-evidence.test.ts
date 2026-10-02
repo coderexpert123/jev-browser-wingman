@@ -1615,3 +1615,98 @@ test('T-back-not-evidence: step_done 0.6 after a page-changing back does NOT adv
   assert.ok(backActs.length >= 1, 'a back act must have landed');
   assert.ok(backActs.length >= 2 || r.status !== 'done', `back at 0.6 must not advance; got ${r.status}/${r.reason} after ${backActs.length} back acts`);
 });
+
+// ---- r17 (spec .build-r17-spec.md, WP-B): targetless signals + focus ----
+// The public surface for `before`/`key` (internal HistoryEntry fields) is the
+// behaviour they enable: a same-act repeat bounces no-progress only when a
+// signal was recorded, and buildState's history map carries each entry's
+// observed `result` into the next round's request.
+
+/** A chain round committing a targetless press of `key` at step_done `p`. */
+function r17PressReply(key: string, p: number): JevAsk {
+  return async () =>
+    reply({
+      ...baseNouls(),
+      step_done: { type: 'noul', noul: p },
+      action: choice('press', { press: 0.9, none: 0.05 }),
+      target: choice('none', { none: 0.9, ambiguous: 0.05 }),
+      key: choice(key, { [key]: 0.9, none: 0.05 }),
+    });
+}
+
+function historyOf(request: JevRequest): Array<{ verb: string; label?: string; result?: string }> {
+  return ((request.state as { history?: Array<{ verb: string; label?: string; result?: string }> }).history ?? []);
+}
+
+test('r17-SIGNAL: a targetless press records its result and a same-key no-effect repeat bounces no-progress', async () => {
+  const h = harness({ observations: { p1: [observation()] }, ask: r17PressReply('Enter', 0.1) });
+  const r = await h.call({ goal: 'r17-OE press signal goal', steps: ['press Enter'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the second identical no-effect press never acts');
+  const pressEntry = historyOf(h.requests[1]).find((e) => e.verb === 'press');
+  assert.ok(pressEntry, 'the press entry reaches the state history');
+  assert.equal(pressEntry?.result, 'no visible change', 'a signal was recorded for the targetless press');
+});
+
+test('r17-SIGNAL: a scroll that moves the page reads page changed; a no-effect repeat bounces no-progress', async () => {
+  const h = harness({
+    observations: { p1: [observation({ text: 'top of list' }), observation({ text: 'scrolled view' })] },
+    ask: async () =>
+      reply({
+        ...baseNouls(),
+        step_done: { type: 'noul', noul: 0.1 },
+        action: choice('scroll', { scroll: 0.9, none: 0.05 }),
+        target: choice('none', { none: 0.9, ambiguous: 0.05 }),
+      }),
+  });
+  const r = await h.call({ goal: 'r17-OE scroll signal goal', steps: ['scroll the list'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'no-progress', `got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 2, 'the moving scroll acted; the no-effect repeat never did');
+  const scrollEntry = historyOf(h.requests[2]).find((e) => e.verb === 'scroll');
+  assert.ok(scrollEntry, 'the scroll entry reaches the state history');
+  assert.equal(scrollEntry?.result, 'page changed', 'the moving scroll carried its outcome signal');
+});
+
+const r17focusElements = (movedToEditable: boolean): ElementRecord[] => [
+  el({ id: 'e1', path: '#first', tag: 'input', role: 'textbox', name: 'First', type: 'text', editable: true, state: { disabled: false, filled: false }, fingerprint: { tag: 'input', role: 'textbox', name: 'First', x: 0, y: 0 } }),
+  movedToEditable
+    ? el({ id: 'e2', path: '#second', tag: 'input', role: 'textbox', name: 'Second', type: 'text', editable: true, state: { disabled: false, filled: false }, fingerprint: { tag: 'input', role: 'textbox', name: 'Second', x: 0, y: 0 } })
+    : el({ id: 'e2', path: '#second', tag: 'button', role: 'button', name: 'Second button', type: 'button', editable: false, state: { disabled: false }, fingerprint: { tag: 'button', role: 'button', name: 'Second button', x: 0, y: 0 } }),
+];
+
+test('r17-focus: focus moving onto an enumerated editable reads focus changed and fires the key advance', async () => {
+  const els = r17focusElements(true);
+  const h = harness({
+    observations: {
+      p1: [
+        observation({ elements: els, focus: { path: '#first', role: 'textbox', name: 'First' } }),
+        observation({ elements: els, focus: { path: '#second', role: 'textbox', name: 'Second' } }),
+      ],
+    },
+    ask: r17PressReply('Tab', 0.1),
+  });
+  const r = await h.call({ goal: 'r17-OE focus promote goal', steps: ['press Tab to move to the next field'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const focusEntry = historyOf(h.requests[1]).find((e) => e.verb === 'press');
+  assert.equal(focusEntry?.result, 'focus changed', 'focus moved to an editable promotes the result');
+  assert.equal(h.records[0].phases?.rounds[1].keyEvidence, true, 'the key advance fired on the focus evidence');
+});
+
+test('r17-focus: focus moving onto a non-editable element stays no visible change', async () => {
+  const els = r17focusElements(false);
+  const h = harness({
+    observations: {
+      p1: [
+        observation({ elements: els, focus: { path: '#first', role: 'textbox', name: 'First' } }),
+        observation({ elements: els, focus: { path: '#second', role: 'button', name: 'Second' } }),
+      ],
+    },
+    ask: r17PressReply('Tab', 0.1),
+  });
+  const r = await h.call({ goal: 'r17-OE focus non-editable goal', steps: ['press Tab to move on'] });
+  const focusEntry = historyOf(h.requests[1]).find((e) => e.verb === 'press');
+  assert.equal(focusEntry?.result, 'no visible change', 'a Tab onto a button is not evidence');
+  assert.notEqual(r.status, 'done');
+});

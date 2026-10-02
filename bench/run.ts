@@ -21,7 +21,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { checkStart, priceRun, shouldAbort, type BenchPrices } from './cap.js';
 import { runClaude } from './claude-run.js';
-import { evaluateOracle } from './oracle.js';
+import { evaluateOracle, evaluateExpression } from './oracle.js';
 import { ensureChrome, stopChrome } from '../src/browser/chrome.js';
 import { expandHome } from '../src/contract/home.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
@@ -36,6 +36,10 @@ export interface BenchTask {
   goal: string;
   values: Record<string, string>;
   oracle: string;
+  // r17 D8: a verbatim page expression evaluated beside the oracle at run
+  // end. Its value is recorded as evidence (end_state on the run record),
+  // never compared to anything — it is not a second oracle.
+  end_state?: string;
   resetStorage?: boolean;
 }
 
@@ -103,6 +107,9 @@ export interface BenchRunRecord {
   raw_script?: number;
   tool_use_counts?: Record<string, number>;
   first_call_invalid?: number;
+  // r17 D8: verbatim string captured when the task defines end_state
+  // (evidence beside the oracle verdict — no pass/fail attached to it).
+  end_state?: string;
 }
 
 /** One `browse_step` handoff, parsed from a run's fresh log lines (F3). */
@@ -604,6 +611,11 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
       tool_use_counts: toolUseCounts,
       first_call_invalid: firstInvalidRun(handoffRecords),
     };
+    if (task.end_state !== undefined) {
+      record.end_state = String(
+        (await evaluateExpression(ctx.observer, ctx.keptTargetId, task.end_state)) ?? '',
+      );
+    }
     return { record, usd };
   };
 }

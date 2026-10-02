@@ -39,6 +39,9 @@ export function closePageOnDetach(driver: Driver): Driver {
     onDialog(handler) {
       driver.onDialog(handler);
     },
+    async answerDialog(pageId: string, accept: boolean) {
+      return driver.answerDialog(pageId, accept);
+    },
     async detach() {
       try {
         if (conn && targetId) {
@@ -103,6 +106,9 @@ export function injectGlobal(driver: Driver): Driver {
     onDialog(handler) {
       driver.onDialog(handler);
     },
+    async answerDialog(pageId: string, accept: boolean) {
+      return driver.answerDialog(pageId, accept);
+    },
     async detach() {
       await driver.detach();
     },
@@ -135,6 +141,9 @@ export function createContextOnAttach(driver: Driver): Driver {
     },
     onDialog(handler) {
       driver.onDialog(handler);
+    },
+    async answerDialog(pageId: string, accept: boolean) {
+      return driver.answerDialog(pageId, accept);
     },
     async detach() {
       try {

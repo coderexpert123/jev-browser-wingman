@@ -220,3 +220,24 @@ test('candidateOf caps label and name at 80 characters', () => {
   assert.equal(c.name.length, 80);
   assert.equal(c.label.length, 80);
 });
+
+// ---- r17 (spec .build-r17-spec.md, WP-B): press picks ----
+
+test('r17 pick: key is press-only and must be a PRESS_KEYS member', () => {
+  assert.equal(validatePick({ action: 'press', key: 'Tab' }, VALUES).ok, true);
+  assert.equal(validatePick({ action: 'click', role: 'button', name: 'x', key: 'Tab' }, VALUES).ok, false);
+  assert.equal(validatePick({ action: 'press', key: 'Nope' }, VALUES).ok, false);
+});
+
+test('r17 pick: a press pick takes role and name together or neither', () => {
+  assert.equal(validatePick({ action: 'press' }, VALUES).ok, true);
+  assert.equal(validatePick({ action: 'press', role: 'button' }, VALUES).ok, false);
+  assert.equal(validatePick({ action: 'press', name: 'Go' }, VALUES).ok, false);
+  assert.equal(validatePick({ action: 'press', role: 'button', name: 'Go' }, VALUES).ok, true);
+});
+
+test('r17 resolvePick: a press pick with no role and name resolves targetless (el null)', () => {
+  const r = resolvePick(OBS, { action: 'press', key: 'Tab' });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.el, null);
+});

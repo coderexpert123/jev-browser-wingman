@@ -30,6 +30,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { launchTestChrome } from './helpers/chrome.js';
 import { fillDefaultAnswers, startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { startFixtureServer } from '../src/fixture-server.js';
+import { CdpConnection } from '../src/adapters/cdp-connection.js';
 import type { WingmanResult } from '../src/contract/types.js';
 
 const mainJs = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'cli', 'main.js');
@@ -174,6 +175,32 @@ function lastLogRecord(home: string): Record<string, unknown> {
   return JSON.parse(lines[lines.length - 1]) as Record<string, unknown>;
 }
 
+/** Dismisses an open dialog on the fixture page over a raw CDP session, then
+ * reads the page's #log text. Used by E16 (r17): the loop never answers a
+ * prompt, so the dialog must STILL be open when the call ends — the dismiss
+ * here is what makes prompt() resolve null and write 'dismissed' into the
+ * log. A loop that had accepted the prompt would have resolved it with ''
+ * (log stays empty) and left no dialog, so this handleJavaScriptDialog call
+ * would throw "no dialog showing" instead. */
+async function dismissDialogAndReadLog(targetId: string): Promise<unknown> {
+  const observer = await CdpConnection.connect(chrome.endpoint);
+  try {
+    const { sessionId } = await observer.send<{ sessionId: string }>('Target.attachToTarget', {
+      targetId,
+      flatten: true,
+    });
+    await observer.send('Page.handleJavaScriptDialog', { accept: false }, sessionId, 5_000);
+    const res = await observer.send<{ result?: { value?: unknown } }>(
+      'Runtime.evaluate',
+      { expression: "document.getElementById('log').textContent", returnByValue: true },
+      sessionId,
+    );
+    return res.result?.value;
+  } finally {
+    await observer.close().catch(() => {});
+  }
+}
+
 // ---- the deterministic stub policy ----
 
 interface StubQuestion {
@@ -207,6 +234,7 @@ async function startChainStub(opts: {
       text?: string;
       step?: string;
       history?: Array<{ verb: string; label: string }>;
+      repeatedGroups?: Array<{ signature: string; count: number }>;
     };
     const q = (body.questions ?? {}) as Record<string, StubQuestion>;
     const url = state.url ?? '';
@@ -248,6 +276,76 @@ async function startChainStub(opts: {
       const offered = Object.keys(q.recover.criteria ?? {});
       if (opts.stuckAnswer !== undefined && offered.includes(opts.stuckAnswer)) {
         cho('recover', opts.stuckAnswer, { [opts.stuckAnswer]: 0.9 });
+      }
+    } else if (title === 'Fixture dialogs') {
+      // r17 (E14-E16): dialog.html. The dialog outcome is decided INSIDE the
+      // loop from the step text (dialogOutcome never reads e.message), so the
+      // stub just drives the click and grades step_done off the page's own
+      // log. Keyed on title per the redaction gotcha above.
+      if (step.includes('Ask name')) {
+        // The prompt is never answered: the call ends blocked/dialog-open
+        // right after the click, so the step_done arm is a dead fallback.
+        if (!history.some((h) => h.verb === 'click' && /Ask name/.test(h.label))) {
+          clickOn(/button "Ask name"/);
+        } else {
+          noul('step_done', 0.95);
+        }
+      } else if (step.includes('Remove item')) {
+        const clicked = history.some((h) => h.verb === 'click' && /Remove item/.test(h.label));
+        if (clicked && step.includes('accept') && text.includes('confirmed')) {
+          noul('step_done', 0.95);
+        } else if (clicked && step.includes('cancel') && text.includes('cancelled')) {
+          noul('step_done', 0.95);
+        } else if (!clicked) {
+          clickOn(/button "Remove item"/);
+        }
+      }
+    } else if (title === 'Fixture chain key') {
+      // r17 (E17): fill #kw, then the 'press Enter' clause commits a
+      // TARGETLESS press on target none — the focused element takes the key.
+      if (step.includes('press Enter')) {
+        if (text.includes('submitted')) {
+          noul('step_done', 0.95);
+        } else {
+          cho('action', 'press', { press: 0.9, none: 0.05 });
+          cho('target', 'none', { none: 0.9, ambiguous: 0.05 });
+          if ('key' in q) cho('key', 'Enter', { Enter: 0.9, none: 0.05 });
+        }
+      } else if (step.includes('value named who')) {
+        const kw = findId(q.target, /textbox "Keyword".*\(empty\)/);
+        if (kw !== null) {
+          cho('action', 'fill', { fill: 0.9, none: 0.05 });
+          cho('target', kw, { [kw]: 0.9, none: 0.05, ambiguous: 0.05 });
+          cho('value', 'who', { who: 0.9, none: 0.05 });
+        } else {
+          noul('step_done', 0.95);
+        }
+      }
+    } else if (title === 'Fixture chain scroll') {
+      // r17 (E18): scroll until >= 6 .item cards. count_met is graded off the
+      // state's repeatedGroups (the answer's own evidence), and step_done is
+      // deliberately NEVER answered high here — only the countAdvance branch
+      // may end the clause, so a stepDone drift would fail the test.
+      const groups = state.repeatedGroups ?? [];
+      const items = groups.find((g) => g.signature === 'div.item')?.count ?? 0;
+      noul('count_met', items >= 6 ? 0.9 : 0.05);
+      if (items < 6) {
+        cho('action', 'scroll', { scroll: 0.9, none: 0.05 });
+        cho('target', 'none', { none: 0.9, ambiguous: 0.05 });
+      }
+    } else if (title === 'Fixture hidden controls') {
+      // r17 (E19): the hidden checkbox proxies through its sibling label —
+      // the caller's clause names the LABEL text, the act lands on the input
+      // through controlPath.
+      if (step.includes('Alpha task')) {
+        const box = findId(q.target, /checkbox "Alpha task"/);
+        const checked = box !== null && /checkbox "Alpha task".*\(checked\)/.test(q.target?.criteria?.[box] ?? '');
+        if (checked) {
+          noul('step_done', 0.95);
+        } else if (box !== null) {
+          cho('action', 'check', { check: 0.9, none: 0.05 });
+          cho('target', box, { [box]: 0.9, none: 0.05, ambiguous: 0.05 });
+        }
       }
     } else if (title.startsWith('Fixture chain submit')) {
       // r15 (E12/E13): the same-address submit fixture, keyed on title (the
@@ -877,6 +975,155 @@ test('E13: the recover path never reloads after a same-address submit (r15)', { 
     assert.equal((rec.acts_by_op as Record<string, number>)?.reload, undefined);
     const rounds = ((rec.phases as { rounds?: Array<{ recover?: string }> } | undefined)?.rounds ?? []);
     assert.ok(rounds.some((x) => x.recover === 'reload'), 'the recover answer was reload');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+// ---- r17: dialogs answered per the step, key press, count, hidden labels (E14-E19) ----
+
+test('E14: a confirm opened by the click is accepted per the step text (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('dialog');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E14 confirm accept goal',
+      steps: ['click Remove item and accept the dialog'],
+      url_match: 'dialog.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    const log = await pageEval('dialog.html', () => document.getElementById('log')?.textContent ?? null);
+    assert.equal(log, 'confirmed', 'the confirm resolved true');
+    const rec = lastLogRecord(s.home);
+    const rounds = ((rec.phases as { rounds?: Array<{ dialog?: string }> } | undefined)?.rounds ?? []);
+    assert.ok(rounds.some((x) => x.dialog === 'accept'), `a round carries dialog accept: ${JSON.stringify(rounds)}`);
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E15: a confirm is dismissed when the step says cancel (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('dialog');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E15 confirm dismiss goal',
+      steps: ['click Remove item and cancel the dialog'],
+      url_match: 'dialog.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    const log = await pageEval('dialog.html', () => document.getElementById('log')?.textContent ?? null);
+    assert.equal(log, 'cancelled', 'the confirm resolved false');
+    const rec = lastLogRecord(s.home);
+    const rounds = ((rec.phases as { rounds?: Array<{ dialog?: string }> } | undefined)?.rounds ?? []);
+    assert.ok(rounds.some((x) => x.dialog === 'dismiss'), `a round carries dialog dismiss: ${JSON.stringify(rounds)}`);
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E16: a prompt is never answered; the clause ends blocked/dialog-open (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('dialog');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E16 prompt blocked goal',
+      steps: ['click Ask name and accept'],
+      url_match: 'dialog.html',
+    });
+    assert.equal(r.status, 'blocked', `reason: ${r.reason}`);
+    assert.equal(r.reason, 'dialog-open');
+    // The prompt is still open: the loop never answers it. Dismissing it here
+    // makes prompt() resolve null and write 'dismissed' into the log — a loop
+    // that HAD accepted it would have resolved it with '' (empty log) and no
+    // dialog, so this dismiss itself would have thrown.
+    const log = await dismissDialogAndReadLog(pageId);
+    assert.equal(log, 'dismissed', 'the prompt resolved null — never answered by the loop');
+    const rec = lastLogRecord(s.home);
+    assert.equal((rec.acts_by_op as Record<string, number>)?.click, 1);
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E17: a fill then a committed targetless press Enter submits the field (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-key');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E17 key press goal',
+      steps: ['type the value named who into the field then press Enter'],
+      values: { who: 'Wingman' },
+      url_match: 'chain-key.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    assert.deepEqual(r.progress, { step_index: 1, steps_done: 1, steps_total: 1 });
+    const out = await pageEval('chain-key.html', () => document.getElementById('out')?.textContent ?? null);
+    assert.equal(out, 'submitted', 'the targetless Enter reached the focused #kw');
+    const rec = lastLogRecord(s.home);
+    assert.deepEqual(rec.acts_by_op, { fill: 1, press: 1 }, 'exactly one fill and one targetless press');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E18: scroll until at least 6 items show advances on count evidence (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('chain-scroll');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E18 scroll until count goal',
+      steps: ['scroll until at least 6 items show'],
+      url_match: 'chain-scroll.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    const count = await pageEval('chain-scroll.html', () => document.querySelectorAll('.item').length);
+    assert.ok((Number(count) ?? 0) >= 6, `item count ${String(count)} >= 6`);
+    const rec = lastLogRecord(s.home);
+    assert.ok(((rec.acts_by_op as Record<string, number>)?.scroll ?? 0) >= 1, 'at least one scroll act ran');
+    const rounds = ((rec.phases as { rounds?: Array<{ countMetP?: number }> } | undefined)?.rounds ?? []);
+    assert.ok(rounds.some((x) => x.countMetP !== undefined), `count_met was asked: ${JSON.stringify(rounds)}`);
+    assert.ok(rounds.some((x) => x.countMetP === 0.9), 'a round graded count_met 0.9 off repeatedGroups');
+  } finally {
+    await s.close();
+    await stub.close();
+    await closeFixturePage(pageId);
+  }
+});
+
+test('E19: a hidden checkbox is checked through its sibling label (r17)', { timeout: 120_000 }, async () => {
+  const stub = await startChainStub({ urlAnswer: 'none' });
+  const s = await startServer(stub.url);
+  const pageId = await openFixturePage('hidden-controls');
+  try {
+    const r = await callTool(s.client, {
+      goal: 'chain-e2e E19 hidden checkbox goal',
+      steps: ['check Alpha task'],
+      url_match: 'hidden-controls.html',
+    });
+    assert.equal(r.status, 'done', `reason: ${r.reason}`);
+    const checked = await pageEval('hidden-controls.html', () => {
+      const el = document.getElementById('t1') as HTMLInputElement | null;
+      return el ? el.checked : null;
+    });
+    assert.equal(checked, true, 'the hidden #t1 input is checked');
+    const rec = lastLogRecord(s.home);
+    assert.equal((rec.acts_by_op as Record<string, number>)?.check, 1);
   } finally {
     await s.close();
     await stub.close();

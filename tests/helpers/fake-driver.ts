@@ -13,11 +13,13 @@ import {
 } from '../../src/contract/types.js';
 
 export interface FakeDriverEvent {
-  kind: 'attach' | 'pages' | 'observe' | 'act' | 'settle' | 'detach';
+  kind: 'attach' | 'pages' | 'observe' | 'act' | 'settle' | 'detach' | 'answerDialog';
   pageId?: string;
   elementId?: string | null;
   op?: Op;
   value?: string;
+  /** r17: answerDialog only — the accept flag the loop passed. */
+  accept?: boolean;
 }
 
 export class FakeDriver implements Driver {
@@ -42,11 +44,18 @@ export class FakeDriver implements Driver {
   /** Raised during the next observe() (a dialog open before any act). */
   dialogOnNextObserve: DialogEvent | null = null;
 
-  /** Raised during the next act() (a dialog reported since the act began). */
-  dialogOnNextAct: DialogEvent | null = null;
+  /** Raised during the next act() (a dialog reported since the act began).
+   * r17: an ARRAY is a cascade — every event in it delivers, in order,
+   * during that ONE act (C4's second-dialog-in-the-same-act scenario), then
+   * the field clears. */
+  dialogOnNextAct: DialogEvent | DialogEvent[] | null = null;
 
   /** Thrown by the next act() call (StaleElementError, CoveredTargetError, …). */
   failNextAct: Error | null = null;
+
+  /** r17 (C5): thrown by the next answerDialog() call — an answer that failed
+   * leaves the dialog open, which the loop degrades to blocked/dialog-open. */
+  failNextAnswer: Error | null = null;
 
   /** Test hook invoked at the top of every observe() (e.g. to advance a fake clock). */
   onObserve: (() => void) | null = null;
@@ -87,14 +96,34 @@ export class FakeDriver implements Driver {
 
   async act(pageId: string, elementId: string | null, op: Op, value?: string): Promise<void> {
     this.events.push({ kind: 'act', pageId, elementId, op, value });
-    if (this.dialogOnNextAct) {
-      const d = this.dialogOnNextAct;
-      this.dialogOnNextAct = null;
-      this.dialogHandler?.(d);
+    if (this.dialogOnNextAct !== null) {
+      if (Array.isArray(this.dialogOnNextAct)) {
+        // Array: a cascade — all events deliver, in order, within this one
+        // act (C4), then the field clears.
+        const rest = this.dialogOnNextAct;
+        this.dialogOnNextAct = null;
+        for (const d of rest) {
+          this.dialogHandler?.(d);
+        }
+      } else {
+        const d = this.dialogOnNextAct;
+        this.dialogOnNextAct = null;
+        this.dialogHandler?.(d);
+      }
     }
     if (this.failNextAct) {
       const e = this.failNextAct;
       this.failNextAct = null;
+      throw e;
+    }
+  }
+
+  /** r17 (C5): records the call; throws failNextAnswer when armed. */
+  async answerDialog(pageId: string, accept: boolean): Promise<void> {
+    this.events.push({ kind: 'answerDialog', pageId, accept });
+    if (this.failNextAnswer) {
+      const e = this.failNextAnswer;
+      this.failNextAnswer = null;
       throw e;
     }
   }

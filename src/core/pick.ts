@@ -1,7 +1,7 @@
 // browse_step `pick` (spec 2026-09-26-wingman-forced-handoff § 5.6). WP-D owns
 // this module; only its integration lives in loop.ts (WP-B2).
 import { PICK_NTH_MAX, LABEL_MAX } from '../contract/constants.js';
-import { OPS, TARGETLESS_OPS, type Op, type PickInput, type ElementRecord, type Observation } from '../contract/types.js';
+import { OPS, OPTIONAL_TARGET_OPS, PRESS_KEYS, TARGETLESS_OPS, type Op, type PickInput, type ElementRecord, type Observation } from '../contract/types.js';
 import { elementCriterion } from './questions.js';
 import { redactValues } from './withhold.js';
 
@@ -13,10 +13,21 @@ export const PICK_VALUE_OPS: readonly Op[] = ['fill', 'select', 'navigate', 'upl
 // loop.ts keeps its own copy because this module must not depend on it.
 const BINDING_RE = /^[a-z][a-z0-9_]{0,39}$/;
 
-const PICK_KEYS = ['role', 'name', 'action', 'nth', 'value'];
+const PICK_KEYS = ['role', 'name', 'action', 'nth', 'value', 'key'];
 
 function isTargetless(action: Op): boolean {
   return (TARGETLESS_OPS as readonly string[]).includes(action);
+}
+
+/** r17 (D1): an OPTIONAL_TARGET_OPS pick carrying neither role nor name is a
+ * targetless pick — it acts on the already-focused element. Consulted ahead of
+ * isTargetless in resolvePick. */
+export function targetlessPress(pick: PickInput): boolean {
+  return (
+    (OPTIONAL_TARGET_OPS as readonly Op[]).includes(pick.action) &&
+    pick.role === undefined &&
+    pick.name === undefined
+  );
 }
 
 export function validatePick(
@@ -32,11 +43,14 @@ export function validatePick(
   if (typeof o.action !== 'string' || !(OPS as readonly string[]).includes(o.action)) return { ok: false };
   const action = o.action as Op;
   const targetless = isTargetless(action);
+  // r17: an optional-target op (press) requires role+name together or neither.
+  const optionalTarget = (OPTIONAL_TARGET_OPS as readonly Op[]).includes(action);
   // role: required for a targeted action (1..40 characters); optional but
   // typed the same for a targetless one
   if (o.role !== undefined) {
     if (typeof o.role !== 'string' || o.role.length < 1 || o.role.length > 40) return { ok: false };
-  } else if (!targetless) {
+    if (action === 'press' && o.name === undefined) return { ok: false };
+  } else if (!targetless && !optionalTarget) {
     return { ok: false };
   }
   // name: required for a targeted action (0..200 characters); optional but
@@ -44,8 +58,15 @@ export function validatePick(
   // unlabelled element).
   if (o.name !== undefined) {
     if (typeof o.name !== 'string' || o.name.length > 200) return { ok: false };
-  } else if (!targetless) {
+    if (action === 'press' && o.role === undefined) return { ok: false };
+  } else if (!targetless && !optionalTarget) {
     return { ok: false };
+  }
+  // key (r17): press only, and then a member of PRESS_KEYS.
+  if (o.key !== undefined) {
+    if (action !== 'press' || typeof o.key !== 'string' || !(PRESS_KEYS as readonly string[]).includes(o.key)) {
+      return { ok: false };
+    }
   }
   // nth: integer 1..PICK_NTH_MAX
   if (o.nth !== undefined) {
@@ -70,6 +91,7 @@ export function validatePick(
   if (o.name !== undefined) pick.name = o.name as string;
   if (o.nth !== undefined) pick.nth = o.nth as number;
   if (o.value !== undefined) pick.value = o.value as string;
+  if (o.key !== undefined) pick.key = o.key as PickInput['key'];
   return { ok: true, pick };
 }
 
@@ -83,6 +105,7 @@ export type PickResolution =
   | { ok: false; why: 'no-match' | 'multi-match'; matches: ElementRecord[] };
 
 export function resolvePick(obs: Observation, pick: PickInput): PickResolution {
+  if (targetlessPress(pick)) return { ok: true, el: null };
   if (isTargetless(pick.action)) return { ok: true, el: null };
   const role = (pick.role ?? '').trim().toLowerCase();
   const wantName = norm(pick.name ?? '');
