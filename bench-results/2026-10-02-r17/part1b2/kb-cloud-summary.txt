@@ -1,0 +1,20 @@
+KB_HIDDEN_SIBLING flipped=1 build=0
+KB_HIDDEN_SIBLING page-scripts rc=1 fails: hidden-controls.html names hidden inputs through sibling labels and their own names|verify re-finds hidden-control records through the label and their own path|
+KB_HIDDEN_SIBLING chain-e2e rc=1 fails: E19: a hidden checkbox is checked through its sibling label (r17)|
+KB_CDP_PRESS_NONE flipped=1 build=0
+KB_CDP_PRESS_NONE conformance-ops rc=1 fails: O19 targetless press Tab moves focus from First to Second|cdp|
+KB_CDP_PRESS_NONE chain-e2e rc=1 fails: E17: a fill then a committed targetless press Enter submits the field (r17)|
+KB_CDP_DIALOG flipped=1 build=0
+KB_CDP_DIALOG conformance-ops rc=1 fails: O20 answerDialog accepts a confirm, then dismisses on a second page|cdp|
+KB_CDP_DIALOG adapter-cdp rc=1 fails: answerDialog with no open dialog rejects|
+KB_CDP_DIALOG chain-e2e rc=1 fails: E14: a confirm opened by the click is accepted per the step text (r17)|E15: a confirm is dismissed when the step says cancel (r17)|
+KB_CDP_CHECK_TOGGLE flipped=1 build=0
+KB_CDP_CHECK_TOGGLE chain-e2e rc=1 fails: E19: a hidden checkbox is checked through its sibling label (r17)|
+KB_CDP_CHECK_TOGGLE conformance-ops rc=0 fails: 
+KB_PW_PRESS_NONE flipped=1 build=0
+KB_PW_PRESS_NONE conformance-ops rc=1 fails: O19 targetless press Tab moves focus from First to Second|playwright|
+KB_PW_PRESS_NONE adapter-playwright rc=0 fails: 
+KB_PW_DIALOG flipped=1 build=0
+KB_PW_DIALOG conformance-ops rc=1 fails: O20 answerDialog accepts a confirm, then dismisses on a second page|playwright|
+KB_PW_DIALOG adapter-playwright rc=0 fails: 
+KBDONE

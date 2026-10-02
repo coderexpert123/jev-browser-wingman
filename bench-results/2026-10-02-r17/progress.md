@@ -11,3 +11,11 @@
 - Totals: 852 tests, 849 pass, 1 fail, 1 skipped (chrome-cmd), 1 todo (conformance-ops O18).
 - browse-step-surface 7/7, chain-e2e 19/19, page-scripts 20/20, adapter-playwright 9/9 (gained the r17b check test): all green.
 - Only failure: doctor "all ten checks pass on a clean ephemeral setup" - `coexistence: observer fingerprint changed across attach/detach`. Isolated re-runs: run1 PASS (26/26), run2 FAIL. Intermittent (fails 2 of 3), not in any r17-touched file; reported, not fixed. Logs in part1-rerun/logs/doctor*.log (doctor uses a temp home, no wingman log.jsonl slice exists).
+
+## Part 1b cloud KB proof at be0128c (6 CLOUD flags, build .build/kb-r17c, src restored: git status clean)
+- KB_HIDDEN_SIBLING: FAIL page-scripts (hidden-controls names; verify re-find) + chain-e2e E19.
+- KB_CDP_PRESS_NONE: FAIL conformance-ops O19 (cdp) + chain-e2e E17.
+- KB_CDP_DIALOG: FAIL conformance-ops O20 (cdp), adapter-cdp answerDialog-no-dialog, chain-e2e E14 + E15.
+- KB_CDP_CHECK_TOGGLE: FAIL chain-e2e E19 (expected).
+- KB_PW_PRESS_NONE: FAIL conformance-ops O19 (playwright); adapter-playwright passes (not a mapped discriminator).
+- KB_PW_DIALOG: FAIL conformance-ops O20 (playwright); adapter-playwright answerDialog leg PASSES under the flag (non-discriminating, as in the f9b21b9 pass).

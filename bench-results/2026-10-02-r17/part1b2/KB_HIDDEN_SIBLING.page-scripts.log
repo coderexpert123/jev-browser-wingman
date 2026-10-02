@@ -1,0 +1,154 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  duration_ms: 415.585816
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  duration_ms: 106.301853
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  duration_ms: 133.525672
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  duration_ms: 112.038527
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  duration_ms: 124.097686
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  duration_ms: 234.19699
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  duration_ms: 109.969361
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  duration_ms: 116.070041
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  duration_ms: 123.104103
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  duration_ms: 135.002697
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  duration_ms: 118.693031
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  duration_ms: 105.555032
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  duration_ms: 114.051742
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  duration_ms: 103.617196
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  duration_ms: 108.991706
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+not ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  duration_ms: 96.548397
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:314:1'
+  failureType: 'testCodeFailure'
+  error: 'expected the Alpha task record'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:321:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  duration_ms: 156.888415
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  duration_ms: 216.266609
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  duration_ms: 421.805835
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+not ok 20 - verify re-finds hidden-control records through the label and their own path
+  ---
+  duration_ms: 97.233005
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:424:1'
+  failureType: 'testCodeFailure'
+  error: 'expected a proxied element named Alpha task'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r17c/tests/page-scripts.test.js:430:20)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 18
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3733.882107
+RUN-TESTS: files=1 tests=20 pass=18 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
