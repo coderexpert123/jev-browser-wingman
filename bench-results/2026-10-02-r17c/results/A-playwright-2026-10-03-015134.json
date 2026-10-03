@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-03-015134.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 18.702391,
+  "aborted": null,
+  "total_usd": 0.389048,
+  "runs": [
+    {
+      "task": "t13-infinite-scroll",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 18358,
+      "browser_tool_calls": 2,
+      "per_step_ms": 9179,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 376,
+        "cache_read_tokens": 199176,
+        "cache_write_tokens": 35398,
+        "usd": 0.198159,
+        "cli_reported_usd": 0.18520319999999998
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.198159,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 1,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_evaluate": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": "10 items | scrollY=3148"
+    },
+    {
+      "task": "t14-key-press",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 13227,
+      "browser_tool_calls": 3,
+      "per_step_ms": 4409,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 296,
+        "cache_read_tokens": 197617,
+        "cache_write_tokens": 33904,
+        "usd": 0.190889,
+        "cli_reported_usd": 0.17811539999999998
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.190889,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 2,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 1,
+        "mcp__playwright__browser_press_key": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": "You entered: ESCAPE | focus=target"
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 15792.5,
+      "median_usd": 0.194524,
+      "fallback_rate": 0
+    }
+  }
+}

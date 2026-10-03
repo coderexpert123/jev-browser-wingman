@@ -12,3 +12,6 @@ chain-e2e under the flag: 19/20, the single failure is E18b "an async wheel-trig
 
 ## Stage 0 attempt 2 (re-run once; attempt 1 never reached Escape): oracle TRUE, 16.3 s, 0.0784 USD, handoffs 1, picks 1
 - end_state "You entered: ESCAPE | focus=target" (Escape landed on the input, no reload). Calls: (1) click -> focus-only click bounced fallback/step-uncertain after 1 click, 4 rounds; (2) done/goal-met, 1 press, keyEvidence true + clickEvidence true ("page changed"). Stage 0 PASSES -> A and B proceed.
+
+## Invocation A (playwright x1, t13+t14): total 0.3890 USD
+- t13 ok 18.4 s 0.198 (raw_script 1; end_state "10 items | scrollY=3148") | t14 ok 13.2 s 0.191 (raw_acts 2; end_state "You entered: ESCAPE | focus=target")
