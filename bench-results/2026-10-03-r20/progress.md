@@ -8,3 +8,8 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 - LIVE INVARIANT (invariant-check.py): typesafe.calls == browse_step tool uses for all 34 forced cells, 0 mismatches (sum 60 == 60); playwright cells 0 / 0.
 - Navigation retry: the single invocation completed with no abort; the retry is silent (no log line), so whether any reset retried is not observable. r19 attempt 1 died at cell 11 and r17-B at cell 14 on the same flake; n=1 clean run is weak evidence.
 - r19 vs r20 wall medians per task x route: 23 of 34 within +-15%; 11 outside (both directions, playwright included: t12 pw +64%, t10 pw +36%, t6 pw -33%), so the drift is not forced-path-specific. Biggest forced mover: t9 forced 44.9 -> 77.7 s (cells 61.4 and 94.0 s): 5 and 8 browse_step calls (r19: 3), 60/61 rounds (r19: 48/49), 2 act-failed ends with `locator.click: Timeout 3000ms exceeded ... waiting for scheduled navigations to finish` - live-site navigation latency + caller fragmentation, no code change in the forced path; both cells ok.
+
+## Part 3 doctor x3 on the bench Chrome (port 9344): doctor/doctor{1,2,3}.log
+- run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
