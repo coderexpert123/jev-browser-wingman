@@ -12,3 +12,10 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 - forced 24/24 ok (incl. t7-sort-table x2 and t17-double-click x2 - never passed forced before), playwright 22/24 (only t15-file-upload x2 red, the tolerated one).
 - t14 both routes ok, end_state "You entered: ESCAPE | focus=target" x4. forced ts_calls == browse_step tool uses on the cells inspected (t7 1/1, t14 2/2, t17 1/1); full invariant check follows on the merged file.
 - Round spend so far 10.6009 USD of 16.
+
+## Publish run invocation 3 (t1..t5, playwright,forced, repeats 1 = the missing repeat 2): 10/10 ok, aborted=null, 0.7509 USD (results/P3-t1-t5-rep2-2026-10-03-104311.json, P3-report.txt, evidence/P3-log-slice.jsonl)
+
+## MERGED PUBLISH FILE (results/gauntlet/publish-merged.json, merge.mjs, publish-report.txt): 68 cells = P1's 10 t1-t5 cells + P3's 10 + P2's 48 (P1's superseded t6-playwright sample dropped to keep n=2). aborted=null, total_usd 11.351756 (sum of all three invocations incl. the dropped cell).
+- forced 34/34 ok; playwright 32/34 (t15-file-upload x2 red - the tolerated one) => 66/68.
+- LIVE INVARIANT (results/gauntlet/invariant-check.py over the merged file): typesafe.calls == tool_use_counts[browse_step] for all 34 forced cells, 0 mismatches (sum 54 == 54); playwright cells: 0 typesafe calls, 0 browse_step uses. The r19 byte-slice fix holds end-to-end.
+- Round spend: 11.3518 of 16 USD.

@@ -1,0 +1,29 @@
+BENCH REPORT 2026-10-03-104311.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.750888 runs=10
+cell t1-checkboxes playwright ok=true wall_s=11.4 usd=0.079593 llm_in=8 llm_out=228 llm_cache_read=244194 llm_cache_write=771 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t1-checkboxes forced ok=true wall_s=10.2 usd=0.059475 llm_in=6 llm_out=213 llm_cache_read=183788 llm_cache_write=262 ts_calls=1 ts_in=3402 ts_out=885 fallbacks=0 rounds=2
+cell t2-dropdown playwright ok=true wall_s=10.5 usd=0.079836 llm_in=8 llm_out=257 llm_cache_read=243877 llm_cache_write=745 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t2-dropdown forced ok=true wall_s=13.0 usd=0.060042 llm_in=6 llm_out=243 llm_cache_read=183770 llm_cache_write=292 ts_calls=1 ts_in=3634 ts_out=924 fallbacks=0 rounds=2
+cell t3-dynamic-controls playwright ok=true wall_s=14.1 usd=0.101721 llm_in=10 llm_out=343 llm_cache_read=307746 llm_cache_write=1126 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t3-dynamic-controls forced ok=true wall_s=17.3 usd=0.084786 llm_in=8 llm_out=413 llm_cache_read=246016 llm_cache_write=1158 ts_calls=1 ts_in=9993 ts_out=2529 fallbacks=1 rounds=5
+cell t4-add-elements playwright ok=true wall_s=14.3 usd=0.084026 llm_in=8 llm_out=385 llm_cache_read=244168 llm_cache_write=1327 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t4-add-elements forced ok=true wall_s=11.2 usd=0.059598 llm_in=6 llm_out=210 llm_cache_read=183776 llm_cache_write=266 ts_calls=1 ts_in=7131 ts_out=1850 fallbacks=0 rounds=4
+cell t5-inputs playwright ok=true wall_s=11.4 usd=0.081931 llm_in=8 llm_out=250 llm_cache_read=243310 llm_cache_write=1377 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t5-inputs forced ok=true wall_s=10.5 usd=0.05988 llm_in=6 llm_out=234 llm_cache_read=183791 llm_cache_write=284 ts_calls=1 ts_in=3568 ts_out=924 fallbacks=0 rounds=2
+route playwright n=5 ok=5/5 wall_s min=10.5 med=11.4 max=14.3 usd min=0.079593 med=0.081931 max=0.101721
+route forced n=5 ok=5/5 wall_s min=10.2 med=11.2 max=17.3 usd min=0.059475 med=0.05988 max=0.084786
+pair t1-checkboxes playwright n=1 ok=1/1 wall_s min=11.4 med=11.4 max=11.4 usd_med=0.079593
+pair t1-checkboxes forced n=1 ok=1/1 wall_s min=10.2 med=10.2 max=10.2 usd_med=0.059475
+pair t2-dropdown playwright n=1 ok=1/1 wall_s min=10.5 med=10.5 max=10.5 usd_med=0.079836
+pair t2-dropdown forced n=1 ok=1/1 wall_s min=13.0 med=13.0 max=13.0 usd_med=0.060042
+pair t3-dynamic-controls playwright n=1 ok=1/1 wall_s min=14.1 med=14.1 max=14.1 usd_med=0.101721
+pair t3-dynamic-controls forced n=1 ok=1/1 wall_s min=17.3 med=17.3 max=17.3 usd_med=0.084786
+pair t4-add-elements playwright n=1 ok=1/1 wall_s min=14.3 med=14.3 max=14.3 usd_med=0.084026
+pair t4-add-elements forced n=1 ok=1/1 wall_s min=11.2 med=11.2 max=11.2 usd_med=0.059598
+pair t5-inputs playwright n=1 ok=1/1 wall_s min=11.4 med=11.4 max=11.4 usd_med=0.081931
+pair t5-inputs forced n=1 ok=1/1 wall_s min=10.5 med=10.5 max=10.5 usd_med=0.05988
+phases t1-checkboxes/forced attach=58 first_observe=9 observe=9+17 jev=189+378 jev first/rest=222/156 act=56+111 settle=110+219 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t2-dropdown/forced attach=44 first_observe=21 observe=15+29 jev=199+398 jev first/rest=272/126 act=24+48 settle=109+218 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t3-dynamic-controls/forced attach=53 first_observe=12 observe=7+40 jev=158+825 jev first/rest=210/141 act=18+2888 settle=215+656 kinds act=3 advance=1 wait=0 bounce=1 done=0 error=0 other=0
+phases t4-add-elements/forced attach=48 first_observe=15 observe=8+35 jev=136+622 jev first/rest=227/126 act=36+157 settle=217+653 kinds act=3 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t5-inputs/forced attach=58 first_observe=9 observe=11+21 jev=208+416 jev first/rest=279/137 act=29+58 settle=111+222 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty; pair lines aggregate repeats
