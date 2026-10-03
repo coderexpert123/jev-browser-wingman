@@ -19,3 +19,5 @@ chain-e2e under the flag: 19/20, the single failure is E18b "an async wheel-trig
 ## Invocation B (forced x3, t13+t14): 6/6 oracle true, total 0.5188 USD (results/B-forced-2026-10-03-015316.json)
 - t13 x3: ok 16.7/16.2/15.6 s, 0.172/0.056/0.056 USD; end_state "10 items | scrollY=3148/3132/3148". Each cell = ONE browse_step call (tool_use_counts), 8 scroll acts, final round countEvidence=10 (countMetP 0.50-0.51) -> done/goal-met. NOTE harness columns show handoffs 0 / wingman.calls 0 / handoff_records [] for these cells although the log has the call (harness under-count on single-call goal-met cells).
 - t14 x3: ok 15.8/14.0/13.8 s, 0.078/0.078/0.078 USD, handoffs 1 picks 1 wingman_acts 1; end_state "You entered: ESCAPE | focus=target" x3. Each = 2 calls: focus-only click bounced fallback/step-uncertain (4 rounds) then done/goal-met on 1 press (keyEvidence + clickEvidence).
+
+## Doctor 3x on the bench Chrome: PASS x3 (coexistence identical fingerprint). Final write-up: results.md. Total r17c spend 1.2066 USD.
