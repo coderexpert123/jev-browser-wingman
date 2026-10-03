@@ -1,0 +1,36 @@
+| task | route | r19 wall med s | r20 wall med s | wall delta | r19 usd med | r20 usd med | usd delta | within ±15% wall |
+|---|---|---|---|---|---|---|---|---|
+| t1-checkboxes | playwright | 13.9 | 14.0 | +1% | 0.155 | 0.156 | +1% | yes |
+| t1-checkboxes | forced | 11.4 | 11.2 | -2% | 0.123 | 0.123 | +0% | yes |
+| t2-dropdown | playwright | 11.1 | 11.8 | +7% | 0.142 | 0.142 | -0% | yes |
+| t2-dropdown | forced | 11.7 | 11.0 | -6% | 0.124 | 0.124 | +0% | yes |
+| t3-dynamic-controls | playwright | 14.1 | 14.5 | +3% | 0.165 | 0.165 | +0% | yes |
+| t3-dynamic-controls | forced | 17.6 | 20.5 | +16% | 0.148 | 0.137 | -8% | NO |
+| t4-add-elements | playwright | 13.8 | 15.1 | +10% | 0.147 | 0.147 | +0% | yes |
+| t4-add-elements | forced | 11.3 | 11.5 | +1% | 0.123 | 0.123 | +0% | yes |
+| t5-inputs | playwright | 10.9 | 13.2 | +21% | 0.144 | 0.142 | -1% | NO |
+| t5-inputs | forced | 10.4 | 13.4 | +29% | 0.124 | 0.124 | +0% | NO |
+| t6-dynamic-loading | playwright | 34.6 | 23.1 | -33% | 0.092 | 0.155 | +69% | NO |
+| t6-dynamic-loading | forced | 49.0 | 48.2 | -2% | 0.214 | 0.215 | +0% | yes |
+| t7-sort-table | playwright | 14.4 | 14.7 | +2% | 0.174 | 0.174 | -0% | yes |
+| t7-sort-table | forced | 11.4 | 10.4 | -9% | 0.123 | 0.123 | +0% | yes |
+| t8-status-404 | playwright | 11.9 | 11.8 | -1% | 0.145 | 0.144 | -1% | yes |
+| t8-status-404 | forced | 13.1 | 11.4 | -12% | 0.123 | 0.123 | +0% | yes |
+| t9-long-chain | playwright | 36.5 | 34.8 | -4% | 0.326 | 0.321 | -2% | yes |
+| t9-long-chain | forced | 44.9 | 77.7 | +73% | 0.254 | 0.349 | +37% | NO |
+| t10-saucedemo-checkout | playwright | 22.1 | 30.0 | +36% | 0.222 | 0.267 | +20% | NO |
+| t10-saucedemo-checkout | forced | 26.9 | 27.5 | +2% | 0.215 | 0.202 | -6% | yes |
+| t11-todomvc-spa | playwright | 19.3 | 25.0 | +29% | 0.219 | 0.221 | +1% | NO |
+| t11-todomvc-spa | forced | 24.7 | 27.7 | +12% | 0.219 | 0.251 | +15% | yes |
+| t12-js-confirm-dialog | playwright | 13.3 | 21.8 | +64% | 0.164 | 0.164 | +0% | NO |
+| t12-js-confirm-dialog | forced | 17.0 | 21.7 | +28% | 0.188 | 0.189 | +0% | NO |
+| t13-infinite-scroll | playwright | 18.1 | 21.5 | +19% | 0.154 | 0.154 | +0% | NO |
+| t13-infinite-scroll | forced | 14.4 | 17.3 | +20% | 0.124 | 0.125 | +0% | NO |
+| t14-key-press | playwright | 13.9 | 13.6 | -2% | 0.163 | 0.144 | -11% | yes |
+| t14-key-press | forced | 13.5 | 13.9 | +3% | 0.146 | 0.146 | +0% | yes |
+| t15-file-upload | playwright | 16.0 | 16.7 | +5% | 0.171 | 0.170 | -0% | yes |
+| t15-file-upload | forced | 11.4 | 11.5 | +1% | 0.125 | 0.125 | -0% | yes |
+| t16-hover-reveal | playwright | 15.9 | 16.3 | +2% | 0.183 | 0.183 | +0% | yes |
+| t16-hover-reveal | forced | 15.3 | 13.1 | -14% | 0.159 | 0.124 | -22% | yes |
+| t17-double-click | playwright | 11.6 | 10.9 | -6% | 0.141 | 0.141 | +0% | yes |
+| t17-double-click | forced | 11.7 | 10.7 | -8% | 0.123 | 0.123 | +0% | yes |
