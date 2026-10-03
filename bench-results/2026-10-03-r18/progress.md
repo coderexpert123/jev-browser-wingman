@@ -13,3 +13,10 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 - old arm (createDefaultAsk({apiKey, fetchFn: fetch})): ms 221, 177, 143, 161, 188, 242 -> min 143 / median 188 / max 242; first 221, rest-median 177.
 - new arm (createDefaultAsk({apiKey}), shared undici dispatcher): ms 152, 155, 227, 155, 170, 190 -> min 152 / median 170 / max 227; first 152, rest-median 170.
 - Both arms flat; no slow post-idle ask in either; the new arm's median is 18 ms lower (n=6 each - inside the spread). Per the spec's discriminator this is the "bimodality was never connection setup" reading for THIS trivial payload on THIS cloud box at 8 s idle. Not tested: idle > 8 s (the 55 s / Keep-Alive-hint cap question) and the real multi-question payloads - the cold/warm split inside real cells is read from Stage D's jev first/rest.
+
+## Stage B part 1 (t1-t14 requested, playwright+forced interleaved, cap-usd 3.00, phase cap 16.582134 = ledger 12.582134 + 4, measure): ABORTED AT CAP after 19 of 28 cells, total 4.1378 USD
+- Reporter output: stageB/B1-report.txt (verbatim `node dist/bench/report.js`). Cells done: t1-t9 both routes + t10 playwright. NOT run (cap): t10 forced, t11-t14 both routes (9 cells).
+- playwright 10/10 ok (wall med 14.3 s, usd med 0.205). forced 8/9 ok (wall med 13.8 s, usd med 0.176; max 63.1 s t9).
+- forced FAIL: t7-sort-table ok=false (22.8 s, 0.257): 3 wingman calls on "click the Last Name column header of the first table", 0 acts: fallback/step-uncertain, ambiguous/target-uncertain x2 (jev_calls 2). Routing finding (sort-header click never committed).
+- Notable forced runs: t6 42.0 s (fallback/step-uncertain x2, 1 click + 5 waits) vs playwright 29.3 s; t9 forced 63.1 s, 4 wingman calls, 28 rounds, 3 fallbacks (one error/act-failed) vs playwright 28.6 s; t3 forced no-progress end after 1 click + 2 fills but oracle true.
+- Cost floor: every cell carries ~34k cache-write tokens (caller session), so ~USD 0.17 minimum per cell; the 34-cell gauntlet needs ~USD 7, not the 4 allotted.
