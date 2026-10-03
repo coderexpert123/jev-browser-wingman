@@ -863,3 +863,27 @@ withheld — this file rides a public-bound repository). Gates:
   always starts the server when any selected task is local). The pin test in
   `tests/bench-cap.test.ts` inlines literal URLs; proven to fail against a
   mutated local branch (dist A/B, 2026-10-03).
+
+## Gotchas from the r19 planning pass (2026-10-03)
+
+- **"Jev said `none`" is an enumeration-candidacy question first** (t7 sort-header,
+  r18): `isCandidate`/`isCandidateTag` in `src/core/page-scripts.ts` are the single
+  choke point — a target with no matching attribute/tag/role NEVER enumerates, and no
+  question-side change can fix that. DataTables-style headers bind via JS listeners (no
+  inline `onclick`), so a clickable element can carry none of the candidacy signals.
+  Check enumeration before touching grader text or thresholds; the log's
+  `target1: "none"` at high confidence is the signature.
+- **Slicing a decoded string by a byte offset is silent data loss** (r18 t16/t12/t13
+  under-count): `statSync().size` (bytes) + `readFileSync(path, 'utf8').slice(before)`
+  (chars) corrupts the first fresh line whenever the prefix holds any multi-byte UTF-8
+  (an ellipsis in one clause sufficed). Slice Buffers (`subarray(before).toString`).
+  `tool_use_counts` (caller-side) is the cross-check that catches a log-slice under-count.
+- **The doctor coexistence retry was structurally blind to a starved BEFORE** (r18
+  cloud): the after-only re-fingerprint was guarded by `onlyUrlsChanged`, which is false
+  on a nulls-vs-values pair, so the retry never fired. When a retry is guarded by a
+  predicate, check the predicate fires in the failure mode the retry exists for.
+- **A single multi-byte character in bench log content shifted every later cell's fresh
+  slice by N chars — and the "single-call goal-met cells under-count" correlation was a
+  red herring**: a 1-call cell losing its first record reads as 0, a 4-call cell reads
+  as 3. Shape correlations on under-counts deserve a byte-level look before a
+  mechanism story.
