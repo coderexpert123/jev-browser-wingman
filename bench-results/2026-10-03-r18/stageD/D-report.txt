@@ -1,0 +1,10 @@
+BENCH REPORT 2026-10-03-064036.json purpose=experiment model=sonnet harness=3 aborted=null total_usd=0.998353 runs=4
+cell t9-long-chain playwright ok=true wall_s=96.5 usd=0.390586 llm_in=22 llm_out=1890 llm_cache_read=663659 llm_cache_write=43486 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=50.1 usd=0.283227 llm_in=14 llm_out=1672 llm_cache_read=385783 llm_cache_write=37259 ts_calls=3 ts_in=63057 ts_out=16504 fallbacks=1 rounds=28
+cell t9-long-chain playwright ok=true wall_s=28.9 usd=0.117334 llm_in=8 llm_out=1270 llm_cache_read=240647 llm_cache_write=6951 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=50.8 usd=0.207206 llm_in=18 llm_out=1913 llm_cache_read=545525 llm_cache_write=3519 ts_calls=4 ts_in=38171 ts_out=9775 fallbacks=2 rounds=21
+route playwright n=2 ok=2/2 wall_s min=28.9 med=62.7 max=96.5 usd min=0.117334 med=0.25395999999999996 max=0.390586
+route forced n=2 ok=2/2 wall_s min=50.1 med=50.5 max=50.8 usd min=0.207206 med=0.2452165 max=0.283227
+phases t9-long-chain/forced attach=47 first_observe=9 observe=7+232 jev=141+4126 jev first/rest=136/142 act=83+2127 settle=223+4232 kinds act=17 advance=6 wait=0 bounce=1 done=0 error=1 other=3
+phases t9-long-chain/forced attach=57 first_observe=8 observe=8+170 jev=139+2594 jev first/rest=0/141 act=0+1568 settle=0+2376 kinds act=10 advance=5 wait=0 bounce=2 done=0 error=1 other=3
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty

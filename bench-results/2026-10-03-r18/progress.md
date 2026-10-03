@@ -28,3 +28,17 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
   ZERO-SPEND ROOT CAUSE (evidence/probe-dbl.mjs): on double-click.html both adapters enumerate 0 elements - the target is `<div id="dbl-target" ondblclick=...>`, and page-scripts' interactive detection recognises the `onclick` ATTRIBUTE (lines 78/198/512) but not `ondblclick`, so the dblclick op has nothing to target. By hand, `dblclick('#dbl-target')` -> #dbl-count = 1 (oracle true), so the fixture is reachable; the shape is a known-failing gauntlet row (enumeration coverage gap), not a mechanism failure of the op. Not fixed (report-only). No re-run spent: the failure is deterministic (empty element table), not page state.
 - Mechanisms: upload PASS, hover PASS, dblclick = enumeration gap (op chosen, never actable). Gate decision: proceed (t17 stays as a named known-failing row, per spec R4).
 - Budget note: round spend so far 5.56 of 10 (A1 0.673 + B1 4.138 + A2 0.742 + probe ~0.01). The stage-B cap of 4 was consumed by 19 cells (~0.17 USD floor per cell), so the remaining 15 gauntlet cells + Stage D must share the remaining ~4.4. Order: Stage D (deliverable) next, then Stage B2 (remaining cells, new shapes first) capped to what is left.
+
+## Stage D - t9-long-chain, playwright,forced x2 in ONE invocation (cap-usd 3.00, phase cap 19.961469 = ledger 17.461469 + 2.5, experiment): 4/4 ok, 0.9984 USD (stageD/D-t9-2026-10-03-064036.json, D-report.txt)
+| cell | route | ok | wall s | usd | llm in/out/cache-read/cache-write | jev calls (in/out) |
+|---|---|---|---|---|---|---|
+| 1 | playwright | T | 96.5 | 0.3906 | 22/1890/663659/43486 | 0 |
+| 2 | forced | T | 50.1 | 0.2832 | 14/1672/385783/37259 | 3 (63057/16504) |
+| 3 | playwright | T | 28.9 | 0.1173 | 8/1270/240647/6951 | 0 |
+| 4 | forced | T | 50.8 | 0.2072 | 18/1913/545525/3519 | 4 (38171/9775) |
+- Spread: playwright wall min 28.9 / med 62.7 / max 96.5 (n=2, the 96.5 s cell is the cold-cache one: 43,486 cache-write tokens vs 6,951 in cell 3); forced wall 50.1 / 50.5 / 50.8. Medians: forced 0.81x playwright; min-to-min forced/playwright 1.73x; max-to-max 0.53x. n=2 - direction only, load-covariant (cache state differs 6x between the playwright cells).
+- Decomposition (forced, harness v3 wingman_phases): 
+  - cell 2: 28 rounds, 3 wingman calls, round_kinds act 17 / advance 6 / wait 0 / bounce 1 / done 0 / error 1 / other 3 (sum 28). observe sum 232 ms (med 7), jev sum 4126 ms (med 141; first/rest 136/142), act sum 2127 ms (med 83), settle sum 4232 ms (med 223). In-round total 10,717 ms of 50.1 s wall = 21%; remaining ~39.4 s is outside the rounds (caller turns + tool-call transport).
+  - cell 4: 21 rounds, 4 wingman calls (3 picks), act 10 / advance 5 / wait 0 / bounce 2 / done 0 / error 1 / other 3 (sum 21). observe 170, jev 2594 (med 139; first 0 = empty bucket / rest 141), act 1568, settle 2376 ms. In-round 6,708 ms of 50.8 s = 13%; ~44.1 s outside.
+- jev cold/warm: first/rest = 136/142 ms in the one cell that has a first-round bucket - no cold 926 ms first round (r16/OG-9: ~926 cold vs ~404 warm). Per-round jev is ~140 ms flat here (both cells), agreeing with Stage C's flat arms. The cold/warm bimodality did not reproduce on this box/endpoint, so Stage C's "not connection setup" verdict is consistent.
+- Where the rounds go: ~60% act rounds (17/28, 10/21), advance 21-24%, wait 0 (r17-era wait storms absent), bounce 1-2, error 1 (an act-failed end in each), other 3. settle (fixed ~220 ms per acted round) is the largest wingman phase after jev; act is ~83 ms median.
