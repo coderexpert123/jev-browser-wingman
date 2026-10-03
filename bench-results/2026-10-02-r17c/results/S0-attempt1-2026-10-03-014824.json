@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-03-014824.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 18.702391,
+  "aborted": null,
+  "total_usd": 0.220432,
+  "runs": [
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 21359,
+      "browser_tool_calls": 3,
+      "per_step_ms": 7120,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 737,
+        "cache_read_tokens": 256010,
+        "cache_write_tokens": 35345,
+        "usd": 0.220432,
+        "cli_reported_usd": 0.19997199999999998
+      },
+      "typesafe": {
+        "calls": 2,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 2,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 33,
+        "first_observe_ms": 0,
+        "observe_ms": 0,
+        "jev_ms": 0,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 2
+      },
+      "usd": 0.220432,
+      "handoff_records": [
+        {
+          "status": "error",
+          "reason": "act-failed",
+          "steps": 0,
+          "rounds": 1,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        },
+        {
+          "status": "error",
+          "reason": "act-failed",
+          "steps": 0,
+          "rounds": 1,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 2,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3
+      },
+      "first_call_invalid": 0,
+      "end_state": " | focus=none"
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 21359,
+      "median_usd": 0.220432,
+      "fallback_rate": 0
+    }
+  }
+}

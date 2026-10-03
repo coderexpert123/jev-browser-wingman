@@ -1,0 +1,13 @@
+import { createRequire } from 'node:module';
+const require = createRequire('/home/user/jev-browser-wingman/package.json');
+const { chromium } = require('playwright-core');
+const exe = process.env.REAL_CHROMIUM || '/usr/bin/chromium';
+const b = await chromium.launch({ executablePath: exe, headless: true, args: ['--no-sandbox'] });
+const p = await b.newPage();
+await p.goto('https://the-internet.herokuapp.com/key_presses', { waitUntil: 'load', timeout: 30000 });
+const st = async (l) => console.log(l, JSON.stringify(await p.evaluate(() => ({ url: location.pathname, result: document.querySelector('#result')?.innerText, active: document.activeElement?.id || document.activeElement?.tagName }))));
+await st('loaded');
+await p.click('#target'); await st('after click');
+await p.keyboard.press('Escape'); await st('after Escape');
+await p.keyboard.press('Enter'); await st('after Enter');
+await b.close();

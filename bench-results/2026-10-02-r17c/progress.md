@@ -5,3 +5,7 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 
 ## Part 1b KB_CDP_GROWTH_WAIT (build .build/kb-r17c, flag flipped in src/adapters/cdp.ts, restored via git checkout, rebuilt)
 chain-e2e under the flag: 19/20, the single failure is E18b "an async wheel-triggered append is waited out, not bounced (r17c)" - PROVEN. Log: part1b/chain-e2e.flagged.log. src clean after restore.
+
+## Stage 0 attempt 1 (t14 forced x1, phase cap 18.702391 = ledger 10.702391 + 8): oracle FALSE, 21.4 s, 0.2204 USD
+- Escape was NEVER attempted: all 3 browse_step calls ended `error/act-failed`, steps 0, jev_calls 0, ms 40-116, host '' (page not on the target URL), act_error `TypeError: Failed to execute ... on ...: parameter 1 is not of type ...` in the FIRST observe (observeMs 0). end_state " | focus=none" (no #result, no active element).
+- Zero-spend probes (evidence/probe-esc.mjs, probe-obs.mjs): plain Playwright on /key_presses: Escape -> "You entered: ESCAPE", Enter -> "You entered: ENTER", no reload, focus stays on #target. The shipped driver's observe() works on about:blank AND /key_presses on both adapters (2 elements, scrollY 0). So the failure is bench page state, not the key and not observe on the page itself.
