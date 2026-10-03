@@ -1,0 +1,335 @@
+{
+  "date": "2026-10-03-015316.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 18.702391,
+  "aborted": null,
+  "total_usd": 0.518821,
+  "runs": [
+    {
+      "task": "t13-infinite-scroll",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 16659,
+      "browser_tool_calls": 1,
+      "per_step_ms": 16659,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 223,
+        "cache_read_tokens": 139788,
+        "cache_write_tokens": 33713,
+        "usd": 0.171723,
+        "cli_reported_usd": 0.1650516
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.171723,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": "10 items | scrollY=3148"
+    },
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 15803,
+      "browser_tool_calls": 2,
+      "per_step_ms": 7902,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 368,
+        "cache_read_tokens": 231873,
+        "cache_write_tokens": 754,
+        "usd": 0.077933,
+        "cli_reported_usd": 0.0530866
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1833,
+        "output_tokens": 466,
+        "usd": 0.000077
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 24,
+        "first_observe_ms": 9,
+        "observe_ms": 8,
+        "jev_ms": 62,
+        "act_ms": 27,
+        "settle_ms": 109,
+        "rounds": 2
+      },
+      "usd": 0.07801,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 1,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2
+      },
+      "first_call_invalid": 0,
+      "end_state": "You entered: ESCAPE | focus=target"
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 16195,
+      "browser_tool_calls": 1,
+      "per_step_ms": 16195,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 223,
+        "cache_read_tokens": 173225,
+        "cache_write_tokens": 276,
+        "usd": 0.056365,
+        "cli_reported_usd": 0.037991
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.056365,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": "10 items | scrollY=3132"
+    },
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 14025,
+      "browser_tool_calls": 2,
+      "per_step_ms": 7013,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 368,
+        "cache_read_tokens": 231873,
+        "cache_write_tokens": 754,
+        "usd": 0.077933,
+        "cli_reported_usd": 0.0530866
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1833,
+        "output_tokens": 466,
+        "usd": 0.000077
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 26,
+        "first_observe_ms": 11,
+        "observe_ms": 11,
+        "jev_ms": 67,
+        "act_ms": 31,
+        "settle_ms": 112,
+        "rounds": 2
+      },
+      "usd": 0.07801,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 1,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2
+      },
+      "first_call_invalid": 0,
+      "end_state": "You entered: ESCAPE | focus=target"
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 15576,
+      "browser_tool_calls": 1,
+      "per_step_ms": 15576,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 223,
+        "cache_read_tokens": 173225,
+        "cache_write_tokens": 276,
+        "usd": 0.056365,
+        "cli_reported_usd": 0.037991
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.056365,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0,
+      "end_state": "10 items | scrollY=3148"
+    },
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 13807,
+      "browser_tool_calls": 2,
+      "per_step_ms": 6904,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 386,
+        "cache_read_tokens": 231873,
+        "cache_write_tokens": 772,
+        "usd": 0.078271,
+        "cli_reported_usd": 0.0533386
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1833,
+        "output_tokens": 466,
+        "usd": 0.000077
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 27,
+        "first_observe_ms": 10,
+        "observe_ms": 9,
+        "jev_ms": 66,
+        "act_ms": 29,
+        "settle_ms": 110,
+        "rounds": 2
+      },
+      "usd": 0.078348,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 1,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2
+      },
+      "first_call_invalid": 0,
+      "end_state": "You entered: ESCAPE | focus=target"
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 15689.5,
+      "median_usd": 0.07801,
+      "fallback_rate": 0
+    }
+  }
+}
