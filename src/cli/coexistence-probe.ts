@@ -197,7 +197,18 @@ function readDegraded(fp: ProbeFingerprint): boolean {
  *   visible on a doctor re-run; a false PASS hides a write).
  *
  * Returns `{ match, after }` where `after` is the freshest after-side
- * fingerprint seen, so the caller's PASS message needs no extra call. */
+ * fingerprint seen, so the caller's PASS message needs no extra call.
+ *
+ * r20 (H-2, document-and-skip): the residual hole is exactly the
+ * before-degraded arm — a persistent attach-time write is already inside the
+ * original before's successfully-read fields (attach precedes every
+ * before-side read), so the fresh before matches the after and the write is
+ * accepted. The "compare the original before's non-null fields against the
+ * fresh before" tightening was evaluated 2026-10-03 and rejected: it is
+ * vacuous for the attach-time class (the fields agree either way). Its real
+ * teeth would be a write landing between the original before-read and the
+ * re-read — a class no known driver exercises — and guarding it needs a
+ * third read. Documented, not fixed, per the r20 intake bound. */
 export async function fingerprintsReconcile(
   before: ProbeFingerprint,
   after: ProbeFingerprint,

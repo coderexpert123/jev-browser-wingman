@@ -671,3 +671,17 @@
   works there with no wrapper change). Any future act-returned value needs BOTH the switch
   case `return` AND `return this.actRaced(...)` at the targeted call site (done for upload;
   the targetless path still discards deliberately — targetless ops carry no result).
+- **Optional-mode post-action ends return `FORCED_POST_ACTION_LINE` since r20
+  (WP-1, 2026-10-03, spec `.build-r20-spec.md` S-1a).** The r15 residual is
+  closed: a `fallback/step-uncertain` end with `step_review.why: 'post-action'`
+  in optional mode now carries the post-action line instead of the § 3.17
+  caller line (which invited the caller to redo the executed action). The
+  constant's `FORCED_` name is historical — the text is mode-neutral. This end
+  is the FIRST branch in `finish()`'s § 3.17 else-arm, before the escalation
+  `if`, so it never increments the per-goal bounce counter (it is not a target
+  refusal; tiers 1-3 all steer back into repeating the action). Guarded by
+  `KB_OPT_POSTACTION_NOTE` (D-11 polarity: `!KB_...` in the condition, flip =
+  restore the pre-r20 note + escalation); pinned by `T-opt-post-note` and
+  `T-opt-post-note-no-escalate` in tests/chain.test.ts. Forced mode is
+  untouched (its table already returned the post-action line via
+  `forcedNote`).

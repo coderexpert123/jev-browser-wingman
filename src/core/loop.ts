@@ -143,6 +143,11 @@ const KB_SCROLL_SIGNAL_Y = false;
  * entry's `result` — an upload that landed is progress, the way a check that
  * flips carries 'checked' (r17b F3). Flipping restores the pre-r19 void. */
 const KB_UPLOAD_EVIDENCE = false;
+/** r20 (S-1a) KB proof switch: an optional-mode post-action step-uncertain
+ * end returns the post-action line instead of the § 3.17 caller line (which
+ * tells the caller to redo the step whose action already ran). Flipping
+ * restores the pre-r20 note + bounce escalation. Never flip in shipped code. */
+const KB_OPT_POSTACTION_NOTE = false;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -1863,7 +1868,20 @@ async function runTool(
             : r.reason === 'takeover-offered'
               ? BROWSE_STEP_OFFER_LINE
               : BROWSE_STEP_RESUME_LINE;
-        if ((r.reason === 'step-uncertain' || r.reason === 'target-covered') && activeGoal !== null) {
+        if (
+          r.reason === 'step-uncertain' &&
+          r.step_review?.why === 'post-action' &&
+          !KB_OPT_POSTACTION_NOTE
+        ) {
+          // r20 (S-1a): FORCED_POST_ACTION_LINE's text is mode-neutral (it names no
+          // forced-only concept), so optional mode reuses it. This end is also kept
+          // out of the bounce escalation on purpose: tier 1 says "retry with a more
+          // specific description of the target" and tiers 2/3 say "do this step
+          // yourself" — all three steer the caller back into repeating the executed
+          // action. A post-action end is not a target refusal, so it does not count
+          // toward the per-goal bounce counter either.
+          r.note = FORCED_POST_ACTION_LINE;
+        } else if ((r.reason === 'step-uncertain' || r.reason === 'target-covered') && activeGoal !== null) {
           const n = (bounceCounts.get(activeGoal) ?? 0) + 1;
           bounceCounts.set(activeGoal, n);
           r.note = n === 1 ? `${base} ${BOUNCE_TIER1_LINE}` : n === 2 ? BOUNCE_TIER2_LINE : BOUNCE_TIER3_LINE;

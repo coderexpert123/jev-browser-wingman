@@ -316,6 +316,8 @@ const CALLER_LINE =
   'Step returned to you — do this step with your browser tools, then call browse_step again with the same goal and your next proposed step.';
 const TIER1 =
   'Retry with a more specific description of the target, or perform this step yourself with your raw browser tools.';
+const TIER2 =
+  'wingman has now declined 2 steps of this goal. Complete the remaining steps with your own browser tools and stop calling wingman for this goal.';
 const RESUME_LINE =
   'Takeover paused — call browse_step again with the same goal (and the same values) to continue from here.';
 const SENSITIVE_LINE =
@@ -2841,6 +2843,50 @@ test("T-post-notready: not ready after the clause's own effective click ends pos
     values: navValues,
   });
   assert.equal(rc.step_review?.why, 'not-ready');
+});
+
+// ---- r20 WP-1 (spec .build-r20-spec.md D1-D3, S-1a): optional-mode post-action ends carry the non-repeat note ----
+
+test('T-opt-post-note: an optional-mode post-action step-uncertain end carries the non-repeat note, not the caller line', async () => {
+  // The T-post-notready shape under optional config: effective click, then
+  // not-ready after the waits -> fallback/step-uncertain, why post-action.
+  // Pre-fix this note is CALLER_LINE + ' ' + TIER1, which invites the caller
+  // to redo the action that already ran (the documented r15 residual).
+  const h = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST(), POST()],
+    config: { handoff: { mode: 'optional' } },
+  });
+  const r = await h.call({ goal: 'chain-opt-post-note goal', steps: SUBMIT_STEPS });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.deepEqual(r.step_review, POST_REVIEW);
+  assert.equal(r.note, FORCED_POST_ACTION_LINE);
+  assert.deepEqual(actsOf(h), CLICK_WAIT_WAIT);
+});
+
+test('T-opt-post-note-no-escalate: an optional post-action end does not count toward the bounce escalation', async () => {
+  // First call: the post-action end itself. Pre-fix it reads CALLER_LINE +
+  // TIER1 and increments the per-goal bounce counter.
+  const h1 = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST(), POST()],
+    config: { handoff: { mode: 'optional' } },
+  });
+  const r1 = await h1.call({ goal: 'chain-opt-post-escalate goal', steps: SUBMIT_STEPS });
+  assert.equal(r1.step_review?.why, 'post-action');
+  assert.equal(r1.note, FORCED_POST_ACTION_LINE);
+
+  // Second call with the SAME goal text, an ordinary ambiguous-target bounce:
+  // tier 1 (appended to the caller line), not tier 2 (replaced) — the
+  // post-action end must not have incremented the counter.
+  const h2 = harness({
+    observations: { p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', name: 'Other' })] })] },
+    script: [CS({ target: ['e1', { e1: 0.6, e2: 0.55, none: 0.05, ambiguous: 0.05 }] })],
+    config: { handoff: { mode: 'optional' }, takeover: { retry: false } },
+  });
+  const r2 = await h2.call({ goal: 'chain-opt-post-escalate goal', steps: ['x1'] });
+  assert.equal(r2.note, `${CALLER_LINE} ${TIER1}`);
 });
 
 test("T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry", async () => {

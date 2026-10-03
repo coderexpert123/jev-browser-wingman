@@ -475,27 +475,60 @@ export interface RunContext {
   fixtureUrl?: string;
 }
 
+// r20 (H-1): retry the reset navigation ONLY on the CDP command timeout —
+// `cdp timeout: Page.navigate` is the exact rejection CdpConnection's
+// per-command timer produces. Any other rejection (a JSON-RPC error response
+// from a failed navigation, a closed socket) is deterministic or fatal and
+// rethrows immediately: a retry must not turn a real failure into three slow
+// attempts. A timed-out navigate may still have completed; re-navigating the
+// SAME startUrl is idempotent, which is why no other reset step re-runs.
+export const RESET_NAV_RETRY_BACKOFF_MS: readonly number[] = [2_000, 5_000];
+export async function navigateResetWithRetry(
+  conn: Pick<CdpConnection, 'send'>,
+  sessionId: string,
+  url: string,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await conn.send('Page.navigate', { url }, sessionId);
+      return;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (attempt >= RESET_NAV_RETRY_BACKOFF_MS.length || msg !== 'cdp timeout: Page.navigate') throw e;
+      await sleep(RESET_NAV_RETRY_BACKOFF_MS[attempt]);
+    }
+  }
+}
+
 // The harness may navigate the shared page and clear its origin's storage before a run; the tools may not.
-async function resetPages(ctx: RunContext, startUrl: string, clearOrigin?: string): Promise<void> {
-  const { targetInfos } = await ctx.observer.send<{ targetInfos: Array<{ targetId: string; type: string }> }>(
+// r20 (H-1): takes the observer and kept target id directly (not the whole
+// RunContext) so a scripted `{ send }` fake can drive it in tests.
+export async function resetPages(
+  observer: Pick<CdpConnection, 'send'>,
+  keptTargetId: string,
+  startUrl: string,
+  clearOrigin?: string,
+): Promise<void> {
+  const { targetInfos } = await observer.send<{ targetInfos: Array<{ targetId: string; type: string }> }>(
     'Target.getTargets',
   );
   for (const t of targetInfos) {
-    if (t.type === 'page' && t.targetId !== ctx.keptTargetId) {
-      await ctx.observer.send('Target.closeTarget', { targetId: t.targetId }).catch(() => {});
+    if (t.type === 'page' && t.targetId !== keptTargetId) {
+      await observer.send('Target.closeTarget', { targetId: t.targetId }).catch(() => {});
     }
   }
-  const { sessionId } = await ctx.observer.send<{ sessionId: string }>('Target.attachToTarget', {
-    targetId: ctx.keptTargetId,
+  const { sessionId } = await observer.send<{ sessionId: string }>('Target.attachToTarget', {
+    targetId: keptTargetId,
     flatten: true,
   });
   if (clearOrigin) {
-    await ctx.observer.send('Storage.clearDataForOrigin', {
+    await observer.send('Storage.clearDataForOrigin', {
       origin: clearOrigin,
       storageTypes: 'all',
     }, sessionId);
   }
-  await ctx.observer.send('Page.navigate', { url: startUrl }, sessionId);
+  await navigateResetWithRetry(observer, sessionId, startUrl);
 }
 
 export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
@@ -673,7 +706,8 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
 
     const startUrl = resolveStartUrl(task, ctx.fixtureUrl);
     await resetPages(
-      ctx,
+      ctx.observer,
+      ctx.keptTargetId,
       startUrl,
       task.resetStorage ? new URL(startUrl).origin : undefined,
     );
