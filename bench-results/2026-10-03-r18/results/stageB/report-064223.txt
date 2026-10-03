@@ -1,0 +1,10 @@
+BENCH REPORT 2026-10-03-064223.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.641275 runs=4
+cell t15-file-upload playwright ok=false wall_s=15.4 usd=0.22018 llm_in=10 llm_out=738 llm_cache_read=260434 llm_cache_write=34920 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t15-file-upload forced ok=true wall_s=17.7 usd=0.104045 llm_in=10 llm_out=667 llm_cache_read=297106 llm_cache_write=1279 ts_calls=1 ts_in=1961 ts_out=522 fallbacks=1 rounds=2
+cell t16-hover-reveal playwright ok=true wall_s=14.8 usd=0.213552 llm_in=10 llm_out=339 llm_cache_read=260078 llm_cache_write=34777 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t16-hover-reveal forced ok=true wall_s=17.0 usd=0.103498 llm_in=10 llm_out=627 llm_cache_read=296801 llm_cache_write=1300 ts_calls=2 ts_in=3507 ts_out=934 fallbacks=1 rounds=4
+route playwright n=2 ok=1/2 wall_s min=14.8 med=15.1 max=15.4 usd min=0.213552 med=0.216866 max=0.22018
+route forced n=2 ok=2/2 wall_s min=17.0 med=17.3 max=17.7 usd min=0.103498 med=0.1037715 max=0.104045
+phases t15-file-upload/forced attach=18 first_observe=7 observe=7+13 jev=78+156 jev first/rest=0/156 act=18+36 settle=108+216 kinds act=1 advance=0 wait=0 bounce=1 done=0 error=0 other=0
+phases t16-hover-reveal/forced attach=31 first_observe=8 observe=6+26 jev=60+283 jev first/rest=0/142 act=30+119 settle=108+432 kinds act=2 advance=1 wait=0 bounce=1 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty

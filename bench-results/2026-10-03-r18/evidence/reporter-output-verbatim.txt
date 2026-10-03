@@ -1,0 +1,106 @@
+## Appendix: reporter output (verbatim `node dist/bench/report.js <file>`)
+
+### results/stageA/A2-report.txt
+```
+BENCH REPORT 2026-10-03-063509.json purpose=experiment model=sonnet harness=3 aborted=null total_usd=0.741517 runs=3
+cell t15-file-upload forced ok=true wall_s=17.0 usd=0.223865 llm_in=10 llm_out=678 llm_cache_read=262492 llm_cache_write=35956 ts_calls=1 ts_in=1961 ts_out=522 fallbacks=1 rounds=2
+cell t16-hover-reveal forced ok=true wall_s=10.9 usd=0.176735 llm_in=6 llm_out=225 llm_cache_read=142070 llm_cache_write=34859 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t17-double-click forced ok=false wall_s=33.2 usd=0.340917 llm_in=20 llm_out=1701 llm_cache_read=567609 llm_cache_write=38647 ts_calls=5 ts_in=3170 ts_out=838 fallbacks=1 rounds=5
+route forced n=3 ok=2/3 wall_s min=10.9 med=17.0 max=33.2 usd min=0.176735 med=0.223865 max=0.340917
+phases t15-file-upload/forced attach=17 first_observe=9 observe=9+17 jev=61+121 jev first/rest=0/121 act=22+44 settle=108+215 kinds act=1 advance=0 wait=0 bounce=1 done=0 error=0 other=0
+phases t17-double-click/forced attach=67 first_observe=7 observe=7+34 jev=0+249 jev first/rest=0/136 act=0+0 settle=0+0 kinds act=0 advance=0 wait=0 bounce=4 done=0 error=0 other=1
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageB/B1-report.txt
+```
+BENCH REPORT 2026-10-03-063320.json purpose=measure model=sonnet harness=3 aborted=cap total_usd=4.137818 runs=19
+cell t1-checkboxes playwright ok=true wall_s=11.6 usd=0.191972 llm_in=8 llm_out=228 llm_cache_read=199490 llm_cache_write=34315 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t1-checkboxes forced ok=true wall_s=11.1 usd=0.174907 llm_in=6 llm_out=224 llm_cache_read=141250 llm_cache_write=34441 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t2-dropdown playwright ok=true wall_s=10.9 usd=0.191929 llm_in=8 llm_out=260 llm_cache_read=199272 llm_cache_write=34193 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t2-dropdown forced ok=true wall_s=10.4 usd=0.175237 llm_in=6 llm_out=243 llm_cache_read=141238 llm_cache_write=34454 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t3-dynamic-controls playwright ok=true wall_s=14.2 usd=0.214742 llm_in=10 llm_out=363 llm_cache_read=259932 llm_cache_write=35010 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t3-dynamic-controls forced ok=true wall_s=18.0 usd=0.198483 llm_in=8 llm_out=384 llm_cache_read=200680 llm_cache_write=35332 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t4-add-elements playwright ok=true wall_s=15.2 usd=0.196391 llm_in=8 llm_out=385 llm_cache_read=199468 llm_cache_write=34867 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t4-add-elements forced ok=true wall_s=13.8 usd=0.174653 llm_in=6 llm_out=210 llm_cache_read=141242 llm_cache_write=34430 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t5-inputs playwright ok=true wall_s=10.9 usd=0.191581 llm_in=8 llm_out=250 llm_cache_read=199397 llm_cache_write=34130 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t5-inputs forced ok=true wall_s=10.0 usd=0.175102 llm_in=6 llm_out=234 llm_cache_read=141252 llm_cache_write=34453 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t6-dynamic-loading playwright ok=true wall_s=29.3 usd=0.213803 llm_in=10 llm_out=360 llm_cache_read=259203 llm_cache_write=34830 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t6-dynamic-loading forced ok=true wall_s=42.0 usd=0.24047 llm_in=12 llm_out=609 llm_cache_read=320687 llm_cache_write=35859 ts_calls=1 ts_in=14801 ts_out=3664 fallbacks=1 rounds=9
+cell t7-sort-table playwright ok=true wall_s=14.4 usd=0.225039 llm_in=10 llm_out=382 llm_cache_read=262631 llm_cache_write=37464 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t7-sort-table forced ok=false wall_s=22.8 usd=0.257209 llm_in=12 llm_out=1204 llm_cache_read=322756 llm_cache_write=37943 ts_calls=2 ts_in=0 ts_out=0 fallbacks=0 rounds=2
+cell t8-status-404 playwright ok=true wall_s=11.4 usd=0.19457 llm_in=8 llm_out=240 llm_cache_read=200275 llm_cache_write=34897 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t8-status-404 forced ok=true wall_s=11.5 usd=0.175632 llm_in=6 llm_out=277 llm_cache_read=141230 llm_cache_write=34424 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain playwright ok=true wall_s=28.6 usd=0.286921 llm_in=12 llm_out=1773 llm_cache_read=337446 llm_cache_write=42415 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=63.1 usd=0.393066 llm_in=24 llm_out=2187 llm_cache_read=697419 llm_cache_write=39648 ts_calls=4 ts_in=54361 ts_out=13898 fallbacks=3 rounds=28
+cell t10-saucedemo-checkout playwright ok=true wall_s=29.1 usd=0.266111 llm_in=14 llm_out=939 llm_cache_read=381109 llm_cache_write=36707 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+route playwright n=10 ok=10/10 wall_s min=10.9 med=14.3 max=29.3 usd min=0.191581 med=0.205097 max=0.286921
+route forced n=9 ok=8/9 wall_s min=10.0 med=13.8 max=63.1 usd min=0.174653 med=0.175632 max=0.393066
+phases t6-dynamic-loading/forced attach=16 first_observe=8 observe=7+65 jev=137+1103 jev first/rest=0/139 act=1000+5070 settle=218+1311 kinds act=1 advance=1 wait=5 bounce=1 done=0 error=0 other=1
+phases t7-sort-table/forced attach=33 first_observe=11 observe=10+19 jev=0+0 jev first/rest=0/0 act=0+0 settle=0+0 kinds act=0 advance=0 wait=0 bounce=2 done=0 error=0 other=0
+phases t9-long-chain/forced attach=73 first_observe=11 observe=8+240 jev=145+4060 jev first/rest=126/147 act=0+2834 settle=0+2769 kinds act=11 advance=5 wait=1 bounce=4 done=0 error=1 other=6
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageB/report-064223.txt
+```
+BENCH REPORT 2026-10-03-064223.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.641275 runs=4
+cell t15-file-upload playwright ok=false wall_s=15.4 usd=0.22018 llm_in=10 llm_out=738 llm_cache_read=260434 llm_cache_write=34920 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t15-file-upload forced ok=true wall_s=17.7 usd=0.104045 llm_in=10 llm_out=667 llm_cache_read=297106 llm_cache_write=1279 ts_calls=1 ts_in=1961 ts_out=522 fallbacks=1 rounds=2
+cell t16-hover-reveal playwright ok=true wall_s=14.8 usd=0.213552 llm_in=10 llm_out=339 llm_cache_read=260078 llm_cache_write=34777 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t16-hover-reveal forced ok=true wall_s=17.0 usd=0.103498 llm_in=10 llm_out=627 llm_cache_read=296801 llm_cache_write=1300 ts_calls=2 ts_in=3507 ts_out=934 fallbacks=1 rounds=4
+route playwright n=2 ok=1/2 wall_s min=14.8 med=15.1 max=15.4 usd min=0.213552 med=0.216866 max=0.22018
+route forced n=2 ok=2/2 wall_s min=17.0 med=17.3 max=17.7 usd min=0.103498 med=0.1037715 max=0.104045
+phases t15-file-upload/forced attach=18 first_observe=7 observe=7+13 jev=78+156 jev first/rest=0/156 act=18+36 settle=108+216 kinds act=1 advance=0 wait=0 bounce=1 done=0 error=0 other=0
+phases t16-hover-reveal/forced attach=31 first_observe=8 observe=6+26 jev=60+283 jev first/rest=0/142 act=30+119 settle=108+432 kinds act=2 advance=1 wait=0 bounce=1 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageB/report-064236.txt
+```
+BENCH REPORT 2026-10-03-064236.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.193053 runs=1
+cell t17-double-click playwright ok=true wall_s=12.3 usd=0.193053 llm_in=8 llm_out=251 llm_cache_read=200430 llm_cache_write=34436 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+route playwright n=1 ok=1/1 wall_s min=12.3 med=12.3 max=12.3 usd min=0.193053 med=0.193053 max=0.193053
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageB/report-064501.txt
+```
+BENCH REPORT 2026-10-03-064501.json purpose=measure model=sonnet harness=3 aborted=null total_usd=1.782216 runs=8
+cell t11-todomvc-spa playwright ok=true wall_s=19.9 usd=0.268877 llm_in=14 llm_out=622 llm_cache_read=388230 llm_cache_write=38143 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t11-todomvc-spa forced ok=true wall_s=27.5 usd=0.283984 llm_in=14 llm_out=1164 llm_cache_read=388069 llm_cache_write=39821 ts_calls=2 ts_in=17448 ts_out=4533 fallbacks=1 rounds=9
+cell t12-js-confirm-dialog playwright ok=true wall_s=15.0 usd=0.216665 llm_in=10 llm_out=400 llm_cache_read=261143 llm_cache_write=35278 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t12-js-confirm-dialog forced ok=true wall_s=17.8 usd=0.219555 llm_in=10 llm_out=466 llm_cache_read=261626 llm_cache_write=35746 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t13-infinite-scroll playwright ok=true wall_s=20.4 usd=0.203798 llm_in=8 llm_out=384 llm_cache_read=202633 llm_cache_write=36593 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t13-infinite-scroll forced ok=true wall_s=14.7 usd=0.176682 llm_in=6 llm_out=223 llm_cache_read=142068 llm_cache_write=34853 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t14-key-press playwright ok=true wall_s=14.0 usd=0.21401 llm_in=10 llm_out=299 llm_cache_read=260716 llm_cache_write=35008 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t14-key-press forced ok=true wall_s=13.8 usd=0.198645 llm_in=8 llm_out=368 llm_cache_read=201863 llm_cache_write=35324 ts_calls=1 ts_in=1833 ts_out=466 fallbacks=0 rounds=2
+route playwright n=4 ok=4/4 wall_s min=14.0 med=17.4 max=20.4 usd min=0.203798 med=0.21533750000000002 max=0.268877
+route forced n=4 ok=4/4 wall_s min=13.8 med=16.2 max=27.5 usd min=0.176682 med=0.2091 max=0.283984
+phases t11-todomvc-spa/forced attach=28 first_observe=11 observe=8+77 jev=135+996 jev first/rest=0/137 act=18+179 settle=213+1079 kinds act=5 advance=3 wait=0 bounce=1 done=0 error=0 other=0
+phases t14-key-press/forced attach=17 first_observe=7 observe=7+14 jev=80+160 jev first/rest=0/160 act=22+44 settle=108+215 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageB/report-064532.txt
+```
+BENCH REPORT 2026-10-03-064532.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.270534 runs=1
+cell t10-saucedemo-checkout forced ok=true wall_s=29.1 usd=0.270534 llm_in=12 llm_out=1568 llm_cache_read=326703 llm_cache_write=39209 ts_calls=2 ts_in=46038 ts_out=11336 fallbacks=1 rounds=19
+route forced n=1 ok=1/1 wall_s min=29.1 med=29.1 max=29.1 usd min=0.270534 med=0.270534 max=0.270534
+phases t10-saucedemo-checkout/forced attach=39 first_observe=10 observe=9+162 jev=137+2962 jev first/rest=158/137 act=0+477 settle=0+1977 kinds act=9 advance=8 wait=0 bounce=1 done=0 error=0 other=1
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```
+
+### results/stageD/D-report.txt
+```
+BENCH REPORT 2026-10-03-064036.json purpose=experiment model=sonnet harness=3 aborted=null total_usd=0.998353 runs=4
+cell t9-long-chain playwright ok=true wall_s=96.5 usd=0.390586 llm_in=22 llm_out=1890 llm_cache_read=663659 llm_cache_write=43486 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=50.1 usd=0.283227 llm_in=14 llm_out=1672 llm_cache_read=385783 llm_cache_write=37259 ts_calls=3 ts_in=63057 ts_out=16504 fallbacks=1 rounds=28
+cell t9-long-chain playwright ok=true wall_s=28.9 usd=0.117334 llm_in=8 llm_out=1270 llm_cache_read=240647 llm_cache_write=6951 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=50.8 usd=0.207206 llm_in=18 llm_out=1913 llm_cache_read=545525 llm_cache_write=3519 ts_calls=4 ts_in=38171 ts_out=9775 fallbacks=2 rounds=21
+route playwright n=2 ok=2/2 wall_s min=28.9 med=62.7 max=96.5 usd min=0.117334 med=0.25395999999999996 max=0.390586
+route forced n=2 ok=2/2 wall_s min=50.1 med=50.5 max=50.8 usd min=0.207206 med=0.2452165 max=0.283227
+phases t9-long-chain/forced attach=47 first_observe=9 observe=7+232 jev=141+4126 jev first/rest=136/142 act=83+2127 settle=223+4232 kinds act=17 advance=6 wait=0 bounce=1 done=0 error=1 other=3
+phases t9-long-chain/forced attach=57 first_observe=8 observe=8+170 jev=139+2594 jev first/rest=0/141 act=0+1568 settle=0+2376 kinds act=10 advance=5 wait=0 bounce=2 done=0 error=1 other=3
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
+```

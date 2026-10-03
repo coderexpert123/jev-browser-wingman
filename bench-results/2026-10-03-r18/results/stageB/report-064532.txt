@@ -1,0 +1,5 @@
+BENCH REPORT 2026-10-03-064532.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.270534 runs=1
+cell t10-saucedemo-checkout forced ok=true wall_s=29.1 usd=0.270534 llm_in=12 llm_out=1568 llm_cache_read=326703 llm_cache_write=39209 ts_calls=2 ts_in=46038 ts_out=11336 fallbacks=1 rounds=19
+route forced n=1 ok=1/1 wall_s min=29.1 med=29.1 max=29.1 usd min=0.270534 med=0.270534 max=0.270534
+phases t10-saucedemo-checkout/forced attach=39 first_observe=10 observe=9+162 jev=137+2962 jev first/rest=158/137 act=0+477 settle=0+1977 kinds act=9 advance=8 wait=0 bounce=1 done=0 error=0 other=1
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty

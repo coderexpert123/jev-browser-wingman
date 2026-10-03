@@ -1,0 +1,4 @@
+BENCH REPORT 2026-10-03-064236.json purpose=measure model=sonnet harness=3 aborted=null total_usd=0.193053 runs=1
+cell t17-double-click playwright ok=true wall_s=12.3 usd=0.193053 llm_in=8 llm_out=251 llm_cache_read=200430 llm_cache_write=34436 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+route playwright n=1 ok=1/1 wall_s min=12.3 med=12.3 max=12.3 usd min=0.193053 med=0.193053 max=0.193053
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
