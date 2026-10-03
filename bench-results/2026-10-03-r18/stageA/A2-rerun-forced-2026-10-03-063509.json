@@ -1,0 +1,262 @@
+{
+  "date": "2026-10-03-063509.json",
+  "purpose": "experiment",
+  "harness_version": 3,
+  "model": "sonnet",
+  "cap_usd": 1,
+  "phase_cap_usd": 17.719952,
+  "aborted": null,
+  "total_usd": 0.741517,
+  "runs": [
+    {
+      "task": "t15-file-upload",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 16992,
+      "browser_tool_calls": 3,
+      "per_step_ms": 5664,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 678,
+        "cache_read_tokens": 262492,
+        "cache_write_tokens": 35956,
+        "usd": 0.223783,
+        "cli_reported_usd": 0.2031224
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1961,
+        "output_tokens": 522,
+        "usd": 0.000082
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 17,
+        "first_observe_ms": 9,
+        "observe_ms": 9,
+        "jev_ms": 61,
+        "act_ms": 22,
+        "settle_ms": 108,
+        "rounds": 2,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 121,
+        "observe_sum_ms": 17,
+        "jev_sum_ms": 121,
+        "act_sum_ms": 44,
+        "settle_sum_ms": 215,
+        "round_kinds": {
+          "act": 1,
+          "advance": 0,
+          "wait": 0,
+          "bounce": 1,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.223865,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "no-progress",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "no-progress",
+          "candidates": 1
+        }
+      ],
+      "handoffs": 1,
+      "picks": 1,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t16-hover-reveal",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 10880,
+      "browser_tool_calls": 1,
+      "per_step_ms": 10880,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 225,
+        "cache_read_tokens": 142070,
+        "cache_write_tokens": 34859,
+        "usd": 0.176735,
+        "cli_reported_usd": 0.17011199999999999
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.176735,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t17-double-click",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 33239,
+      "browser_tool_calls": 7,
+      "per_step_ms": 4748,
+      "llm": {
+        "input_tokens": 20,
+        "output_tokens": 1701,
+        "cache_read_tokens": 567609,
+        "cache_write_tokens": 38647,
+        "usd": 0.340784,
+        "cli_reported_usd": 0.28515979999999996
+      },
+      "typesafe": {
+        "calls": 5,
+        "input_tokens": 3170,
+        "output_tokens": 838,
+        "usd": 0.000133
+      },
+      "wingman": {
+        "calls": 5,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 67,
+        "first_observe_ms": 7,
+        "observe_ms": 7,
+        "jev_ms": 0,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 5,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 136,
+        "observe_sum_ms": 34,
+        "jev_sum_ms": 249,
+        "act_sum_ms": 0,
+        "settle_sum_ms": 0,
+        "round_kinds": {
+          "act": 0,
+          "advance": 0,
+          "wait": 0,
+          "bounce": 4,
+          "done": 0,
+          "error": 0,
+          "other": 1
+        }
+      },
+      "usd": 0.340917,
+      "handoff_records": [
+        {
+          "status": "ambiguous",
+          "reason": "target-uncertain",
+          "steps": 0,
+          "rounds": 1,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          }
+        },
+        {
+          "status": "ambiguous",
+          "reason": "target-uncertain",
+          "steps": 0,
+          "rounds": 1,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          }
+        },
+        {
+          "status": "error",
+          "reason": "invalid-input",
+          "steps": 0,
+          "rounds": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "no-match",
+          "candidates": 0
+        },
+        {
+          "status": "ambiguous",
+          "reason": "target-uncertain",
+          "steps": 0,
+          "rounds": 1,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 5,
+      "picks": 3,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 2,
+        "mcp__jev-browser-wingman__browse_step": 6,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0.666667,
+      "median_wall_ms": 16992,
+      "median_usd": 0.223865,
+      "fallback_rate": 0.666667
+    }
+  }
+}
