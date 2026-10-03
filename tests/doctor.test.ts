@@ -15,14 +15,14 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_BUDGETS } from '../src/contract/constants.js';
 import { DOCTOR_CHECK_IDS } from '../src/contract/types.js';
-import type { DoctorCheckId, DoctorReport, SensitiveHostCategory, WingmanConfig } from '../src/contract/types.js';
+import type { DoctorCheckId, DoctorReport, Driver, SensitiveHostCategory, WingmanConfig } from '../src/contract/types.js';
 import { defaultUserDataDir } from '../src/browser/chrome.js';
 import { BUILTIN_HOSTS } from '../src/core/policy-data.js';
 import { createDefaultAsk } from '../src/core/jev-client.js';
 import { resolveEndpoint } from '../src/browser/acquire.js';
 import { CdpConnection } from '../src/adapters/cdp-connection.js';
 import { createCdpDriver } from '../src/adapters/cdp.js';
-import { fingerprint } from '../src/cli/coexistence-probe.js';
+import { fingerprint, fingerprintsReconcile, type ProbeFingerprint } from '../src/cli/coexistence-probe.js';
 import { launchTestChrome } from './helpers/chrome.js';
 import { startTypeSafeStub } from './helpers/typesafe-stub.js';
 import { closePageOnDetach, injectGlobal, createContextOnAttach } from './helpers/known-bad-drivers.js';
@@ -353,6 +353,11 @@ function scriptedConn(evalPlan: (callIndex: number, expression: string) => unkno
       if (method === 'Target.detachFromTarget') {
         return Promise.resolve({});
       }
+      if (method === 'Storage.getCookies') {
+        // The default-context check counts cookies through a page session;
+        // an empty list keeps that check green so coexistence really runs.
+        return Promise.resolve({ cookies: [] });
+      }
       if (method === 'Runtime.evaluate') {
         const outcome = evalPlan(++evalCalls, String((params as { expression?: string })?.expression));
         if (outcome instanceof Error) return Promise.reject(outcome);
@@ -407,6 +412,197 @@ test('coexistence probe: a persistently blocked page is still reported as a dial
   assert.equal(page.globalsHash, null);
   assert.equal(page.htmlAttrs, null);
   assert.equal(page.viewport, null);
+});
+
+// D-4 (r19, amended): reconciliation is gated on DEGRADED sides. The
+// pre-r19 retry was nested inside `onlyUrlsChanged`, so a starved before-side
+// fingerprint (sentinel timeouts -> dialogOpen + nulls) never reconciled: the
+// nulls differ from a clean after in globalsHash/htmlAttrs/viewport,
+// onlyUrlsChanged is false, and the retry never fired. An earlier draft that
+// re-fingerprinted BOTH sides on any mismatch was falsified by the known-bad
+// pins — a persistent attach-time write is absorbed into the re-read `before`
+// and real mutations escaped — so the shipped rule re-reads only a side whose
+// read was itself degraded (sentinel marker); healthy-vs-healthy mismatches
+// fail immediately with zero extra probes.
+function noOpDriver(): Driver {
+  return {
+    name: 'no-op',
+    attach: async () => {},
+    detach: async () => {},
+    pages: async () => [],
+    observe: async () => {
+      throw new Error('no-op driver: observe');
+    },
+    act: async () => {},
+    settle: async () => ({ settled: true, ms: 0 }),
+    onDialog: () => {},
+    answerDialog: async () => {},
+  } as unknown as Driver;
+}
+
+/** Full-doctor deps over a scripted connection: endpoint resolution is stubbed,
+ * every check shares the one fake connection, and the driver is a no-op, so
+ * the coexistence fingerprints are the ONLY Runtime.evaluate traffic. */
+function scriptedConnDeps(conn: CdpConnection): Partial<DoctorDeps> {
+  return {
+    resolveEndpointFn: async () => ({ endpoint: 'http://127.0.0.1:59999', source: 'probe' as const }),
+    cdpConnect: async () => conn,
+    driverFactory: () => noOpDriver(),
+  };
+}
+
+test('coexistence reconciles a starved before-side fingerprint (D-4 discriminating pin)', async () => {
+  // Pass 1 (the doctor's `before` fingerprint) starves: sentinel + its long
+  // retry both time out -> dialogOpen: true + null detail fields. Every later
+  // pass answers stable clean values.
+  const { conn } = scriptedConn((callIndex, expression) => {
+    if (callIndex <= 2) return TIMEOUT;
+    return EVAL_ANSWERS[expression] ?? new Error(`unplanned eval: ${expression}`);
+  });
+  const report = await runDoctor({ json: false }, baseDeps(scriptedConnDeps(conn)) as DoctorDeps);
+  // The prerequisites ran clean over the scripted connection, so coexistence
+  // really executed (a SKIP here would make the pin vacuous).
+  assert.equal(checkOf(report, 'adapter-attach').status, 'PASS');
+  assert.equal(checkOf(report, 'default-context').status, 'PASS');
+  assert.equal(
+    checkOf(report, 'coexistence').status,
+    'PASS',
+    `starved-before must reconcile through a both-sides re-fingerprint: ${checkOf(report, 'coexistence').detail}`,
+  );
+});
+
+test('coexistence still FAILs a genuine persistent mutation through the reconcile (D-4)', async () => {
+  // The before side always reads clean; the after side always reads with one
+  // extra global — a write that persists in every re-read, so no number of
+  // reconcile rounds may accept it.
+  let sentinelCalls = 0;
+  const { conn } = scriptedConn((_callIndex, expression) => {
+    if (expression === '1') {
+      sentinelCalls++;
+      return 1;
+    }
+    if (expression.startsWith('JSON.stringify(Object.getOwnPropertyNames')) {
+      // The sentinel of the current pass was just consumed; odd pass = before
+      // side (stable), even pass = after side (mutated).
+      return sentinelCalls % 2 === 1 ? '["a"]' : '["a","m"]';
+    }
+    return EVAL_ANSWERS[expression] ?? new Error(`unplanned eval: ${expression}`);
+  });
+  const report = await runDoctor({ json: false }, baseDeps(scriptedConnDeps(conn)) as DoctorDeps);
+  assert.equal(
+    checkOf(report, 'coexistence').status,
+    'FAIL',
+    'a persistent after-side mutation must stay FAIL no matter how many reconcile rounds run',
+  );
+});
+
+// Unit pins on the reconcile helper itself (D-4, amended): the common case
+// must cost ZERO extra probes, only a DEGRADED side earns a single re-read,
+// and a healthy-vs-healthy mismatch (the known-bad drivers' shape) fails
+// immediately without spending any probe.
+function cleanPage(globalsHash = 'h0'): ProbeFingerprint['pages'][number] {
+  return {
+    targetId: 't1',
+    url: 'about:blank',
+    dialogOpen: false,
+    globalsHash,
+    htmlAttrs: '0:0',
+    viewport: { w: 800, h: 600, dpr: 1 },
+  };
+}
+function starvedPage(): ProbeFingerprint['pages'][number] {
+  return {
+    targetId: 't1',
+    url: 'about:blank',
+    dialogOpen: true,
+    globalsHash: null,
+    htmlAttrs: null,
+    viewport: null,
+  };
+}
+function fpOf(...pages: Array<ProbeFingerprint['pages'][number]>): ProbeFingerprint {
+  return { contexts: [], pages };
+}
+
+test('fingerprintsReconcile: exact match accepts with zero reprobe rounds', async () => {
+  let reprobeCalls = 0;
+  const result = await fingerprintsReconcile(fpOf(cleanPage()), fpOf(cleanPage()), async () => {
+    reprobeCalls++;
+    return fpOf(cleanPage('other'));
+  });
+  assert.equal(result.match, true);
+  assert.equal(reprobeCalls, 0, 'an exact match must not spend any reprobe');
+  assert.deepEqual(result.after, fpOf(cleanPage()));
+});
+
+test('fingerprintsReconcile: a url-only difference accepts with zero reprobe rounds (lenience kept)', async () => {
+  let reprobeCalls = 0;
+  const after = fpOf({ ...cleanPage(), url: 'http://example.com/other' });
+  const result = await fingerprintsReconcile(fpOf(cleanPage()), after, async () => {
+    reprobeCalls++;
+    return fpOf(cleanPage());
+  });
+  assert.equal(result.match, true, 'the de78ea2 url-only lenience must survive the reconcile');
+  assert.equal(reprobeCalls, 0);
+  assert.deepEqual(result.after, after);
+});
+
+test('fingerprintsReconcile: a starved before earns exactly one BEFORE-side re-read', async () => {
+  const sides: string[] = [];
+  const result = await fingerprintsReconcile(fpOf(starvedPage()), fpOf(cleanPage()), async (side) => {
+    sides.push(side);
+    return fpOf(cleanPage('h0'));
+  });
+  assert.equal(result.match, true, 'a before-side read artifact must reconcile against the healthy after');
+  assert.deepEqual(sides, ['before'], 'only the degraded side is re-read, exactly once');
+  assert.deepEqual(result.after, fpOf(cleanPage()), 'the untouched after side is the freshest after');
+});
+
+test('fingerprintsReconcile: a degraded after earns exactly one AFTER-side re-read (the generalised retry)', async () => {
+  const sides: string[] = [];
+  const freshAfter = fpOf(cleanPage());
+  const before = fpOf(cleanPage());
+  const result = await fingerprintsReconcile(before, fpOf(starvedPage()), async (side) => {
+    sides.push(side);
+    return freshAfter;
+  });
+  assert.equal(result.match, true, 'an after-side read artifact must reconcile against the healthy before');
+  assert.deepEqual(sides, ['after']);
+  assert.equal(result.after, freshAfter, 'the re-read after is the freshest fingerprint (reference-equal)');
+});
+
+test('fingerprintsReconcile: healthy-vs-healthy mismatch FAILs immediately with zero reprobes (the teeth)', async () => {
+  let reprobeCalls = 0;
+  const result = await fingerprintsReconcile(fpOf(cleanPage()), fpOf(cleanPage('mutant')), async (side) => {
+    reprobeCalls++;
+    return fpOf(cleanPage());
+  });
+  assert.equal(result.match, false, 'a healthy before plus a healthy differing after is a genuine write');
+  assert.equal(reprobeCalls, 0, 'the injectGlobal/closePageOnDetach shape must not spend any reconcile probe');
+});
+
+test('fingerprintsReconcile: both sides degraded FAILs conservatively with zero reprobes', async () => {
+  let reprobeCalls = 0;
+  // Two DEGRADED but genuinely differing reads (different targets), so the
+  // exact/url-only fast paths do not absorb the case first.
+  const result = await fingerprintsReconcile(fpOf(starvedPage()), fpOf({ ...starvedPage(), targetId: 't2' }), async () => {
+    reprobeCalls++;
+    return fpOf(cleanPage());
+  });
+  assert.equal(result.match, false, 'two unreadable reads cannot be told apart from a write — fail');
+  assert.equal(reprobeCalls, 0);
+});
+
+test('fingerprintsReconcile: a degraded after whose re-read still differs ends { match: false } after one re-read', async () => {
+  let reprobeCalls = 0;
+  const before = fpOf(cleanPage());
+  const result = await fingerprintsReconcile(before, fpOf(starvedPage()), async () => {
+    reprobeCalls++;
+    return fpOf(cleanPage(`stillDegrading${reprobeCalls}`));
+  });
+  assert.equal(result.match, false);
+  assert.equal(reprobeCalls, 1, 'the single-side retry is bounded at one round');
+  assert.deepEqual(result.after, fpOf(cleanPage('stillDegrading1')), 'the returned after is the last one seen');
 });
 
 test('jev-round fails against a stub answering 500', async () => {

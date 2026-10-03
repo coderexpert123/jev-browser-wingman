@@ -652,3 +652,22 @@
   legs), past the 10-min foreground cap — run it as a DETACHED process (`Start-Process python -u`,
   output redirected, PID saved) and poll the log; the reaper only kills Claude's own background
   shells, and `python -u` streams per-flag OK lines so liveness is visible.
+
+- **r19 upload evidence (D-3, 2026-10-03): the spec's literal `checkFlipResult` body was
+  self-contradictory and is NOT what shipped.** The draft wrote
+  `if (!KB_UPLOAD_EVIDENCE && actResult === 'uploaded') return undefined;` — that strips the
+  evidence when the flag is FALSE, so shipped code would never store 'uploaded' and flipping
+  the mutant would ENACT the fix instead of killing it. Shipped polarity is
+  `if (KB_UPLOAD_EVIDENCE && actResult === 'uploaded') return undefined;` (flip = restore the
+  pre-fix void, per the D-11 convention and the spec's own D6 item 4 note). Proven by
+  instrumentation during the WP-2 fail-first: with the spec's literal body, `actFlip` came
+  back undefined at the act site despite the driver returning 'uploaded'. Lesson: when a
+  spec pins a KB-flag expression, derive the polarity from the mutant convention first and
+  only then check the literal.
+- **The cdp adapter's `act()` DISCARDS `actRaced`'s return** (found 2026-10-03): the op
+  switch lives inside `private actRaced(...)`, and `act()`'s element-targeted path was
+  `await this.actRaced(...);` with no propagation — an act-returned value silently fell off
+  the end as undefined (the playwright adapter's switch is inline in `act`, so the same edit
+  works there with no wrapper change). Any future act-returned value needs BOTH the switch
+  case `return` AND `return this.actRaced(...)` at the targeted call site (done for upload;
+  the targetless path still discards deliberately — targetless ops carry no result).

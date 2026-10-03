@@ -26,6 +26,13 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
    * sibling-label resolution. Lives INSIDE enumerate's function body so it
    * stringifies along; never flip in shipped code. */
   var KB_HIDDEN_SIBLING = false;
+  /** KB proof switches (r19 D-1/D-2 mutants): flip = restore pre-fix
+   * behaviour (no th enumeration / no ondblclick candidacy). Same body-local
+   * shape as KB_HIDDEN_SIBLING so they stringify along; never flip in
+   * shipped code. KB_TABLE_HEADERS also has a questions.ts const twin that a
+   * mutant flips with this one. */
+  var KB_TABLE_HEADERS = false;
+  var KB_DBLCLICK_ENUM = false;
 
   function clip(s: string, n: number): string {
     return s.length > n ? s.slice(0, n) : s;
@@ -67,6 +74,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
       return 'textbox';
     }
     if (tag === 'summary') return 'button';
+    if (!KB_TABLE_HEADERS && tag === 'th') return 'columnheader';
     if (tag === 'textarea') return 'textbox';
     if (tag === 'select') {
       var selEl = el as HTMLSelectElement;
@@ -76,6 +84,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     }
     if ((el as HTMLElement).isContentEditable) return 'textbox';
     if (el.hasAttribute('onclick')) return 'button';
+    if (!KB_DBLCLICK_ENUM && el.hasAttribute('ondblclick')) return 'button';
     return '';
   }
   function roleOf(el: Element): string {
@@ -188,6 +197,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     var tag = el.tagName.toLowerCase();
     if (tag === 'a') return el.hasAttribute('href');
     if (tag === 'button' || tag === 'select' || tag === 'textarea' || tag === 'summary') return true;
+    if (!KB_TABLE_HEADERS && tag === 'th') return true;
     if (tag === 'input') return (el.getAttribute('type') || '').toLowerCase() !== 'hidden';
     return false;
   }
@@ -196,6 +206,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     var ce = el.getAttribute('contenteditable');
     if (ce === '' || ce === 'true') return true;
     if (el.hasAttribute('onclick')) return true;
+    if (!KB_DBLCLICK_ENUM && el.hasAttribute('ondblclick')) return true;
     var role = el.getAttribute('role');
     if (role && ROLE_VALUES.indexOf(role) !== -1) return true;
     return false;
@@ -264,6 +275,16 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     var vpRect = pathEl.getBoundingClientRect();
     var inViewport =
       vpRect.bottom > 0 && vpRect.right > 0 && vpRect.top < window.innerHeight && vpRect.left < window.innerWidth;
+
+    // r19 (D-1): the enclosing table's id, so identical headers across
+    // tables on one page stay distinguishable in the criteria (t7's table1 vs
+    // table2 "Last Name"). Assigned ONLY when found — an absent key, never
+    // { tableId: undefined }. Deliberately NOT in the fingerprint.
+    var tableId: string | undefined;
+    if (!KB_TABLE_HEADERS) {
+      var tbl = pathEl.closest('table');
+      if (tbl && tbl.id) tableId = clip(tbl.id, 80);
+    }
 
     // Enumerate-time occlusion probe (§ 3.5 amendment 2026-09-21h): what is
     // on top at the record's center right now? A hit that is neither the
@@ -345,6 +366,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     if (options) record.options = options;
     record.obscured = obscured;
     if (obscured) record.coveredBy = coveredBy;
+    if (tableId !== undefined) record.tableId = tableId;
     return record;
   }
 
@@ -503,6 +525,7 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
       return 'textbox';
     }
     if (tag === 'summary') return 'button';
+    if (tag === 'th') return 'columnheader'; // r19 D-1: ungated mirror of enumerate's th role
     if (tag === 'textarea') return 'textbox';
     if (tag === 'select') {
       var selEl = el as HTMLSelectElement;
@@ -510,6 +533,7 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
     }
     if ((el as HTMLElement).isContentEditable) return 'textbox';
     if (el.hasAttribute('onclick')) return 'button';
+    if (el.hasAttribute('ondblclick')) return 'button'; // r19 D-2: ungated mirror of enumerate's ondblclick role
     return '';
   }
   function roleOf(el: Element): string {

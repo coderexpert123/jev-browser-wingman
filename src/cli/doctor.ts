@@ -49,7 +49,7 @@ import {
   type ClientId,
   type RegistrationEntry,
 } from './registrations.js';
-import { fingerprint, onlyUrlsChanged } from './coexistence-probe.js';
+import { fingerprint, fingerprintsReconcile } from './coexistence-probe.js';
 
 /** An extension/endpoint flag entry matches an argument equal to the flag or
  * starting with <flag>= (§ 5.8a; mirrors detect.ts's own copy — that file is
@@ -432,12 +432,15 @@ export async function runDoctor(
       const driver = (deps.driverFactory ?? ((cf: WingmanConfig) => createDriver(cf.adapter)))(c);
       await driver.attach({ cdpEndpoint: endpoint! });
       await driver.detach();
-      let after = await fingerprint(conn);
-      if (JSON.stringify(before) !== JSON.stringify(after) && onlyUrlsChanged(before, after)) {
-        after = await fingerprint(conn);
-      }
-      if (JSON.stringify(before) === JSON.stringify(after)) {
-        add('coexistence', 'PASS', `observer fingerprint identical across attach/detach (${after.pages.length} page(s))`);
+      const after = await fingerprint(conn);
+      // D-4 (r19, amended): reconcile only when a side's read was DEGRADED
+      // (sentinel path). Healthy-vs-healthy mismatches are genuine writes and
+      // fail immediately with no extra probes — the known-bad drivers' teeth
+      // stay intact.
+      const live = conn;
+      const { match, after: freshAfter } = await fingerprintsReconcile(before, after, () => fingerprint(live));
+      if (match) {
+        add('coexistence', 'PASS', `observer fingerprint identical across attach/detach (${freshAfter.pages.length} page(s))`);
       } else {
         add('coexistence', 'FAIL', 'observer fingerprint changed across attach/detach');
       }

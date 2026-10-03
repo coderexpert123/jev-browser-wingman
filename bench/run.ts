@@ -150,7 +150,24 @@ export interface BenchResultsFile {
   aborted: null | 'cap' | 'error';
   total_usd: number;
   runs: BenchRunRecord[];
-  summary: Record<string, { success_rate: number; median_wall_ms: number; median_usd: number; fallback_rate: number }>;
+  summary: Record<string, {
+    success_rate: number;
+    median_wall_ms: number;
+    median_usd: number;
+    fallback_rate: number;
+    // r19 D9 (M-2): the wall spread over the route's cells, feeding the
+    // publish table's wall spread column (n=2 medians are noisy; the spread
+    // carries that honesty).
+    wall_min_ms: number;
+    wall_max_ms: number;
+  }>;
+  // r19 D9 (M-2): per task×route aggregates over repeats for the publish
+  // table's pair lines. Absent on results files written before this field
+  // existed (report.ts omits the block when it is missing).
+  task_pairs?: Record<
+    string,
+    Record<string, { n: number; ok: number; wall_min_ms: number; wall_med_ms: number; wall_max_ms: number; median_usd: number }>
+  >;
 }
 
 export interface BenchDeps {
@@ -405,9 +422,44 @@ function summarize(runs: BenchRunRecord[]): BenchResultsFile['summary'] {
       median_wall_ms: round6(median(rows.map((r) => r.wall_ms))),
       median_usd: round6(median(rows.map((r) => r.usd))),
       fallback_rate: round6(fallbacks / rows.length),
+      wall_min_ms: round6(Math.min(...rows.map((r) => r.wall_ms))),
+      wall_max_ms: round6(Math.max(...rows.map((r) => r.wall_ms))),
     };
   }
   return summary;
+}
+
+// r19 D9 (M-2): per task×route aggregates over repeats. Pure; `ok` counts
+// records with ok === true; min/med/max and median_usd follow the same
+// median()/round6 semantics as summarize. Exported for the bench-browse pin.
+export function summarizePairs(runs: BenchRunRecord[]): NonNullable<BenchResultsFile['task_pairs']> {
+  const groups = new Map<string, Map<string, BenchRunRecord[]>>();
+  for (const run of runs) {
+    let byRoute = groups.get(run.task);
+    if (!byRoute) {
+      byRoute = new Map();
+      groups.set(run.task, byRoute);
+    }
+    const rows = byRoute.get(run.route);
+    if (rows) rows.push(run);
+    else byRoute.set(run.route, [run]);
+  }
+  const pairs: NonNullable<BenchResultsFile['task_pairs']> = {};
+  for (const [task, byRoute] of groups) {
+    pairs[task] = {};
+    for (const [route, rows] of byRoute) {
+      const walls = rows.map((r) => r.wall_ms);
+      pairs[task][route] = {
+        n: rows.length,
+        ok: rows.filter((r) => r.ok === true).length,
+        wall_min_ms: round6(Math.min(...walls)),
+        wall_med_ms: round6(median(walls)),
+        wall_max_ms: round6(Math.max(...walls)),
+        median_usd: round6(median(rows.map((r) => r.usd))),
+      };
+    }
+  }
+  return pairs;
 }
 
 export interface RunContext {
@@ -508,6 +560,17 @@ interface LoggedRecord {
   // WP-outcome-evidence WP-C: written by loop.ts's buildLogRecord from the
   // call's final step_review, why + a candidate COUNT only (never labels).
   step_review?: { why?: unknown; candidates?: unknown };
+}
+
+// r19 D-5 (spec C2): slice the fresh tail of the log by BYTE offset. `before`
+// comes from fs.statSync().size — a byte count — but slicing the DECODED
+// string by it cuts N UTF-16 code units into the fresh region whenever the
+// prefix holds any multi-byte UTF-8 character (a U+2026 in a t9 goal clause
+// is enough). The first fresh line then loses its head, JSON.parse fails, and
+// both parsers skip it silently, so single-call cells under-count handoffs
+// and wingman.calls. Buffers slice in bytes, so the two sides agree.
+export function freshLogSlice(buf: Buffer, before: number): string {
+  return buf.subarray(before).toString('utf8');
 }
 
 // WP-F F3: parse a run's fresh log lines into `browse_step` handoff records
@@ -644,7 +707,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     const roundPhases: AggregateRound[] = [];
     const freshLines: string[] = [];
     if (fs.existsSync(logPath)) {
-      const fresh = fs.readFileSync(logPath, 'utf8').slice(before);
+      const fresh = freshLogSlice(fs.readFileSync(logPath), before);
       for (const line of fresh.split('\n')) {
         if (!line.trim()) continue;
         freshLines.push(line);
@@ -1039,6 +1102,7 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       total_usd: round6(runs.reduce((s, r) => s + r.usd, 0)),
       runs,
       summary: summarize(runs),
+      task_pairs: summarizePairs(runs),
     };
     try {
       fs.mkdirSync(resultsDir, { recursive: true });

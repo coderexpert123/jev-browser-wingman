@@ -19,6 +19,11 @@ export const CHAIN_FOCUS_SENTENCE = "The state's step is the part of the goal to
 // that number applies, so it stays local rather than in the shared constants.
 const GROUP_TEXT_MAX = 300;
 
+// KB proof switch (r19 D-1 mutant): flip = restore pre-fix criteria (no
+// `(in table tableN)` suffix). Twin of the `var KB_TABLE_HEADERS` inside
+// page-scripts' enumerate body — a mutant flips BOTH anchors.
+const KB_TABLE_HEADERS = false;
+
 // § 3.7 rule 8: an option request "carries that binding's name" when one was
 // chosen. The base question is the pinned § 3.6 wording; the name rides as one
 // extra sentence before the fixed untrusted sentence, which always stays last.
@@ -187,9 +192,11 @@ function machineAttributes(el: ElementRecord): string {
 /**
  * Target criterion text for one element: `<role> "<name>"<suffix>` cut to
  * CRITERION_MAX chars. Suffix parts, each only when the state field is
- * present, in order: checked/unchecked, empty/filled, disabled, selected.
- * An empty name renders `<role> (no label)` instead of the quoted form.
- * Form controls append § 3.5's machine-attribute enrichment before the cut.
+ * present, in order: checked/unchecked, empty/filled, disabled, selected,
+ * then `(in table <tableId>)` (r19 D-1, when the record carries a non-empty
+ * `tableId`). An empty name renders `<role> (no label)` instead of the quoted
+ * form. Form controls append § 3.5's machine-attribute enrichment after all
+ * suffixes, before the cut.
  */
 export function elementCriterion(el: ElementRecord): string {
   const suffixParts: string[] = [];
@@ -199,8 +206,10 @@ export function elementCriterion(el: ElementRecord): string {
   if (el.state.selected !== undefined) suffixParts.push(` (selected: ${el.state.selected})`);
   const suffix = suffixParts.join('');
   const base = el.name ? `${el.role} "${el.name}"${suffix}` : `${el.role} (no label)${suffix}`;
+  const table =
+    !KB_TABLE_HEADERS && typeof el.tableId === 'string' && el.tableId !== '' ? ` (in table ${el.tableId})` : '';
   const attrs = machineAttributes(el);
-  return (attrs ? base + attrs : base).slice(0, CRITERION_MAX);
+  return (base + table + attrs).slice(0, CRITERION_MAX);
 }
 
 function targetCriteria(elements: ElementRecord[], bindings: Record<string, string>): Record<string, string> {

@@ -25,8 +25,11 @@ import {
   handoffRecordsFromLog,
   firstInvalidRun,
   deriveRawCounts,
+  freshLogSlice,
+  summarizePairs,
   type BenchAppConfig,
   type BenchDeps,
+  type BenchResultsFile,
   type BenchRoute,
   type BenchRunRecord,
   type BenchTask,
@@ -533,6 +536,97 @@ test('handoffRecordsFromLog parses browse_step lines only, with rounds and progr
   assert.deepEqual(recs[1].progress, { step_index: 1, steps_done: 1, steps_total: 4 });
   // first_call_invalid: only the LEADING run of invalid-input records counts.
   assert.equal(firstInvalidRun(recs), 1);
+});
+
+// --- r19 WP-4: the log slice fix (spec D-5/C2) and the M-2 summary fields (D9)
+
+test('freshLogSlice slices bytes, not characters; the old string-slice form is pinned broken', () => {
+  // The C2 shape: a U+2026 (3 UTF-8 bytes, 1 UTF-16 code unit) in the log's
+  // prefix — exactly what a t9 goal clause quoting "…after the fact…" puts
+  // there. `before` is a statSync().size BYTE count.
+  const prefix = 'pre…fix\n';
+  const record = JSON.stringify({
+    ts: 't1',
+    tool: 'browse_step',
+    status: 'done',
+    reason: 'goal-met',
+    steps: 2,
+    phases: { rounds: [{}, {}] },
+  });
+  const buf = Buffer.from(prefix + record + '\n', 'utf8');
+  const before = Buffer.byteLength(prefix, 'utf8');
+  assert.ok(before > prefix.length, 'precondition: the prefix must hold multi-byte UTF-8');
+  const fromBuffer = handoffRecordsFromLog(freshLogSlice(buf, before).split('\n'));
+  assert.equal(fromBuffer.length, 1, 'the byte-sliced fresh region must parse as exactly 1 handoff record');
+  assert.equal(fromBuffer[0].status, 'done');
+  assert.equal(fromBuffer[0].reason, 'goal-met');
+  assert.equal(fromBuffer[0].rounds, 2);
+  // The documented-bad contrast, pinned literally (spec WP-4 pin a): the old
+  // form slices the DECODED string by the byte count, cutting 2 characters
+  // into the fresh region, so the first fresh line loses its head,
+  // JSON.parse fails, and the record is silently skipped (0 counted from a
+  // 1-call cell). This assertion cannot regress without failing here.
+  const fromString = handoffRecordsFromLog(buf.toString('utf8').slice(before).split('\n'));
+  assert.equal(fromString.length, 0, 'the old string-slice form must stay broken — it is WHY the fix exists');
+});
+
+test('run.ts reads the fresh log tail as a Buffer subarray, never a decoded-string slice', () => {
+  // Source-shape pin (spec WP-4 pin b): the tripwire for a revert to
+  // string-slice. Red against the pre-fix source by construction.
+  const src = fs.readFileSync(path.join(ROOT, 'bench', 'run.ts'), 'utf8');
+  assert.ok(src.includes('readFileSync(logPath), before)'), 'the freshLogSlice buffer call is missing from the read path');
+  assert.ok(!src.includes("readFileSync(logPath, 'utf8').slice("), 'revert to string-slice detected in the fresh-log read');
+});
+
+test('summarizePairs aggregates per task x route with n/ok/wall spread/median usd', () => {
+  const run = (over: Partial<BenchRunRecord>): BenchRunRecord => ({
+    ...fakeRecord(TASK, 'forced', 0.02),
+    ...over,
+  });
+  const pairs = summarizePairs([
+    run({ task: 't9-long-chain', route: 'forced', ok: true, wall_ms: 300, usd: 0.04 }),
+    run({ task: 't9-long-chain', route: 'browse', ok: false, wall_ms: 200, usd: 0.03 }),
+    run({ task: 't9-long-chain', route: 'forced', ok: true, wall_ms: 100, usd: 0.02 }),
+  ]);
+  assert.deepEqual(pairs, {
+    't9-long-chain': {
+      forced: { n: 2, ok: 2, wall_min_ms: 100, wall_med_ms: 200, wall_max_ms: 300, median_usd: 0.03 },
+      browse: { n: 1, ok: 0, wall_min_ms: 200, wall_med_ms: 200, wall_max_ms: 200, median_usd: 0.03 },
+    },
+  });
+});
+
+test('the results file carries wall min/max on the route summary and task_pairs beside it', async () => {
+  const resDir = tmpDir('jevw-pairs-ok-');
+  const pricesPath = writePrices(tmpDir('jevw-pairs-prices-'));
+  const walls = [100, 300];
+  let call = 0;
+  const runOne: BenchDeps['runOne'] = async (task, route) => {
+    const wall = walls[Math.min(call, walls.length - 1)];
+    call += 1;
+    return { record: { ...fakeRecord(task, route, 0.02), wall_ms: wall }, usd: 0.02 };
+  };
+  const { exit, err } = await capture(() =>
+    runBench(
+      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--repeats', '2'],
+      baseDeps(resDir, pricesPath, runOne),
+    ),
+  );
+  assert.equal(err, '');
+  assert.equal(exit, 0);
+  const files = resultsFiles(resDir);
+  assert.equal(files.length, 1);
+  const parsed = JSON.parse(fs.readFileSync(path.join(resDir, files[0]), 'utf8')) as BenchResultsFile;
+  assert.equal(parsed.summary.forced?.wall_min_ms, 100);
+  assert.equal(parsed.summary.forced?.wall_max_ms, 300);
+  assert.deepEqual(parsed.task_pairs?.['t9-long-chain']?.forced, {
+    n: 2,
+    ok: 2,
+    wall_min_ms: 100,
+    wall_med_ms: 200,
+    wall_max_ms: 300,
+    median_usd: 0.02,
+  });
 });
 
 // --- tool_use tallying and the raw derivation -------------------------------

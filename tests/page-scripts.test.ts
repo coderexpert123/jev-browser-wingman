@@ -549,3 +549,89 @@ test('shadow-boundary.html enumerates the host record only and zero shadow-inter
     await close();
   }
 });
+
+// r19 (D-1): DataTables-style sort headers are bare <th> elements wired by JS
+// event binding — no onclick, no role. They must enumerate as columnheader so
+// Jev's honest `none` ("no listed element matches") becomes answerable.
+test('table-headers.html enumerates th as columnheader under the table path', async () => {
+  const { page, close } = await withPage('/table-headers.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const headers = obs.elements.filter((e) => e.tag === 'th');
+    assert.strictEqual(headers.length, 4, 'expected the 4 th records');
+    for (const h of headers) {
+      assert.strictEqual(h.role, 'columnheader', `record ${String(h.id)} carries role columnheader`);
+    }
+    const t1 = headers.filter((h) => String(h.path).startsWith('#table1 >'));
+    const t2 = headers.filter((h) => String(h.path).startsWith('#table2 >'));
+    assert.strictEqual(t1.length, 2, 'two headers under #table1');
+    assert.strictEqual(t2.length, 2, 'two headers under #table2');
+  } finally {
+    await close();
+  }
+});
+
+// r19 (D-1/D4): the two identical "Last Name" headers stay distinguishable —
+// the enclosing table's id rides the record as tableId. Absence control: an
+// element outside any table carries NO tableId key at all (the
+// deepStrictEqual trap — absent, never { tableId: undefined }).
+test('tableId names the enclosing table and is absent outside one', async () => {
+  const { page, close } = await withPage('/table-headers.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const lastNames = obs.elements.filter((e) => e.tag === 'th' && e.name === 'Last Name');
+    assert.strictEqual(lastNames.length, 2);
+    const ids = lastNames.map((e) => e.tableId).sort();
+    assert.deepStrictEqual(ids, ['table1', 'table2']);
+    const inTableButton = obs.elements.find((e) => e.name === 'Sort rows');
+    assert.ok(inTableButton, 'expected the in-table button');
+    assert.strictEqual(inTableButton!.tableId, 'table2');
+    const outside = obs.elements.find((e) => e.name === 'Outside control');
+    assert.ok(outside, 'expected the outside div (role=button candidacy)');
+    assert.ok(!('tableId' in outside!), 'the outside div carries no tableId key');
+  } finally {
+    await close();
+  }
+});
+
+// r19 (D-2): an ondblclick attribute alone (no onclick, no role) is a
+// candidacy and role signal — the t17 fixture enumerates as a named button.
+test('double-click.html enumerates the ondblclick div as a named button', async () => {
+  const { page, close } = await withPage('/double-click.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const target = obs.elements.find((e) => e.path === '#dbl-target');
+    assert.ok(target, 'expected the #dbl-target record (zero records pre-fix)');
+    assert.strictEqual(target!.role, 'button');
+    assert.strictEqual(target!.name, 'Counters box');
+  } finally {
+    await close();
+  }
+});
+
+// r19: the enumerate/verify fingerprint contract must hold for the new roles —
+// verify's implicitRole mirrors columnheader and the ondblclick button.
+test('verify round-trips the new roles (columnheader, ondblclick button)', async () => {
+  const { page, close } = await withPage('/table-headers.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const header = obs.elements.find((e) => e.tag === 'th' && e.name === 'Last Name');
+    assert.ok(header, 'expected a Last Name header record');
+    const fp1 = header!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+    const r1 = (await page.evaluate(buildVerifyExpression(header!.path as string, fp1))) as { ok: boolean };
+    assert.deepStrictEqual(r1, { ok: true });
+  } finally {
+    await close();
+  }
+  const { page: page2, close: close2 } = await withPage('/double-click.html');
+  try {
+    const obs = await enumerateAt(page2, { maxElements: 240, maxTextChars: 3000 });
+    const target = obs.elements.find((e) => e.path === '#dbl-target');
+    assert.ok(target, 'expected the #dbl-target record');
+    const fp2 = target!.fingerprint as { tag: string; role: string; name: string; x: number; y: number };
+    const r2 = (await page2.evaluate(buildVerifyExpression(target!.path as string, fp2))) as { ok: boolean };
+    assert.deepStrictEqual(r2, { ok: true });
+  } finally {
+    await close2();
+  }
+});

@@ -887,3 +887,66 @@ withheld — this file rides a public-bound repository). Gates:
   red herring**: a 1-call cell losing its first record reads as 0, a 4-call cell reads
   as 3. Shape correlations on under-counts deserve a byte-level look before a
   mechanism story.
+
+## Gotchas from WP-1 enumeration coverage (r19, 2026-10-03)
+
+- **KB flags compose as `!KB_X && <new>`, never `KB_X && <new>`** (r19 WP-1, proven by a
+  full red gate): the convention is flip = restore PRE-fix behaviour, so the new path
+  must be active while the flag is `false`. Writing `if (KB_TABLE_HEADERS && tag ===
+  'th')` ships pre-fix behaviour with every pin red at the gate — and the failure looks
+  like "fix didn't work", not like an inversion. The r17 precedent to copy is
+  `KB_HIDDEN_SIBLING`'s ternary (`KB_X ? <old> : <new>`); the negated-&& form is the
+  same polarity for a plain guard line.
+- **The memory-pressure reaper killing a backgrounded scoped gate orphans ~100+ test
+  chromes, not a handful** (111 swept after one reap of `run-tests.mjs page-scripts
+  questions adapter-cdp adapter-playwright` mid-adapter-leg). The existing reaper
+  gotcha said "run bench cells foreground"; the same applies to any scoped gate that
+  includes Chrome-backed adapter files — split the gate into per-basename foreground
+  chunks (adapter-cdp ~3 min, adapter-playwright ~2.5 min, alone) instead of one
+  invocation that outlives the 10-min foreground cap and gets backgrounded.
+- **`pathEl.closest('table')` must run on pathEl, not el** (r19 D2 item 3): for a
+  proxied hidden control the record's path is the label, and the table context must
+  agree with the path the verifier will re-find. (No current fixture exercises a
+  proxied control inside a table — the table-headers fixture pins the plain cases; the
+  choice is defensive.)
+
+## Gotchas from WP-5 (2026-10-03)
+
+- **A source-shape tripwire cannot ride the flag-flip mutant mechanics.** The
+  mutants runner only knows `= false` → `= true` anchor flips; D-11's run.ts
+  slice tripwire is a line REPLACEMENT (good line out, bad line in). A pure
+  one-array append would have produced a no-op mutation the pin passes against
+  (the runner replaces the anchor with itself when the anchor has no
+  `= false;`). The runner now takes an optional 4th tuple element: anchor =
+  the literal good source line, 4th element = the bad line to substitute.
+  Any future "revert-detection" mutant uses that form, never a fake flag.
+- **The readme-bench old-file fallback renders NO context line.** The r19
+  context line claims "medians over interleaved cells" — true only of the M-2
+  protocol; printing it over a harness-2 file would be a false provenance
+  claim. Old results files (no wall_min_ms/wall_max_ms on every summary row)
+  render exactly the pre-r19 four-column block, nothing added. The context
+  line + spread column appear only when every summary row carries the spread.
+- **The spec's tracked-strays list was stale at execution time**: WP-5 step 5
+  named two tracked results files, but seven were tracked by then (five more
+  2026-09-22 files landed tracked after C6 was written). C6's general rule +
+  the DONE criterion ("ls-files returns only .gitkeep") governed; all seven
+  were `git rm --cached`'d, local copies intact on disk.
+
+## Gotchas from the r19 verification pass (2026-10-03)
+
+- **The committed spec's D6 item 3 code block still carries the inverted polarity.**
+  `.build-r19-spec.md` line 175 shows `if (!KB_UPLOAD_EVIDENCE && ...) return undefined;`
+  while `src/core/loop.ts` ships `if (KB_UPLOAD_EVIDENCE && ...)` (the corrected polarity;
+  code, mutants file and tests all agree). The spec carries no amendment marker for it —
+  unlike D7's blockquote — so the spec document is still self-contradictory (its own D6
+  item 4 note is only true under the shipped polarity). Any re-derivation of WP-2 from the
+  spec literal will reintroduce the bug; fold a D6 amendment blockquote into the spec's
+  next commit (the file already carries the uncommitted WP-3 amendment).
+- **`fingerprintsReconcile`'s guarantee is "healthy-before teeth", not "all writes".**
+  When the BEFORE read is degraded (sentinel marker) and the after read is healthy, the
+  one-shot before re-read happens post-attach (doctor wiring reuses the live conn), so it
+  reads the same world as `after` and a persistent attach-time write coinciding with an
+  unrelated degraded before-read is accepted. That is the amended rule's literal semantics
+  (a degraded before proves nothing), not an implementation slip — both-healthy and
+  both-degraded mismatches fail with zero probes. Known-bad teeth live only in the
+  healthy-vs-healthy arm.

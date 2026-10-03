@@ -130,6 +130,30 @@ test('machine attributes are omitted when absent or empty', () => {
   assert.equal(elementCriterion(notes), 'textbox "Notes" (filled)');
 });
 
+// r19 (D-1/D3): the enclosing table's id rides the criterion between the
+// state suffix and the machine attributes, so two identical headers on one
+// page stay distinguishable (t7's table1 vs table2 "Last Name").
+test('table context rides the criterion as (in table tableN)', () => {
+  const header = {
+    ...mkEl({ id: 'e1', role: 'columnheader', name: 'Last Name' }),
+    tag: 'th',
+    tableId: 'table1',
+  };
+  assert.equal(elementCriterion(header), 'columnheader "Last Name" (in table table1)');
+
+  // With a state suffix the table context comes after it.
+  const disabled = {
+    ...mkEl({ id: 'e2', role: 'columnheader', name: 'Last Name', state: { disabled: true } }),
+    tag: 'th',
+    tableId: 'table2',
+  };
+  assert.equal(elementCriterion(disabled), 'columnheader "Last Name" (disabled) (in table table2)');
+
+  // No tableId: renders exactly as today.
+  const plain = mkEl({ id: 'e3', role: 'button', name: 'Continue' });
+  assert.equal(elementCriterion(plain), 'button "Continue"');
+});
+
 test('an empty name renders (no label)', () => {
   const el = mkEl({ id: 'e1', role: 'button', name: '', state: { disabled: false } });
   assert.equal(elementCriterion(el), 'button (no label)');

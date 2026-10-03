@@ -64,6 +64,7 @@ export interface ElementRecord {
   options?: Array<{ value: string; label: string }>;   // native <select> only; label ≤80, value ≤200
   obscured?: boolean;      // § 3.5 amendment 2026-09-21h: the enumerate-time occlusion probe found another element on top
   coveredBy?: string;      // what covers it when `obscured` (tag plus #id), ≤80 chars; page-derived — redact before egress
+  tableId?: string;        // the enclosing `<table>`'s id attribute, ≤80 chars, else absent; page-derived — criteria rendering redacts
   fingerprint: Fingerprint;
 }
 

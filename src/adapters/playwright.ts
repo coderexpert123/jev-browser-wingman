@@ -591,7 +591,10 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
               throw new ActFailedError('upload requires a value');
             }
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).setInputFiles(value, timeout));
-            break;
+            // r19 (D3): a successful set reports its own completion — the
+            // input's value is unreadable post-set, so success is the only
+            // path that reaches this return (failures throw ActFailedError).
+            return 'uploaded';
           }
           case 'scroll_to':
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).scrollIntoViewIfNeeded(timeout));

@@ -160,3 +160,65 @@ export function onlyUrlsChanged(before: ProbeFingerprint, after: ProbeFingerprin
   }
   return true;
 }
+
+/** A read that came back through one of `probePage`'s failure paths: the page
+ * could not be attached, the sentinel timed out twice (dialog or starved
+ * renderer), or a detail eval failed. Such a fingerprint proves nothing about
+ * page content — every field it differs on is a read artifact, not write
+ * evidence. */
+function readDegraded(fp: ProbeFingerprint): boolean {
+  return fp.pages.some(
+    (p) => p.dialogOpen || p.globalsHash === null || p.htmlAttrs === null || p.viewport === null,
+  );
+}
+
+/**
+ * D-4 (r19, amended): decide whether a before/after fingerprint mismatch is a
+ * transient read artifact or a genuine observer write.
+ *
+ * The original design re-fingerprinted BOTH sides on any mismatch; that
+ * premise was falsified by the known-bad pins — an attach-time persistent
+ * write (an injected global, a closed page target) is absorbed into the
+ * re-read `before`, the fresh pair matches, and real mutations escape. The
+ * amended rule gates reconciliation on DEGRADED sides, using the sentinel's
+ * own marker:
+ *
+ * - both sides healthy (real values) and differing: a genuine mutation —
+ *   FAIL immediately, zero extra probes. This is where the known-bad
+ *   drivers' teeth live.
+ * - before degraded, after healthy: the before side proved nothing; re-read
+ *   BEFORE once and accept iff it now matches the original after (exact, or
+ *   url-only — the de78ea2 lenience).
+ * - before healthy, after degraded: the mirror — re-read AFTER once and
+ *   accept iff it now matches the original before. This generalizes the
+ *   pre-r19 onlyUrlsChanged retry to the degraded case.
+ * - both degraded: two reads that prove nothing cannot be told apart from a
+ *   write — FAIL conservatively with no retry (a transient false FAIL is
+ *   visible on a doctor re-run; a false PASS hides a write).
+ *
+ * Returns `{ match, after }` where `after` is the freshest after-side
+ * fingerprint seen, so the caller's PASS message needs no extra call. */
+export async function fingerprintsReconcile(
+  before: ProbeFingerprint,
+  after: ProbeFingerprint,
+  reprobe: (side: 'before' | 'after') => Promise<ProbeFingerprint>,
+): Promise<{ match: boolean; after: ProbeFingerprint }> {
+  const matches = (b: ProbeFingerprint, a: ProbeFingerprint) =>
+    JSON.stringify(b) === JSON.stringify(a) || onlyUrlsChanged(b, a);
+  if (matches(before, after)) {
+    return { match: true, after };
+  }
+  const beforeDegraded = readDegraded(before);
+  const afterDegraded = readDegraded(after);
+  if (beforeDegraded && !afterDegraded) {
+    const freshBefore = await reprobe('before');
+    return { match: matches(freshBefore, after), after };
+  }
+  if (!beforeDegraded && afterDegraded) {
+    const freshAfter = await reprobe('after');
+    return { match: matches(before, freshAfter), after: freshAfter };
+  }
+  // both healthy (a genuine write) or both degraded (two unreadable reads) —
+  // fail without spending a probe.
+  return { match: false, after };
+}

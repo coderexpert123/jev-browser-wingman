@@ -298,7 +298,9 @@ function adapterSuite(adapter: 'playwright' | 'cdp'): void {
         await writeFile(filePath, 'wingman upload fixture');
         const el = await elementNamed(ctx, 'Document');
         assert.equal(el.role, 'button', 'a file input enumerates as button (A1)');
-        await ctx.driver.act(ctx.pageId, el.id, 'upload', filePath);
+        // r19 (D3): the upload act reports its own completion on success.
+        const actResult = await ctx.driver.act(ctx.pageId, el.id, 'upload', filePath);
+        assert.equal(actResult, 'uploaded', 'a successful upload returns uploaded');
         await pollUntil(async () => (await logText(ctx)) === `file:${fname}`, 'the file log');
       } finally {
         await rm(dir, { recursive: true, force: true }).catch(() => {});

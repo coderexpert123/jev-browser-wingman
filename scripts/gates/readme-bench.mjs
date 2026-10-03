@@ -57,15 +57,44 @@ function newestMeasureFile(dir) {
   return null;
 }
 
+// r19 M-2: wall seconds at one decimal, same convention as bench/report.ts.
+function wallS(ms) {
+  return (ms / 1000).toFixed(1);
+}
+
 function renderBlock(result, fileName) {
-  const lines = [
-    '| route | success | median wall-clock | median cost (USD) | fallback rate |',
-    '|---|---|---|---|---|',
-  ];
-  for (const [route, s] of Object.entries(result.summary ?? {})) {
-    lines.push(
-      `| ${route} | ${String(s.success_rate)} | ${String(s.median_wall_ms)} | ${String(s.median_usd)} | ${String(s.fallback_rate)} |`,
-    );
+  const rows = Object.entries(result.summary ?? {});
+  // r19 M-2: a results file whose summary rows carry the route wall spread
+  // (wall_min_ms/wall_max_ms on every route row) renders the publish format —
+  // one context line with the exact cost sentence, and a spread column.
+  // Files without those fields render the original four-column table exactly
+  // (the gate stays green on old results).
+  const hasSpread =
+    rows.length > 0 && rows.every(([, s]) => Number.isFinite(s.wall_min_ms) && Number.isFinite(s.wall_max_ms));
+  let header;
+  if (hasSpread) {
+    header = [
+      `Benchmark: ${fileName} · model=${result.model} · harness=${result.harness_version} · ${result.date ?? fileName} · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.`,
+      '| route | success | median wall-clock | wall spread (min-max) | median cost (USD) | fallback rate |',
+      '|---|---|---|---|---|---|',
+    ];
+  } else {
+    header = [
+      '| route | success | median wall-clock | median cost (USD) | fallback rate |',
+      '|---|---|---|---|---|',
+    ];
+  }
+  const lines = [...header];
+  for (const [route, s] of rows) {
+    if (hasSpread) {
+      lines.push(
+        `| ${route} | ${String(s.success_rate)} | ${String(s.median_wall_ms)} | ${wallS(s.wall_min_ms)}-${wallS(s.wall_max_ms)} | ${String(s.median_usd)} | ${String(s.fallback_rate)} |`,
+      );
+    } else {
+      lines.push(
+        `| ${route} | ${String(s.success_rate)} | ${String(s.median_wall_ms)} | ${String(s.median_usd)} | ${String(s.fallback_rate)} |`,
+      );
+    }
   }
   lines.push(`Source: bench/results/${fileName}`);
   return lines.join('\n');

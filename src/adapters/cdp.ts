@@ -661,7 +661,10 @@ class CdpDriver implements Driver {
           throw new ActFailedError(`upload could not resolve ${el.path}`);
         }
         await conn.send('DOM.setFileInputFiles', { files: [value], nodeId: q.nodeId }, sessionId);
-        return;
+        // r19 (D3): a successful set reports its own completion — the input's
+        // value is unreadable post-set, so success is the only path that
+        // reaches this return (failures throw ActFailedError above).
+        return 'uploaded';
       }
       case 'scroll_to': {
         // Deliberately skips the hit test: the hit test itself calls
@@ -724,7 +727,9 @@ class CdpDriver implements Driver {
       }
     }
 
-    await this.actRaced(pageId, el, op, value, point);
+    // r19 (D3): the act's own completion ('uploaded') surfaces from the
+    // element-targeted path; targetless ops never carry one.
+    return this.actRaced(pageId, el, op, value, point);
   }
 
   // Dialog rule: an Input.* sequence or evaluation whose page handler opens a

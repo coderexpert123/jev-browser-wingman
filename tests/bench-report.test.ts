@@ -234,9 +234,99 @@ test('reportMain prints the exact D9 block for a fixture results file', () => {
     'cell t12-js-confirm-dialog forced ok=false wall_s=1.2 usd=0.25 llm_in=200 llm_out=40 llm_cache_read=60 llm_cache_write=10 ts_calls=4 ts_in=800 ts_out=500 fallbacks=2 rounds=5',
     'route forced n=2 ok=1/2 wall_s min=1.0 med=1.1 max=1.2 usd min=0.25 med=0.375 max=0.5',
     'phases t12-js-confirm-dialog/forced attach=100 first_observe=40 observe=12+60 jev=350+1740 jev first/rest=900/320 act=30+150 settle=220+1100 kinds act=2 advance=1 wait=1 bounce=0 done=0 error=0 other=1',
-    'legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty',
+    'legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty; pair lines aggregate repeats',
   ].join('\n') + '\n';
   assert.equal(res.out, expected);
+  // The fixture carries no task_pairs: the old shape has no pair lines.
+  assert.ok(!res.out.includes('\npair '), 'a file without task_pairs must render no pair lines');
+});
+
+// r19 WP-5 (M-2): a results file carrying `task_pairs` renders one `pair`
+// line per task x route after the `route` lines (exact template from the
+// spec: `pair <task> <route> n=<n> ok=<k>/<n> wall_s min= med= max= usd_med=`,
+// wall_s 1 decimal, usd_med as recorded). A file WITHOUT task_pairs renders
+// no pair lines at all — the old report shape is unchanged.
+test('reportMain renders the exact pair lines from task_pairs and none without it', () => {
+  const dir = tmpDir('jevw-report-pairs-');
+  const file = path.join(dir, 'pairs-fixture.json');
+  const results: BenchResultsFile = {
+    date: 'pairs-fixture',
+    purpose: 'measure',
+    harness_version: 3,
+    model: 'sonnet',
+    cap_usd: 4,
+    phase_cap_usd: 8,
+    aborted: null,
+    total_usd: 0.7,
+    runs: [
+      fixtureRun({
+        task: 't9-long-chain',
+        route: 'forced',
+        ok: true,
+        wall_ms: 1000,
+        usd: 0.5,
+        llm: { input_tokens: 10, output_tokens: 2, cache_read_tokens: 3, cache_write_tokens: 1, usd: 0.04, cli_reported_usd: null },
+        typesafe: { calls: 2, input_tokens: 40, output_tokens: 25, usd: 0.01 },
+        wingman: { calls: 2, fallback: 0, needs_confirmation: 0 },
+      }),
+      fixtureRun({
+        task: 't9-long-chain',
+        route: 'browse',
+        ok: false,
+        wall_ms: 2345,
+        usd: 0.2,
+      }),
+    ],
+    summary: {
+      forced: { success_rate: 1, median_wall_ms: 1000, median_usd: 0.5, fallback_rate: 0, wall_min_ms: 1000, wall_max_ms: 1000 },
+      browse: { success_rate: 0, median_wall_ms: 2345, median_usd: 0.2, fallback_rate: 0, wall_min_ms: 2345, wall_max_ms: 2345 },
+    },
+    task_pairs: {
+      't9-long-chain': {
+        forced: { n: 2, ok: 1, wall_min_ms: 1000, wall_med_ms: 1234, wall_max_ms: 1468, median_usd: 0.55 },
+        browse: { n: 1, ok: 0, wall_min_ms: 2345, wall_med_ms: 2345, wall_max_ms: 2345, median_usd: 0.2 },
+      },
+    },
+  };
+  fs.writeFileSync(file, JSON.stringify(results, null, 2));
+  const res = capture(() => reportMain([file]));
+  assert.equal(res.exit, 0);
+  const outLines = res.out.split('\n');
+  // Exact pair lines, hand-built from the spec template (wall_s 1 decimal;
+  // usd_med as recorded in the field).
+  assert.deepEqual(
+    outLines.filter((l) => l.startsWith('pair ')),
+    [
+      'pair t9-long-chain forced n=2 ok=1/2 wall_s min=1.0 med=1.2 max=1.5 usd_med=0.55',
+      'pair t9-long-chain browse n=1 ok=0/1 wall_s min=2.3 med=2.3 max=2.3 usd_med=0.2',
+    ],
+  );
+  // Pair lines sit after the route lines and before the phases/legend lines.
+  const routeIdx = outLines.findIndex((l) => l.startsWith('route '));
+  const firstPairIdx = outLines.findIndex((l) => l.startsWith('pair '));
+  const legendIdx = outLines.findIndex((l) => l.startsWith('legend:'));
+  assert.ok(routeIdx !== -1 && firstPairIdx > routeIdx && firstPairIdx < legendIdx, 'pair lines must sit between the route lines and the legend');
+});
+
+test('a results file without task_pairs renders no pair lines', () => {
+  const dir = tmpDir('jevw-report-nopairs-');
+  const file = path.join(dir, 'no-pairs.json');
+  const results: BenchResultsFile = {
+    date: 'no-pairs',
+    purpose: 'measure',
+    harness_version: 2,
+    model: 'sonnet',
+    cap_usd: 4,
+    phase_cap_usd: 8,
+    aborted: null,
+    total_usd: 0,
+    runs: [fixtureRun({})],
+    summary: {},
+  };
+  fs.writeFileSync(file, JSON.stringify(results, null, 2));
+  const res = capture(() => reportMain([file]));
+  assert.equal(res.exit, 0);
+  assert.ok(!res.out.includes('\npair '), 'a pre-task_pairs file must render no pair lines');
 });
 
 test('reportMain refuses a missing or unreadable file with exit 2 on stderr', () => {

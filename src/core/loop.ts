@@ -138,6 +138,11 @@ const KB_CHECK_FLIP = false;
 /** r17c (D-A): the scroll-specific targetless signal — scrolls append the
  * viewport offset to the page signal. Flipping restores the pre-r17c signal. */
 const KB_SCROLL_SIGNAL_Y = false;
+/** r19 (D3): an upload act's own completion result ('uploaded', returned by
+ * the driver when the file was set on the input) is stored as the history
+ * entry's `result` — an upload that landed is progress, the way a check that
+ * flips carries 'checked' (r17b F3). Flipping restores the pre-r19 void. */
+const KB_UPLOAD_EVIDENCE = false;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -541,10 +546,18 @@ function annotateLastOutcome(history: HistoryEntry[], obs: Observation): History
  * on the history entry at act time and annotateLastOutcome leaves it alone;
  * the evidence rules already read it exactly like a landed fill's 'filled'
  * (hasStepEvidence's check/uncheck branches). Anything else — void, or a
- * non-flip — falls back to the fresh-observation annotation as before. */
+ * non-flip — falls back to the fresh-observation annotation as before.
+ * r19 (D3): upload reports its own completion the same way ('uploaded'). */
 function checkFlipResult(actResult: string | void): string | undefined {
   if (KB_CHECK_FLIP) return undefined;
-  return actResult === 'checked' || actResult === 'unchecked' ? actResult : undefined;
+  // r19 (D3): flipped = restore the pre-fix void (the D-11 convention — the
+  // spec's draft `!KB_UPLOAD_EVIDENCE &&` polarity was self-contradictory:
+  // it stripped the evidence in shipped code and made the mutant ENACT the
+  // fix). Shipped (false) stores 'uploaded'.
+  if (KB_UPLOAD_EVIDENCE && actResult === 'uploaded') return undefined;
+  return actResult === 'checked' || actResult === 'unchecked' || actResult === 'uploaded'
+    ? actResult
+    : undefined;
 }
 
 /** r15 (verifier pass 1): `annotateLastOutcome` reads each act's result ONCE,
@@ -697,6 +710,10 @@ function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boole
   const last = lastEvidenceEntry(history, currentStepKey);
   if (last === undefined) return false;
   if (last.verb === 'navigate') return last.stuckRecover !== true && last.result === 'page changed';
+  // r19 (D3): a landed upload reports its own completion ('uploaded', stored
+  // by checkFlipResult). Ungated: with KB_UPLOAD_EVIDENCE flipped, storage
+  // never carries 'uploaded' and this branch returns false naturally.
+  if (last.verb === 'upload') return last.result === 'uploaded';
   if (!ELEMENT_STATE_VERBS.has(last.verb) || last.result === undefined) return false;
   switch (last.verb) {
     case 'fill':

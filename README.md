@@ -143,7 +143,10 @@ With n=1 per cell these numbers are indicative only. Nothing in them shows the h
 Newest pass medians (kept in sync by `scripts/gates/readme-bench.mjs`):
 
 <!-- bench:begin -->
-No benchmark results yet.
+| route | success | median wall-clock | median cost (USD) | fallback rate |
+|---|---|---|---|---|
+| forced | 0 | 552303 | 3.163121 | 1 |
+Source: bench/results/2026-09-29-0958.json
 <!-- bench:end -->
 
 ## License

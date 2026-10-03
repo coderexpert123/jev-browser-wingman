@@ -78,6 +78,29 @@ function routeLines(runs: BenchRunRecord[]): string[] {
   return lines;
 }
 
+// r19 D9 (M-2): one pair line per task x route present in the file's
+// `task_pairs` field (per-task x-route min/med/max over repeats), rendered
+// after the `route` lines. Old results files without the field render no
+// pair lines at all.
+function pairLines(file: BenchResultsFile): string[] {
+  if (!file.task_pairs) return [];
+  const lines: string[] = [];
+  for (const [task, byRoute] of Object.entries(file.task_pairs)) {
+    for (const [route, p] of Object.entries(byRoute)) {
+      lines.push([
+        'pair',
+        task,
+        route,
+        `n=${p.n}`,
+        `ok=${p.ok}/${p.n}`,
+        `wall_s min=${wallS(p.wall_min_ms)} med=${wallS(p.wall_med_ms)} max=${wallS(p.wall_max_ms)}`,
+        `usd_med=${p.median_usd}`,
+      ].join(' '));
+    }
+  }
+  return lines;
+}
+
 function phasesLine(run: BenchRunRecord): string | null {
   const phases = run.wingman_phases;
   if (!phases) return null;
@@ -110,12 +133,13 @@ export function renderReport(file: BenchResultsFile, fileName: string): string {
   ];
   for (const run of file.runs) lines.push(cellLine(run));
   lines.push(...routeLines(file.runs));
+  lines.push(...pairLines(file));
   for (const run of file.runs) {
     const line = phasesLine(run);
     if (line) lines.push(line);
   }
   lines.push(
-    'legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty',
+    'legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty; pair lines aggregate repeats',
   );
   return lines.join('\n') + '\n';
 }

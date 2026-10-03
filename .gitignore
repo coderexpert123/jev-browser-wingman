@@ -5,3 +5,5 @@ bench/.home/
 bench/prices.json.bak
 spike/.tmp/
 .playwright-mcp/
+# Local bench results live on the results branches; .gitkeep stays.
+bench/results/*.json
