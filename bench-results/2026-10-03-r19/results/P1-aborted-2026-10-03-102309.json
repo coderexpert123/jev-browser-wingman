@@ -1,0 +1,763 @@
+{
+  "date": "2026-10-03-102309.json",
+  "purpose": "measure",
+  "harness_version": 3,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 31.532306,
+  "aborted": "error",
+  "total_usd": 2.266802,
+  "runs": [
+    {
+      "task": "t1-checkboxes",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 16389,
+      "browser_tool_calls": 3,
+      "per_step_ms": 5463,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 330,
+        "cache_read_tokens": 268676,
+        "cache_write_tokens": 38406,
+        "usd": 0.229605,
+        "cli_reported_usd": 0.2106792
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.229605,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 1,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 2,
+        "mcp__playwright__browser_click": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t1-checkboxes",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 12582,
+      "browser_tool_calls": 1,
+      "per_step_ms": 12582,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 213,
+        "cache_read_tokens": 146830,
+        "cache_write_tokens": 37220,
+        "usd": 0.186837,
+        "cli_reported_usd": 0.18038799999999997
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 3402,
+        "output_tokens": 885,
+        "usd": 0.000143
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 43,
+        "first_observe_ms": 16,
+        "observe_ms": 11,
+        "jev_ms": 215,
+        "act_ms": 50,
+        "settle_ms": 109,
+        "rounds": 2,
+        "jev_first_ms": 292,
+        "jev_rest_ms": 137,
+        "observe_sum_ms": 22,
+        "jev_sum_ms": 429,
+        "act_sum_ms": 99,
+        "settle_sum_ms": 217,
+        "round_kinds": {
+          "act": 1,
+          "advance": 1,
+          "wait": 0,
+          "bounce": 0,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.18698,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 1,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t2-dropdown",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 11639,
+      "browser_tool_calls": 2,
+      "per_step_ms": 5820,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 259,
+        "cache_read_tokens": 207642,
+        "cache_write_tokens": 36982,
+        "usd": 0.204884,
+        "cli_reported_usd": 0.1920624
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.204884,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 1,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_select_option": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t2-dropdown",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 10462,
+      "browser_tool_calls": 1,
+      "per_step_ms": 10462,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 243,
+        "cache_read_tokens": 146818,
+        "cache_write_tokens": 37244,
+        "usd": 0.187373,
+        "cli_reported_usd": 0.1807816
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 3634,
+        "output_tokens": 924,
+        "usd": 0.000153
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 44,
+        "first_observe_ms": 11,
+        "observe_ms": 10,
+        "jev_ms": 219,
+        "act_ms": 35,
+        "settle_ms": 110,
+        "rounds": 2,
+        "jev_first_ms": 293,
+        "jev_rest_ms": 144,
+        "observe_sum_ms": 19,
+        "jev_sum_ms": 437,
+        "act_sum_ms": 70,
+        "settle_sum_ms": 220,
+        "round_kinds": {
+          "act": 1,
+          "advance": 1,
+          "wait": 0,
+          "bounce": 0,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.187526,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 1,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 14041,
+      "browser_tool_calls": 3,
+      "per_step_ms": 4680,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 343,
+        "cache_read_tokens": 271092,
+        "cache_write_tokens": 37780,
+        "usd": 0.228178,
+        "cli_reported_usd": 0.2087884
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.228178,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 2,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 1,
+        "mcp__playwright__browser_type": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 17908,
+      "browser_tool_calls": 2,
+      "per_step_ms": 8954,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 365,
+        "cache_read_tokens": 209050,
+        "cache_write_tokens": 38125,
+        "usd": 0.211183,
+        "cli_reported_usd": 0.19797599999999999
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 9993,
+        "output_tokens": 2529,
+        "usd": 0.00042
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 51,
+        "first_observe_ms": 13,
+        "observe_ms": 9,
+        "jev_ms": 198,
+        "act_ms": 23,
+        "settle_ms": 216,
+        "rounds": 5,
+        "jev_first_ms": 269,
+        "jev_rest_ms": 191,
+        "observe_sum_ms": 46,
+        "jev_sum_ms": 990,
+        "act_sum_ms": 2899,
+        "settle_sum_ms": 655,
+        "round_kinds": {
+          "act": 3,
+          "advance": 1,
+          "wait": 0,
+          "bounce": 1,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.211602,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "no-progress",
+          "steps": 3,
+          "rounds": 5,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 2
+          },
+          "why": "no-progress",
+          "candidates": 1
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 3,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t4-add-elements",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 13330,
+      "browser_tool_calls": 4,
+      "per_step_ms": 3333,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 385,
+        "cache_read_tokens": 207838,
+        "cache_write_tokens": 37657,
+        "usd": 0.209364,
+        "cli_reported_usd": 0.1960616
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.209364,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 3,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 3
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t4-add-elements",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 11433,
+      "browser_tool_calls": 1,
+      "per_step_ms": 11433,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 210,
+        "cache_read_tokens": 146822,
+        "cache_write_tokens": 37220,
+        "usd": 0.18679,
+        "cli_reported_usd": 0.18035639999999997
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 7131,
+        "output_tokens": 1850,
+        "usd": 0.0003
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 42,
+        "first_observe_ms": 9,
+        "observe_ms": 6,
+        "jev_ms": 155,
+        "act_ms": 43,
+        "settle_ms": 217,
+        "rounds": 4,
+        "jev_first_ms": 303,
+        "jev_rest_ms": 155,
+        "observe_sum_ms": 27,
+        "jev_sum_ms": 733,
+        "act_sum_ms": 170,
+        "settle_sum_ms": 651,
+        "round_kinds": {
+          "act": 3,
+          "advance": 1,
+          "wait": 0,
+          "bounce": 0,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.187089,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 3,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 1,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 3,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t5-inputs",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 10461,
+      "browser_tool_calls": 2,
+      "per_step_ms": 5231,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 266,
+        "cache_read_tokens": 208591,
+        "cache_write_tokens": 37332,
+        "usd": 0.206586,
+        "cli_reported_usd": 0.1937222
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.206586,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 1,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_type": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t5-inputs",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 10332,
+      "browser_tool_calls": 1,
+      "per_step_ms": 10332,
+      "llm": {
+        "input_tokens": 6,
+        "output_tokens": 234,
+        "cache_read_tokens": 146832,
+        "cache_write_tokens": 37243,
+        "usd": 0.187239,
+        "cli_reported_usd": 0.18069039999999997
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 3568,
+        "output_tokens": 924,
+        "usd": 0.00015
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 45,
+        "first_observe_ms": 10,
+        "observe_ms": 8,
+        "jev_ms": 194,
+        "act_ms": 25,
+        "settle_ms": 109,
+        "rounds": 2,
+        "jev_first_ms": 246,
+        "jev_rest_ms": 141,
+        "observe_sum_ms": 16,
+        "jev_sum_ms": 387,
+        "act_sum_ms": 49,
+        "settle_sum_ms": 217,
+        "round_kinds": {
+          "act": 1,
+          "advance": 1,
+          "wait": 0,
+          "bounce": 0,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.187389,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 1,
+            "steps_total": 1
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "route": "playwright",
+      "ok": true,
+      "wall_ms": 29307,
+      "browser_tool_calls": 3,
+      "per_step_ms": 9769,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 359,
+        "cache_read_tokens": 270363,
+        "cache_write_tokens": 37620,
+        "usd": 0.227599,
+        "cli_reported_usd": 0.2081626
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "usd": 0.227599,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 1,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_click": 1,
+        "mcp__playwright__browser_wait_for": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "playwright": {
+      "success_rate": 1,
+      "median_wall_ms": 13685.5,
+      "median_usd": 0.218482,
+      "fallback_rate": 0,
+      "wall_min_ms": 10461,
+      "wall_max_ms": 29307
+    },
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 11433,
+      "median_usd": 0.187389,
+      "fallback_rate": 0.2,
+      "wall_min_ms": 10332,
+      "wall_max_ms": 17908
+    }
+  },
+  "task_pairs": {
+    "t1-checkboxes": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 16389,
+        "wall_med_ms": 16389,
+        "wall_max_ms": 16389,
+        "median_usd": 0.229605
+      },
+      "forced": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 12582,
+        "wall_med_ms": 12582,
+        "wall_max_ms": 12582,
+        "median_usd": 0.18698
+      }
+    },
+    "t2-dropdown": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 11639,
+        "wall_med_ms": 11639,
+        "wall_max_ms": 11639,
+        "median_usd": 0.204884
+      },
+      "forced": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 10462,
+        "wall_med_ms": 10462,
+        "wall_max_ms": 10462,
+        "median_usd": 0.187526
+      }
+    },
+    "t3-dynamic-controls": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 14041,
+        "wall_med_ms": 14041,
+        "wall_max_ms": 14041,
+        "median_usd": 0.228178
+      },
+      "forced": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 17908,
+        "wall_med_ms": 17908,
+        "wall_max_ms": 17908,
+        "median_usd": 0.211602
+      }
+    },
+    "t4-add-elements": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 13330,
+        "wall_med_ms": 13330,
+        "wall_max_ms": 13330,
+        "median_usd": 0.209364
+      },
+      "forced": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 11433,
+        "wall_med_ms": 11433,
+        "wall_max_ms": 11433,
+        "median_usd": 0.187089
+      }
+    },
+    "t5-inputs": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 10461,
+        "wall_med_ms": 10461,
+        "wall_max_ms": 10461,
+        "median_usd": 0.206586
+      },
+      "forced": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 10332,
+        "wall_med_ms": 10332,
+        "wall_max_ms": 10332,
+        "median_usd": 0.187389
+      }
+    },
+    "t6-dynamic-loading": {
+      "playwright": {
+        "n": 1,
+        "ok": 1,
+        "wall_min_ms": 29307,
+        "wall_med_ms": 29307,
+        "wall_max_ms": 29307,
+        "median_usd": 0.227599
+      }
+    }
+  }
+}
