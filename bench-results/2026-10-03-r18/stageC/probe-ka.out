@@ -1,0 +1,14 @@
+{"i":0,"arm":"old","ok":true,"ms":221,"retries":0,"tok":"297/20"}
+{"i":1,"arm":"new","ok":true,"ms":152,"retries":0,"tok":"297/20"}
+{"i":2,"arm":"old","ok":true,"ms":177,"retries":0,"tok":"297/20"}
+{"i":3,"arm":"new","ok":true,"ms":155,"retries":0,"tok":"297/20"}
+{"i":4,"arm":"old","ok":true,"ms":143,"retries":0,"tok":"297/20"}
+{"i":5,"arm":"new","ok":true,"ms":227,"retries":0,"tok":"297/20"}
+{"i":6,"arm":"old","ok":true,"ms":161,"retries":0,"tok":"297/20"}
+{"i":7,"arm":"new","ok":true,"ms":155,"retries":0,"tok":"297/20"}
+{"i":8,"arm":"old","ok":true,"ms":188,"retries":0,"tok":"297/20"}
+{"i":9,"arm":"new","ok":true,"ms":170,"retries":0,"tok":"297/20"}
+{"i":10,"arm":"old","ok":true,"ms":242,"retries":0,"tok":"297/20"}
+{"i":11,"arm":"new","ok":true,"ms":190,"retries":0,"tok":"297/20"}
+old n= 6 min 143 median 188 max 242 first 221 rest-median 177
+new n= 6 min 152 median 170 max 227 first 152 rest-median 170
