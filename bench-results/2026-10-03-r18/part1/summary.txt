@@ -1,0 +1,17 @@
+acquire rc=0 wall=0s # tests 6 # pass 6 # fail 0 # skipped 0 # todo 0 
+chrome rc=0 wall=12s # tests 28 # pass 28 # fail 0 # skipped 0 # todo 0 
+conformance rc=0 wall=35s # tests 28 # pass 28 # fail 0 # skipped 0 # todo 0 
+conformance-ops rc=0 wall=33s # tests 45 # pass 44 # fail 0 # skipped 0 # todo 1 
+chain-e2e rc=0 wall=112s # tests 20 # pass 20 # fail 0 # skipped 0 # todo 0 
+pick-e2e rc=0 wall=5s # tests 2 # pass 2 # fail 0 # skipped 0 # todo 0 
+adapter-cdp rc=0 wall=21s # tests 10 # pass 10 # fail 0 # skipped 0 # todo 0 
+adapter-playwright rc=0 wall=30s # tests 10 # pass 10 # fail 0 # skipped 0 # todo 0 
+page-scripts rc=0 wall=4s # tests 23 # pass 23 # fail 0 # skipped 0 # todo 0 
+doctor rc=0 wall=7s first-run-rc=1 rerun-rc=0 # tests 28 # pass 28 # fail 0 # skipped 0 # todo 0 
+with-chrome rc=0 wall=5s # tests 32 # pass 32 # fail 0 # skipped 0 # todo 0 
+with-chrome-forced rc=0 wall=8s # tests 3 # pass 3 # fail 0 # skipped 0 # todo 0 
+runner-sweep rc=0 wall=1s # tests 2 # pass 2 # fail 0 # skipped 0 # todo 0 
+runner-sweep-leak rc=0 wall=0s # tests 1 # pass 1 # fail 0 # skipped 0 # todo 0 
+ephemeral-sweep rc=0 wall=1s # tests 7 # pass 7 # fail 0 # skipped 0 # todo 0 
+scaffold rc=0 wall=3s # tests 16 # pass 16 # fail 0 # skipped 0 # todo 0 
+P1DONE

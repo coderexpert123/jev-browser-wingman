@@ -1,0 +1,150 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  duration_ms: 342.814321
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  duration_ms: 98.598544
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  duration_ms: 110.072193
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  duration_ms: 99.887853
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  duration_ms: 97.660943
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  duration_ms: 243.239913
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  duration_ms: 96.57477
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  duration_ms: 96.038526
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  duration_ms: 112.902545
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  duration_ms: 119.203366
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  duration_ms: 86.755476
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  duration_ms: 90.554261
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  duration_ms: 93.703607
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  duration_ms: 81.736991
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  duration_ms: 88.247492
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  duration_ms: 92.860794
+  type: 'test'
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  duration_ms: 134.318061
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  duration_ms: 165.910685
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  duration_ms: 395.073877
+  type: 'test'
+  ...
+# Subtest: enumerate reports the page scroll offset
+ok 20 - enumerate reports the page scroll offset
+  ---
+  duration_ms: 408.817573
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+ok 21 - verify re-finds hidden-control records through the label and their own path
+  ---
+  duration_ms: 115.767093
+  type: 'test'
+  ...
+# Subtest: iframe-boundary.html enumerates zero frame-interior records and the inner path is unresolvable
+ok 22 - iframe-boundary.html enumerates zero frame-interior records and the inner path is unresolvable
+  ---
+  duration_ms: 122.763566
+  type: 'test'
+  ...
+# Subtest: shadow-boundary.html enumerates the host record only and zero shadow-interior records
+ok 23 - shadow-boundary.html enumerates the host record only and zero shadow-interior records
+  ---
+  duration_ms: 103.878096
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3897.424333
+RUN-TESTS: files=1 tests=23 pass=23 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

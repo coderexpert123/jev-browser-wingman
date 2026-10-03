@@ -1,0 +1,27 @@
+TAP version 13
+# Subtest: leaks a token-tagged chrome on purpose (the runner sweep is the guarantee)
+ok 1 - leaks a token-tagged chrome on purpose (the runner sweep is the guarantee)
+  ---
+  duration_ms: 308.005982
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 402.985402
+RUN-TESTS: files=1 tests=1 pass=1 fail=0
+RUN-TESTS: chrome sweep (post-run): kill pid=8727
+RUN-TESTS: chrome sweep (post-run): kill pid=8737
+RUN-TESTS: chrome sweep (post-run): kill pid=8738
+RUN-TESTS: chrome sweep (post-run): kill pid=8740
+RUN-TESTS: chrome sweep (post-run): kill pid=8762
+RUN-TESTS: chrome sweep (post-run): kill pid=8775
+RUN-TESTS: chrome sweep (post-run): kill pid=8776
+RUN-TESTS: chrome sweep (post-run): kill pid=8804
+RUN-TESTS: chrome sweep (post-run): kill pid=8805
+RUN-TESTS: chrome sweep (post-run): 9 leaked chrome process(es) killed (run token c499fac1)
