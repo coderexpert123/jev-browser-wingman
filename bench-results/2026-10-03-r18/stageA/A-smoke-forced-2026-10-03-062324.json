@@ -1,0 +1,233 @@
+{
+  "date": "2026-10-03-062324.json",
+  "purpose": "experiment",
+  "harness_version": 3,
+  "model": "sonnet",
+  "cap_usd": 1,
+  "phase_cap_usd": 12.909115,
+  "aborted": null,
+  "total_usd": 0.673019,
+  "runs": [
+    {
+      "task": "t15-file-upload",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 29865,
+      "browser_tool_calls": 4,
+      "per_step_ms": 7466,
+      "llm": {
+        "input_tokens": 12,
+        "output_tokens": 1262,
+        "cache_read_tokens": 319653,
+        "cache_write_tokens": 36953,
+        "usd": 0.253436,
+        "cli_reported_usd": 0.22438660000000005
+      },
+      "typesafe": {
+        "calls": 2,
+        "input_tokens": 9758,
+        "output_tokens": 2558,
+        "usd": 0.00041
+      },
+      "wingman": {
+        "calls": 2,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 32,
+        "first_observe_ms": 6,
+        "observe_ms": 6,
+        "jev_ms": 145,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 6,
+        "jev_first_ms": 185,
+        "jev_rest_ms": 132,
+        "observe_sum_ms": 40,
+        "jev_sum_ms": 950,
+        "act_sum_ms": 2001,
+        "settle_sum_ms": 437,
+        "round_kinds": {
+          "act": 0,
+          "advance": 0,
+          "wait": 2,
+          "bounce": 3,
+          "done": 0,
+          "error": 0,
+          "other": 1
+        }
+      },
+      "usd": 0.253845,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "not-ready",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 2
+          },
+          "why": "wrong-page",
+          "candidates": 0
+        }
+      ],
+      "handoffs": 2,
+      "picks": 0,
+      "wingman_acts": 2,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t16-hover-reveal",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 16240,
+      "browser_tool_calls": 2,
+      "per_step_ms": 8120,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 621,
+        "cache_read_tokens": 200539,
+        "cache_write_tokens": 34641,
+        "usd": 0.199404,
+        "cli_reported_usd": 0.1848978
+      },
+      "typesafe": {
+        "calls": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "usd": 0
+      },
+      "wingman": {
+        "calls": 0,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": null,
+      "usd": 0.199404,
+      "handoff_records": [],
+      "handoffs": 0,
+      "picks": 0,
+      "wingman_acts": 0,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 1,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    },
+    {
+      "task": "t17-double-click",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 23680,
+      "browser_tool_calls": 3,
+      "per_step_ms": 7893,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 691,
+        "cache_read_tokens": 260102,
+        "cache_write_tokens": 34971,
+        "usd": 0.219567,
+        "cli_reported_usd": 0.19883439999999997
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 4825,
+        "output_tokens": 1284,
+        "usd": 0.000203
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 1,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 18,
+        "first_observe_ms": 7,
+        "observe_ms": 6,
+        "jev_ms": 137,
+        "act_ms": 1000,
+        "settle_ms": 217,
+        "rounds": 3,
+        "jev_first_ms": 137,
+        "jev_rest_ms": 139,
+        "observe_sum_ms": 18,
+        "jev_sum_ms": 414,
+        "act_sum_ms": 2001,
+        "settle_sum_ms": 436,
+        "round_kinds": {
+          "act": 0,
+          "advance": 0,
+          "wait": 2,
+          "bounce": 1,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.21977,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 0,
+          "rounds": 3,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "not-ready",
+          "candidates": 0
+        }
+      ],
+      "handoffs": 1,
+      "picks": 0,
+      "wingman_acts": 2,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2,
+        "mcp__playwright__browser_snapshot": 1
+      },
+      "first_call_invalid": 0
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 23680,
+      "median_usd": 0.21977,
+      "fallback_rate": 0.666667
+    }
+  }
+}

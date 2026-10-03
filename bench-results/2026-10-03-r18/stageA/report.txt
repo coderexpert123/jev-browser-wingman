@@ -1,0 +1,8 @@
+BENCH REPORT 2026-10-03-062324.json purpose=experiment model=sonnet harness=3 aborted=null total_usd=0.673019 runs=3
+cell t15-file-upload forced ok=false wall_s=29.9 usd=0.253845 llm_in=12 llm_out=1262 llm_cache_read=319653 llm_cache_write=36953 ts_calls=2 ts_in=9758 ts_out=2558 fallbacks=2 rounds=6
+cell t16-hover-reveal forced ok=false wall_s=16.2 usd=0.199404 llm_in=8 llm_out=621 llm_cache_read=200539 llm_cache_write=34641 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t17-double-click forced ok=false wall_s=23.7 usd=0.21977 llm_in=10 llm_out=691 llm_cache_read=260102 llm_cache_write=34971 ts_calls=1 ts_in=4825 ts_out=1284 fallbacks=1 rounds=3
+route forced n=3 ok=0/3 wall_s min=16.2 med=23.7 max=29.9 usd min=0.199404 med=0.21977 max=0.253845
+phases t15-file-upload/forced attach=32 first_observe=6 observe=6+40 jev=145+950 jev first/rest=185/132 act=0+2001 settle=0+437 kinds act=0 advance=0 wait=2 bounce=3 done=0 error=0 other=1
+phases t17-double-click/forced attach=18 first_observe=7 observe=6+18 jev=137+414 jev first/rest=137/139 act=1000+2001 settle=217+436 kinds act=0 advance=0 wait=2 bounce=1 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty
