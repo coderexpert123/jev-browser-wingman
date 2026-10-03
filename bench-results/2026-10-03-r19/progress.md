@@ -19,3 +19,8 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 - forced 34/34 ok; playwright 32/34 (t15-file-upload x2 red - the tolerated one) => 66/68.
 - LIVE INVARIANT (results/gauntlet/invariant-check.py over the merged file): typesafe.calls == tool_use_counts[browse_step] for all 34 forced cells, 0 mismatches (sum 54 == 54); playwright cells: 0 typesafe calls, 0 browse_step uses. The r19 byte-slice fix holds end-to-end.
 - Round spend: 11.3518 of 16 USD.
+
+## Part 3 doctor x3 on the bench Chrome (port 9344, WINGMAN_HOME=bench/.home): see doctor/doctor{1,2,3}.log
+- run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
