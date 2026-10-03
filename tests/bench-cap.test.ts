@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import type { BenchRoute } from '../bench/run.js';
 import os from 'node:os';
 import path from 'node:path';
-import { runBench, resultsFileName, type BenchDeps, type BenchRunRecord } from '../bench/run.js';
+import { runBench, resolveStartUrl, resultsFileName, type BenchDeps, type BenchRunRecord } from '../bench/run.js';
 
 const PRICES = {
   llm: {
@@ -234,6 +234,25 @@ test('BENCH_MODEL overrides the configured caller model', async () => {
   assert.equal(files.length, 1);
   const parsed = JSON.parse(fs.readFileSync(path.join(resDir, files[0]), 'utf8')) as { model: string };
   assert.equal(parsed.model, 'glm-5.3');
+});
+
+test('resolveStartUrl pins all three branches', () => {
+  // r18 fixture tasks (t15-t17): local + fixture url resolves against the
+  // fixture server, which serves fixtures/pages/<name>.html at /<name>.html.
+  assert.equal(
+    resolveStartUrl({ path: '/upload.html', local: true }, 'http://127.0.0.1:53111'),
+    'http://127.0.0.1:53111/upload.html',
+  );
+  // Absolute path, non-local: used verbatim (the r16 rule).
+  assert.equal(
+    resolveStartUrl({ path: 'https://www.saucedemo.com/' }, undefined),
+    'https://www.saucedemo.com/',
+  );
+  // Relative path, non-local: START_BASE.
+  assert.equal(
+    resolveStartUrl({ path: '/checkboxes' }, undefined),
+    'https://the-internet.herokuapp.com/checkboxes',
+  );
 });
 
 test('resultsFileName stamps seconds and suffixes a taken name', () => {

@@ -29,6 +29,7 @@ import { packageRoot } from '../src/package-root.js';
 import { OPS } from '../src/contract/types.js';
 import { loadProfiles, withheldClasses, type Profile } from '../src/core/profiles.js';
 import type { WithholdableClass } from '../src/contract/constants.js';
+import { startFixtureServer, type FixtureServer } from '../src/fixture-server.js';
 
 export interface BenchTask {
   id: string;
@@ -41,6 +42,10 @@ export interface BenchTask {
   // never compared to anything — it is not a second oracle.
   end_state?: string;
   resetStorage?: boolean;
+  // r18 fixture tasks (t15-t17): the path is served by the local fixture
+  // server (fixtures/pages/<name>.html), not the-internet.herokuapp.com. The
+  // server is started once per invocation when any selected task is local.
+  local?: boolean;
 }
 
 export type BenchRoute = 'playwright' | 'wingman' | 'browse' | 'forced';
@@ -413,6 +418,9 @@ export interface RunContext {
   observer: CdpConnection;
   keptTargetId: string;
   mainJsPath: string;
+  // r18: the invocation's fixture-server url when any selected task is local
+  // (set by runBench after prepareBrowser, the same way ctx.prices is).
+  fixtureUrl?: string;
 }
 
 // The harness may navigate the shared page and clear its origin's storage before a run; the tools may not.
@@ -572,6 +580,18 @@ export function deriveRawCounts(counts: Record<string, number>, profile: Profile
 
 const START_BASE = 'https://the-internet.herokuapp.com';
 
+// r18: the start URL for a task. Three branches, in order: a local task with a
+// fixture-server url resolves against the server (which serves
+// fixtures/pages/<name>.html at /<name>.html); a non-local task with an
+// absolute http(s) path uses it verbatim (the r16 rule); everything else —
+// including a local task whose invocation somehow has no fixture server —
+// resolves against START_BASE. Pure: no I/O, no global state.
+export function resolveStartUrl(task: Pick<BenchTask, 'path' | 'local'>, fixtureUrl: string | undefined): string {
+  if (task.local === true && fixtureUrl !== undefined) return fixtureUrl + task.path;
+  if (task.local !== true && /^https?:\/\//.test(task.path)) return task.path;
+  return START_BASE + task.path;
+}
+
 function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['runOne'] {
   // WP-F: the playwright profile is loaded once; it drives the raw_acts/
   // raw_script derivation for every run (§ 6 WP-F F3, § 5.8a).
@@ -588,9 +608,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     const mcpConfigPath = path.join(ctx.home, `mcp-${route}.json`);
     fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfigFor(ctx, route), null, 2));
 
-    const startUrl = /^https?:\/\//.test(task.path)
-      ? task.path
-      : START_BASE + task.path;
+    const startUrl = resolveStartUrl(task, ctx.fixtureUrl);
     await resetPages(
       ctx,
       startUrl,
@@ -931,6 +949,13 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     tasks = tasks.filter((t) => tasksFilter!.includes(t.id));
   }
 
+  // r18: one ephemeral fixture server for the whole invocation when any
+  // selected task is local (t15-t17); every local task resolves against it.
+  let fixture: FixtureServer | null = null;
+  if (tasks.some((t) => t.local === true)) {
+    fixture = await startFixtureServer();
+  }
+
   const home = BENCH_HOME;
   const holder: { ctx: RunContext | null } = { ctx: null };
   const defaults = defaultPrepareBrowser(app, home, secretsFile, (c) => {
@@ -948,15 +973,25 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     shouldAbort: abortFn,
   };
 
-  await fullDeps.prepareBrowser();
-  if (!deps?.runOne) {
-    const ctx = holder.ctx;
-    if (!ctx) {
-      throw new Error('prepareBrowser did not produce a browser context');
+  try {
+    await fullDeps.prepareBrowser();
+    if (!deps?.runOne) {
+      const ctx = holder.ctx;
+      if (!ctx) {
+        throw new Error('prepareBrowser did not produce a browser context');
+      }
+      // checkStart already refused when prices were missing or incomplete.
+      ctx.prices = prices as BenchPrices;
+      ctx.fixtureUrl = fixture?.url;
+      fullDeps.runOne = defaultRunOne(ctx, secretsFile);
     }
-    // checkStart already refused when prices were missing or incomplete.
-    ctx.prices = prices as BenchPrices;
-    fullDeps.runOne = defaultRunOne(ctx, secretsFile);
+  } catch (err) {
+    // The run loop's finally below does not exist yet on this path; close the
+    // fixture here so a failed prepare never leaks it.
+    if (fixture) {
+      await fixture.close().catch(() => {});
+    }
+    throw err;
   }
 
   const runs: BenchRunRecord[] = [];
@@ -1015,6 +1050,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       if (exitCode === 0) exitCode = 1;
     }
     await fullDeps.stopBrowser().catch(() => {});
+    if (fixture) {
+      await fixture.close().catch(() => {});
+    }
   }
 
   return exitCode;

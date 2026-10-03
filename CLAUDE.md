@@ -845,3 +845,21 @@ withheld — this file rides a public-bound repository). Gates:
 - **This box: adapter-cdp's full file run can wedge under ~2.3 GB free even
   serially** (103 chromes, killed + swept this pass). Prefer a single-chrome
   diagnostic probe for shape-refresh work; defer the full file to the cloud.
+
+## Gotchas from the r18 local-fixture bench fix (2026-10-03)
+
+- **`runBench` now starts a real localhost fixture server whenever the
+  selected task set contains a `local: true` task (t15-t17)** — including
+  fake-deps test invocations like bench-cap's 51-run proof, which therefore
+  binds an ephemeral 127.0.0.1 port. It is closed in the run loop's existing
+  finally (and in a catch-rethrow over the prepare/wiring window before that
+  finally exists). Two close sites, disjoint windows — do not "simplify" them
+  into one, and do not move the start after `prepareBrowser`, or a Chrome
+  launch failure would leak the server.
+- **The URL resolution lives in the pure `resolveStartUrl` and the local
+  branch beats the absolute branch by design**: a `local` task with a fixture
+  url always resolves against the fixture server; a `local` task with no
+  fixture url falls through to START_BASE (a defect state — the run path
+  always starts the server when any selected task is local). The pin test in
+  `tests/bench-cap.test.ts` inlines literal URLs; proven to fail against a
+  mutated local branch (dist A/B, 2026-10-03).

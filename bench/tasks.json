@@ -107,20 +107,23 @@
     "path": "/upload.html",
     "goal": "Attach the file named sample to the Resume upload file input.",
     "values": { "sample": "@REPO@/fixtures/files/sample-upload.txt" },
-    "oracle": "document.querySelector('#upload-result').textContent.indexOf('sample-upload.txt') !== -1"
+    "oracle": "document.querySelector('#upload-result').textContent.indexOf('sample-upload.txt') !== -1",
+    "local": true
   },
   {
     "id": "t16-hover-reveal",
     "path": "/hover-reveal.html",
     "goal": "Hover over the Menu button, then click the Open panel button that appears.",
     "values": {},
-    "oracle": "document.querySelector('#panel-result').textContent === 'opened'"
+    "oracle": "document.querySelector('#panel-result').textContent === 'opened'",
+    "local": true
   },
   {
     "id": "t17-double-click",
     "path": "/double-click.html",
     "goal": "Double-click the Counters box.",
     "values": {},
-    "oracle": "document.querySelector('#dbl-count').textContent === '1'"
+    "oracle": "document.querySelector('#dbl-count').textContent === '1'",
+    "local": true
   }
 ]
