@@ -3483,6 +3483,48 @@ test('T-check without a flip result is still a no-progress bounce', async () => 
   assert.equal(h.driver.actCalls().length, 1, 'the second identical check never acts');
 });
 
+// ---- r19 (D3): a landed upload is evidence, exactly like the r17b flip ----
+
+const resumeInput = (): ElementRecord =>
+  el({
+    tag: 'input',
+    role: 'button',
+    name: 'Resume upload',
+    type: 'file',
+    path: '#resume-upload',
+    editable: false,
+    fingerprint: { tag: 'input', role: 'button', name: 'Resume upload', x: 0, y: 0 },
+  });
+
+const UPLOAD = (over: SeqEntry = {}): SeqEntry =>
+  CS({
+    action: ['upload', { upload: 0.9, none: 0.05 }],
+    file: ['sample', { sample: 0.9, none: 0.05 }],
+    ...over,
+  });
+
+test('T-upload evidence advances on the act-returned uploaded', async () => {
+  // r19 (D3): the driver's upload act reports its own completion; the loop
+  // stores it as the history entry's result and the clause advances on it
+  // exactly like a landed fill or a flipped check. Round 2's step_done 0.6
+  // sits below the ungated 0.85 branch, so ONLY the upload evidence can
+  // advance the clause.
+  const h = harness({
+    observations: { p1: [observation({ url: 'https://example.com/upload.html', elements: [resumeInput()] })] },
+    script: [UPLOAD(), UPLOAD({ step_done: 0.6 })],
+  });
+  h.driver.nextActResult = 'uploaded';
+  const r = await h.call({
+    goal: 'r19-upload-evidence goal',
+    steps: ['attach the file named sample to the Resume upload file input'],
+    values: { sample: 'C:/tmp/resume.pdf' },
+  });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 1, 'the evidence advanced the clause without a second act');
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[1].historyResult, 'uploaded', 'the act-returned upload result is the entry result');
+});
+
 test('T-press different keys is not a repeat', async () => {
   // Legacy browse_step: both rounds ride stepKey 'single', so the key — not
   // a clause boundary — is the only identity a targetless press pair has.
