@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-03-015050.json",
+  "purpose": "measure",
+  "harness_version": 2,
+  "model": "sonnet",
+  "cap_usd": 3,
+  "phase_cap_usd": 18.702391,
+  "aborted": null,
+  "total_usd": 0.078423,
+  "runs": [
+    {
+      "task": "t14-key-press",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 16258,
+      "browser_tool_calls": 2,
+      "per_step_ms": 8129,
+      "llm": {
+        "input_tokens": 8,
+        "output_tokens": 390,
+        "cache_read_tokens": 231873,
+        "cache_write_tokens": 776,
+        "usd": 0.078346,
+        "cli_reported_usd": 0.0533946
+      },
+      "typesafe": {
+        "calls": 1,
+        "input_tokens": 1833,
+        "output_tokens": 466,
+        "usd": 0.000077
+      },
+      "wingman": {
+        "calls": 1,
+        "fallback": 0,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 18,
+        "first_observe_ms": 10,
+        "observe_ms": 11,
+        "jev_ms": 69,
+        "act_ms": 34,
+        "settle_ms": 111,
+        "rounds": 2
+      },
+      "usd": 0.078423,
+      "handoff_records": [
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 1,
+      "picks": 1,
+      "wingman_acts": 1,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 2
+      },
+      "first_call_invalid": 0,
+      "end_state": "You entered: ESCAPE | focus=target"
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 16258,
+      "median_usd": 0.078423,
+      "fallback_rate": 0
+    }
+  }
+}

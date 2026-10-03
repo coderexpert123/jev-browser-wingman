@@ -9,3 +9,6 @@ chain-e2e under the flag: 19/20, the single failure is E18b "an async wheel-trig
 ## Stage 0 attempt 1 (t14 forced x1, phase cap 18.702391 = ledger 10.702391 + 8): oracle FALSE, 21.4 s, 0.2204 USD
 - Escape was NEVER attempted: all 3 browse_step calls ended `error/act-failed`, steps 0, jev_calls 0, ms 40-116, host '' (page not on the target URL), act_error `TypeError: Failed to execute ... on ...: parameter 1 is not of type ...` in the FIRST observe (observeMs 0). end_state " | focus=none" (no #result, no active element).
 - Zero-spend probes (evidence/probe-esc.mjs, probe-obs.mjs): plain Playwright on /key_presses: Escape -> "You entered: ESCAPE", Enter -> "You entered: ENTER", no reload, focus stays on #target. The shipped driver's observe() works on about:blank AND /key_presses on both adapters (2 elements, scrollY 0). So the failure is bench page state, not the key and not observe on the page itself.
+
+## Stage 0 attempt 2 (re-run once; attempt 1 never reached Escape): oracle TRUE, 16.3 s, 0.0784 USD, handoffs 1, picks 1
+- end_state "You entered: ESCAPE | focus=target" (Escape landed on the input, no reload). Calls: (1) click -> focus-only click bounced fallback/step-uncertain after 1 click, 4 rounds; (2) done/goal-met, 1 press, keyEvidence true + clickEvidence true ("page changed"). Stage 0 PASSES -> A and B proceed.
