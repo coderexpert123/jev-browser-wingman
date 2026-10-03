@@ -1,0 +1,11 @@
+<!doctype html><html><head><title>Hover</title>
+<style>#menu { display: none; } #menu.open { display: block; }</style></head><body>
+<button id="trigger">Menu</button>
+<div id="menu"><button id="menu-open" onclick="document.getElementById('panel-result').textContent='opened'">Open panel</button></div>
+<div id="panel-result"></div>
+<script>
+document.getElementById('trigger').addEventListener('mouseenter', function () {
+  document.getElementById('menu').classList.add('open');
+});
+</script>
+</body></html>

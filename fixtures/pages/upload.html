@@ -1,0 +1,12 @@
+<!doctype html><html><head><title>Upload</title></head><body>
+<h1>Upload</h1>
+<label for="file-upload">Resume upload</label>
+<input type="file" id="file-upload">
+<div id="upload-result"></div>
+<script>
+document.getElementById('file-upload').addEventListener('change', function (e) {
+  var f = e.target.files[0];
+  document.getElementById('upload-result').textContent = f ? 'uploaded: ' + f.name : '';
+});
+</script>
+</body></html>

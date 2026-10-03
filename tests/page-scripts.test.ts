@@ -491,3 +491,61 @@ test('verify re-finds hidden-control records through the label and their own pat
     await close();
   }
 });
+
+// r18 (G1/C2) BOUNDARY PIN — iframes. The loop cannot see inside a frame:
+// enumerate walks the top document only, and act resolution resolves paths
+// with top-document document.querySelector. The pin holds even with the
+// frame's content fully loaded, so the wait below is deliberate — a dead
+// frame would make the "zero interior records" assertions vacuous.
+test('iframe-boundary.html enumerates zero frame-interior records and the inner path is unresolvable', async () => {
+  const { page, close } = await withPage('/iframe-boundary.html');
+  try {
+    await page.waitForFunction(() => {
+      const f = document.querySelector('iframe') as HTMLIFrameElement | null;
+      return !!f && !!f.contentDocument && !!f.contentDocument.getElementById('inner-input');
+    });
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    for (const e of obs.elements) {
+      assert.notStrictEqual(e.htmlId, 'inner-input', 'no record may originate inside the frame');
+      assert.notStrictEqual(e.htmlId, 'inner-button', 'no record may originate inside the frame');
+      assert.notStrictEqual(e.name, 'Inner note', 'no record may carry a frame-interior name');
+      assert.notStrictEqual(e.name, 'Inner button', 'no record may carry a frame-interior name');
+    }
+    // Act-resolution boundary: the inner control's would-be path (#inner-input)
+    // resolves to null from the top document, so even a hand-supplied path
+    // cannot be verified or acted on.
+    const inner = await page.evaluate(() => !!document.querySelector('#inner-input'));
+    assert.strictEqual(inner, false, '#inner-input must not resolve from the top document');
+  } finally {
+    await close();
+  }
+});
+
+// r18 (G1/C2) BOUNDARY PIN — shadow roots. enumerate returns the host record
+// only; the shadow root's contents are invisible. Mutant proof (r18): a
+// compiled enumerate taught to also traverse el.shadowRoot makes the zero-
+// interior-record assertions fail — the pin discriminates.
+test('shadow-boundary.html enumerates the host record only and zero shadow-interior records', async () => {
+  const { page, close } = await withPage('/shadow-boundary.html');
+  try {
+    await page.waitForFunction(() => {
+      const p = document.querySelector('info-panel') as (HTMLElement & { shadowRoot?: ShadowRoot }) | null;
+      return !!p && !!p.shadowRoot && !!p.shadowRoot.querySelector('#shadow-button');
+    });
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    const host = obs.elements.find((e) => e.htmlId === 'panel');
+    assert.ok(host, 'expected the info-panel host record');
+    assert.strictEqual(host!.tag, 'info-panel');
+    for (const e of obs.elements) {
+      assert.notStrictEqual(e.htmlId, 'shadow-button', 'no record may originate inside the shadow root');
+      assert.notStrictEqual(e.htmlId, 'shadow-status', 'no record may originate inside the shadow root');
+      assert.notStrictEqual(e.name, 'Shadow button', 'no record may carry a shadow-interior name');
+      assert.ok(
+        typeof e.path === 'string' && !String(e.path).includes('shadow-'),
+        `record path ${String(e.path)} must not enter the shadow root`,
+      );
+    }
+  } finally {
+    await close();
+  }
+});

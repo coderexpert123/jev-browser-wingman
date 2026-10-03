@@ -1,0 +1,13 @@
+<!doctype html><html><head><title>Shadow boundary</title></head><body>
+<h1>Shadow boundary</h1>
+<info-panel id="panel" role="button">Info panel</info-panel>
+<script>
+customElements.define('info-panel', class extends HTMLElement {
+  connectedCallback() {
+    if (this.shadowRoot) return;
+    var root = this.attachShadow({ mode: 'open' });
+    root.innerHTML = '<button id="shadow-button">Shadow button</button><div id="shadow-status">idle</div>';
+  }
+});
+</script>
+</body></html>

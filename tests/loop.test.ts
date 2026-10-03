@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runDo, runCheck, runStep, type LoopDeps } from '../src/core/loop.js';
+import { runDo, runCheck, runStep, kindForResult, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -298,6 +298,9 @@ test("a chain round's log carries step_done/ready/right_page probabilities; a no
   assert.equal(doResult.status, 'done', `expected done, got ${doResult.status}/${doResult.reason}`);
   const doRound = doHarness.records[0].phases!.rounds[0];
   assert.equal(doRound.doneP, 0.95);
+  // r18 (D3): a round's kind is a string, never an undefined-assigned key —
+  // the done noul end derives it from the end status.
+  assert.equal(doRound.kind, 'done');
   assert.equal('stepDoneP' in doRound, false, 'wingman_do is never asked step_done');
   assert.equal('readyP' in doRound, false, 'wingman_do is never asked ready');
   assert.equal('rightPageP' in doRound, false, 'wingman_do is never asked right_page');
@@ -346,6 +349,117 @@ test('a multi-round non-chain wingman_do call still carries errorP on round >= 2
   assert.equal('errorP' in rounds[0], false, 'round 1 never asks error (round < 2)');
   assert.equal(rounds[1].errorP, 0.1, 'round 2 (>= 2) carries errorP even in non-chain mode');
   assert.equal(rounds[1].doneP, 0.95);
+});
+
+// ---- r18 (D3): per-round outcome class (PhaseRound.kind) ----
+// Fail-first: every kind assertion below fails against fieldless rounds.
+
+/** A chain-mode ask like chain.test.ts's CS()/ADV(), built inline because
+ * loop.test.ts's scriptedAsk cannot express step_done/ready/right_page. */
+function chainKindAsk(seq: Array<Record<string, JevAnswer>>): JevAsk {
+  let call = 0;
+  return async () => {
+    const step = seq[Math.min(call, seq.length - 1)];
+    call += 1;
+    return {
+      ok: true,
+      answers: {
+        done: { type: 'noul', noul: 0.05 },
+        blocked: { type: 'noul', noul: 0.05 },
+        login: { type: 'noul', noul: 0.05 },
+        error: { type: 'noul', noul: 0.05 },
+        irreversible: { type: 'noul', noul: 0.05 },
+        ready: { type: 'noul', noul: 0.95 },
+        right_page: { type: 'noul', noul: 0.95 },
+        step_done: { type: 'noul', noul: 0.05 },
+        ...step,
+      },
+      usage: { inputTokens: 10, outputTokens: 5 },
+      latencyMs: 1,
+      status: 200,
+      retries: 0,
+    };
+  };
+}
+
+test('round kinds: a chain act round reads act, its advance round reads advance', async () => {
+  // The [CS(), ADV()] shape: round 1 commits a click (explicit kind at the
+  // shared act tail, so it stays 'act' whatever the call's end status says),
+  // round 2 advances (explicit kind at the advance branch) and — being the
+  // final clause — ends the call done. Precedence rule: the advance round
+  // reads 'advance', not 'done', even though mk() ran for it.
+  const ask = chainKindAsk([
+    {
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    },
+    { step_done: { type: 'noul', noul: 0.95 } },
+  ]);
+  const h = harness({ observations: { p1: [observation()] }, script: [], ask });
+  const r = await h.callStep({ goal: 'round-kind chain act/advance goal', steps: ['s1'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 2, 'act round then advance round');
+  assert.equal(typeof rounds[0].kind, 'string', 'kind is a string, never undefined-assigned');
+  assert.equal(rounds[0].kind, 'act');
+  assert.equal(rounds[1].kind, 'advance');
+});
+
+test('round kinds: a not-ready chain round acts a mechanical wait', async () => {
+  // ready < THRESHOLDS.ready (0.3) on a fresh clause with no effective click
+  // is the mechanical wait: runChainEarly rule 5 -> the shared act tail with
+  // verb 'wait' -> kind 'wait'. The call then acts and advances normally.
+  const ask = chainKindAsk([
+    { ready: { type: 'noul', noul: 0.1 } },
+    {
+      action: choice('click', { click: 0.9, none: 0.05 }),
+      target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
+    },
+    { step_done: { type: 'noul', noul: 0.95 } },
+  ]);
+  const h = harness({ observations: { p1: [observation()] }, script: [], ask });
+  const r = await h.callStep({ goal: 'round-kind not-ready wait goal', steps: ['s1'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 3, 'wait round, act round, advance round');
+  assert.equal(rounds[0].kind, 'wait');
+  assert.equal(rounds[1].kind, 'act');
+  assert.equal(rounds[2].kind, 'advance');
+});
+
+test('round kinds: a wingman_do round-1 done via the done noul reads done', async () => {
+  // No explicit site fired (no act, no advance): the round's kind comes from
+  // mk()'s kindForResult(status) — 'done' here, never an undefined-assigned key.
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [{ done: 0.95, blocked: 0.05, login: 0.05, irreversible: 0.05 }],
+  });
+  const r = await h.call({ goal: 'round-kind wingman_do done goal' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 1);
+  assert.equal(typeof rounds[0].kind, 'string', 'kind is a string, never undefined-assigned');
+  assert.equal(rounds[0].kind, 'done');
+});
+
+test('round kinds: a jev-error ask failure bounces its round', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [{ fail: 'jev-error' }] });
+  const r = await h.call({ goal: 'round-kind jev-error goal' });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'jev-error');
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 1);
+  assert.equal(rounds[0].kind, 'bounce');
+});
+
+test('kindForResult maps every end status exactly (r18 D3)', () => {
+  assert.equal(kindForResult('done'), 'done');
+  assert.equal(kindForResult('error'), 'error');
+  assert.equal(kindForResult('login'), 'error');
+  assert.equal(kindForResult('fallback'), 'bounce');
+  assert.equal(kindForResult('ambiguous'), 'bounce');
+  assert.equal(kindForResult('blocked'), 'bounce');
+  assert.equal(kindForResult('needs_confirmation'), 'bounce');
 });
 
 test('check-path record carries phases with one round', async () => {

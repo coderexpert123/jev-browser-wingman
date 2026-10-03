@@ -749,6 +749,16 @@ export function parseRepeatCount(step: string): number | undefined {
   return matches === 1 ? count : undefined;
 }
 
+/** r18 (D3): the default per-round outcome class, derived from the round's
+ * end status. Exported pure for the mapping-table pin in loop.test.ts. An
+ * explicit assignment at an act/wait/advance/bounce site always wins (mk
+ * uses ??=), so a round that acted AND ends done reads 'act'. */
+export function kindForResult(status: string): 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error' {
+  if (status === 'done') return 'done';
+  if (status === 'error' || status === 'login') return 'error';
+  return 'bounce'; // fallback, ambiguous, blocked, needs_confirmation
+}
+
 /** r17 (D3): the key a `press|hit|push` instruction names, or undefined when
  * the step doesn't name exactly one. Alternation is longest-first (KEY_NAME_RE)
  * so `arrow down` beats `down`; `delete` is deliberately absent (R9). */
@@ -1639,6 +1649,7 @@ async function runTool(
     loginSuppressed?: true;    // r17: a login read was suppressed this round
     dialog?: 'accept' | 'dismiss'; // r17: the dialog answer this round performed
     keyEvidence?: true;        // r17: the deterministic key-press advance fired this round
+    kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error'; // r18 (D3): outcome class — explicit site assignment wins over the end-status default; absent when no site knew the value. Enum only, never page text.
   };
   const phaseAcc: {
     attachMs?: number;
@@ -1712,20 +1723,25 @@ async function runTool(
     if (countMet !== undefined) cur.countMetP = countMet;
   };
 
-  const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => ({
-    status,
-    reason,
-    steps,
-    ...(lastAction ? { last_action: { verb: lastAction.verb, label: lastAction.label } } : {}),
-    ...extra,
-    cost: {
-      jev_calls: acc.jevCalls,
-      input_tokens: acc.inputTokens,
-      output_tokens: acc.outputTokens,
-      ms: now() - startedAt,
-    },
-    labels_untrusted: true,
-  });
+  const mk = (status: Status, reason: Reason, extra: Partial<WingmanResult> = {}): WingmanResult => {
+    // r18 (D3): default outcome class from the end status — never overwrites
+    // an explicit assignment at an act/wait/advance/bounce site.
+    if (cur) cur.kind ??= kindForResult(status);
+    return {
+      status,
+      reason,
+      steps,
+      ...(lastAction ? { last_action: { verb: lastAction.verb, label: lastAction.label } } : {}),
+      ...extra,
+      cost: {
+        jev_calls: acc.jevCalls,
+        input_tokens: acc.inputTokens,
+        output_tokens: acc.outputTokens,
+        ms: now() - startedAt,
+      },
+      labels_untrusted: true,
+    };
+  };
 
   /** § 5.5.5 forced note table: the first matching row wins, top to bottom. */
   const forcedNote = (r: WingmanResult): string => {
@@ -2477,6 +2493,7 @@ async function runTool(
     const actFlip = checkFlipResult(await driver.act(pageId, el.id, action.verb, actValue));
     inFlightOp = null;
     if (cur) cur.actMs += now() - tAct0;
+    if (cur) cur.kind = action.verb === 'wait' ? 'wait' : 'act'; // r18 (D3)
     if (action.verb === 'wait') {
       // never counts as a step (§ 5.5.3)
     } else {
@@ -3247,6 +3264,7 @@ async function runTool(
         return { t: 'result', result: early.result };
       }
       if (early.kind === 'advance') {
+        bucket.kind = 'advance'; // r18 (D3): explicit first — wins over an end-status default
         chain!.cursor += 1;
         chain!.clauseRetried = false;
         chain!.wrongPageRounds = 0;
@@ -3359,6 +3377,7 @@ async function runTool(
           await driver.answerDialog(pageId, outcome === 'accept');
           answeredDialogs.add(pending);
           if (cur) cur.dialog = outcome;
+          if (cur) cur.kind = 'act'; // r18 (D3): the dialog answer is the round's action
         } catch {
           return mk('blocked', 'dialog-open');
         }
@@ -3592,6 +3611,7 @@ async function runTool(
                 if (entryPending && e.reason === 'goal-met' && steps === 0) {
                   if (canRetry()) {
                     retried = true;
+                    if (cur) cur.kind = 'bounce'; // r18 (D3): the retried round is a bounce
                     continue;
                   }
                   return bounce('already-done', []);
@@ -3601,6 +3621,7 @@ async function runTool(
                 if (entryPending && e.reason === 'no-action') {
                   if (canRetry()) {
                     retried = true;
+                    if (cur) cur.kind = 'bounce'; // r18 (D3): the retried round is a bounce
                     continue;
                   }
                   return bounce('no-match', e.candidates ?? []);
@@ -3716,6 +3737,7 @@ async function runTool(
                 if (entryPending && e.reason === 'goal-met' && steps === 0) {
                   if (canRetry()) {
                     retried = true;
+                    if (cur) cur.kind = 'bounce'; // r18 (D3): the retried round is a bounce
                     continue;
                   }
                   return bounce('already-done', []);
@@ -3723,6 +3745,7 @@ async function runTool(
                 if (entryPending && e.reason === 'no-action') {
                   if (canRetry()) {
                     retried = true;
+                    if (cur) cur.kind = 'bounce'; // r18 (D3): the retried round is a bounce
                     continue;
                   }
                   return bounce('no-match', e.candidates ?? []);
@@ -4068,6 +4091,7 @@ async function runTool(
         }
         inFlightOp = null;
         bucket.actMs += now() - tAct;
+        bucket.kind = decision.verb === 'wait' ? 'wait' : 'act'; // r18 (D3)
         if (decision.verb === 'wait') {
           waits += 1;
         } else {

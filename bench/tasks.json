@@ -101,5 +101,26 @@
     "values": {},
     "oracle": "(() => { const r = document.querySelector('#result'); return !!r && r.innerText.toLowerCase().includes('escape'); })()",
     "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
+  },
+  {
+    "id": "t15-file-upload",
+    "path": "/upload.html",
+    "goal": "Attach the file named sample to the Resume upload file input.",
+    "values": { "sample": "@REPO@/fixtures/files/sample-upload.txt" },
+    "oracle": "document.querySelector('#upload-result').textContent.indexOf('sample-upload.txt') !== -1"
+  },
+  {
+    "id": "t16-hover-reveal",
+    "path": "/hover-reveal.html",
+    "goal": "Hover over the Menu button, then click the Open panel button that appears.",
+    "values": {},
+    "oracle": "document.querySelector('#panel-result').textContent === 'opened'"
+  },
+  {
+    "id": "t17-double-click",
+    "path": "/double-click.html",
+    "goal": "Double-click the Counters box.",
+    "values": {},
+    "oracle": "document.querySelector('#dbl-count').textContent === '1'"
   }
 ]

@@ -98,6 +98,11 @@ export async function startTypeSafeStub(
     requests,
     close: () =>
       new Promise<void>((resolve, reject) => {
+        // REQUIRED with the shared keep-alive agent (r18 D4): the module-level
+        // undici Agent holds idle sockets to this stub open, and Node http's
+        // close() waits for open connections — without closing them first,
+        // every stub close() hangs past the test.
+        server.closeIdleConnections();
         server.close((err) => (err ? reject(err) : resolve()));
       }),
   };

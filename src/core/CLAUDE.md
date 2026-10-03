@@ -1,5 +1,17 @@
 # src/core — page-scripts gotchas
 
+- **`PhaseRound.kind` (r18 D3, 2026-10-03) is explicit-site-first; `mk()`'s `??=` is only
+  the default.** The shared act tail and `runTokenAction` set `'act'`/`'wait'` by the
+  executed verb, `applyChainEarly`'s advance branch sets `bucket.kind = 'advance'` (so the
+  final-clause advance round reads `'advance'`, not the `'done'` its `mk()` would derive),
+  the round-top dialog answer sets `'act'`, and the four entry goal-met/no-action retry
+  continues set `'bounce'` — those rounds `continue` and never reach `mk()`, so without the
+  explicit write they would be kindless forever. `kindForResult(status)` (exported, pinned
+  exactly in loop.test.ts) maps done→`'done'`, error/login→`'error'`, everything else
+  →`'bounce'`. Rounds that exit no named way (settleOnly, entry-uncertainty retries at the
+  two-stage decision, stuck deferrals) legitimately LACK the key — bench buckets them
+  `'other'`; do not "fix" that by widening `mk()` or inventing a kind at those sites.
+
 - **settle.ts's raced-poll shape punishes a naive fake clock** (2026-10-02,
   r17c WP-2): `waitForScrollGrowth` (and `settleByProbe`) race each probe
   against `clock.sleep(remaining)`, and the sleep's body runs SYNCHRONOUSLY at

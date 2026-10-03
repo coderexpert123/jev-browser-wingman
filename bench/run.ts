@@ -93,6 +93,15 @@ export interface BenchRunRecord {
     act_ms: number;
     settle_ms: number;
     rounds: number;
+    // r18 D2: per-call cold/warm Jev split, per-phase sums over all rounds,
+    // and the per-round outcome-class tally (kindless rounds bucket `other`).
+    jev_first_ms: number;
+    jev_rest_ms: number;
+    observe_sum_ms: number;
+    jev_sum_ms: number;
+    act_sum_ms: number;
+    settle_sum_ms: number;
+    round_kinds: RoundKinds;
   } | null;
   usd: number;
   // WP-F (forced-handoff spec § 6 WP-F F3): per-run handoff/raw-act records.
@@ -155,10 +164,37 @@ export interface BenchDeps {
 
 const PKG_ROOT = packageRoot();
 const BENCH_HOME = path.join(PKG_ROOT, 'bench', '.home');
-const HARNESS_VERSION = 2;
+// r18 D2: 3 adds the per-call cold/warm Jev split, the per-phase sums and the
+// round_kinds tally to wingman_phases (aggregatePhases). The bench-browse pin
+// was missed once at spec time — grep tests/ for harness_version on every bump.
+const HARNESS_VERSION = 3;
 
 function readTasks(): BenchTask[] {
   return JSON.parse(fs.readFileSync(path.join(PKG_ROOT, 'bench', 'tasks.json'), 'utf8')) as BenchTask[];
+}
+
+// r18 D8: expand a leading `@REPO@` in every task value into the repo root,
+// with the root's backslashes folded to forward slashes (the win32 cmd spawn
+// mangles backslash-before-quote in the prompt; forward slashes also satisfy
+// isPathLike's `^[A-Za-z]:[\\/]`). Everything else passes through untouched.
+// Pure: values objects are never mutated in place.
+export function expandTaskValuePlaceholders(tasks: BenchTask[], repoRoot: string): BenchTask[] {
+  const root = repoRoot.replace(/\\/g, '/');
+  return tasks.map((task) => {
+    const entries = Object.entries(task.values ?? {});
+    if (entries.length === 0) return task;
+    let changed = false;
+    const values: Record<string, string> = {};
+    for (const [name, value] of entries) {
+      if (typeof value === 'string' && value.startsWith('@REPO@')) {
+        values[name] = root + value.slice('@REPO@'.length);
+        changed = true;
+      } else {
+        values[name] = value;
+      }
+    }
+    return changed ? { ...task, values } : task;
+  });
 }
 
 function readAppConfig(): BenchAppConfig {
@@ -270,6 +306,88 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// r18 D2/D3: one round's phase timings as collected from a log record's
+// phases.rounds. `isFirst` is true for round index 0 WITHIN its own call's
+// rounds array (the per-call cold round). `kind` is the WP-2a outcome class
+// when the loop side has landed; kindless rounds (or an unknown string) are
+// bucketed `other` — that is the shape until WP-2a ships.
+export interface AggregateRound {
+  observeMs: number;
+  jevMs: number;
+  actMs: number;
+  settleMs: number;
+  kind?: string;
+  isFirst?: boolean;
+}
+
+export interface RoundKinds {
+  act: number;
+  advance: number;
+  wait: number;
+  bounce: number;
+  done: number;
+  error: number;
+  other: number;
+}
+
+export interface PhasesAggregate {
+  observe_ms: number;
+  jev_ms: number;
+  act_ms: number;
+  settle_ms: number;
+  rounds: number;
+  jev_first_ms: number;
+  jev_rest_ms: number;
+  observe_sum_ms: number;
+  jev_sum_ms: number;
+  act_sum_ms: number;
+  settle_sum_ms: number;
+  round_kinds: RoundKinds;
+}
+
+const ROUND_KINDS: ReadonlyArray<Exclude<keyof Omit<RoundKinds, 'other'>, never>> = [
+  'act',
+  'advance',
+  'wait',
+  'bounce',
+  'done',
+  'error',
+];
+
+// r18 D2: the pure phases aggregation that replaces the inline medians in
+// defaultRunOne. The five existing median/count fields keep their semantics;
+// jev_first_ms / jev_rest_ms are medians over the per-call cold rounds and
+// the rest; the *_sum_ms fields are plain sums over all rounds; round_kinds
+// tallies the rounds' outcome class with `other` absorbing kindless rounds.
+// median() of an empty set stays 0, so an empty first/rest bucket reads 0.
+export function aggregatePhases(rounds: AggregateRound[]): PhasesAggregate {
+  const first = rounds.filter((r) => r.isFirst === true).map((r) => r.jevMs);
+  const rest = rounds.filter((r) => r.isFirst !== true).map((r) => r.jevMs);
+  const round_kinds: RoundKinds = { act: 0, advance: 0, wait: 0, bounce: 0, done: 0, error: 0, other: 0 };
+  for (const round of rounds) {
+    const kind = round.kind as unknown;
+    if (typeof kind === 'string' && (ROUND_KINDS as readonly string[]).includes(kind)) {
+      round_kinds[kind as keyof Omit<RoundKinds, 'other'>] += 1;
+    } else {
+      round_kinds.other += 1;
+    }
+  }
+  return {
+    observe_ms: Math.round(median(rounds.map((r) => r.observeMs))),
+    jev_ms: Math.round(median(rounds.map((r) => r.jevMs))),
+    act_ms: Math.round(median(rounds.map((r) => r.actMs))),
+    settle_ms: Math.round(median(rounds.map((r) => r.settleMs))),
+    rounds: rounds.length,
+    jev_first_ms: Math.round(median(first)),
+    jev_rest_ms: Math.round(median(rest)),
+    observe_sum_ms: Math.round(rounds.reduce((s, r) => s + r.observeMs, 0)),
+    jev_sum_ms: Math.round(rounds.reduce((s, r) => s + r.jevMs, 0)),
+    act_sum_ms: Math.round(rounds.reduce((s, r) => s + r.actMs, 0)),
+    settle_sum_ms: Math.round(rounds.reduce((s, r) => s + r.settleMs, 0)),
+    round_kinds,
+  };
+}
+
 function summarize(runs: BenchRunRecord[]): BenchResultsFile['summary'] {
   const summary: BenchResultsFile['summary'] = {};
   for (const route of KNOWN_ROUTES) {
@@ -375,7 +493,9 @@ interface LoggedRecord {
   steps?: unknown;
   pick?: unknown;
   progress?: unknown;
-  phases?: { rounds?: unknown[] };
+  // r18: rounds carry the loop's per-round `kind` outcome class when WP-2a's
+  // telemetry has landed on the log side; kindless logs aggregate as `other`.
+  phases?: { rounds?: Array<{ kind?: unknown }> };
   acts_by_op?: Record<string, unknown>;
   // WP-outcome-evidence WP-C: written by loop.ts's buildLogRecord from the
   // call's final step_review, why + a candidate COUNT only (never labels).
@@ -501,7 +621,9 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
     let firstObserveMax = 0;
     let wingmanActs = 0;
     let navByWingman = 0;
-    const roundPhases: Array<{ observeMs: number; jevMs: number; actMs: number; settleMs: number }> = [];
+    // r18 D2: rounds carry `isFirst` (index 0 within their own call's rounds
+    // array — the per-call cold round) and `kind` when the log side wrote one.
+    const roundPhases: AggregateRound[] = [];
     const freshLines: string[] = [];
     if (fs.existsSync(logPath)) {
       const fresh = fs.readFileSync(logPath, 'utf8').slice(before);
@@ -537,12 +659,16 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
         if (rec.phases) {
           if (num(rec.phases.attachMs)) attachSum += rec.phases.attachMs;
           if (num(rec.phases.firstObserveMs)) firstObserveMax = Math.max(firstObserveMax, rec.phases.firstObserveMs);
-          for (const round of rec.phases.rounds ?? []) {
+          const rounds = rec.phases.rounds ?? [];
+          for (let ri = 0; ri < rounds.length; ri++) {
+            const round = rounds[ri];
             roundPhases.push({
               observeMs: num(round.observeMs) ? round.observeMs : 0,
               jevMs: num(round.jevMs) ? round.jevMs : 0,
               actMs: num(round.actMs) ? round.actMs : 0,
               settleMs: num(round.settleMs) ? round.settleMs : 0,
+              ...(typeof round.kind === 'string' ? { kind: round.kind } : {}),
+              isFirst: ri === 0,
             });
           }
         }
@@ -553,11 +679,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
         ? {
             attach_ms: Math.round(attachSum),
             first_observe_ms: Math.round(firstObserveMax),
-            observe_ms: Math.round(median(roundPhases.map((r) => r.observeMs))),
-            jev_ms: Math.round(median(roundPhases.map((r) => r.jevMs))),
-            act_ms: Math.round(median(roundPhases.map((r) => r.actMs))),
-            settle_ms: Math.round(median(roundPhases.map((r) => r.settleMs))),
-            rounds: roundPhases.length,
+            ...aggregatePhases(roundPhases),
           }
         : null;
 
@@ -794,7 +916,10 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     return 2;
   }
 
-  let tasks = readTasks();
+  // r18 D8: `@REPO@` in task values expands to this repo (forward slashes)
+  // right after the read, so every downstream consumer — filters, prompts,
+  // value withholding — sees the absolute path, never the placeholder.
+  let tasks = expandTaskValuePlaceholders(readTasks(), PKG_ROOT);
   if (tasksFilter) {
     const known = new Set(tasks.map((t) => t.id));
     for (const id of tasksFilter) {

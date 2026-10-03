@@ -5,12 +5,23 @@
 // circuit breaker (the plan's minimal default client — callers that want a
 // breaker supply their own `JevAsk` through the plugin).
 
+import { Agent } from 'undici';
 import { TYPESAFE_DEFAULT_BASE_URL, TYPESAFE_MODEL, TYPESAFE_PATH } from '../contract/constants.js';
 import type { JevAnswer, JevAsk, JevAskOptions, JevRequest, JevResult } from '../contract/types.js';
 
 const MAX_ATTEMPTS = 2;
 const DEFAULT_RETRY_DELAY_MS = 250;
 const DEFAULT_TIMEOUT_MS = 10_000;
+
+// Warm Jev session (r18 D4): one shared keep-alive agent for the default-fetch
+// path, created lazily on first use. 55 s idle beats undici's ~4 s default so
+// consecutive rounds reuse the TCP connection. Callers that supply their own
+// `fetchFn` are never touched (bit-for-bit old behavior).
+let sharedAgent: Agent | undefined;
+function defaultDispatcher(): Agent {
+  sharedAgent ??= new Agent({ keepAliveTimeout: 55_000 });
+  return sharedAgent;
+}
 
 function hasOwn(o: object, k: string): boolean {
   return Object.prototype.hasOwnProperty.call(o, k);
@@ -72,6 +83,10 @@ export function createDefaultAsk(opts: {
   const apiKey = opts.apiKey;
   const baseUrl = (opts.baseUrl ?? process.env.TYPESAFE_BASE_URL ?? TYPESAFE_DEFAULT_BASE_URL).replace(/\/+$/, '');
   const fetchFn = opts.fetchFn ?? fetch;
+  // Only the default-fetch path rides the shared keep-alive agent; an
+  // injected fetchFn (every test, the stub, the probe's A/B arm) must see
+  // exactly the old init.
+  const useSharedDispatcher = opts.fetchFn === undefined;
   const sleepFn = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const nowFn = opts.now ?? Date.now;
   const url = `${baseUrl}${TYPESAFE_PATH}`;
@@ -93,7 +108,7 @@ export function createDefaultAsk(opts: {
         let headers: Headers = new Headers();
         let text = '';
         try {
-          const res = await fetchFn(url, {
+          const init: RequestInit & { dispatcher?: unknown } = {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${apiKey}`,
@@ -102,7 +117,9 @@ export function createDefaultAsk(opts: {
             },
             body,
             signal: controller.signal,
-          });
+          };
+          if (useSharedDispatcher) init.dispatcher = defaultDispatcher();
+          const res = await fetchFn(url, init);
           status = res.status;
           headers = res.headers;
           text = await res.text();

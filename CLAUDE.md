@@ -689,6 +689,30 @@ withheld — this file rides a public-bound repository). Gates:
   `{k: undefined}` as different from `{}`, and `tests/loop.test.ts` pins the exact
   round shape. Guard every such write with `!== undefined`.
 
+## Gotchas from the r18 WP-1 bench-reporting pass (2026-10-03)
+
+- **The r18 spec's "no external consumer pins HARNESS_VERSION 2" claim was FALSE**:
+  `tests/bench-browse.test.ts` pinned `parsed.harness_version === 2` (test
+  "--routes forced runs only the forced route"), so the spec-ordered bump to 3 turned
+  that test red (fixed 2026-10-03 by coordinator extension: pin updated to 3). Any
+  future version bump must `grep -rn harness_version tests/` itself, not trust a
+  spec's verification note.
+- **The reporter must tolerate pre-r18 `wingman_phases` records**: every results file
+  written before the harness-3 bump lacks `round_kinds` and the seven new numeric
+  fields, and a naive renderer crashes (`Cannot read properties of undefined`) or
+  prints `undefined`. Convention shipped in `bench/report.ts`: missing numerics read 0,
+  and an absent `round_kinds` puts the whole round count in `other` (preserves
+  `rounds == sum(round_kinds)`). Old files' phases lines therefore read
+  `jev first/rest=0/0 ... other=<rounds>` — that is the legacy shape, not a bug.
+- **`@REPO@` expansion is forward-slash by construction** (`expandTaskValuePlaceholders`,
+  `bench/run.ts`): the repo root's backslashes are folded, so values satisfy
+  `isPathLike`'s `^[A-Za-z]:[\\/]` and survive the win32 cmd spawn. Expansion happens
+  once in `runBench` right after `readTasks()`; `buildPrompt` never sees the placeholder.
+- **2026-10-03: the `pa` CLI is broken on this machine** (`pa claims` and friends die
+  with `Cannot find module '../lib/routing-policy.js'` from
+  `D:\Personal Assistant\pa\dist\src\commands\typesafe.js`), so the claim/release and
+  `pa run commit` workflow is unavailable until the PA repo is rebuilt/fixed.
+
 ## Gotchas from the r17 WP-B pass (2026-10-02)
 
 - **`isNoProgress` fires before any count/repeat semantics on a scripted

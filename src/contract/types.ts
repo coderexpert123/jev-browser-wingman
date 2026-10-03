@@ -236,6 +236,11 @@ export interface WingmanLogRecord {
       dialog?: 'accept' | 'dismiss';
       // r17: the deterministic key-press advance fired this round (runChainEarly rule 3).
       keyEvidence?: true;
+      // r18 (D3): the round's outcome class — assigned explicitly at the
+      // act/wait/advance/bounce sites when they fire, else derived from the
+      // round's end status; absent when no site knew the value (bucketed
+      // 'other' downstream). Closed enum, never page text.
+      kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error';
     }>;
   };
 }

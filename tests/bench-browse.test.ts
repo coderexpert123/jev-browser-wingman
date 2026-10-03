@@ -622,7 +622,7 @@ test('--routes forced runs only the forced route', async () => {
   };
   assert.equal(parsed.runs.length, 1);
   assert.equal(parsed.runs[0].route, 'forced');
-  assert.equal(parsed.harness_version, 2);
+  assert.equal(parsed.harness_version, 3);
 });
 
 test('an unknown --routes value is refused with exit 2', async () => {
