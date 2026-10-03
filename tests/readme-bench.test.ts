@@ -146,7 +146,7 @@ function expectedR19Block(summary: object, fileName: string): string {
   ];
   for (const [route, row] of Object.entries(s)) {
     lines.push(
-      `| ${route} | ${row.success_rate} | ${row.median_wall_ms} | ${wallS(row.wall_min_ms)}-${wallS(row.wall_max_ms)} | ${row.median_usd} | ${row.fallback_rate} |`,
+      `| ${route} | ${row.success_rate} | ${wallS(row.median_wall_ms)} | ${wallS(row.wall_min_ms)}-${wallS(row.wall_max_ms)} | ${row.median_usd} | ${row.fallback_rate} |`,
     );
   }
   lines.push(`Source: bench/results/${fileName}`);

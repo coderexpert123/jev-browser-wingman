@@ -143,10 +143,12 @@ With n=1 per cell these numbers are indicative only. Nothing in them shows the h
 Newest pass medians (kept in sync by `scripts/gates/readme-bench.mjs`):
 
 <!-- bench:begin -->
-| route | success | median wall-clock | median cost (USD) | fallback rate |
-|---|---|---|---|---|
-| forced | 0 | 552303 | 3.163121 | 1 |
-Source: bench/results/2026-09-29-0958.json
+Benchmark: publish-merged-r19.json · model=sonnet · harness=3 · r19-publish-merged · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.
+| route | success | median wall-clock | wall spread (min-max) | median cost (USD) | fallback rate |
+|---|---|---|---|---|---|
+| playwright | 0.941176 | 14.3 | 10.5-42.3 | 0.191621 | 0 |
+| forced | 1 | 13.5 | 10.1-49.1 | 0.186852 | 0.382353 |
+Source: bench/results/publish-merged-r19.json
 <!-- bench:end -->
 
 ## License

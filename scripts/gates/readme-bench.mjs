@@ -88,7 +88,7 @@ function renderBlock(result, fileName) {
   for (const [route, s] of rows) {
     if (hasSpread) {
       lines.push(
-        `| ${route} | ${String(s.success_rate)} | ${String(s.median_wall_ms)} | ${wallS(s.wall_min_ms)}-${wallS(s.wall_max_ms)} | ${String(s.median_usd)} | ${String(s.fallback_rate)} |`,
+        `| ${route} | ${String(s.success_rate)} | ${wallS(s.median_wall_ms)} | ${wallS(s.wall_min_ms)}-${wallS(s.wall_max_ms)} | ${String(s.median_usd)} | ${String(s.fallback_rate)} |`,
       );
     } else {
       lines.push(
