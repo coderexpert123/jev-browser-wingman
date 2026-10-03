@@ -24,3 +24,5 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 - run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+
+## Final: results.md written (acceptance forced 34/34, playwright 32/34, invariant PASS, doctor 3/3). Round spend 11.3518 of 16 USD.
