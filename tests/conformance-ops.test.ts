@@ -330,11 +330,11 @@ function adapterSuite(adapter: 'playwright' | 'cdp'): void {
       );
     });
 
-    run('O8', 'wait sleeps about one second', async (ctx) => {
+    run('O8', 'wait sleeps about one second (r21 growth poll: up to 3 s on a never-changing page)', async (ctx) => {
       const t0 = Date.now();
       await ctx.driver.act(ctx.pageId, null, 'wait');
       const ms = Date.now() - t0;
-      assert.ok(ms >= 900 && ms <= 3000, `wait took ${ms} ms, expected 900-3000`);
+      assert.ok(ms >= 900 && ms <= 3800, `wait took ${ms} ms, expected 900-3800`);
     });
 
     run('O9', 'scroll_up undoes a deep scroll', async (ctx) => {
