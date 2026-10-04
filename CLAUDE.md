@@ -661,3 +661,61 @@ history: results branches + PA memory.
   assertions (line count, paired probabilities) are what must carry the
   pre/post contrast; derive expected labels from the code's own semantics
   before writing them.
+
+## Gotchas from the r21 mutants-pass test-coverage fix (2026-10-04)
+
+- **Pin a timing bound from the LOCAL measured pair, never the cloud pair** —
+  the KB_CDP_PRECLICK numbers from the cloud round (9117 ms guard active vs
+  5124 skipped) do not reproduce on this box at all (local: 4075/4220 ms
+  active — the PRE_CLICK_SETTLE_MS 4000 floor dominates — vs 28 ms skipped),
+  so the dispatch-suggested `>= 7000` would have been permanently red here.
+  A pin that cannot fail on the flip AND cannot pass locally is doubly
+  wrong; measure both sides on the box that runs the gate.
+- **This box stalls `Input.dispatchMouseEvent` type `mouseMoved` by exactly
+  ~5.0 s under memory pressure while `mousePressed`/`mouseReleased` answer
+  in 1-3 ms** (per-send instrumentation in dist, four occurrences). Any
+  wall-clock pin over a CDP click act must anchor its delta on the
+  mouseReleased response — the moment the page's own click handler (and
+  therefore any setTimeout chain) starts — not on act entry; a delta so
+  anchored is immune to the stall, while click-act totals and raw elapsed
+  windows are not.
+- **`waitForPage`'s first-match URL find returns STALE pages**: `rig.close()`
+  detaches the driver but never closes the page target, so a retry loop that
+  reopens the same fixture URL gets the OLD page (already clicked, extra
+  content — the growth signature grew 8:9 -> 9:20 -> 10:26 across attempts)
+  and silently measures the wrong document. Close the page target
+  (`Target.closeTarget` over a raw session) when discarding a rig a retry
+  will replace by URL.
+- **`run-tests.mjs` does NOT rebuild** — it runs whatever `dist/` holds, so
+  diagnostic `console.error` patches applied to dist directly (the only way
+  to instrument adapter internals the tests import opaquely) survive into
+  run-tests runs and are wiped by the next `scripts/build.mjs`. Verify which
+  build a run actually executed before interpreting its output.
+- **Diagnose a "slow but succeeding" CDP act by patching dist, not by
+  reading src**: the 5 s stall looked like EVAL_TIMEOUT_MS (5000) firing,
+  the guard settling, or the dialog race — all disproven once per-substep
+  timestamps existed. `node --test --test-name-pattern="<test name>"
+  dist/tests/<file>.test.js` reproduces single tests cheaply, but bypasses
+  run-tests' token sweep — sweep `wingman-ephemeral-` chromes after.
+
+## r21b: mid-nav observe amendment (2026-10-04)
+
+- **`observeTimed(pageId, history)` now takes the round's history array** (the
+  round-top call site in runDoRounds passes it; runCheck passes nothing, so a
+  wedge there still throws immediately). The r21b gate: a SLOW first observe
+  failure (>= 2 s) is retried (same two inner retries) only when it is
+  NAV-SHAPED — message matches `NAV_SHAPED_OBS_ERROR_RE`
+  (`/evaluation timed out|Execution context/i`, both adapters' evaluate-timeout
+  and context-destroyed shapes) AND the last history entry is click-family
+  (`CLICK_FAMILY_OPS`, read BEFORE `annotateLastOutcome`, so it is the
+  previous round's act). The nav-shaped slow path's first settle is
+  `PRE_CLICK_SETTLE_MS` (4000); everything else keeps `OBS_RETRY_SETTLE_MS`
+  (500). `KB_OBS_RETRY` disables all of it. Pins beside the r21 pins in
+  loop.test.ts: slow-nav-shaped-after-click retried (fail-first proven red
+  against a dist-patched pre-amendment gate), the old wedge pin covers the
+  no-prior-act slow throw (green both sides), KB flip kills both retry pins.
+- **Test-stub trap when pinning "failure after an act"**: the harness's
+  observe override fires per DRIVER CALL, and round 1's observe comes FIRST —
+  a "fail the first observe" stub makes round 1 (no prior act) the failure,
+  which the wedge gate correctly refuses, so the pin reds for the wrong
+  reason and looks like a code defect. Count calls and fail the SECOND.

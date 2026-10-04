@@ -10,7 +10,7 @@ import { runDo, runCheck, runStep, kindForResult, type LoopDeps } from '../src/c
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
-import { DEFAULT_BUDGETS, OBS_RETRY_SETTLE_MS, POLICY_SELF_TEST_HOST } from '../src/contract/constants.js';
+import { DEFAULT_BUDGETS, OBS_RETRY_SETTLE_MS, POLICY_SELF_TEST_HOST, PRE_CLICK_SETTLE_MS } from '../src/contract/constants.js';
 import type { GateMode, PolicyMode, TakeoverMode } from '../src/contract/constants.js';
 import type {
   ElementRecord,
@@ -1079,7 +1079,11 @@ test('wingman_do token act answers the page dialog per the goal text', async () 
 // A FAST observe failure (< 2 s) is a mid-navigation context loss (the r20
 // scheduled-nav click's navigation in flight); it is retried up to twice
 // behind a bounded settle. A SLOW first failure is a wedged renderer, never
-// a navigation, and must not be retried (the fast-fail gate).
+// a navigation, and must not be retried (the fast-fail gate) — UNLESS it is
+// NAV-SHAPED (the r21b mid-nav amendment: the evaluate-timeout /
+// context-destroyed signature) right after a click-family act, in which case
+// it is retried once behind the larger PRE_CLICK_SETTLE_MS settle (the t9
+// rep-1 failure's fix).
 
 test('a fast mid-navigation observe failure retries behind a bounded settle and the call completes normally', async () => {
   const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
@@ -1126,4 +1130,40 @@ test('a wedged observe (slow first failure, >= 2 s) is never retried and still e
   assert.equal(r.status, 'error', `expected the unchanged error end, got ${r.status}/${r.reason}`);
   assert.equal(r.reason, 'tool-fault');
   assert.equal(observeCalls, 1, `a wedge must not be retried, got ${observeCalls} observe calls`);
+});
+
+// r21b mid-nav amendment (the t9 rep-1 failure): a SLOW nav-shaped failure
+// (the adapters' evaluate-timeout signature) right after a click-family act
+// is a navigation in flight, not a wedge — retried behind the larger
+// PRE_CLICK_SETTLE_MS first settle. Pre-fix this ended error/tool-fault with
+// one observe call.
+test('a slow nav-shaped observe failure right after a click act is retried behind the larger settle', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  const origObserve = h.driver.observe.bind(h.driver);
+  let calls = 0;
+  const observeCalls: number[] = [];
+  h.driver.observe = async (pageId: string) => {
+    observeCalls.push(Date.now());
+    if (observeCalls.length === 2) {
+      // Round 2's observe (round 1 already clicked): SLOW (>= 2 s) and
+      // NAV-SHAPED — the adapters' evaluate-timeout text.
+      await new Promise((resolve) => setTimeout(resolve, 2_100));
+      throw new Error('evaluation timed out');
+    }
+    return origObserve(pageId);
+  };
+  const settleBudgets: number[] = [];
+  const origSettle = h.driver.settle.bind(h.driver);
+  h.driver.settle = async (pageId: string, budgetMs: number) => {
+    settleBudgets.push(budgetMs);
+    return origSettle(pageId, budgetMs);
+  };
+  const r = await h.call({ goal: 'r21b slow nav-shaped observe retry goal' });
+  assert.equal(r.status, 'done', `expected the recovered completion, got ${r.status}/${r.reason}`);
+  // round 1's observe (ok) + round 2's failed observe + round 2's recovered observe
+  assert.equal(observeCalls.length, 3, `expected 3 observe calls, got ${observeCalls.length}`);
+  assert.ok(
+    settleBudgets.includes(PRE_CLICK_SETTLE_MS),
+    `the nav-shaped slow path never used the PRE_CLICK_SETTLE_MS settle (budgets: ${settleBudgets.join(',')})`,
+  );
 });

@@ -14,11 +14,26 @@
 // - T-preclick-fastpath: on an already-loaded page the guard costs one eval,
 //   not a settle.
 // - T-cdp-preclick: the same guard shape over the CDP driver (no noWaitAfter
-//   leg exists there — the guard is the only leg).
+//   leg exists there — the guard is the only leg). Mutants-pass fix: the old
+//   `>= 3500` bound could not discriminate — it passed on BOTH sides of
+//   KB_CDP_PRECLICK (cloud r21 pair: 9117 ms guard active vs 5124 ms skipped).
+//   Measured pair on this box 2026-10-04: 4075/4220 ms guard active (the
+//   PRE_CLICK_SETTLE_MS 4000 floor dominates) vs 28 ms with the flag flipped
+//   — `>= 2000` discriminates with wide margin both ways.
 // - T-wait-growth / T-wait-static (r21 WP-4, P-2/D4): the wait act polls the
 //   r17c growth signature with WAIT_GROWTH_MS budget instead of a blind
 //   WAIT_OP_MS sleep — early exit when content lands, full budget when the
-//   page never changes.
+//   page never changes. T-cdp-wait-growth adds the CDP-driver leg (the r21
+//   mutants pass found KB_CDP_WAIT_GROWTH unpinned): same chain-delay shape
+//   with the page waited to readyState 'complete' BEFORE the click (a
+//   title-only poll can leave the guard settling inside the click act), and
+//   the WAIT-ACT DELTA (time from click-act end to wait-act end) pinned to
+//   [1250, 2900] — measured pair 2026-10-04: unflipped 1623 ms (first poll
+//   tick after #finish lands), flipped 1009 ms (blind sleep, also ending
+//   before #finish exists, which kills the observe too). The delta anchors
+//   on the mouseReleased response — the moment the append timer starts — so
+//   it is immune to this box's intermittent ~5 s stall inside the click
+//   act's mouseMoved dispatch (move=5010-5015 ms with down/up at 1-3 ms).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,7 +60,7 @@ test.after(async () => {
 
 // ---- harness ----
 
-async function openPageAt(url: string, expectedTitle: string): Promise<string> {
+async function openPageAt(url: string, expectedTitle: string, waitForReady = false): Promise<string> {
   const version = (await fetch(`${chrome.endpoint}/json/version`).then((r) => r.json())) as {
     webSocketDebuggerUrl: string;
   };
@@ -89,10 +104,21 @@ async function openPageAt(url: string, expectedTitle: string): Promise<string> {
     for (;;) {
       const info = await send<{ result: { value?: unknown } }>(
         'Runtime.evaluate',
-        { expression: 'document.title', returnByValue: true },
+        {
+          expression: waitForReady
+            ? 'document.title + "|" + document.readyState'
+            : 'document.title',
+          returnByValue: true,
+        },
         sessionId,
       ).catch(() => null);
-      if (info?.result?.value === expectedTitle) break;
+      // waitForReady: the pre-click guard skips its settle only when the
+      // document has finished loading — a title-poll alone can return while
+      // the response is still streaming, and the guard then burns its
+      // 4000 ms settle inside a later click act (observed: 5029 ms clicks
+      // under box load). guard-loading.html never completes, so only tests
+      // that opt in pay this.
+      if (info?.result?.value === (waitForReady ? `${expectedTitle}|complete` : expectedTitle)) break;
       assert.ok(Date.now() < deadline, `page ${url} never loaded`);
       await new Promise((r) => setTimeout(r, 250));
     }
@@ -109,9 +135,14 @@ interface Rig {
   close(): Promise<void>;
 }
 
-async function openRig(page: string, expectedTitle: string, driverKind: 'playwright' | 'cdp'): Promise<Rig> {
+async function openRig(
+  page: string,
+  expectedTitle: string,
+  driverKind: 'playwright' | 'cdp',
+  waitForReady = false,
+): Promise<Rig> {
   const pageUrl = `${fixture.url}/${page}`;
-  await openPageAt(pageUrl, expectedTitle);
+  await openPageAt(pageUrl, expectedTitle, waitForReady);
   const driver = driverKind === 'playwright' ? createPlaywrightDriver() : createCdpDriver();
   await driver.attach({ cdpEndpoint: chrome.endpoint });
   const pageId = await waitForPage(driver, pageUrl);
@@ -213,7 +244,13 @@ test('T-cdp-preclick: the CDP driver holds the same guard on a forever-loading p
     const t = Date.now();
     await rig.driver.act(rig.pageId, el.id, 'click');
     const elapsed = Date.now() - t;
-    assert.ok(elapsed >= 3_500, `cdp click took only ${elapsed} ms — the pre-click guard did not poll its budget`);
+    // Discriminating bound (mutants-pass fix): measured guard-active
+    // 4075 ms on this box (the cloud r21 pair was 9117/5124 — remote
+    // latency, not reproducible here) against the KB_CDP_PRECLICK-skipped
+    // path's number pinned from the flip proof below. `>= 3500` passed both
+    // cloud sides, so it could not fail on the flip. The guard-active floor
+    // is PRE_CLICK_SETTLE_MS (4000) + the click itself.
+    assert.ok(elapsed >= 2_000, `cdp click took only ${elapsed} ms — the pre-click guard did not poll its budget`);
     const obs = await rig.driver.observe(rig.pageId);
     assert.ok(obs.text.includes('clicked'), `act did not land on the guarded page: ${obs.text}`);
   } finally {
@@ -258,6 +295,45 @@ test('T-wait-static: a wait act on a never-changing page pays the full bounded b
       elapsed >= 2_900 && elapsed <= 3_800,
       `wait act took ${elapsed} ms — expected the full WAIT_GROWTH_MS budget on a static page`,
     );
+  } finally {
+    await rig.close();
+  }
+});
+
+// r21 mutants-pass fix: KB_CDP_WAIT_GROWTH had no pin — T-wait-growth /
+// T-wait-static above run the playwright driver only, so flipping the CDP
+// adapter's growth poll off stayed green. The same chain-delay shape over the
+// CDP driver. The discriminating quantity is the WAIT-ACT DELTA (waitMs =
+// click+wait elapsed minus the click act's own time): the flipped build
+// sleeps the blind WAIT_OP_MS (1000 ms, no eval before it) and returns
+// BEFORE #finish lands; the growth poll can never return before the append
+// (~1500 ms after the mouseReleased response — which is exactly the moment
+// the delta clock anchors on). This makes the delta immune to the box's
+// intermittent ~5 s stall inside the click act's mouseMoved dispatch
+// (measured 2026-10-04: move=5010-5015 ms with down/up at 1-3 ms, every
+// stalled attempt): the stall precedes the click landing, so it inflates
+// clickMs and the total but never the delta.
+test('T-cdp-wait-growth: the CDP wait act exits early when delayed content lands, and the content is then visible', async () => {
+  // Measured 2026-10-04, this box: unflipped growth-poll wait delta 1623 ms
+  // (first 200 ms poll tick after #finish lands); flipped 1009 ms delta —
+  // which also ends before #finish exists, killing the observe below. The
+  // window excludes both sides of the pair; the upper bound also excludes a
+  // hypothetical poll that never early-exits (it would burn the full
+  // WAIT_GROWTH_MS budget).
+  const rig = await openRig('chain-delay.html', 'Fixture chain delay', 'cdp', true);
+  try {
+    const el = await elementNamed(rig.driver, rig.pageId, 'Start');
+    const t = Date.now();
+    await rig.driver.act(rig.pageId, el.id, 'click');
+    const clickMs = Date.now() - t;
+    await rig.driver.act(rig.pageId, null, 'wait');
+    const waitMs = Date.now() - t - clickMs;
+    assert.ok(
+      waitMs >= 1_250 && waitMs <= 2_900,
+      `wait act returned ${waitMs} ms after the click — expected the growth poll to exit when #finish landed (~1500 ms after the click; the flipped build sleeps ~1000 ms instead)`,
+    );
+    const obs = await rig.driver.observe(rig.pageId);
+    assert.ok(obs.elements.some((e) => e.name === 'Finish'), 'follow-up observe never saw #finish');
   } finally {
     await rig.close();
   }

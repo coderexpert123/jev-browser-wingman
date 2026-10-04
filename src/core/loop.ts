@@ -15,6 +15,7 @@ import {
   CHAIN_MEMORY_MAX,
   LABEL_MAX,
   OBS_RETRY_SETTLE_MS,
+  PRE_CLICK_SETTLE_MS,
   READY_MAX_WAITS,
   RECOVER_MAX_PER_CLAUSE,
   SETTLE_MAX_MS,
@@ -152,10 +153,22 @@ const KB_OPT_POSTACTION_NOTE = false;
 
 /** r21 (P-1c) KB proof switch (the loop's first): the bounded, settle-backed
  * observe retry in observeTimed for a FAST mid-navigation observe failure
- * (context destroyed while a removed-wait click's navigation is in flight).
- * Flipping restores the no-retry observe — such a failure throws straight to
- * the error end. Never flip in shipped code. */
+ * (context destroyed while a removed-wait click's navigation is in flight),
+ * and — since the r21b amendment — a SLOW failure that is NAV-SHAPED (see
+ * NAV_SHAPED_OBS_ERROR_RE) right after a click-family act. Flipping restores
+ * the no-retry observe — such a failure throws straight to the error end.
+ * Never flip in shipped code. */
 const KB_OBS_RETRY = false;
+
+// r21b (mid-nav observe amendment): an observe failure whose message matches
+// the adapters' evaluate-timeout shapes. BOTH adapters throw
+// ActFailedError('evaluation timed out') when the evaluate deadline expires
+// (cdp.ts evalOnSession, playwright.ts evaluateOnPage), and BOTH surface a
+// mid-navigation context destruction with the browser's own
+// 'Execution context was destroyed' text (playwright passes the
+// exceptionDetails text through; cdp rethrows the raw error response). A
+// wedged-renderer failure carries neither shape.
+const NAV_SHAPED_OBS_ERROR_RE = /evaluation timed out|Execution context/i;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -1695,16 +1708,23 @@ async function runTool(
     return round;
   };
   /** Timed observe (r21 P-1c, D3; bound corrected by the r21 verifier F2,
-   * 2026-10-04): fills the current round's observeMs and, once,
-   * firstObserveMs — the telemetry statements run exactly once per RETURNED
-   * obs, on the successful attempt (a recovered round's observeMs therefore
-   * includes the retry time). The FIRST observe failure is retried up to
-   * twice behind a bounded settle, but only when it failed FAST (< 2 s); the
+   * 2026-10-04; slow-nav-shaped retry added by the r21b mid-nav amendment):
+   * fills the current round's observeMs and, once, firstObserveMs — the
+   * telemetry statements run exactly once per RETURNED obs, on the
+   * successful attempt (a recovered round's observeMs therefore includes the
+   * retry time). The FIRST observe failure is retried up to twice behind a
+   * bounded settle when it failed FAST (< 2 s) — the mid-navigation context
+   * loss — and, since r21b, ALSO when a SLOW failure is NAV-SHAPED (the
+   * evaluate-timeout / context-destroyed signature) right after a
+   * click-family act (the tracked condition that precedes a navigation; the
+   * t9 rep-1 failure). The nav-shaped slow path's first settle uses the
+   * larger PRE_CLICK_SETTLE_MS so the in-flight navigation can finish. The
    * inner retries themselves have no speed gate, so the real worst case is
-   * ~11 s (two slow inner failures at the evaluate timeout plus the settles
-   * — navigation-shaped, bounded). A slow FIRST failure is a wedged
-   * renderer, not a navigation, and is never retried. */
-  const observeTimed = async (pageId: string): Promise<Observation> => {
+   * ~11 s fast (~11 s slow-nav: settle 4000 + two observe timeouts —
+   * navigation-shaped, bounded). A slow FIRST failure with no prior
+   * click-family act is a wedged renderer, not a navigation, and is never
+   * retried. */
+  const observeTimed = async (pageId: string, history: HistoryEntry[] = []): Promise<Observation> => {
     const t = now();
     const finishTiming = (obs: Observation): Observation => {
       const ms = now() - t;
@@ -1716,9 +1736,21 @@ async function runTool(
       const obs = await driver!.observe(pageId);
       return finishTiming(obs);
     } catch (e) {
-      if (KB_OBS_RETRY || (now() - t) >= 2_000) throw e;   // slow failure = wedge, not nav
+      if (KB_OBS_RETRY) throw e;
+      const slow = (now() - t) >= 2_000;
+      // r21b: NAV-SHAPED = evaluate-timeout signature AND a click-family act
+      // just completed (the last history entry — the round top's observe
+      // precedes annotateLastOutcome, so the previous round's act is last).
+      const navShaped =
+        history.length > 0 &&
+        CLICK_FAMILY_OPS.has(history[history.length - 1].verb) &&
+        NAV_SHAPED_OBS_ERROR_RE.test(String(e));
+      if (!navShaped && slow) throw e;   // slow failure = wedge, not nav
       for (let i = 0; i < 2; i++) {
-        await driver!.settle(pageId, OBS_RETRY_SETTLE_MS);
+        await driver!.settle(
+          pageId,
+          navShaped && slow && i === 0 ? PRE_CLICK_SETTLE_MS : OBS_RETRY_SETTLE_MS,
+        );
         try {
           return finishTiming(await driver!.observe(pageId));
         } catch { /* retry */ }
@@ -3399,7 +3431,7 @@ async function runTool(
           ? clauseText(Math.min(chain.cursor, N - 1))
           : (entryStep ?? '');
       }
-      const obs = await observeTimed(pageId);
+      const obs = await observeTimed(pageId, history);
       pageUrl = obs.url;
       // § outcome evidence choke point: fills the last act's observed result
       // from this round's fresh obs, before anything reads history.
