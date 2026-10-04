@@ -22,3 +22,5 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | **conformance-ops 44 pass + 1 t
 - run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+
+## Final: results.md written (forced 33/34 + failed re-run, invariant PASS 63==63, doctor 3/3, t9 targets missed, site stalls ~30 s on ~1 in 5 requests). Spend 10.3646 of 16 USD. README refresh from this run: NO.
