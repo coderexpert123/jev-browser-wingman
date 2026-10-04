@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-04-163747.json",
+  "purpose": "measure",
+  "harness_version": 3,
+  "model": "sonnet",
+  "cap_usd": 1,
+  "phase_cap_usd": 68.907545,
+  "aborted": null,
+  "total_usd": 0.202378,
+  "runs": [
+    {
+      "task": "t13-infinite-scroll",
+      "route": "forced",
+      "ok": false,
+      "wall_ms": 30731,
+      "browser_tool_calls": 7,
+      "per_step_ms": 4390,
+      "llm": {
+        "input_tokens": 18,
+        "output_tokens": 1487,
+        "cache_read_tokens": 515778,
+        "cache_write_tokens": 6480,
+        "usd": 0.201392,
+        "cli_reported_usd": 0.1439816
+      },
+      "typesafe": {
+        "calls": 4,
+        "input_tokens": 23463,
+        "output_tokens": 4127,
+        "usd": 0.000985
+      },
+      "wingman": {
+        "calls": 4,
+        "fallback": 4,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 130,
+        "first_observe_ms": 14,
+        "observe_ms": 8,
+        "jev_ms": 143,
+        "act_ms": 6,
+        "settle_ms": 215,
+        "rounds": 11,
+        "jev_first_ms": 65,
+        "jev_rest_ms": 143,
+        "observe_sum_ms": 91,
+        "jev_sum_ms": 1548,
+        "act_sum_ms": 4791,
+        "settle_sum_ms": 1306,
+        "round_kinds": {
+          "act": 6,
+          "advance": 0,
+          "wait": 0,
+          "bounce": 5,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.202378,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "no-progress",
+          "steps": 3,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "no-progress",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "no-progress",
+          "steps": 1,
+          "rounds": 2,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "no-progress",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "no-progress",
+          "steps": 1,
+          "rounds": 2,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "no-progress",
+          "candidates": 0
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 3,
+          "pick": true,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 1
+          },
+          "why": "low-confidence",
+          "candidates": 1
+        }
+      ],
+      "handoffs": 4,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 4,
+        "mcp__playwright__browser_snapshot": 1,
+        "mcp__playwright__browser_find": 2
+      },
+      "first_call_invalid": 0,
+      "end_state": "3 items | scrollY=332"
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 0,
+      "median_wall_ms": 30731,
+      "median_usd": 0.202378,
+      "fallback_rate": 1,
+      "wall_min_ms": 30731,
+      "wall_max_ms": 30731
+    }
+  },
+  "task_pairs": {
+    "t13-infinite-scroll": {
+      "forced": {
+        "n": 1,
+        "ok": 0,
+        "wall_min_ms": 30731,
+        "wall_med_ms": 30731,
+        "wall_max_ms": 30731,
+        "median_usd": 0.202378
+      }
+    }
+  }
+}
