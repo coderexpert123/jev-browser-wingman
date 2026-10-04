@@ -1,0 +1,6 @@
+bbc: signals.captcha=false elements=474 rawMatches=1
+npr: signals.captcha=false elements=541 rawMatches=6
+guardian: signals.captcha=false elements=533 rawMatches=1
+captcha-tp: signals.captcha=true elements=1 rawMatches=1
+captcha-fp: signals.captcha=false elements=1 rawMatches=4
+WROTE .calib/recon-fixtures.json

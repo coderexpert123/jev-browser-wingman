@@ -1,0 +1,88 @@
+{
+ "generatedAt": "2026-10-04T07:29:53.805Z",
+ "targets": [
+  [
+   "bbc",
+   "https://www.bbc.com/news"
+  ],
+  [
+   "npr",
+   "https://www.npr.org"
+  ],
+  [
+   "guardian",
+   "https://www.theguardian.com/us"
+  ]
+ ],
+ "sites": {
+  "bbc": {
+   "url": "https://www.bbc.com/news",
+   "finalUrl": "https://www.bbc.com/news",
+   "title": "BBC News - Breaking news, video and the latest top stories from the U.S. and around the world",
+   "signalsCaptcha": true,
+   "elementCount": 474,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  },
+  "npr": {
+   "url": "https://www.npr.org",
+   "finalUrl": "https://www.npr.org/",
+   "title": "NPR - Breaking News, Analysis, Music, Arts & Podcasts : NPR",
+   "signalsCaptcha": true,
+   "elementCount": 541,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  },
+  "guardian": {
+   "url": "https://www.theguardian.com/us",
+   "finalUrl": "https://www.theguardian.com/us",
+   "title": "Latest news, sport and opinion from the Guardian",
+   "signalsCaptcha": true,
+   "elementCount": 533,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  }
+ }
+}

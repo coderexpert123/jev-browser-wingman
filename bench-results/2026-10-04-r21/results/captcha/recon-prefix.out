@@ -1,0 +1,4 @@
+bbc: signals.captcha=true elements=474 rawMatches=1
+npr: signals.captcha=true elements=541 rawMatches=1
+guardian: signals.captcha=true elements=533 rawMatches=1
+WROTE .calib/recon-prefix.json
