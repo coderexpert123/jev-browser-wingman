@@ -33,13 +33,6 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
    * mutant flips with this one. */
   var KB_TABLE_HEADERS = false;
   var KB_DBLCLICK_ENUM = false;
-  /** KB proof switch (r21 D10 mutant): flip = remove the cursor-pointer
-   * candidacy/role arms (restore pre-P-5 enumerate). Same body-local shape
-   * as KB_HIDDEN_SIBLING so it stringifies along; never flip in shipped
-   * code. verify()'s implicitRole mirror is deliberately UNGATED (the r19
-   * D-2 precedent): a gated verify would throw stale on every enumerated
-   * heuristic element. */
-  var KB_CURSOR_POINTER = false;
 
   function clip(s: string, n: number): string {
     return s.length > n ? s.slice(0, n) : s;
@@ -92,13 +85,6 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     if ((el as HTMLElement).isContentEditable) return 'textbox';
     if (el.hasAttribute('onclick')) return 'button';
     if (!KB_DBLCLICK_ENUM && el.hasAttribute('ondblclick')) return 'button';
-    if (
-      !KB_CURSOR_POINTER &&
-      el.childElementCount <= 50 &&
-      collapse(el.textContent || '') !== '' &&
-      getComputedStyle(el).cursor === 'pointer'
-    )
-      return 'button';
     return '';
   }
   function roleOf(el: Element): string {
@@ -215,21 +201,6 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     if (tag === 'input') return (el.getAttribute('type') || '').toLowerCase() !== 'hidden';
     return false;
   }
-  // r21 (D10): cursor-pointer candidacy for div-like interactive elements —
-  // menu items and custom buttons wired by delegated listeners, which carry
-  // no onclick attribute and no role. Cheap gates first, the style read
-  // LAST: candidacy is evaluated per node the earlier arms REJECT, so
-  // getComputedStyle must only fire for elements already text-bearing,
-  // light and visible. Structured/form elements never reach it (they
-  // returned from isCandidateTag above).
-  function cursorCandidacy(el: Element): boolean {
-    return (
-      el.childElementCount <= 50 &&
-      collapse(el.textContent || '').length > 0 &&
-      isVisible(el) &&
-      getComputedStyle(el).cursor === 'pointer'
-    );
-  }
   function isCandidate(el: Element): boolean {
     if (isCandidateTag(el)) return true;
     var ce = el.getAttribute('contenteditable');
@@ -238,7 +209,6 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
     if (!KB_DBLCLICK_ENUM && el.hasAttribute('ondblclick')) return true;
     var role = el.getAttribute('role');
     if (role && ROLE_VALUES.indexOf(role) !== -1) return true;
-    if (!KB_CURSOR_POINTER && cursorCandidacy(el)) return true;
     return false;
   }
 
@@ -587,10 +557,6 @@ function verify(path: string, fp: { tag: string; role: string; name: string; x: 
     if ((el as HTMLElement).isContentEditable) return 'textbox';
     if (el.hasAttribute('onclick')) return 'button';
     if (el.hasAttribute('ondblclick')) return 'button'; // r19 D-2: ungated mirror of enumerate's ondblclick role
-    // r21 D10: ungated mirror of enumerate's cursor-pointer role — a gated
-    // verify would throw mismatch on every enumerated heuristic element.
-    if (el.childElementCount <= 50 && collapse(el.textContent || '') !== '' && getComputedStyle(el).cursor === 'pointer')
-      return 'button';
     return '';
   }
   function roleOf(el: Element): string {

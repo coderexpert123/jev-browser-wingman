@@ -474,6 +474,16 @@ history: results branches + PA memory.
   via JS listeners, no inline `onclick`). Signature: the log's
   `target1: "none"` at high confidence. Check enumeration before touching
   grader text or thresholds.
+- **Cursor-pointer candidacy is a REJECTED, REMOVED heuristic (r21 P-5 ->
+  D12, 2026-10-04)** — do not re-propose it. The D12 live bar measured
+  +88% to +298% candidate inflation against the +30% cap (local wall
+  numbers had accepted it; the real failure was candidate quality, not
+  time). Shipped `page-scripts.ts` carries zero cursor arms (grep
+  `cursor` = 0); the rejection is final, not a flag default.
+  `fixtures/pages/pointer-interactive.html` stays as the boundary fixture:
+  delegation-only pointer-styled divs (framework menu items with no
+  onclick/role/own listener) do NOT enumerate, pinned zero-records in
+  `tests/pointer-enum.test.ts` beside the iframe/shadow boundary pins.
 - **`CAPTCHA_RE` false-positives on whole real pages** (bbc.com, npr.org
   embed /captcha/i in login/ad widgets): every browse_step returns
   `blocked/captcha` BEFORE any ask (zero spend, zero grades). News sites

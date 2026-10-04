@@ -633,19 +633,30 @@
   arm a match came from; its `--fixtures` mode is the discriminating
   self-check (TP fixture → true/1 match, FP fixture → false/4 matches dumped).
 
-## r21: cursor-pointer candidacy (P-5)
+## r21: cursor-pointer candidacy — REJECTED and REMOVED (P-5/D12)
 
-- **`elementCriterion` renders the ROLE, never the tag — stubs and pick
-  regexes must match `button "Save"`, not `div "Save"`.** A div enumerated
-  through the cursor-pointer arm carries `role: 'button'` (implicitRole's
-  cursor arm), so its target criterion is `button "Save"`; the WP-2 value
-  pin's first stub used `/div "Save"/`, found no criterion, answered
-  nothing, and the call bounced `no-match` with a perfectly healthy
-  enumeration — the failure looks like "heuristic broken" but is the stub.
-  Any regex against heuristic-element criteria keys on role + quoted name.
-- **WP-2's D12 local wall numbers (2026-10-04, `.calib/wall-probe-r21.mjs`,
-  in-page timing, 5 samples median after 2 warmups)**: many.html enumerate
-  12.9 ms ACTIVE vs 11.0 ms flag-flipped = **+1.9 ms** (cap +50 ms); a
-  2000-div non-candidate injection (the per-node worst case) read 24.9 vs
-  17.9 ms = **+7.0 ms**. The cursor arm's cheap-gates-first order keeps the
-  per-node cost single-digit even where every node falls through to it.
+- **The cursor-pointer candidacy heuristic does NOT exist in the shipped
+  tree — it was REJECTED by the D12 live bar (2026-10-04) and REMOVED, not
+  flag-gated.** D12 measured +88% to +298% live-page candidate inflation
+  against the +30% cap (refs/backup/r21-results,
+  bench-results/2026-10-04-r21/progress.md); the earlier local wall numbers
+  (`.calib/wall-probe-r21.mjs`, +1.9-7.0 ms) accepted it locally and were
+  wrong about the real failure mode, which was candidate QUALITY, not wall
+  time. Removed pieces: `cursorCandidacy()`, the `isCandidate` cursor arm,
+  the body-local `KB_CURSOR_POINTER` flag, `implicitRole`'s cursor arm, and
+  verify()'s ungated cursor mirror (mirrors mirror enumerate; once enumerate
+  stops producing cursor candidates the mirror can never fire — r19 D-2
+  precedent). `grep -c "cursor" src/core/page-scripts.ts` must stay 0.
+- **Boundary (documented, not fixed): delegation-only pointer-styled divs
+  do not enumerate.** Framework menu items wired through a root-delegated
+  listener (no onclick, no role, no own listener) are invisible to
+  enumerate, page-side indistinguishable from inert styled divs. The
+  fixture `fixtures/pages/pointer-interactive.html` (Save/Cancel menu items
+  + two decoy divs) pins zero records for all four names in
+  `tests/pointer-enum.test.ts`, alongside the iframe/shadow boundary pins.
+- **`elementCriterion` renders the ROLE, never the tag** (still true
+  generally — explicit `role=` and `onclick` divs): stubs and pick regexes
+  must match `button "Save"`, not `div "Save"`, or the stub finds no
+  criterion, answers nothing, and the call bounces `no-match` with a
+  healthy enumeration — the failure looks like "enumeration broken" but is
+  the stub.
