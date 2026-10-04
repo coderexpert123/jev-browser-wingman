@@ -973,7 +973,7 @@ async function submitCounts(): Promise<unknown> {
   return await pageEval('chain-submit.html', () => [sessionStorage.getItem('submits'), sessionStorage.getItem('loads')]);
 }
 
-test('E12: a same-address submit that leaves the page not ready ends post-action, and the resume never re-submits (r15)', { timeout: 120_000 }, async () => {
+test('E12: a same-address submit that leaves the page not ready ends post-action, and the resume never re-submits (r15, resume semantics r22)', { timeout: 120_000 }, async () => {
   const stub = await startChainStub({ urlAnswer: 'none', submitError: 'not-ready' });
   const s = await startServer(stub.url);
   const pageId = await openFixturePage('chain-submit');
@@ -984,10 +984,24 @@ test('E12: a same-address submit that leaves the page not ready ends post-action
     assert.equal(r1.reason, 'step-uncertain');
     assert.deepEqual(r1.step_review, { step: 'click Retrieve', why: 'post-action', candidates: [] });
     assert.deepEqual(r1.progress, { step_index: 1, steps_done: 0, steps_total: 2 });
+    // r22 F-2 (resume-cheap): the re-sent chain's cursor clause ended
+    // post-action, so the resume SKIPS that clause before the first ask
+    // instead of bouncing `repeat` on it (the r15 behavior this test pinned).
+    // It works on the NEXT clause; the fixture has no Done element, so the
+    // call still ends step-uncertain, but on 'click Done', not on a re-click.
     const r2 = await callTool(s.client, args);
     assert.equal(r2.reason, 'step-uncertain', `status: ${r2.status}`);
-    assert.equal(r2.step_review?.why, 'repeat');
+    assert.equal(r2.step_review?.step, 'click Done', 'the resume advanced past the submit clause');
+    // LOAD-BEARING SAFETY (r15 D2, unchanged by r22): the resume never
+    // re-submits the same-address form — across BOTH calls there is exactly
+    // one submit and no reload. This is the property "the resume never
+    // re-submits" names; the skip semantics above must never break it.
     assert.deepEqual(await submitCounts(), ['1', '1'], 'one submit and no reload');
+    // The r22 round-0 marker is telemetry on the log record (phases.rounds[0]),
+    // not a browse_step result field; after r2 the last record is call 2's.
+    const rec2 = lastLogRecord(s.home);
+    const round0 = (rec2.phases as { rounds?: Array<{ resumeSkippedPostAction?: true }> } | undefined)?.rounds?.[0];
+    assert.equal(round0?.resumeSkippedPostAction, true, 'round-0 resume-skip marker on the resumed call');
   } finally {
     await s.close();
     await stub.close();
