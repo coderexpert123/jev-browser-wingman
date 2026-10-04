@@ -1,0 +1,29 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Fixture pointer menu</title>
+<style>
+  .menu-item { cursor: pointer; padding: 4px 8px; }
+  .decoy { cursor: pointer; padding: 4px 8px; }
+</style>
+</head><body>
+<h1>Pointer menu</h1>
+<div id="app">
+  <div class="menu-item" data-action="save">Save</div>
+  <div class="menu-item" data-action="cancel">Cancel</div>
+</div>
+<div class="decoy">Decoy one</div>
+<div class="decoy">Decoy two</div>
+<output id="log"></output>
+<script>
+  // r21 (P-5/D11): the ONLY listener on the page is this root-delegated one
+  // on #app — the two menu items are interactive through delegation alone,
+  // with no onclick attribute, no role and no own listener. The two decoys
+  // sit OUTSIDE #app, so they can never fire it: cursor-styled divs with
+  // text, indistinguishable page-side from the real items. They document the
+  // known over-enumeration the heuristic accepts (the D12 decoy bar).
+  document.getElementById('app').addEventListener('click', function (ev) {
+    var item = ev.target.closest('[data-action]');
+    if (!item) return;
+    document.getElementById('log').textContent =
+      item.getAttribute('data-action') === 'save' ? 'saved' : 'cancelled';
+  });
+</script>
+</body></html>

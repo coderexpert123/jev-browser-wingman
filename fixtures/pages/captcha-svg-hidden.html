@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- r21 verifier F3 companion: the SAME svg-carried captcha class as
+     captcha-svg-visible.html, but display:none — once the arm can SEE the
+     class (getAttribute read), the scoped visibility/area gates must still
+     exclude it. signals.captcha must be FALSE. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Captcha SVG Hidden</title></head>
+<body>
+  <h1>Normal page</h1>
+  <svg id="widget" class="captcha-widget" width="130" height="130" style="display: none;" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="130" height="130" fill="#dddddd"></rect>
+  </svg>
+  <button id="plain" type="button">Plain button</button>
+</body>
+</html>

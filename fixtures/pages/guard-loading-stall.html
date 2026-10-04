@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Stall</title></head>
+<body>
+<!-- r21 (P-1b): the stall TARGET for guard-loading.html's parser-blocking
+     script tag. It must EXIST — the fixture server's 404 path is immediate by
+     design, so a missing file would end the stall instantly. It is requested
+     with ?delay=30000, and its body is deliberately not JavaScript: when the
+     response finally lands it only logs a page-console SyntaxError. -->
+<p>stall</p>
+</body></html>

@@ -78,6 +78,19 @@ export const SELECT_CHUNK = 250;
 export const ACT_TIMEOUT_MS = 3_000;
 export const EVAL_TIMEOUT_MS = 5_000;    // bound on every adapter Runtime.evaluate; a modal dialog blocks evaluation
 export const SETTLE_MAX_MS = 3_000;
+// r21 (P-1b, D2): the pre-click readiness guard's settle budget — when the
+// first settle probe reads a document that is not yet interactive/complete,
+// the adapters poll readiness for up to this long before the click, then
+// proceed regardless (a stuck page then fails exactly as before).
+export const PRE_CLICK_SETTLE_MS = 4_000;
+// r21 (P-1c, D3; bound corrected by the r21 verifier F2, 2026-10-04): the
+// bounded settle between the two observe retries in observeTimed. The < 2 s
+// fast-fail gate guards only the FIRST failure — the inner retries' observes
+// carry no speed check, so the true worst case stacks two slow inner
+// failures on top of the settles: roughly first fast failure + 2 ×
+// (500 ms settle + ~5 s observe) ≈ 11 s, navigation-shaped and bounded. A
+// wedged renderer's slow FIRST observe failure is never retried.
+export const OBS_RETRY_SETTLE_MS = 500;
 // r17c (D-B): after a scroll-family wheel, adapters poll until the page's
 // scroll position or growth differs from the pre-act baseline, or this
 // budget expires. In-round wall time only — no extra rounds, no extra asks.
@@ -148,6 +161,13 @@ export const HANDOFF_REFUSAL_TEXT =
 export const CHAIN_MAX_STEPS = 12;
 export const CHAIN_MEMORY_MAX = 64;
 export const WAIT_OP_MS = 1_000;
+// r21 (P-2, D4): the wait act's growth-poll budget — the act polls the page's
+// scroll/growth signature for up to this long instead of one blind sleep
+// (exact r17c machinery), folding a page whose content is still arriving into
+// fewer wait rounds. A never-changing page pays the full budget (bounded;
+// R4's ≤ 3 s worst case); the loop's waits counting and ready gate are
+// untouched.
+export const WAIT_GROWTH_MS = 3_000;
 export const WAIT_MAX_PER_CALL = 5;
 export const NAV_TIMEOUT_MS = 15_000;
 export const PICK_NTH_MAX = 20;

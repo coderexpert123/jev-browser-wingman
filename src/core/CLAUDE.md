@@ -611,3 +611,41 @@
   `T-opt-post-note` and `T-opt-post-note-no-escalate` in
   tests/chain.test.ts. Forced mode is untouched (its table already
   returned the post-action line via `forcedNote`).
+
+## r21: scoped captcha signal (P-3)
+
+- **The captcha signal is scoped, not whole-page**: `computeSignals` keeps the
+  CAPTCHA_RE text unchanged but (behind body-local `KB_CAPTCHA_SCOPED`, flip =
+  restore the legacy any-substring match) requires the matcher to be visible,
+  ≥ `CHALLENGE_MIN_AREA` (16000 px²), and not carry `size=invisible` (the
+  reCAPTCHA v3 badge); the id/class arm additionally skips
+  script/style/template/noscript/link/meta and reads the rect only after the
+  RE hits. The true/false fixtures are `captcha-challenge.html` /
+  `captcha-decoys.html`; the FP pin is the flip tooth (proven: flag `= true`
+  → exactly that pin red, TP pin stays green — pre-fix matches a superset).
+- **The 2026-09-21 "bbc/npr match /captcha/i" observation is time-varying**:
+  the 2026-10-04 pre-change baseline (`bench/cloud/captcha-recon.mjs` →
+  `.calib/captcha-baseline-r21.json`) found ZERO raw matches and
+  `signals.captcha === false` on all three news sites — real pages (titles,
+  element counts healthy), the vendor content simply moved. Never assume a
+  recorded live-site match persists; re-run the recon at every validation
+  round (D6 risk 2). The recon's raw dump is rule-independent and names the
+  arm a match came from; its `--fixtures` mode is the discriminating
+  self-check (TP fixture → true/1 match, FP fixture → false/4 matches dumped).
+
+## r21: cursor-pointer candidacy (P-5)
+
+- **`elementCriterion` renders the ROLE, never the tag — stubs and pick
+  regexes must match `button "Save"`, not `div "Save"`.** A div enumerated
+  through the cursor-pointer arm carries `role: 'button'` (implicitRole's
+  cursor arm), so its target criterion is `button "Save"`; the WP-2 value
+  pin's first stub used `/div "Save"/`, found no criterion, answered
+  nothing, and the call bounced `no-match` with a perfectly healthy
+  enumeration — the failure looks like "heuristic broken" but is the stub.
+  Any regex against heuristic-element criteria keys on role + quoted name.
+- **WP-2's D12 local wall numbers (2026-10-04, `.calib/wall-probe-r21.mjs`,
+  in-page timing, 5 samples median after 2 warmups)**: many.html enumerate
+  12.9 ms ACTIVE vs 11.0 ms flag-flipped = **+1.9 ms** (cap +50 ms); a
+  2000-div non-candidate injection (the per-node worst case) read 24.9 vs
+  17.9 ms = **+7.0 ms**. The cursor arm's cheap-gates-first order keeps the
+  per-node cost single-digit even where every node falls through to it.

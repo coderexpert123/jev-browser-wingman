@@ -13,7 +13,9 @@ import {
   EVAL_TIMEOUT_MS,
   MAX_ENUMERATED,
   NAV_TIMEOUT_MS,
+  PRE_CLICK_SETTLE_MS,
   SCROLL_GROWTH_WAIT_MS,
+  WAIT_GROWTH_MS,
   WAIT_OP_MS,
 } from '../contract/constants.js';
 import {
@@ -68,6 +70,20 @@ const KB_CDP_CHECK_TOGGLE = false;
  * a flipped build skips the post-wheel wait and the act returns before an
  * async append lands. Never flip in shipped code. */
 const KB_CDP_GROWTH_WAIT = false;
+/** r21 (P-1b, D2) KB proof switch: gates the pre-click readiness guard off so
+ * a flipped build clicks without probing readyState. The CDP adapter has no
+ * post-click navigation wait to remove (mouseClick is a raw
+ * Input.dispatchMouseEvent pair) — this is only the guard's mirror. Never flip
+ * in shipped code. */
+const KB_CDP_PRECLICK = false;
+/** r21 (P-2, D4) KB proof switch: composes the wait act's growth poll off so a
+ * flipped build sleeps the blind WAIT_OP_MS again (a still-loading page stays
+ * invisible to the wait act and the caller burns another round to see it).
+ * Never flip in shipped code. */
+const KB_CDP_WAIT_GROWTH = false;
+
+// r21 (P-1b, D2): the click-family ops the pre-click readiness guard covers.
+const CLICK_NAV_OPS: ReadonlySet<string> = new Set(['click', 'dblclick', 'check', 'uncheck']);
 
 const cap = (s: unknown, n: number): string => String(s ?? '').slice(0, n);
 
@@ -457,7 +473,19 @@ class CdpDriver implements Driver {
           return;
         }
         case 'wait': {
-          await sleep(WAIT_OP_MS);
+          // r21 (P-2, D4): the wait act polls for page growth (exact r17c
+          // machinery) instead of one blind sleep — content arriving over XHR
+          // during the wait changes the growth signature and ends the act
+          // early, in-round wall time only (absorbed into act_ms), never an
+          // extra round or ask. A null baseline (probe failed) or a
+          // never-changing page falls back to the blind sleep; the poll is
+          // bounded by WAIT_GROWTH_MS, never a hang.
+          const baseline = KB_CDP_WAIT_GROWTH ? null : await this.probeScrollGrowth(pageId);
+          if (baseline === null) {
+            await sleep(WAIT_OP_MS);
+          } else {
+            await waitForScrollGrowth(() => this.probeScrollGrowth(pageId), baseline, WAIT_GROWTH_MS);
+          }
           return;
         }
         case 'navigate': {
@@ -701,6 +729,30 @@ class CdpDriver implements Driver {
     }
 
     const el = await this.cachedElement(pageId, elementId);
+
+    // r21 (P-1b, D2): pre-click readiness guard, the playwright adapter's
+    // mirror (this.evalIsolated + probeScrollGrowth's try/catch shape) —
+    // click-family ops must not click into a document that is still loading.
+    // One eval (~10 ms) on a loaded page; proceed regardless when the
+    // PRE_CLICK_SETTLE_MS budget expires — a stuck page then fails exactly
+    // as before.
+    if (!KB_CDP_PRECLICK && CLICK_NAV_OPS.has(op)) {
+      const probe = (await this.evalIsolated(pageId, buildSettleProbeExpression())) as {
+        readyState?: string;
+      } | null;
+      if (!probe || (probe.readyState !== 'interactive' && probe.readyState !== 'complete')) {
+        await settleByProbe(async () => {
+          try {
+            return (await this.evalIsolated(pageId, buildSettleProbeExpression())) as {
+              readyState: string;
+              sig: string;
+            };
+          } catch {
+            return null;
+          }
+        }, PRE_CLICK_SETTLE_MS);
+      }
+    }
 
     const verified = await this.evalIsolated(pageId, buildVerifyExpression(el.path, el.fingerprint as Fingerprint));
     if (!verified || verified.ok !== true) {

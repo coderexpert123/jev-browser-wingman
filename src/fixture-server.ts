@@ -46,7 +46,16 @@ export async function startFixtureServer(opts?: { port?: number }): Promise<Fixt
       if (name === 'cookie') {
         res.setHeader('Set-Cookie', 'wingman_fixture=1; Max-Age=86400; Path=/; SameSite=Lax');
       }
+      // r21 (P-1, D13): `?delay=<ms>` holds the response before res.end — a
+      // navigation the click must not wait on. Clamped to [0, 30000] ms so a
+      // bad argument can never wedge a suite; the 404 paths above stay
+      // immediate.
+      const delayMatch = /[?&]delay=(\d{1,5})/.exec(rawUrl);
+      const delayMs = delayMatch ? Math.max(0, Math.min(30_000, Number(delayMatch[1]))) : 0;
       res.statusCode = 200;
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
       res.end(content);
     })();
   });

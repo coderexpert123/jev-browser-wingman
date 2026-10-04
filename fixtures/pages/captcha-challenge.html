@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- r21 (P-3/D5) true positive: a visible, in-viewport challenge iframe sized
+     like the reCAPTCHA v2 checkbox (304x78 = 23712 px^2 >= 16000) with a
+     normal (not size=invisible) src. signals.captcha must be TRUE, and the
+     ordinary Continue button beside it must still enumerate. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Captcha Challenge</title></head>
+<body>
+  <h1>Confirm you are human</h1>
+  <iframe id="challenge" title="Challenge widget"
+    src="https://www.google.com/recaptcha/api2/anchor?ar=1&amp;k=test-key&amp;size=normal"
+    style="width: 304px; height: 78px; border: 1px solid #d3d3d3;"></iframe>
+  <button id="continue" type="button">Continue</button>
+</body>
+</html>

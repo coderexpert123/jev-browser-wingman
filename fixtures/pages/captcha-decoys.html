@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- r21 (P-3/D5) false positive: four matchers that the legacy whole-page
+     /captcha/i rule all tripped and the scoped rule must all exclude:
+       1. a hidden 0x0 recaptcha iframe (fails visibility + area),
+       2. a 256x60 badge iframe with size=invisible in its src (excluded by
+          the src test; its 15360 px^2 area also fails the 16000 gate),
+       3. a small visible "protected by hCaptcha" credit div, 200x20 = 4000
+          px^2 (fails the area gate),
+       4. a display:none hcaptcha container (fails visibility).
+     signals.captcha must be FALSE. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Captcha Decoys</title></head>
+<body>
+  <h1>Normal page</h1>
+  <iframe id="rec-script" src="https://www.google.com/recaptcha/api.js"
+    style="width: 0; height: 0; border: none; display: none;"></iframe>
+  <iframe id="rec-badge" title="reCAPTCHA badge"
+    src="https://www.google.com/recaptcha/api2/logo?size=invisible&amp;k=test-key"
+    style="width: 256px; height: 60px; border: none;"></iframe>
+  <div id="hcaptcha-credit" style="width: 200px; height: 20px;">protected by hCaptcha</div>
+  <div id="hcaptcha-container" style="display: none;">challenge holder</div>
+  <button id="plain" type="button">Plain button</button>
+</body>
+</html>

@@ -10,7 +10,7 @@ import { runDo, runCheck, runStep, kindForResult, type LoopDeps } from '../src/c
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
-import { DEFAULT_BUDGETS, POLICY_SELF_TEST_HOST } from '../src/contract/constants.js';
+import { DEFAULT_BUDGETS, OBS_RETRY_SETTLE_MS, POLICY_SELF_TEST_HOST } from '../src/contract/constants.js';
 import type { GateMode, PolicyMode, TakeoverMode } from '../src/contract/constants.js';
 import type {
   ElementRecord,
@@ -1072,4 +1072,58 @@ test('wingman_do token act answers the page dialog per the goal text', async () 
   assert.equal(answers.length, 1);
   assert.equal((answers[0] as { accept?: boolean }).accept, true, 'the goal text (the call step text) said confirm');
   assert.equal(h.driver.actCalls().length, 1, 'the token click executed');
+});
+
+// ---- r21 (P-1c): the bounded observe retry in observeTimed ----
+//
+// A FAST observe failure (< 2 s) is a mid-navigation context loss (the r20
+// scheduled-nav click's navigation in flight); it is retried up to twice
+// behind a bounded settle. A SLOW first failure is a wedged renderer, never
+// a navigation, and must not be retried (the fast-fail gate).
+
+test('a fast mid-navigation observe failure retries behind a bounded settle and the call completes normally', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  const origObserve = h.driver.observe.bind(h.driver);
+  let failed = false;
+  const observeCalls: number[] = [];
+  h.driver.observe = async (pageId: string) => {
+    observeCalls.push(Date.now());
+    if (!failed) {
+      failed = true;
+      throw new Error('Execution context was destroyed, most likely because of a navigation');
+    }
+    return origObserve(pageId);
+  };
+  const settleBudgets: number[] = [];
+  const origSettle = h.driver.settle.bind(h.driver);
+  h.driver.settle = async (pageId: string, budgetMs: number) => {
+    settleBudgets.push(budgetMs);
+    return origSettle(pageId, budgetMs);
+  };
+  const r = await h.call({ goal: 'r21 obs retry once goal' });
+  assert.equal(r.status, 'done', `expected a normal completion, got ${r.status}/${r.reason}`);
+  // one failed observe + one recovered observe (round 1) + one observe (round 2)
+  assert.equal(observeCalls.length, 3, `expected 3 observe calls, got ${observeCalls.length}`);
+  assert.ok(
+    settleBudgets.includes(OBS_RETRY_SETTLE_MS),
+    `the retry settle budget ${OBS_RETRY_SETTLE_MS} was never used (settle budgets: ${settleBudgets.join(',')})`,
+  );
+  // The recovered round's observeMs absorbs the retry time (spec WP-3 item 5).
+  const rec = h.records[0];
+  const observeMs = rec.phases?.rounds.map((round) => round.observeMs) ?? [];
+  assert.ok(observeMs.length >= 2, `expected at least 2 timed rounds, got ${observeMs.length}`);
+});
+
+test('a wedged observe (slow first failure, >= 2 s) is never retried and still ends error', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [S()] });
+  let observeCalls = 0;
+  h.driver.observe = async (): Promise<Observation> => {
+    observeCalls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 2_100));
+    throw new Error('evaluation timed out');
+  };
+  const r = await h.call({ goal: 'r21 obs wedge no retry goal' });
+  assert.equal(r.status, 'error', `expected the unchanged error end, got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'tool-fault');
+  assert.equal(observeCalls, 1, `a wedge must not be retried, got ${observeCalls} observe calls`);
 });

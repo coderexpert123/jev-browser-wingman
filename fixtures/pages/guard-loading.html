@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Guard Loading</title></head>
+<body>
+<button type="button" id="next" onclick="document.getElementById('log').textContent='clicked'">Next Step</button>
+<output id="log"></output>
+<!-- r21 (P-1b): document.readyState must read 'loading' (not merely
+     'interactive') when the pre-click readiness guard probes it. A PENDING
+     PARSER-BLOCKING script keeps the REAL readyState at 'loading' in EVERY
+     world for the fetch's duration — a pending image would only delay
+     'complete' (readyState reads 'interactive' at DOMContentLoaded, which the
+     guard accepts), and the spec draft's defineProperty override is a
+     main-world expando, invisible from the adapters' isolated-world probe
+     (measured 2026-10-04: MAIN 'loading', ISOLATED 'complete'). The 30 s
+     server delay dwarfs the 4 s PRE_CLICK_SETTLE_MS budget; the response that
+     finally arrives is not JS and only logs a console SyntaxError. The button
+     above parses BEFORE this tag, so the element is enumerable and clickable
+     while the parser is blocked. -->
+<script src="guard-loading-stall.html?delay=30000"></script>
+</body></html>

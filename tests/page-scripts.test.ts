@@ -635,3 +635,61 @@ test('verify round-trips the new roles (columnheader, ondblclick button)', async
     await close2();
   }
 });
+
+// r21 (P-3/D5) T-captcha-tp: a visible, in-viewport challenge iframe sized
+// like the reCAPTCHA v2 checkbox (304x78 = 23712 px^2) sets the captcha
+// signal, and the ordinary Continue button beside it still enumerates (the
+// hard block must not erase the rest of the table).
+test('captcha-challenge.html sets the captcha signal and still enumerates Continue', async () => {
+  const { page, close } = await withPage('/captcha-challenge.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(obs.signals.captcha, true);
+    const cont = obs.elements.find((e) => e.name === 'Continue');
+    assert.ok(cont, 'the normal Continue button still enumerates beside the challenge');
+    assert.strictEqual(cont!.role, 'button');
+  } finally {
+    await close();
+  }
+});
+
+// r21 (P-3/D5) T-captcha-fp: hidden, zero-size, size=invisible and
+// sub-area matchers — the bbc/npr false-positive class the legacy whole-page
+// /captcha/i rule tripped — must NOT set the signal. Flip tooth: with
+// KB_CAPTCHA_SCOPED = true (pre-fix behaviour) the decoy iframe trips the
+// legacy any-substring arm and this pin reads true, i.e. red.
+test('captcha-decoys.html does not set the captcha signal', async () => {
+  const { page, close } = await withPage('/captcha-decoys.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(obs.signals.captcha, false);
+  } finally {
+    await close();
+  }
+});
+
+// r21 verifier F3: on an SVG element `className` is an SVGAnimatedString
+// object (stringifies to '[object SVGAnimatedString]'), so the pre-fix
+// id/class arm never matched a captcha class carried by an SVG. The arm
+// reads the class ATTRIBUTE (getAttribute('class') — works for HTML and
+// SVG). Two pins in one fixture pair: a VISIBLE 130x130 svg (16900 px^2,
+// above the 16000 area floor) with class="captcha-widget" IS the captcha
+// signal — the fail-first tooth, pre-fix this reads false — and an
+// INVISIBLE one is not: seeing the class does not bypass the scoped
+// visibility/area gates.
+test('svg-carried captcha class is seen by the id/class arm, still gated by visibility', async () => {
+  const { page, close } = await withPage('/captcha-svg-visible.html');
+  try {
+    const obs = await enumerateAt(page, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(obs.signals.captcha, true);
+  } finally {
+    await close();
+  }
+  const { page: page2, close: close2 } = await withPage('/captcha-svg-hidden.html');
+  try {
+    const obs2 = await enumerateAt(page2, { maxElements: 240, maxTextChars: 3000 });
+    assert.strictEqual(obs2.signals.captcha, false);
+  } finally {
+    await close2();
+  }
+});

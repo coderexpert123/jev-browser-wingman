@@ -6,7 +6,7 @@
 // and never opens pages, closes contexts or closes targets.
 
 import { chromium as defaultChromium, type Browser, type BrowserContext, type CDPSession, type Dialog, type Page } from 'playwright-core';
-import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED, NAV_TIMEOUT_MS, SCROLL_GROWTH_WAIT_MS, WAIT_OP_MS } from '../contract/constants.js';
+import { ACT_TIMEOUT_MS, EVAL_TIMEOUT_MS, MAX_ENUMERATED, NAV_TIMEOUT_MS, PRE_CLICK_SETTLE_MS, SCROLL_GROWTH_WAIT_MS, WAIT_GROWTH_MS, WAIT_OP_MS } from '../contract/constants.js';
 import {
   ActFailedError,
   AttachError,
@@ -95,6 +95,23 @@ const KB_PW_CHECK_TOGGLE = false;
  * a flipped build skips the post-wheel wait and the act returns before an
  * async append lands. Never flip in shipped code. */
 const KB_PW_GROWTH_WAIT = false;
+/** r21 (P-1a, D1) KB proof switch: composes `noWaitAfter: true` into the three
+ * element-targeted Playwright click call sites (click, the check/uncheck label
+ * click, dblclick). Playwright's post-click "wait for scheduled navigations"
+ * wait is redundant with the loop's own driver.settle and is the r20
+ * scheduled-nav act_error (it times out after the pointer already dispatched);
+ * flipping restores the wait. Never flip in shipped code. */
+const KB_PW_NOWAIT = false;
+/** r21 (P-1b, D2) KB proof switch: gates the pre-click readiness guard off so
+ * a flipped build clicks without probing readyState (the mid-navigation race —
+ * the document swapping between the verify eval and Playwright's locator —
+ * returns). Never flip in shipped code. */
+const KB_PW_PRECLICK = false;
+/** r21 (P-2, D4) KB proof switch: composes the wait act's growth poll off so a
+ * flipped build sleeps the blind WAIT_OP_MS again (a still-loading page stays
+ * invisible to the wait act and the caller burns another round to see it).
+ * Never flip in shipped code. */
+const KB_PW_WAIT_GROWTH = false;
 
 async function connectBounded(
   chromium: typeof import('playwright-core').chromium,
@@ -409,9 +426,22 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
               }
               break;
             }
-            case 'wait':
-              await sleep(WAIT_OP_MS);
+            case 'wait': {
+              // r21 (P-2, D4): the wait act polls for page growth (exact r17c
+              // machinery) instead of one blind sleep — content arriving over
+              // XHR during the wait changes the growth signature and ends the
+              // act early, in-round wall time only (absorbed into act_ms),
+              // never an extra round or ask. A null baseline (probe failed) or
+              // a never-changing page falls back to the blind sleep; the poll
+              // is bounded by WAIT_GROWTH_MS, never a hang.
+              const baseline = KB_PW_WAIT_GROWTH ? null : await probeScrollGrowth(rec);
+              if (baseline === null) {
+                await sleep(WAIT_OP_MS);
+              } else {
+                await waitForScrollGrowth(() => probeScrollGrowth(rec), baseline, WAIT_GROWTH_MS);
+              }
               break;
+            }
             case 'navigate': {
               if (value === undefined || !/^https?:\/\//i.test(value)) {
                 throw new ActFailedError('navigate requires an http(s) URL');
@@ -492,6 +522,32 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
       if (!el) throw new StaleElementError(`element ${elementId} is not in the cached observation of page ${pageId}`);
 
       try {
+        // r21 (P-1b, D2): pre-click readiness guard — click-family ops must not
+        // click into a document that is still loading (the mid-navigation race:
+        // the document swaps between this verify eval and Playwright's locator).
+        // One eval (~10 ms) on a loaded page; when the probe reads not-ready,
+        // settle within PRE_CLICK_SETTLE_MS and proceed regardless when the
+        // budget expires — a stuck page then fails exactly as before.
+        if (
+          !KB_PW_PRECLICK &&
+          (op === 'click' || op === 'dblclick' || op === 'check' || op === 'uncheck')
+        ) {
+          const probe = (await evaluateOnPage(rec, buildSettleProbeExpression())) as {
+            readyState?: string;
+          } | null;
+          if (!probe || (probe.readyState !== 'interactive' && probe.readyState !== 'complete')) {
+            await settleByProbe(async () => {
+              try {
+                return (await evaluateOnPage(rec, buildSettleProbeExpression())) as {
+                  readyState: string;
+                  sig: string;
+                };
+              } catch {
+                return null;
+              }
+            }, PRE_CLICK_SETTLE_MS);
+          }
+        }
         const verify = (await evaluateOnPage(rec, buildVerifyExpression(el.path, el.fingerprint))) as {
           ok: boolean;
           reason?: string;
@@ -510,9 +566,16 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
         }
 
         const timeout = { timeout: ACT_TIMEOUT_MS };
+        // r21 (P-1a, D1): the click family drops Playwright's redundant
+        // post-click navigation wait (`noWaitAfter: true`) — the r20
+        // "scheduled navigations" act_error is THAT wait timing out after the
+        // pointer already dispatched; the loop's own driver.settle owns
+        // post-click settling. fill/select/press/hover/upload/scroll_to are
+        // untouched.
+        const clickTimeout = { ...timeout, ...(KB_PW_NOWAIT ? {} : { noWaitAfter: true }) };
         switch (op) {
           case 'click':
-            await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(timeout));
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(clickTimeout));
             break;
           case 'fill':
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).fill(value ?? '', timeout));
@@ -531,7 +594,7 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
               // Click `path`, not `controlPath`: for a proxied control the
               // real input can be visually hidden, and `path` is the visible
               // label that toggles it — when it is associated (wrap or for).
-              await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(timeout));
+              await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(clickTimeout));
               // r17b (F3): report the act's own state change — the loop
               // stores a flip as evidence the way it stores a landed fill's
               // 'filled'.
@@ -581,7 +644,7 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
             break;
           }
           case 'dblclick':
-            await raceAgainstDialog(rec, () => rec.page.locator(el.path).dblclick(timeout));
+            await raceAgainstDialog(rec, () => rec.page.locator(el.path).dblclick(clickTimeout));
             break;
           case 'hover':
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).hover(timeout));

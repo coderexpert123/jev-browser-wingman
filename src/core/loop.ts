@@ -14,6 +14,7 @@
 import {
   CHAIN_MEMORY_MAX,
   LABEL_MAX,
+  OBS_RETRY_SETTLE_MS,
   READY_MAX_WAITS,
   RECOVER_MAX_PER_CLAUSE,
   SETTLE_MAX_MS,
@@ -148,6 +149,13 @@ const KB_UPLOAD_EVIDENCE = false;
  * tells the caller to redo the step whose action already ran). Flipping
  * restores the pre-r20 note + bounce escalation. Never flip in shipped code. */
 const KB_OPT_POSTACTION_NOTE = false;
+
+/** r21 (P-1c) KB proof switch (the loop's first): the bounded, settle-backed
+ * observe retry in observeTimed for a FAST mid-navigation observe failure
+ * (context destroyed while a removed-wait click's navigation is in flight).
+ * Flipping restores the no-retry observe — such a failure throws straight to
+ * the error end. Never flip in shipped code. */
+const KB_OBS_RETRY = false;
 
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
@@ -1686,14 +1694,37 @@ async function runTool(
     cur = round;
     return round;
   };
-  /** Timed observe: fills the current round's observeMs and, once, firstObserveMs. */
+  /** Timed observe (r21 P-1c, D3; bound corrected by the r21 verifier F2,
+   * 2026-10-04): fills the current round's observeMs and, once,
+   * firstObserveMs — the telemetry statements run exactly once per RETURNED
+   * obs, on the successful attempt (a recovered round's observeMs therefore
+   * includes the retry time). The FIRST observe failure is retried up to
+   * twice behind a bounded settle, but only when it failed FAST (< 2 s); the
+   * inner retries themselves have no speed gate, so the real worst case is
+   * ~11 s (two slow inner failures at the evaluate timeout plus the settles
+   * — navigation-shaped, bounded). A slow FIRST failure is a wedged
+   * renderer, not a navigation, and is never retried. */
   const observeTimed = async (pageId: string): Promise<Observation> => {
     const t = now();
-    const obs = await driver!.observe(pageId);
-    const ms = now() - t;
-    if (cur) cur.observeMs += ms;
-    if (phaseAcc.firstObserveMs === undefined) phaseAcc.firstObserveMs = ms;
-    return obs;
+    const finishTiming = (obs: Observation): Observation => {
+      const ms = now() - t;
+      if (cur) cur.observeMs += ms;
+      if (phaseAcc.firstObserveMs === undefined) phaseAcc.firstObserveMs = ms;
+      return obs;
+    };
+    try {
+      const obs = await driver!.observe(pageId);
+      return finishTiming(obs);
+    } catch (e) {
+      if (KB_OBS_RETRY || (now() - t) >= 2_000) throw e;   // slow failure = wedge, not nav
+      for (let i = 0; i < 2; i++) {
+        await driver!.settle(pageId, OBS_RETRY_SETTLE_MS);
+        try {
+          return finishTiming(await driver!.observe(pageId));
+        } catch { /* retry */ }
+      }
+      throw e;
+    }
   };
 
   /** Telemetry (WP-outcome-evidence WP-C): the round's chosen action and the

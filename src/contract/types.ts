@@ -77,7 +77,7 @@ export interface PageSignals {
   otpAutocomplete: boolean;  // autocomplete=one-time-code present
   ccAutocomplete: boolean;   // any autocomplete value starting with cc-
   otpText: boolean;          // visible text matches OTP_TEXT_RE (§ 3.5)
-  captcha: boolean;          // CAPTCHA_RE matches an iframe src or an element id/class
+  captcha: boolean;          // challenge-indicative iframe src or element id/class, visible and ≥16000 px² (`size=invisible` excluded)
 }
 
 export interface Observation {

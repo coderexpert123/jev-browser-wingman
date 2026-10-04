@@ -630,3 +630,34 @@ history: results branches + PA memory.
   `tests/cli.test.ts` "chrome show dispatches into chrome-cmd" fails with
   exit 0 vs expected 1. Do not attribute a future red on these two to a new
   diff without checking.
+
+## Gotchas from the r21 verifier-fix pass (2026-10-04)
+
+- **Grader-replay capture lines carry `stage` and rounds consume N asks**
+  (F1): a two-stage round makes TWO askWithCost calls and a native-select
+  resolution one per chunk plus a final, so a one-ask-per-round merge shifts
+  every later pairing by one — silently, since unmatched rounds only mark
+  `mirrored:false` and capture exits 0. The merge is now the exported pure
+  `mergeCapture(records, asks, thresholds)` in `bench/grader-replay.mjs`;
+  `askStage(request)` classifies `group`/`target`/`option`/`recover`/`round`
+  (recover only counts when it is the SOLE question — buildRoundRequest
+  carries recover as an EXTRA question next to done). A round whose
+  `phases.rounds[].jevMs` never moved ended BEFORE its ask and consumes
+  zero asks. Old capture files (no `stage`) still replay: the stage is
+  re-derived from the request's question keys when absent. The line's
+  `round` field is the per-RECORD round index (what mirrorDecision's
+  error-gate needs), never a global counter.
+- **`el.className` on an SVG element is an SVGAnimatedString object** that
+  stringifies to `'[object SVGAnimatedString]'` (F3): any RE match over
+  className silently misses every SVG-carried class. Read
+  `el.getAttribute('class')` instead (works for HTML and SVG). The captcha
+  id/class arm in page-scripts.ts now does; the repeatedGroups signature
+  build (`String(gn.className)`, r17 C8) still uses className by design —
+  SVG groups there read as one `[object...]` bucket, harmless for tallies,
+  but any future CONSUMER of that signature must know.
+- **A fail-first test that asserts a derived label can red for the wrong
+  reason**: the F1 no-ask-round pin was written expecting a global round
+  counter and red on the label, not the shift — the discriminating
+  assertions (line count, paired probabilities) are what must carry the
+  pre/post contrast; derive expected labels from the code's own semantics
+  before writing them.
