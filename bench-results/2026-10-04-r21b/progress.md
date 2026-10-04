@@ -16,3 +16,5 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | **conformance-ops 44 pass + 1 t
 - run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+
+## Final: results.md written (forced 34/34 single clean invocation, playwright 32/34, invariant PASS 66==66, doctor 3/3, 26/34 pairs within +-15% vs r19, route medians +10%/+3%). Spend 9.74 of 16 USD. README refresh from this run: YES (caveats: t9 forced +70%, P-5 still active in tree).

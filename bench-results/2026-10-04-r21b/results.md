@@ -1,0 +1,227 @@
+# r21b - the clean publish run (HEAD f3b3bda on main)
+
+**Verdict up front: forced 34/34 in ONE uninterrupted 68-cell invocation, invariant PASS, doctor 3/3. By the stated criteria this run is the README refresh source: YES - with two flagged caveats (t9 forced is +70% vs r19, and P-5 is still active in the tree).**
+
+Environment: cloud Linux, Chrome 141 headless via chromium-wrapper, Xvfb :99, cloud Sonnet caller, gate off, policy off, harness_version 3. `npm ci` skipped (lock unchanged); build ok (113 files); no `= true` KB flags in src. Phase cap 63.50451 = ledger 47.50451 + 16; `--cap-usd 3.00`. **Spend: 9.7409 USD** of 16 (one invocation; Part 1 and doctor cost nothing).
+
+## Part 1 (Chrome-only, 19 invocations incl. act-nav, pointer-enum, doctor x2) - all green, no re-runs
+acquire 6/6 | chrome 28/28 | conformance 28/28 | **conformance-ops 44 pass + 1 todo (O18) - O8 now PASSES (the 403d409 pin fix)** | chain-e2e 20/20 | pick-e2e 2/2 | adapter-cdp 10/10 (22 s) | adapter-playwright 10/10 | page-scripts 30/30 | **act-nav 7/7 (the new r21b mid-nav pin)** | pointer-enum 2/2 | doctor 37/37 twice | with-chrome 32/32 | with-chrome-forced 3/3 | runner-sweep 2/2 | runner-sweep-leak 1/1 | ephemeral-sweep 7/7 | scaffold 16/16.
+
+## The 68-cell acceptance
+- 68/68 cells present, `aborted=null`, a single invocation (no navigate abort, no resume, no merge).
+- **forced 34/34 ok** (every task 2/2, including t7, t9, t15, t17); **playwright 32/34** (t15-file-upload x2, the tolerated one); 66/68 overall.
+
+## LIVE INVARIANT (typesafe.calls === tool_use_counts[browse_step])
+```
+results/gauntlet/invariant-check.py over the r21b file:
+forced cells checked: 34   mismatches: 0   (sum typesafe.calls 66 == sum browse_step uses 66)
+playwright cells: typesafe.calls > 0 in 0 of 34; browse_step uses in 0 of 34
+```
+**Verdict: PASS.**
+
+## The r21 failure shape (mid-navigation observe timeout) - did not recur
+r21's lone forced failure (t9 rep 1: observe `evaluation timed out` after a navigation click, call ended error/act-failed) did **not** recur: 0 `evaluation timed out` act_errors in the 66 wingman records, and both t9 forced cells passed. The log carries no field that says whether the r21b retry actually fired, so "the amendment fixed it" is not provable from this file; "it did not recur in 34 forced cells" is. The file's only act_error is a different shape: one `page.goto: Timeout 15000 ms` on a `navigate` act in t9 rep 2 (a live-site load; that call ended error/act-failed and the caller re-called).
+
+## r19 baseline comparison (wall medians per task x route; +-15% bucket)
+**26 of 34 pairs within +-15%.** Route-level: forced median wall 13.5 -> 14.9 s (+10%), playwright 14.3 -> 14.8 s (+3%); ok counts identical to r19 (34 and 32); usd medians lower (forced 0.187 -> 0.153, playwright 0.192 -> 0.169; sums forced 5.31 -> 4.68, playwright 5.81 -> 5.06 - prompt-cache state).
+| task | route | r19 wall med s | r21b wall med s | delta | r19 usd med | r21b usd med | within +-15% |
+|---|---|---|---|---|---|---|---|
+| t1-checkboxes | playwright | 13.9 | 15.9 | +14% | 0.155 | 0.139 | yes |
+| t1-checkboxes | forced | 11.4 | 11.4 | +1% | 0.123 | 0.103 | yes |
+| t2-dropdown | playwright | 11.1 | 12.1 | +9% | 0.142 | 0.120 | yes |
+| t2-dropdown | forced | 11.7 | 13.2 | +13% | 0.124 | 0.103 | yes |
+| t3-dynamic-controls | playwright | 14.1 | 14.6 | +4% | 0.165 | 0.142 | yes |
+| t3-dynamic-controls | forced | 17.6 | 16.2 | -8% | 0.148 | 0.114 | yes |
+| t4-add-elements | playwright | 13.8 | 13.5 | -2% | 0.147 | 0.123 | yes |
+| t4-add-elements | forced | 11.3 | 13.2 | +17% | 0.123 | 0.102 | NO |
+| t5-inputs | playwright | 10.9 | 12.7 | +16% | 0.144 | 0.122 | NO |
+| t5-inputs | forced | 10.4 | 10.7 | +3% | 0.124 | 0.103 | yes |
+| t6-dynamic-loading | playwright | 34.6 | 27.7 | -20% | 0.092 | 0.124 | NO |
+| t6-dynamic-loading | forced | 49.0 | 51.9 | +6% | 0.214 | 0.154 | yes |
+| t7-sort-table | playwright | 14.4 | 13.5 | -7% | 0.174 | 0.150 | yes |
+| t7-sort-table | forced | 11.4 | 10.5 | -8% | 0.123 | 0.103 | yes |
+| t8-status-404 | playwright | 11.9 | 12.5 | +5% | 0.145 | 0.123 | yes |
+| t8-status-404 | forced | 13.1 | 11.6 | -11% | 0.123 | 0.103 | yes |
+| t9-long-chain | playwright | 36.5 | 37.2 | +2% | 0.326 | 0.259 | yes |
+| t9-long-chain | forced | 44.9 | 76.4 | +70% | 0.254 | 0.307 | NO |
+| t10-saucedemo-checkout | playwright | 22.1 | 26.9 | +22% | 0.222 | 0.212 | NO |
+| t10-saucedemo-checkout | forced | 26.9 | 28.9 | +7% | 0.215 | 0.186 | yes |
+| t11-todomvc-spa | playwright | 19.3 | 19.6 | +1% | 0.219 | 0.188 | yes |
+| t11-todomvc-spa | forced | 24.7 | 30.1 | +22% | 0.219 | 0.224 | NO |
+| t12-js-confirm-dialog | playwright | 13.3 | 14.5 | +9% | 0.164 | 0.142 | yes |
+| t12-js-confirm-dialog | forced | 17.0 | 18.1 | +6% | 0.188 | 0.162 | yes |
+| t13-infinite-scroll | playwright | 18.1 | 20.5 | +13% | 0.154 | 0.125 | yes |
+| t13-infinite-scroll | forced | 14.4 | 15.5 | +7% | 0.124 | 0.104 | yes |
+| t14-key-press | playwright | 13.9 | 15.0 | +8% | 0.163 | 0.137 | yes |
+| t14-key-press | forced | 13.5 | 15.6 | +16% | 0.146 | 0.123 | NO |
+| t15-file-upload | playwright | 16.0 | 16.3 | +2% | 0.171 | 0.143 | yes |
+| t15-file-upload | forced | 11.4 | 11.0 | -4% | 0.125 | 0.104 | yes |
+| t16-hover-reveal | playwright | 15.9 | 17.9 | +12% | 0.183 | 0.164 | yes |
+| t16-hover-reveal | forced | 15.3 | 17.7 | +16% | 0.159 | 0.145 | NO |
+| t17-double-click | playwright | 11.6 | 11.1 | -4% | 0.141 | 0.118 | yes |
+| t17-double-click | forced | 11.7 | 10.8 | -7% | 0.123 | 0.102 | yes |
+
+- Outside the bucket (8): t9 forced +70% (44.9 -> 76.4 s), t11 forced +22%, t10 playwright +22%, t6 playwright -20%, t4 forced +17%, t5 playwright +16%, t14 forced +16%, t16 forced +16% - both directions, both routes, so seven of eight are ordinary run-to-run variation at n=2.
+- **t9 forced is the one real mover and it is not load drift**: playwright t9 is flat (37.2 s vs 36.5 s in r19) while forced went 43.3 / 46.6 s (r19) -> 61.4 / 94.0 (r20) -> 57.8 FAILED / 63.0 (r21) -> 64.4 / 88.3 s (r21b). Both r21b cells share one shape: 8 `browse_step` calls (r19: 3) and 61 rounds (r19: forty-eight to forty-nine); the first call runs 35 rounds (click 7, check 1, back 4, select 1, fill 2) and ends `fallback/step-uncertain` at step 5 of 7 ("open Checkboxes and tick the first checkbox"), then a target-uncertain end, a page-error end, and four short calls finish the chain. The same step-5 first-call shape is in the r20 and r21 logs, so it **appeared at r20, before P-1..P-5**; it is not caused by r21's changes, and its cause is not isolated here. It costs wall time, not correctness (2/2 ok).
+- t6 forced: 55.7 / 48.1 s (median 51.9 vs r19 49.0), 2 calls vs 3, wait acts 7 / 10 (r19: 9), sum of act time 19.4 s / 28.4 s (r19: 9.1 s): the growth poll made each wait ~3 s without making them fewer (no t6 speed claim was registered this round). t12 forced: 18.4 / 17.7 s (median 18.1 vs 17.0, +6%), 1 call each, 0 waits, unchanged shape.
+- Jev first-round median 229 ms vs later rounds 138 ms (31 forced cells).
+
+## P-5 state (flag for the integrator)
+`main` at f3b3bda still has `KB_CURSOR_POINTER = false` in `src/core/page-scripts.ts`, so **P-5 (cursor-pointer candidacy) is ACTIVE in this run**. r21 measured it as REJECT under D12 (live candidate inflation +88% to +298% on guardian/npr/bbc vs the +30% bar); that removal has not landed. This file therefore measures the tree as it stands. On the local t15-t17 pages the per-cell inflation check shows nothing (wall vs r19: t15 forced -4%, playwright +2%; t16 forced +16%, playwright +12%; t17 forced -7%, playwright -4%) - those pages are small, so P-5 cannot show there; the live-page counts from r21 remain the inflation evidence.
+
+## Doctor x3 (bench Chrome, port 9344)
+3 of 3 `verdict: PASS`; `coexistence: observer fingerprint identical across attach/detach (1 page(s))` each time (logs in doctor/). Part 1's doctor was 37/37 twice as well.
+
+## Caveats
+- n=2 per task x route; live third-party sites; USD is prompt-cache-state-confounded (compare walls).
+- No telemetry shows whether the r21b mid-nav retry fired.
+- t9 forced's 8-call / 61-round shape is a standing slowdown since r20 (cause not isolated).
+- t15 playwright is still undiagnosed.
+- Verbatim reporter output below has 1 numeric tokens replaced with `<withheld>` (and the comparison table 0) because a 2-character bound value collides with them in the pre-push scan; unmodified copies are in results/gauntlet/.
+
+## Publish verdict
+**Refresh the README table from this run: YES.** The two criteria hold: forced 34/34 (single clean invocation, `aborted=null`, invariant PASS) and the route-level aggregates are within noise of r19 (forced median wall +10%, playwright +3%, ok counts equal, usd lower), so the README's route-level numbers move only a little and now come from a clean run on the shipped tree. Two things the integrator should say or decide, not hide: (1) per-task t9 forced is ~+70% slower than r19's published figure (an unexplained call-fragmentation shape since r20), so any README prose or table that quotes t9 per-task needs this file's number; (2) P-5 is still active in the tree despite r21's D12 REJECT - if it is removed before publish, this file no longer describes the shipped build (the P-5-off effect on these 17 shapes was not visible in r21's run either way) and a re-run would be needed for strict provenance.
+
+## Reporter output, verbatim (`node dist/bench/report.js results/gauntlet/r21b-publish-2026-10-04-095716.json`)
+```
+BENCH REPORT 2026-10-04-095716.json purpose=measure model=sonnet harness=3 aborted=null total_usd=9.740859 runs=68
+cell t1-checkboxes playwright ok=true wall_s=17.7 usd=0.189918 llm_in=10 llm_out=265 llm_cache_read=236873 llm_cache_write=30627 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t1-checkboxes forced ok=true wall_s=11.9 usd=0.15258 llm_in=6 llm_out=225 llm_cache_read=130910 llm_cache_write=29272 ts_calls=1 ts_in=3422 ts_out=885 fallbacks=0 rounds=2
+cell t2-dropdown playwright ok=true wall_s=12.7 usd=0.16868 llm_in=8 llm_out=313 llm_cache_read=183762 llm_cache_write=29022 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t2-dropdown forced ok=true wall_s=11.5 usd=0.1529 llm_in=6 llm_out=243 llm_cache_read=130898 llm_cache_write=29284 ts_calls=1 ts_in=3634 ts_out=924 fallbacks=0 rounds=2
+cell t3-dynamic-controls playwright ok=true wall_s=14.7 usd=0.189174 llm_in=10 llm_out=364 llm_cache_read=239306 llm_cache_write=29838 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t3-dynamic-controls forced ok=true wall_s=14.4 usd=0.153226 llm_in=6 llm_out=247 llm_cache_read=130926 llm_cache_write=29305 ts_calls=1 ts_in=7900 ts_out=2010 fallbacks=0 rounds=4
+cell t4-add-elements playwright ok=true wall_s=13.0 usd=0.17235 llm_in=8 llm_out=385 llm_cache_read=183958 llm_cache_write=29697 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t4-add-elements forced ok=true wall_s=11.5 usd=0.152463 llm_in=6 llm_out=210 llm_cache_read=130902 llm_cache_write=29260 ts_calls=1 ts_in=7131 ts_out=1850 fallbacks=0 rounds=4
+cell t5-inputs playwright ok=true wall_s=11.4 usd=0.169572 llm_in=8 llm_out=266 llm_cache_read=184711 llm_cache_write=29372 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t5-inputs forced ok=true wall_s=10.6 usd=0.152763 llm_in=6 llm_out=234 llm_cache_read=130912 llm_cache_write=29283 ts_calls=1 ts_in=3568 ts_out=924 fallbacks=0 rounds=2
+cell t6-dynamic-loading playwright ok=true wall_s=27.3 usd=0.173792 llm_in=8 llm_out=394 llm_cache_read=184914 llm_cache_write=29969 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t6-dynamic-loading forced ok=true wall_s=55.7 usd=0.213172 llm_in=12 llm_out=589 llm_cache_read=294815 llm_cache_write=30671 ts_calls=2 ts_in=20008 ts_out=4999 fallbacks=2 rounds=12
+cell t7-sort-table playwright ok=true wall_s=13.4 usd=0.198814 llm_in=10 llm_out=345 llm_cache_read=241952 llm_cache_write=32273 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t7-sort-table forced ok=true wall_s=10.4 usd=0.152548 llm_in=6 llm_out=219 llm_cache_read=130900 llm_cache_write=29267 ts_calls=1 ts_in=5331 ts_out=1340 fallbacks=0 rounds=2
+cell t8-status-404 playwright ok=true wall_s=11.8 usd=0.170029 llm_in=8 llm_out=276 llm_cache_read=184284 llm_cache_write=29488 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t8-status-404 forced ok=true wall_s=11.8 usd=0.152881 llm_in=6 llm_out=246 llm_cache_read=130890 llm_cache_write=29248 ts_calls=1 ts_in=5380 ts_out=1365 fallbacks=0 rounds=3
+cell t9-long-chain playwright ok=true wall_s=40.6 usd=0.316067 llm_in=18 llm_out=1878 llm_cache_read=485977 llm_cache_write=37880 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=64.4 usd=0.35733 llm_in=22 llm_out=3051 llm_cache_read=588220 llm_cache_write=34648 ts_calls=8 ts_in=121505 ts_out=29026 fallbacks=5 rounds=61
+cell t10-saucedemo-checkout playwright ok=true wall_s=24.3 usd=0.239648 llm_in=14 llm_out=951 llm_cache_read=352663 llm_cache_write=31878 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t10-saucedemo-checkout forced ok=true wall_s=26.0 usd=0.209726 llm_in=10 llm_out=1255 llm_cache_read=240827 llm_cache_write=30989 ts_calls=3 ts_in=57483 ts_out=14322 fallbacks=1 rounds=24
+cell t11-todomvc-spa playwright ok=true wall_s=19.5 usd=0.236922 llm_in=14 llm_out=633 llm_cache_read=354750 llm_cache_write=32256 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t11-todomvc-spa forced ok=true wall_s=31.4 usd=0.274291 llm_in=16 llm_out=1561 llm_cache_read=410623 llm_cache_write=33687 ts_calls=4 ts_in=31310 ts_out=8091 fallbacks=3 rounds=15
+cell t12-js-confirm-dialog playwright ok=true wall_s=13.9 usd=0.189651 llm_in=10 llm_out=357 llm_cache_read=239633 llm_cache_write=29967 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t12-js-confirm-dialog forced ok=true wall_s=18.4 usd=0.212579 llm_in=12 llm_out=558 llm_cache_read=294782 llm_cache_write=30774 ts_calls=1 ts_in=7998 ts_out=1896 fallbacks=1 rounds=5
+cell t13-infinite-scroll playwright ok=true wall_s=19.2 usd=0.172297 llm_in=8 llm_out=453 llm_cache_read=184355 llm_cache_write=29379 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t13-infinite-scroll forced ok=true wall_s=15.5 usd=0.153436 llm_in=6 llm_out=223 llm_cache_read=130908 llm_cache_write=29273 ts_calls=1 ts_in=24455 ts_out=4212 fallbacks=0 rounds=9
+cell t14-key-press playwright ok=true wall_s=16.2 usd=0.186389 llm_in=10 llm_out=299 llm_cache_read=238396 llm_cache_write=29428 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t14-key-press forced ok=true wall_s=17.4 usd=0.172979 llm_in=8 llm_out=367 llm_cache_read=185123 llm_cache_write=29744 ts_calls=2 ts_in=8886 ts_out=2269 fallbacks=1 rounds=6
+cell t15-file-upload playwright ok=false wall_s=15.0 usd=0.192797 llm_in=10 llm_out=753 llm_cache_read=238120 llm_cache_write=29343 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t15-file-upload forced ok=true wall_s=10.3 usd=0.15371 llm_in=6 llm_out=275 llm_cache_read=130982 llm_cache_write=29365 ts_calls=1 ts_in=3653 ts_out=978 fallbacks=0 rounds=2
+cell t16-hover-reveal playwright ok=true wall_s=17.2 usd=0.204554 llm_in=12 llm_out=456 llm_cache_read=291663 llm_cache_write=29381 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t16-hover-reveal forced ok=true wall_s=17.9 usd=0.194914 llm_in=10 llm_out=602 llm_cache_read=239800 llm_cache_write=30242 ts_calls=3 ts_in=12069 ts_out=3195 fallbacks=2 rounds=9
+cell t17-double-click playwright ok=true wall_s=11.0 usd=0.166811 llm_in=8 llm_out=251 llm_cache_read=183633 llm_cache_write=28782 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t17-double-click forced ok=true wall_s=10.5 usd=0.152098 llm_in=6 llm_out=201 llm_cache_read=130886 llm_cache_write=29244 ts_calls=1 ts_in=3202 ts_out=854 fallbacks=0 rounds=2
+cell t1-checkboxes playwright ok=true wall_s=14.1 usd=0.088445 llm_in=10 llm_out=266 llm_cache_read=266292 llm_cache_write=1210 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t1-checkboxes forced ok=true wall_s=10.9 usd=0.052518 llm_in=6 llm_out=224 llm_cache_read=159908 llm_cache_write=273 ts_calls=1 ts_in=3420 ts_out=885 fallbacks=0 rounds=2
+cell t2-dropdown playwright ok=true wall_s=11.5 usd=0.070334 llm_in=8 llm_out=259 llm_cache_read=212040 llm_cache_write=750 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t2-dropdown forced ok=true wall_s=14.9 usd=0.052878 llm_in=6 llm_out=243 llm_cache_read=159890 llm_cache_write=292 ts_calls=1 ts_in=3634 ts_out=924 fallbacks=0 rounds=2
+cell t3-dynamic-controls playwright ok=true wall_s=14.5 usd=0.094946 llm_in=10 llm_out=359 llm_cache_read=267562 llm_cache_write=2470 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t3-dynamic-controls forced ok=true wall_s=18.0 usd=0.075227 llm_in=8 llm_out=412 llm_cache_read=214176 llm_cache_write=1160 ts_calls=1 ts_in=9993 ts_out=2529 fallbacks=1 rounds=5
+cell t4-add-elements playwright ok=true wall_s=14.1 usd=0.074486 llm_in=8 llm_out=385 llm_cache_read=212331 llm_cache_write=1330 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t4-add-elements forced ok=true wall_s=14.8 usd=0.052434 llm_in=6 llm_out=210 llm_cache_read=159896 llm_cache_write=266 ts_calls=1 ts_in=7131 ts_out=1850 fallbacks=0 rounds=4
+cell t5-inputs playwright ok=true wall_s=14.0 usd=0.075323 llm_in=8 llm_out=326 llm_cache_read=212297 llm_cache_write=1792 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t5-inputs forced ok=true wall_s=10.9 usd=0.052716 llm_in=6 llm_out=234 llm_cache_read=159911 llm_cache_write=284 ts_calls=1 ts_in=3568 ts_out=924 fallbacks=0 rounds=2
+cell t6-dynamic-loading playwright ok=true wall_s=28.1 usd=0.074348 llm_in=8 llm_out=397 llm_cache_read=213758 llm_cache_write=1131 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t6-dynamic-loading forced ok=true wall_s=48.1 usd=0.094216 llm_in=10 llm_out=475 llm_cache_read=268800 llm_cache_write=1405 ts_calls=2 ts_in=27435 ts_out=6831 fallbacks=2 rounds=16
+cell t7-sort-table playwright ok=true wall_s=13.5 usd=0.100819 llm_in=10 llm_out=336 llm_cache_read=270327 llm_cache_write=3907 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t7-sort-table forced ok=true wall_s=10.6 usd=0.052522 llm_in=6 llm_out=219 llm_cache_read=159893 llm_cache_write=274 ts_calls=1 ts_in=5331 ts_out=1340 fallbacks=0 rounds=2
+cell t8-status-404 playwright ok=true wall_s=13.2 usd=0.075431 llm_in=8 llm_out=240 llm_cache_read=212343 llm_cache_write=2161 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t8-status-404 forced ok=true wall_s=11.5 usd=0.052147 llm_in=6 llm_out=204 llm_cache_read=159878 llm_cache_write=255 ts_calls=1 ts_in=3560 ts_out=899 fallbacks=0 rounds=2
+cell t9-long-chain playwright ok=true wall_s=33.7 usd=0.202044 llm_in=16 llm_out=1879 llm_cache_read=453896 llm_cache_write=10038 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t9-long-chain forced ok=true wall_s=88.3 usd=0.255928 llm_in=22 llm_out=3006 llm_cache_read=617259 llm_cache_write=5389 ts_calls=8 ts_in=128221 ts_out=31165 fallbacks=4 rounds=61
+cell t10-saucedemo-checkout playwright ok=true wall_s=29.4 usd=0.183422 llm_in=18 llm_out=1031 llm_cache_read=494950 llm_cache_write=5178 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t10-saucedemo-checkout forced ok=true wall_s=31.9 usd=0.162762 llm_in=14 llm_out=1739 llm_cache_read=384252 llm_cache_write=5043 ts_calls=3 ts_in=58281 ts_out=14518 fallbacks=1 rounds=24
+cell t11-todomvc-spa playwright ok=true wall_s=19.7 usd=0.138505 llm_in=14 llm_out=671 llm_cache_read=383268 llm_cache_write=3578 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t11-todomvc-spa forced ok=true wall_s=28.7 usd=0.17376 llm_in=16 llm_out=1210 llm_cache_read=442989 llm_cache_write=5694 ts_calls=4 ts_in=31262 ts_out=8077 fallbacks=3 rounds=15
+cell t12-js-confirm-dialog playwright ok=true wall_s=15.0 usd=0.094514 llm_in=10 llm_out=433 llm_cache_read=266497 llm_cache_write=2144 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t12-js-confirm-dialog forced ok=true wall_s=17.7 usd=0.110678 llm_in=12 llm_out=524 llm_cache_read=323048 llm_cache_write=1525 ts_calls=1 ts_in=3553 ts_out=900 fallbacks=0 rounds=2
+cell t13-infinite-scroll playwright ok=true wall_s=21.8 usd=0.076734 llm_in=8 llm_out=428 llm_cache_read=211950 llm_cache_write=1788 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t13-infinite-scroll forced ok=true wall_s=15.4 usd=0.053618 llm_in=6 llm_out=228 llm_cache_read=159905 llm_cache_write=281 ts_calls=1 ts_in=27504 ts_out=4687 fallbacks=0 rounds=10
+cell t14-key-press playwright ok=true wall_s=13.9 usd=0.08795 llm_in=10 llm_out=299 llm_cache_read=266929 llm_cache_write=895 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t14-key-press forced ok=true wall_s=13.8 usd=0.072964 llm_in=8 llm_out=367 llm_cache_read=214113 llm_cache_write=754 ts_calls=2 ts_in=8886 ts_out=2269 fallbacks=1 rounds=6
+cell t15-file-upload playwright ok=false wall_s=17.7 usd=0.094152 llm_in=10 llm_out=775 llm_cache_read=266576 llm_cache_write=673 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t15-file-upload forced ok=true wall_s=11.6 usd=0.054457 llm_in=6 llm_out=336 llm_cache_read=160016 llm_cache_write=331 ts_calls=1 ts_in=3653 ts_out=978 fallbacks=0 rounds=2
+cell t16-hover-reveal playwright ok=true wall_s=18.5 usd=0.124014 llm_in=14 llm_out=534 llm_cache_read=374540 llm_cache_write=960 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t16-hover-reveal forced ok=true wall_s=17.5 usd=0.095023 llm_in=10 llm_out=614 llm_cache_read=268798 llm_cache_write=1256 ts_calls=3 ts_in=10318 ts_out=2728 fallbacks=2 rounds=8
+cell t17-double-click playwright ok=true wall_s=11.3 usd=0.068386 llm_in=8 llm_out=251 llm_cache_read=212162 llm_cache_write=253 ts_calls=0 ts_in=0 ts_out=0 fallbacks=0 rounds=0
+cell t17-double-click forced ok=true wall_s=11.2 usd=0.052097 llm_in=6 llm_out=201 llm_cache_read=159872 llm_cache_write=258 ts_calls=1 ts_in=3202 ts_out=856 fallbacks=0 rounds=2
+route playwright n=34 ok=32/34 wall_s min=11.0 med=14.8 max=40.6 usd min=0.068386 med=0.169126 max=0.316067
+route forced n=34 ok=34/34 wall_s min=10.3 med=14.9 max=88.3 usd min=0.052097 med=0.15256399999999998 max=0.35733
+pair t1-checkboxes playwright n=2 ok=2/2 wall_s min=14.1 med=15.9 max=17.7 usd_med=0.139182
+pair t1-checkboxes forced n=2 ok=2/2 wall_s min=10.9 med=11.4 max=11.9 usd_med=0.102549
+pair t2-dropdown playwright n=2 ok=2/2 wall_s min=11.5 med=12.1 max=12.7 usd_med=0.119507
+pair t2-dropdown forced n=2 ok=2/2 wall_s min=11.5 med=13.2 max=14.9 usd_med=0.102889
+pair t3-dynamic-controls playwright n=2 ok=2/2 wall_s min=14.5 med=14.6 max=14.7 usd_med=0.14206
+pair t3-dynamic-controls forced n=2 ok=2/2 wall_s min=14.4 med=16.2 max=18.0 usd_med=0.114227
+pair t4-add-elements playwright n=2 ok=2/2 wall_s min=13.0 med=13.5 max=14.1 usd_med=0.123418
+pair t4-add-elements forced n=2 ok=2/2 wall_s min=11.5 med=13.2 max=14.8 usd_med=0.102449
+pair t5-inputs playwright n=2 ok=2/2 wall_s min=11.4 med=12.7 max=14.0 usd_med=0.122448
+pair t5-inputs forced n=2 ok=2/2 wall_s min=10.6 med=10.7 max=10.9 usd_med=0.10274
+pair t6-dynamic-loading playwright n=2 ok=2/2 wall_s min=27.3 med=27.7 max=28.1 usd_med=0.12407
+pair t6-dynamic-loading forced n=2 ok=2/2 wall_s min=48.1 med=51.9 max=55.7 usd_med=0.153694
+pair t7-sort-table playwright n=2 ok=2/2 wall_s min=13.4 med=13.5 max=13.5 usd_med=0.149817
+pair t7-sort-table forced n=2 ok=2/2 wall_s min=10.4 med=10.5 max=10.6 usd_med=0.102535
+pair t8-status-404 playwright n=2 ok=2/2 wall_s min=11.8 med=12.5 max=13.2 usd_med=0.12273
+pair t8-status-404 forced n=2 ok=2/2 wall_s min=11.5 med=11.6 max=11.8 usd_med=0.102514
+pair t9-long-chain playwright n=2 ok=2/2 wall_s min=33.7 med=37.2 max=40.6 usd_med=0.259056
+pair t9-long-chain forced n=2 ok=2/2 wall_s min=64.4 med=76.4 max=88.3 usd_med=0.306629
+pair t10-saucedemo-checkout playwright n=2 ok=2/2 wall_s min=24.3 med=26.9 max=29.4 usd_med=0.211535
+pair t10-saucedemo-checkout forced n=2 ok=2/2 wall_s min=26.0 med=28.9 max=31.9 usd_med=0.186244
+pair t11-todomvc-spa playwright n=2 ok=2/2 wall_s min=19.5 med=19.6 max=19.7 usd_med=0.187713
+pair t11-todomvc-spa forced n=2 ok=2/2 wall_s min=28.7 med=30.1 max=31.4 usd_med=0.224026
+pair t12-js-confirm-dialog playwright n=2 ok=2/2 wall_s min=13.9 med=14.5 max=15.0 usd_med=0.142083
+pair t12-js-confirm-dialog forced n=2 ok=2/2 wall_s min=17.7 med=18.1 max=18.4 usd_med=0.161629
+pair t13-infinite-scroll playwright n=2 ok=2/2 wall_s min=19.2 med=20.5 max=21.8 usd_med=0.124516
+pair t13-infinite-scroll forced n=2 ok=2/2 wall_s min=15.4 med=15.5 max=15.5 usd_med=0.103527
+pair t14-key-press playwright n=2 ok=2/2 wall_s min=13.9 med=15.0 max=16.2 usd_med=0.13717
+pair t14-key-press forced n=2 ok=2/2 wall_s min=13.8 med=15.6 max=17.4 usd_med=0.122972
+pair t15-file-upload playwright n=2 ok=0/2 wall_s min=15.0 med=16.3 max=17.7 usd_med=0.143475
+pair t15-file-upload forced n=2 ok=2/2 wall_s min=10.3 med=11.0 max=11.6 usd_med=0.104084
+pair t16-hover-reveal playwright n=2 ok=2/2 wall_s min=17.2 med=17.9 max=18.5 usd_med=0.164284
+pair t16-hover-reveal forced n=2 ok=2/2 wall_s min=17.5 med=17.7 max=17.9 usd_med=0.144969
+pair t17-double-click playwright n=2 ok=2/2 wall_s min=11.0 med=11.1 max=11.3 usd_med=0.117599
+pair t17-double-click forced n=2 ok=2/2 wall_s min=10.5 med=10.8 max=11.2 usd_med=0.102098
+phases t1-checkboxes/forced attach=47 first_observe=12 observe=11+22 jev=200+399 jev first/rest=266/133 act=52+104 settle=110+219 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t2-dropdown/forced attach=48 first_observe=10 observe=9+18 jev=218+436 jev first/rest=218/218 act=29+57 settle=108+215 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t3-dynamic-controls/forced attach=54 first_observe=14 observe=8+38 jev=132+617 jev first/rest=229/130 act=56+2891 settle=109+440 kinds act=2 advance=2 wait=0 bounce=0 done=0 error=0 other=0
+phases t4-add-elements/forced attach=53 first_observe=11 observe=9+36 jev=126+603 jev first/rest=232/121 act=50+206 settle=220+666 kinds act=3 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t5-inputs/forced attach=49 first_observe=9 observe=8+16 jev=200+399 jev first/rest=237/162 act=38+76 settle=107+214 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t6-dynamic-loading/forced attach=70 first_observe=11 observe=9+108 jev=129+1607 jev first/rest=110/129 act=2130+19381 settle=218+1747 kinds act=1 advance=1 wait=7 bounce=2 done=0 error=0 other=1
+phases t7-sort-table/forced attach=49 first_observe=12 observe=11+22 jev=175+350 jev first/rest=200/150 act=41+82 settle=110+219 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t8-status-404/forced attach=61 first_observe=16 observe=13+38 jev=150+575 jev first/rest=286/145 act=0+121 settle=0+376 kinds act=1 advance=2 wait=0 bounce=0 done=0 error=0 other=0
+phases t9-long-chain/forced attach=163 first_observe=15 observe=9+574 jev=133+7897 jev first/rest=0/134 act=0+1978 settle=0+8017 kinds act=26 advance=15 wait=0 bounce=7 done=0 error=1 other=12
+phases t10-saucedemo-checkout/forced attach=93 first_observe=26 observe=10+262 jev=141+3598 jev first/rest=139/143 act=0+574 settle=0+2455 kinds act=11 advance=10 wait=0 bounce=1 done=0 error=1 other=1
+phases t11-todomvc-spa/forced attach=96 first_observe=12 observe=9+140 jev=134+1985 jev first/rest=73/134 act=19+337 settle=217+1752 kinds act=8 advance=3 wait=0 bounce=3 done=0 error=0 other=1
+phases t12-js-confirm-dialog/forced attach=62 first_observe=14 observe=10+50 jev=134+770 jev first/rest=272/128 act=0+121 settle=0+220 kinds act=1 advance=1 wait=0 bounce=1 done=0 error=0 other=2
+phases t13-infinite-scroll/forced attach=63 first_observe=13 observe=10+99 jev=142+1392 jev first/rest=225/140 act=223+1390 settle=217+1954 kinds act=8 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t14-key-press/forced attach=76 first_observe=12 observe=9+53 jev=139+840 jev first/rest=145/139 act=0+128 settle=0+436 kinds act=2 advance=2 wait=0 bounce=1 done=0 error=0 other=1
+phases t15-file-upload/forced attach=57 first_observe=11 observe=9+17 jev=182+364 jev first/rest=228/136 act=33+65 settle=109+217 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t16-hover-reveal/forced attach=85 first_observe=10 observe=7+67 jev=141+1164 jev first/rest=0/143 act=<withheld>+299 settle=216+1098 kinds act=5 advance=1 wait=0 bounce=2 done=0 error=0 other=1
+phases t17-double-click/forced attach=50 first_observe=9 observe=9+18 jev=173+346 jev first/rest=205/141 act=41+81 settle=112+223 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t1-checkboxes/forced attach=53 first_observe=12 observe=10+19 jev=189+377 jev first/rest=246/131 act=57+114 settle=111+222 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t2-dropdown/forced attach=54 first_observe=62 observe=35+69 jev=200+399 jev first/rest=262/137 act=27+54 settle=111+222 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t3-dynamic-controls/forced attach=50 first_observe=11 observe=9+46 jev=153+798 jev first/rest=234/139 act=20+2890 settle=215+658 kinds act=3 advance=1 wait=0 bounce=1 done=0 error=0 other=0
+phases t4-add-elements/forced attach=69 first_observe=13 observe=7+33 jev=162+705 jev first/rest=260/123 act=37+155 settle=218+656 kinds act=3 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t5-inputs/forced attach=54 first_observe=10 observe=10+19 jev=222+444 jev first/rest=275/169 act=32+64 settle=110+220 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t6-dynamic-loading/forced attach=65 first_observe=9 observe=8+129 jev=129+2217 jev first/rest=120/129 act=3005+28397 settle=218+2406 kinds act=1 advance=1 wait=10 bounce=2 done=0 error=0 other=2
+phases t7-sort-table/forced attach=47 first_observe=13 observe=12+24 jev=225+450 jev first/rest=312/138 act=41+81 settle=111+221 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t8-status-404/forced attach=50 first_observe=10 observe=10+19 jev=184+367 jev first/rest=248/119 act=49+98 settle=186+371 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t9-long-chain/forced attach=8271 first_observe=13 observe=9+572 jev=145+9223 jev first/rest=138/147 act=0+2331 settle=0+8688 kinds act=27 advance=17 wait=0 bounce=5 done=0 error=2 other=10
+phases t10-saucedemo-checkout/forced attach=79 first_observe=14 observe=10+240 jev=133+3580 jev first/rest=173/132 act=0+528 settle=0+2461 kinds act=11 advance=10 wait=0 bounce=1 done=0 error=1 other=1
+phases t11-todomvc-spa/forced attach=98 first_observe=18 observe=9+154 jev=139+1998 jev first/rest=80/139 act=19+308 settle=216+1738 kinds act=8 advance=3 wait=0 bounce=3 done=0 error=0 other=1
+phases t12-js-confirm-dialog/forced attach=51 first_observe=19 observe=16+31 jev=194+387 jev first/rest=265/122 act=55+109 settle=114+228 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t13-infinite-scroll/forced attach=45 first_observe=13 observe=11+105 jev=140+1504 jev first/rest=248/140 act=223+2029 settle=217+1971 kinds act=9 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t14-key-press/forced attach=90 first_observe=26 observe=10+73 jev=151+839 jev first/rest=119/151 act=0+132 settle=0+436 kinds act=2 advance=2 wait=0 bounce=1 done=0 error=0 other=1
+phases t15-file-upload/forced attach=46 first_observe=10 observe=11+21 jev=190+380 jev first/rest=217/163 act=29+58 settle=110+219 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+phases t16-hover-reveal/forced attach=84 first_observe=9 observe=7+59 jev=148+1061 jev first/rest=0/158 act=50+309 settle=215+1079 kinds act=5 advance=1 wait=0 bounce=2 done=0 error=0 other=0
+phases t17-double-click/forced attach=48 first_observe=9 observe=8+15 jev=212+423 jev first/rest=297/126 act=132+264 settle=109+218 kinds act=1 advance=1 wait=0 bounce=0 done=0 error=0 other=0
+legend: cell lines carry RAW tokens (no price table); route min/med/max is the spread convention; phases lines med+sum, first/rest medians are 0 when the bucket is empty; pair lines aggregate repeats
+```
