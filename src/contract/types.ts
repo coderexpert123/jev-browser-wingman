@@ -242,6 +242,10 @@ export interface WingmanLogRecord {
       // round's end status; absent when no site knew the value (bucketed
       // 'other' downstream). Closed enum, never page text.
       kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error';
+      // r22 F-2: set on the FIRST round of a chain resume that skipped a
+      // post-action cursor clause before the first ask (the caller re-sent
+      // the whole chain; the memory match proves it). Boolean, never page text.
+      resumeSkippedPostAction?: true;
     }>;
   };
 }

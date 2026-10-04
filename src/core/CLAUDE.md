@@ -660,3 +660,81 @@
   criterion, answers nothing, and the call bounces `no-match` with a
   healthy enumeration — the failure looks like "enumeration broken" but is
   the stub.
+
+## Gotchas from r22 (2026-10-04, the t9 recovery fixes)
+
+- **The act path has its own nav-shaped family now (F-1).**
+  `NAV_SHAPED_ACT_ERROR_RE` (`/scheduled navigations|evaluation timed out|
+  Execution context/i`) sits at the shared act tail: an element-targeted
+  click-family act that fails NAV-SHAPED is retried ONCE behind a
+  `PRE_CLICK_SETTLE_MS` settle (`KB_ACT_NAV_RETRY`, D-11 polarity, flip =
+  single send). The retry settle books into `bucket.settleMs`, both sends
+  into `actMs`; a second failure throws through to `error/act-failed`
+  (exactly 2 sends). Deterministic failures never match the message
+  predicate. Test trap: `fill` on a non-editable element ends
+  `ambiguous/target-uncertain` via `opFits` BEFORE any act — a test that
+  "fills a button" never reaches the act tail (use an editable input).
+- **Resume-cheap (F-2): a re-sent whole chain skips a post-action cursor.**
+  `ChainMemoryEntry.postAction` is written (true/absent) only when the
+  stored end's `step_review.why` is `'post-action'` — BOTH flavors, the
+  `fallback/step-uncertain` AND the `error/page-error` post-action ends
+  carry the same `FORCED_POST_ACTION_LINE`, so both skip. The skip sits in
+  `runBrowse` after `chainState` creation (`!KB_RESUME_SKIP_POSTACTION`):
+  cursor+1 with the advance-branch resets, and `resumeSkipMarker` gives the
+  call's FIRST round a `resumeSkippedPostAction` marker (beginRound consumes
+  it once). Guarded `cursor + 1 < N`: a post-action cursor on the FINAL
+  clause keeps same-clause resume (the spec defines no round-0 end for that
+  case) — which is why T-post-reload Leg C, T-repeat-resume Leg A and
+  T-late-landing-notready pin the carried-click/reload-refusal lanes on
+  SINGLE-clause chains now, and T-repeat-resume Leg B's resume script starts
+  at the clause-2 commit (rb skips clause 1). Pin-trap: an `opts.ask`
+  harness never populates `harness.requests` — wrap the ask to capture.
+- **`ambiguous/target-uncertain` with `jev_calls=0` is the PICK round shape,
+  not an under-counted ask (F-4 disposition).** The pick block's
+  resolvePick-mismatch and opFits returns end target-uncertain with zero
+  asks and zero probabilities (the 2026-09-29 records in
+  `bench/.home/log.jsonl` are all `pick:true`). The invariant "a round that
+  carries probabilities had an ask; a zero-ask end carries no probabilities"
+  is pinned both ways in loop.test.ts. The r22 spec named
+  `evidence/R21-log-slice.jsonl`, which does not exist in the tree — the
+  reproduction ran against the live log instead.
+- **`FORCED_ENGAGEMENT_LINE` lives in `bench/run.ts`, not tool-text.ts**
+  (the r22 spec's file attribution was wrong; the constant name + quoted
+  text identify bench/run.ts). Its post-action exception sentence is pinned
+  as INLINE spec text in tests/bench-browse.test.ts (the spec-of-record
+  rule). `BROWSE_STEP_DESCRIPTION`'s parallel "call again with the same
+  arguments" sentence was left unchanged — the spec named only the
+  engagement line.
+- **browse-step-surface SPAWNS the built CLI by path (`<build>/src/cli/main.js`
+  mcp)** without importing it (like cli.test.ts) — a scoped gate build that
+  omits `src/cli/main.ts` makes every StdioClientTransport test die
+  `MCP error -32000: Connection closed` after ~9 s, and the file looks like a
+  hang (>10 min) in a combined run. Pass the CLI as an extra entry:
+  `build.mjs --out <dir> tests/... src/cli/main.ts`. With it present the file
+  is ~7 tests of real transport+Chrome work and alone it still exceeds the
+  10-min foreground cap on this box — run it as its own chunk.
+- **The resume skip carries the reload hazard as a memory FLAG, not carried
+  clicks (F-2b).** The skip's `priorClicks = []` reset left the first
+  post-skip clause on the skipped clause's response page with the r15
+  reload refusal disengaged (it keys on `clauseClicks().length > 0`). The
+  fix composes into the existing `KB_RESUME_SKIP_POSTACTION` path (no new
+  flag): the skip sets `chainState.responsePage`, rule 4 refuses
+  `reload` when `clicked || chain.responsePage` (refusal flavors
+  post-action ONLY on the refused reload — give-up/other error ends keep
+  their old flavor), the first advance clears it, and `finish()` writes it
+  to `ChainMemoryEntry.responsePage` so it survives a non-advancing end.
+  Do NOT replace this with carrying `mem.clicks` into `priorClicks`:
+  clauseClicks() feeds THREE sites (reload refusal, rule 5's not-ready
+  post-action flavor, the repeat guard), and the not-ready/give-up flavors
+  would write `postAction: true` for a clause that NEVER ACTED — the next
+  resume would skip an unacted clause. Consequence to know: the refused
+  reload end itself carries the post-action flavor, so memory stores
+  postAction for that unacted first post-skip clause and a further
+  whole-chain re-send skips it — coherent with FORCED_POST_ACTION_LINE's
+  "only the steps after this one", but it IS a skip of an unacted clause.
+  Test trap: a script of wait -> reload -> reload against one static
+  observation dies `fallback/no-progress` (reload is a SIGNAL_TARGETLESS
+  op; the second reload after a no-change first reads as no-progress) —
+  end the call with a terminal script entry (give-up, or ADV to
+  end-of-chain) instead.
+

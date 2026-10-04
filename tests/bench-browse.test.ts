@@ -187,6 +187,19 @@ test('forced route prompt carries the literal engagement line before the goal', 
   assert.ok(forced.includes(TASK.goal));
 });
 
+test('r22 F-3: the forced engagement line carries the post-action exception (inline spec text, not a constant mirror)', () => {
+  // Spec .build-r22-spec.md F-3, inlined per the spec-of-record rule: the
+  // engagement line's "call it again with the same arguments" recovery must
+  // except the post-action note's "only the steps after this one" recovery,
+  // or the two lines hand the caller contradictory instructions. Single-line
+  // ASCII (the win32 cmd spawn constraint), em-dashes folded to hyphens.
+  const FORCED_ENGAGEMENT_LINE_SPEC =
+    'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments. If a result\'s note says the step\'s action already ran, send only the steps after that one instead.';
+  assert.equal(FORCED_ENGAGEMENT_LINE, FORCED_ENGAGEMENT_LINE_SPEC);
+  assert.equal(FORCED_ENGAGEMENT_LINE_SPEC, FORCED_ENGAGEMENT_LINE_SPEC.trim());
+  assert.ok(!/[‘’“”–—]/.test(FORCED_ENGAGEMENT_LINE_SPEC), 'single-line ASCII: no curly quotes or dashes');
+});
+
 test('browse route allows the wingman tools', () => {
   assert.deepEqual(allowedToolsFor('browse'), ['mcp__playwright', 'mcp__jev-browser-wingman']);
 });

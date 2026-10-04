@@ -2904,6 +2904,260 @@ test("T-post-error: a page-error end after the clause's own effective click carr
   assert.equal(navRounds(h)[0].recover, undefined);
 });
 
+// ---- r22 F-2: resume-cheap — a re-sent whole chain skips a post-action cursor ----
+
+const F2_STEPS = ['click the Start button', 'open the Next page'];
+const F2_NEXT_EL = el({ id: 'e2', path: '#next', name: 'Next' });
+
+/** Clause-aware resume ask: whichever clause is active commits a click on e2
+ * (the Next link) on its first round and advances on its second. */
+function f2ResumeAsk(): JevAsk {
+  let lastStep = '';
+  let seen = 0;
+  return async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    if (step !== lastStep) {
+      lastStep = step;
+      seen = 0;
+    }
+    seen += 1;
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+      right_page: { type: 'noul', noul: 0.95 },
+      ready: { type: 'noul', noul: 0.95 },
+    };
+    if (seen === 1) {
+      answers.step_done = { type: 'noul', noul: 0.05 };
+      answers.action = choice('click', { click: 0.9, none: 0.05 });
+      answers.target = choice('e2', { e2: 0.9, none: 0.05, ambiguous: 0.05 });
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.95 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+}
+
+test('r22 F-2: a re-sent whole chain skips a post-action cursor clause and acts on the NEXT clause (round-0 marker)', async () => {
+  // Call 1: the T-post-notready shape — clause 1 clicks with effect, then the
+  // not-ready bounce ends post-action. Memory stores cursor 0 with postAction.
+  const h1 = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST()],
+    config: FORCED,
+  });
+  const r1 = await h1.call({ goal: 'chain-f2 skip goal', steps: F2_STEPS });
+  assert.equal(r1.step_review?.why, 'post-action', 'call 1 must end post-action for the scenario to hold');
+  assert.deepEqual(r1.progress, { step_index: 1, steps_done: 0, steps_total: 2 });
+
+  // Call 2: the caller re-sent the WHOLE chain (same goal and steps). The
+  // cursor clause ended post-action, so the resume skips it before the first
+  // ask and acts on clause 2's target instead of bouncing on the completed
+  // clause (pre-fix: the resume starts on clause 1 and burns calls on it).
+  const resumeRequests: JevRequest[] = [];
+  const baseResumeAsk = f2ResumeAsk();
+  const resumeAsk: JevAsk = async (request, opts) => {
+    resumeRequests.push(request);
+    return baseResumeAsk(request, opts);
+  };
+  const h2 = harness({
+    observations: { p1: [observation({ elements: [retrieveEl, F2_NEXT_EL] })] },
+    script: [],
+    ask: resumeAsk,
+  });
+  const r2 = await h2.call({ goal: 'chain-f2 skip goal', steps: F2_STEPS });
+  assert.equal(r2.status, 'done', `expected the resumed chain to complete, got ${r2.status}/${r2.reason}`);
+  assert.equal(
+    (resumeRequests[0].state as { step?: string }).step,
+    'open the Next page',
+    'the first ask is already clause 2 - the post-action cursor was skipped',
+  );
+  assert.equal(h2.driver.actCalls()[0].elementId, 'e2', 'round 0 acts on the NEXT clause target');
+  const round0 = h2.records[0].phases!.rounds[0];
+  assert.equal(round0.resumeSkippedPostAction, true, 'the round-0 telemetry marker is set');
+});
+
+test('r22 F-2: a cursor clause that ended for a NON-post-action reason is not skipped', async () => {
+  // Call 1: a fill on clause 1 stopped by max_steps - budget-steps, no
+  // effective click, so the memory carries no postAction.
+  const h3 = harness({
+    observations: { p1: [formEmpty, formFilled, formFilled] },
+    script: [AHEAD(0.05)],
+    config: FORCED,
+  });
+  const r3 = await h3.call({ goal: 'chain-f2 fill goal', steps: ['type the value named email into Email', 'open the Next page'], values: navValues, max_steps: 1 });
+  assert.equal(r3.reason, 'budget-steps');
+  assert.deepEqual(r3.progress, { step_index: 1, steps_done: 0, steps_total: 2 });
+
+  // Call 2: the same chain re-sent whole resumes on clause 1 itself - no
+  // skip, no marker, byte-for-byte today's resume behavior.
+  const h4 = harness({
+    observations: { p1: [observation({ elements: [emailEl, F2_NEXT_EL] })] },
+    script: [AHEAD(0.05), ADV(), CS({ target: ['e2', { e2: 0.9, none: 0.05, ambiguous: 0.05 }] }), ADV()],
+    config: FORCED,
+  });
+  const r4 = await h4.call({ goal: 'chain-f2 fill goal', steps: ['type the value named email into Email', 'open the Next page'], values: navValues });
+  assert.equal(r4.status, 'done', `expected the resumed chain to complete, got ${r4.status}/${r4.reason}`);
+  assert.equal(
+    (h4.requests[0].state as { step?: string }).step,
+    'type the value named email into Email',
+    'no skip: the first ask is still clause 1',
+  );
+  assert.equal('resumeSkippedPostAction' in h4.records[0].phases!.rounds[0], false, 'no marker without a post-action cursor');
+});
+
+test('r22 F-2: a fresh chain (no memory) is unchanged and carries no marker', async () => {
+  const h5 = harness({
+    observations: { p1: [observation({ elements: [retrieveEl, F2_NEXT_EL] })] },
+    script: [CS(), ADV(), CS({ target: ['e2', { e2: 0.9, none: 0.05, ambiguous: 0.05 }] }), ADV()],
+    config: FORCED,
+  });
+  const r5 = await h5.call({ goal: 'chain-f2 fresh goal', steps: F2_STEPS });
+  assert.equal(r5.status, 'done');
+  assert.equal(h5.driver.actCalls()[0].elementId, 'e1', 'a fresh chain acts on clause 1');
+  assert.equal('resumeSkippedPostAction' in h5.records[0].phases!.rounds[0], false, 'no marker on a fresh chain');
+});
+
+// ---- r22 F-2b: the resume skip carries the response-page reload hazard ----
+// KB-flag note: no dedicated flag — the refusal composes into the existing
+// KB_RESUME_SKIP_POSTACTION skip path (the hazard exists only when the skip
+// fired). Flipping that flag to pre-fix removes the skip AND the hazard
+// together, which is the correct D-11 semantics.
+
+test('r22 F-2b: a reload on the FIRST post-skip clause is refused like a clicked clause (zero re-submit)', async () => {
+  // Call 1: the T-post-notready shape — clause 1 clicks with effect, then the
+  // not-ready bounce ends post-action. Memory stores cursor 0 with postAction
+  // and the click.
+  const h1 = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST()],
+    config: FORCED,
+  });
+  const r1 = await h1.call({ goal: 'chain-f2b refuse goal', steps: F2_STEPS });
+  assert.equal(r1.step_review?.why, 'post-action', 'call 1 must end post-action for the scenario to hold');
+
+  // Call 2: the caller re-sent the whole chain; the skip fires and clause 2
+  // runs on the SKIPPED clause's form-500 response page. Jev hits a page
+  // error and answers reload. Pre-fix the clause has no clicks of its own
+  // (the skip reset priorClicks), so the reload EXECUTES and re-submits the
+  // form; the fix refuses it exactly like r15 refuses a reload after the
+  // clause's own effective click (same end, review flavor and note).
+  const h2 = harness({
+    observations: { p1: [resetError] },
+    script: [
+      CS({ action: ['wait', { wait: 0.9, click: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      CS({ error: 0.9, recover: ['reload', { reload: 0.9 }] }),
+      // Post-fix this entry is never consumed: the refusal ends the call on
+      // round 2. Pre-fix it only terminates the call after the (wrongly
+      // executed) reload, so the discriminating assert below fails first.
+      CS({ error: 0.9, recover: ['give-up', { 'give-up': 0.9 }] }),
+    ],
+    config: FORCED,
+  });
+  const r2 = await h2.call({ goal: 'chain-f2b refuse goal', steps: F2_STEPS });
+  assert.equal(
+    (h2.requests[0].state as { step?: string }).step,
+    'open the Next page',
+    'the skip fired - the error page is the first post-skip clause',
+  );
+  assert.equal(
+    h2.driver.actCalls().some((a) => a.op === 'reload'),
+    false,
+    'no reload act on the skipped clause response page (pre-fix the reload executes)',
+  );
+  assert.equal(r2.status, 'error', `expected the refused reload to end error, got ${r2.status}/${r2.reason}`);
+  assert.equal(r2.reason, 'page-error');
+  assert.equal(r2.step_review?.why, 'post-action', 'the refusal carries the post-action review like a clicked clause');
+  assert.equal(r2.note, FORCED_POST_ACTION_LINE, 'the refusal note is the post-action line');
+  assert.equal(navRounds(h2)[1].recover, 'reload', 'the refused recover answer is still recorded');
+});
+
+test('r22 F-2b: after the first post-skip clause advances, reload behaves as before (the hazard is gone)', async () => {
+  const STEPS3 = ['click the Start button', 'open the Next page', 'click the Submit button'];
+  // Call 1: clause 1 clicks with effect and ends post-action (cursor 0).
+  const h1 = harness({
+    observations: { p1: [resetForm, resetError, resetError, resetError] },
+    script: [CS(), POST(), POST()],
+    config: FORCED,
+  });
+  const r1 = await h1.call({ goal: 'chain-f2b later goal', steps: STEPS3 });
+  assert.equal(r1.step_review?.why, 'post-action', 'call 1 must end post-action for the scenario to hold');
+
+  // Call 2: the skip fires onto clause 2, which advances on step_done alone;
+  // the advance clears the hazard, so clause 3's recover reload EXECUTES as
+  // it always did (unchanged behavior — guards an over-broad refusal).
+  const h2 = harness({
+    observations: { p1: [resetError] },
+    script: [
+      ADV(),
+      CS({ action: ['wait', { wait: 0.9, click: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      CS({ error: 0.9, recover: ['reload', { reload: 0.9 }] }),
+      ADV(),
+    ],
+    config: FORCED,
+  });
+  const r2 = await h2.call({ goal: 'chain-f2b later goal', steps: STEPS3 });
+  assert.equal(
+    h2.driver.actCalls().some((a) => a.op === 'reload'),
+    true,
+    'after an advance past the first post-skip clause the reload executes',
+  );
+  assert.equal(r2.status, 'done', `expected the chain to complete, got ${r2.status}/${r2.reason}`);
+});
+
+test('r22 F-2b: a non-post-action cursor is not skipped and its reload is not refused (existing behavior)', async () => {
+  // Call 1: a fill on clause 1 stopped by budget-steps — the memory carries
+  // neither postAction nor clicks.
+  const h1 = harness({
+    observations: { p1: [formEmpty, formFilled, formFilled] },
+    script: [AHEAD(0.05)],
+    config: FORCED,
+  });
+  const r1 = await h1.call({
+    goal: 'chain-f2b noskip goal',
+    steps: ['type the value named email into Email', 'open the Next page'],
+    values: navValues,
+    max_steps: 1,
+  });
+  assert.equal(r1.reason, 'budget-steps', 'call 1 must end budget-steps for the scenario to hold');
+
+  // Call 2: no skip (the cursor ended for a non-post-action reason), no
+  // response-page hazard — the clause's recover reload executes as before.
+  const h2 = harness({
+    observations: { p1: [formFilled] },
+    script: [
+      CS({ action: ['wait', { wait: 0.9, click: 0.05 }], target: ['none', { none: 0.9, ambiguous: 0.05 }] }),
+      CS({ error: 0.9, recover: ['reload', { reload: 0.9 }] }),
+      // The reload of round 2 executes; these advance both clauses and end
+      // the call done, so no later round repeats the reload into the
+      // no-progress guard.
+      ADV(),
+      ADV(),
+    ],
+    config: FORCED,
+  });
+  const r2 = await h2.call({
+    goal: 'chain-f2b noskip goal',
+    steps: ['type the value named email into Email', 'open the Next page'],
+    values: navValues,
+  });
+  assert.equal(
+    (h2.requests[0].state as { step?: string }).step,
+    'type the value named email into Email',
+    'no skip: the first ask is still clause 1',
+  );
+  assert.equal(
+    h2.driver.actCalls().some((a) => a.op === 'reload'),
+    true,
+    'reload allowed without the response-page hazard',
+  );
+  assert.equal(r2.status, 'done', `expected the chain to complete, got ${r2.status}/${r2.reason}`);
+  assert.equal(r2.step_review?.why, undefined, 'no post-action flavor without the hazard');
+});
+
 test("T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)", async () => {
   const RELOAD: SeqEntry = { error: 0.9, recover: ['reload', { reload: 0.9 }] };
   const h = harness({
@@ -2932,12 +3186,15 @@ test("T-post-reload: the recover path never reloads after the step's own effecti
 
   // Leg C (r10 L199/L200 shape): memory carries the click across an error end,
   // so a resumed call's recover reload is refused as well.
+  // r22 F-2: the refusal lane is pinned on a FINAL-clause cursor — a
+  // non-final post-action cursor is now skipped at resume (resume-cheap), so
+  // a 2-clause chain would skip clause 1 here instead of refusing the reload.
   const hc = harness({
     observations: { p1: [resetForm, resetError] },
     script: [CS(), POST({ error: 0.9, ...GIVE_UP }), POST(), POST(RELOAD), ADV()],
     config: FORCED,
   });
-  const argsC = { goal: 'chain-post-reload resume goal', steps: SUBMIT_STEPS };
+  const argsC = { goal: 'chain-post-reload resume goal', steps: ['click the Retrieve button'] };
   const rc1 = await hc.call(argsC);
   assert.equal(rc1.status, 'error');
   assert.equal(rc1.step_review?.why, 'post-action');
@@ -3030,12 +3287,15 @@ test('T-error-gate: below the 0.85 bar no advance passes an error the page shows
 });
 
 test('T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)', async () => {
+  // r22 F-2: the carried-click lane is pinned on a FINAL-clause cursor — a
+  // non-final post-action cursor is now skipped at resume (resume-cheap), so
+  // a 2-clause chain would skip clause 1 here instead of bouncing repeat.
   const h = harness({
     observations: { p1: [resetForm, resetErrorForm] },
     script: [CS(), POST(), POST(), POST(), CS({ step_done: 0.1 })],
     config: FORCED,
   });
-  const args = { goal: 'chain-repeat-resume goal', steps: SUBMIT_STEPS };
+  const args = { goal: 'chain-repeat-resume goal', steps: ['click the Retrieve button'] };
   const r1 = await h.call(args);
   assert.equal(r1.step_review?.why, 'post-action');
   const r2 = await h.call(args);
@@ -3045,12 +3305,15 @@ test('T-repeat-resume: a resumed clause never re-clicks a target it already clic
   assert.deepEqual(actsOf(h), CLICK_WAIT_WAIT);
   assert.equal(h.requests.length, 5);
 
-  // Leg B: the carried clicks belong to the resumed clause only; after it
-  // advances, the next clause may click the same element.
+  // Leg B: r22 F-2 — the re-sent chain's post-action cursor is skipped, and
+  // the NEXT clause may click the same element (the carried clicks belong to
+  // the skipped clause only).
   const STEPS2 = ['click the Retrieve button', 'press Retrieve to resend'];
   const hb = harness({
     observations: { p1: [resetForm, resetErrorForm] },
-    script: [CS(), POST(), POST(), POST(), ADV(), CS(), ADV()],
+    // r22 F-2: rb skips the post-action cursor, so its first round is already
+    // clause 2's commit (no leading advance entry).
+    script: [CS(), POST(), POST(), POST(), CS(), ADV()],
     config: FORCED,
   });
   const argsB = { goal: 'chain-repeat-resume scope goal', steps: STEPS2 };
@@ -3163,12 +3426,14 @@ test('T-late-landing-notready: a click read as no visible change whose page chan
   // The click's first observation is unchanged (the response had not arrived),
   // the error page lands during the waits. The not-ready end names the action,
   // and the resume never clicks again.
+  // r22 F-2: the carried-click lane is pinned on a FINAL-clause cursor — a
+  // non-final post-action cursor is now skipped at resume (resume-cheap).
   const h = harness({
     observations: { p1: [resetForm, resetForm, resetErrorForm] },
     script: [CS(), POST(), POST(), POST(), CS({ step_done: 0.1 })],
     config: FORCED,
   });
-  const argsA = { goal: 'chain-late-landing notready goal', steps: SUBMIT_STEPS };
+  const argsA = { goal: 'chain-late-landing notready goal', steps: ['click the Retrieve button'] };
   const rA = await h.call(argsA);
   assert.equal(rA.status, 'fallback');
   assert.deepEqual(rA.step_review, POST_REVIEW);

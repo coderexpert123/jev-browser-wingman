@@ -284,8 +284,12 @@ export const BROWSE_ENGAGEMENT_LINE =
 
 // WP-F (forced-handoff spec § 6 WP-F F2): the forced route's engagement line.
 // Literal, ASCII, one line (same win32 cmd-spawn constraint as the browse line).
+// r22 F-3: the line carries the post-action exception so its "call it again
+// with the same arguments" recovery never contradicts FORCED_POST_ACTION_LINE's
+// "only the steps after this one" recovery (the r22 diagnosis: a caller that
+// re-sent the whole chain against a post-action cursor burned two calls).
 export const FORCED_ENGAGEMENT_LINE =
-  'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments.';
+  'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments. If a result\'s note says the step\'s action already ran, send only the steps after that one instead.';
 
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
   // Route-neutral for 'playwright' (WP-T3): base + goal + values + DONE, no

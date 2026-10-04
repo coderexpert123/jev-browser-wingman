@@ -170,6 +170,35 @@ const KB_OBS_RETRY = false;
 // wedged-renderer failure carries neither shape.
 const NAV_SHAPED_OBS_ERROR_RE = /evaluation timed out|Execution context/i;
 
+// r22 F-1: the ACT-path nav-shaped family (mirrors NAV_SHAPED_OBS_ERROR_RE).
+// Playwright's post-click "wait for scheduled navigations" timeout text passes
+// through the adapters' ActFailedError(e.message) wrap (playwright.ts), and
+// BOTH adapters throw ActFailedError('evaluation timed out') when an evaluate
+// deadline expires (cdp.ts evalOnSession, playwright.ts evaluateOnPage) and
+// surface a mid-navigation context destruction with the browser's own
+// 'Execution context was destroyed' text. Deterministic act failures ('no
+// attached page with id ...', 'op ... needs an element', 'fill requires a
+// value') carry neither shape.
+const NAV_SHAPED_ACT_ERROR_RE = /scheduled navigations|evaluation timed out|Execution context/i;
+
+/** r22 F-1 KB proof switch: the one-retry nav-shaped act retry at the shared
+ * act tail — an element-targeted click-family act that fails NAV-SHAPED (see
+ * NAV_SHAPED_ACT_ERROR_RE) is retried ONCE behind a PRE_CLICK_SETTLE_MS settle
+ * before the error/act-failed end (the pointer often already dispatched and
+ * the navigation is merely in flight; the r22 t9 recovery). Flipping restores
+ * the pre-r22 single send — the failure throws straight to the error end.
+ * Never flip in shipped code. */
+const KB_ACT_NAV_RETRY = false;
+
+/** r22 F-2 KB proof switch: the resume-cheap skip — a chain memory whose
+ * cursor clause ended post-action (ChainMemoryEntry.postAction) advances the
+ * cursor past that clause BEFORE the first ask when the same chain is re-sent
+ * whole, so the resume acts on the next clause instead of bouncing on the
+ * completed one. Flipping restores the pre-r22 resume — the call starts on
+ * the remembered cursor clause whatever ended it. Never flip in shipped
+ * code. */
+const KB_RESUME_SKIP_POSTACTION = false;
+
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
 // (not a PRESS_KEYS member — "press Delete" parses undefined rather than
@@ -307,7 +336,18 @@ const bounceCounts = new Map<string, number>();
 // CHAIN_MEMORY_MAX.
 // r15 D3: `clicks` = the stored cursor clause's effective clicks (element path and name; in-process only).
 type ClickRef = { path: string; name: string };
-interface ChainMemoryEntry { cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean; clicks?: ClickRef[]; loginSeen?: true }
+interface ChainMemoryEntry {
+  cursor: number; acts: number; cursorActed?: boolean; stuckTried?: boolean; clicks?: ClickRef[]; loginSeen?: true;
+  // r22 F-2: the cursor clause ended post-action (its action already ran —
+  // step_review.why 'post-action' on the stored end). Lets a re-sent whole
+  // chain skip the clause at resume instead of bouncing on it.
+  postAction?: true;
+  // r22 F-2b: the cursor sits on the response page a SKIPPED post-action
+  // clause produced — the r15 reload refusal engages for this clause even
+  // though it has no effective click of its own (reloading the response page
+  // would re-submit the skipped clause's form). Cleared on the first advance.
+  responsePage?: true;
+}
 const chainMemory = new Map<string, ChainMemoryEntry>();
 
 /** Chain state for the current browse_step call, when it runs chain mode
@@ -349,6 +389,11 @@ interface ChainState {
   // end once (this call or a stored one). Set ONLY where such a result is
   // produced (C1), reset on every clause advance.
   loginSeen: boolean;
+  // r22 F-2b: the current cursor sits on the response page a skipped
+  // post-action clause produced — reload is refused here like after this
+  // clause's own effective click. Restored from chain memory, set by the
+  // resume skip, cleared on every clause advance.
+  responsePage: boolean;
 }
 
 /** r13: the bounce a stuck recovery defers (why + the candidates captured at trigger time). */
@@ -1692,6 +1737,10 @@ async function runTool(
     loginSuppressed?: true;    // r17: a login read was suppressed this round
     dialog?: 'accept' | 'dismiss'; // r17: the dialog answer this round performed
     keyEvidence?: true;        // r17: the deterministic key-press advance fired this round
+    // r22 F-2: set on the FIRST round of a chain resume that skipped a
+    // post-action cursor clause before the first ask (resume-cheap). Enum-adjacent
+    // boolean, never page text.
+    resumeSkippedPostAction?: true;
     kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error'; // r18 (D3): outcome class — explicit site assignment wins over the end-status default; absent when no site knew the value. Enum only, never page text.
   };
   const phaseAcc: {
@@ -1701,8 +1750,16 @@ async function runTool(
     rounds: PhaseRound[];
   } = { rounds: [] };
   let cur: PhaseRound | null = null;
+  // r22 F-2: set by runBrowse when the chain resume skipped a post-action
+  // cursor clause; consumed by the call's first beginRound (the round-0
+  // telemetry marker), then cleared.
+  let resumeSkipMarker = false;
   const beginRound = (): PhaseRound => {
     const round: PhaseRound = { observeMs: 0, jevMs: 0, actMs: 0, settleMs: 0 };
+    if (resumeSkipMarker) {
+      round.resumeSkippedPostAction = true;
+      resumeSkipMarker = false;
+    }
     phaseAcc.rounds.push(round);
     cur = round;
     return round;
@@ -1884,6 +1941,14 @@ async function runTool(
           // r17 (D6): the flag is `true` or ABSENT — never `false` (the
           // optional-field/deepStrictEqual gotcha applies to memory too).
           loginSeen: chainState.loginSeen === true ? true : undefined,
+          // r22 F-2: the cursor clause ended post-action (its action already
+          // ran) — the resume-cheap skip reads it when the same chain is
+          // re-sent whole. `true` or absent, same convention as loginSeen.
+          postAction: !KB_RESUME_SKIP_POSTACTION && r.step_review?.why === 'post-action' ? true : undefined,
+          // r22 F-2b: the response-page hazard survives an end that does not
+          // advance — a further resume of this cursor refuses reload too.
+          // `true` or absent, same convention as postAction/loginSeen.
+          responsePage: chainState.responsePage === true ? true : undefined,
         });
         while (chainMemory.size > CHAIN_MEMORY_MAX) {
           const oldest = chainMemory.keys().next().value;
@@ -2835,7 +2900,35 @@ async function runTool(
         retryNone: false,
         priorClicks: mem?.clicks ?? [],
         loginSeen: mem?.loginSeen === true,
+        responsePage: mem?.responsePage === true,
       };
+      // r22 F-2 (resume-cheap): chain memory whose cursor clause ended
+      // post-action (`postAction` — the clause's action already ran and the
+      // caller was told to send only the steps after it) skips that clause
+      // when the SAME chain is re-sent whole (the [goal, clauses] key match
+      // already proves it): the cursor advances past it BEFORE the first ask,
+      // so the resume acts on the next clause instead of burning a call
+      // bouncing on the completed one. Skipping executes nothing new; the
+      // resets mirror the in-call advance branch, and every subsequently
+      // completed clause keeps its own goal-met screens. Only when a NEXT
+      // clause exists — a post-action cursor on the final clause keeps
+      // today's behavior (the spec defines no round-0 end for that case).
+      if (!KB_RESUME_SKIP_POSTACTION && mem?.postAction === true && chainState.cursor + 1 < chainState.N) {
+        chainState.cursor += 1;
+        chainState.cursorActed = false;
+        chainState.stuckUsed = false;
+        chainState.priorClicks = [];
+        chainState.loginSeen = false;
+        // r22 F-2b: the new cursor starts on the SKIPPED clause's response
+        // page (the live site's form-500 state) with no click of its own, so
+        // the r15 reload refusal — keyed on clauseClicks() — would not
+        // engage and a rule-4 reload re-submits the skipped form. The
+        // responsePage flag carries the hazard to this clause's FIRST round
+        // set: rule 4 refuses a reload here exactly like after a clicked
+        // clause; the first advance past this clause clears it.
+        chainState.responsePage = true;
+        resumeSkipMarker = true;
+      }
     }
 
     const pick = stepInput.pick;
@@ -3269,8 +3362,14 @@ async function runTool(
         // carries step_review why 'post-action', and the recover never reloads
         // (reloading a form response re-sends it).
         const clicked = clauseClicks().length > 0;
-        const pageError = (): WingmanResult => mk('error', 'page-error', clicked ? postActionReview() : {});
-        if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE || (r === 'reload' && clicked)) {
+        // r22 F-2b: a resume-cheap skip leaves the cursor on the skipped
+        // clause's response page with no click of its own — memory's
+        // responsePage flag (cleared on the first advance) engages the same
+        // refusal, same end and post-action note as the clicked case.
+        const reloadRefused = r === 'reload' && (clicked || chain!.responsePage);
+        const pageError = (): WingmanResult =>
+          mk('error', 'page-error', clicked || reloadRefused ? postActionReview() : {});
+        if (r === 'give-up' || chain!.recoverActs >= RECOVER_MAX_PER_CLAUSE || reloadRefused) {
           return { kind: 'result', result: pageError() };
         }
         if (r === 'back' || r === 'reload' || r === 'wait') {
@@ -3374,6 +3473,7 @@ async function runTool(
         chain!.retryNone = false;
         chain!.priorClicks = [];
         chain!.loginSeen = false; // r17 (D6): per-clause flag
+        chain!.responsePage = false; // r22 F-2b: the hazard is bound to the first post-skip clause only
         if (chain!.cursor === N) {
           return { t: 'result', result: endOfChain() };
         }
@@ -4185,7 +4285,25 @@ async function runTool(
             inFlightOp = null;
             return stuckBounce(stuckPend);
           }
-          throw e;
+          // r22 F-1: a NAV-SHAPED failure of an element-targeted click-family
+          // act is retried ONCE behind a PRE_CLICK_SETTLE_MS settle — the
+          // pointer often already dispatched and the click timed out only on
+          // Playwright's in-flight navigation wait. Exactly one retry per act;
+          // a persistent nav stall (or any deterministic failure) throws
+          // through to the error/act-failed end as today.
+          if (
+            !KB_ACT_NAV_RETRY &&
+            decision.el !== null &&
+            CLICK_FAMILY_OPS.has(decision.verb) &&
+            NAV_SHAPED_ACT_ERROR_RE.test(String(e))
+          ) {
+            const tRetrySettle = now();
+            await driver.settle(pageId, PRE_CLICK_SETTLE_MS);
+            bucket.settleMs += now() - tRetrySettle;
+            actFlip = checkFlipResult(await driver.act(pageId, decision.el.id, decision.verb, actValue));
+          } else {
+            throw e;
+          }
         }
         inFlightOp = null;
         bucket.actMs += now() - tAct;

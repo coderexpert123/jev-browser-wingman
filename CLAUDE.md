@@ -631,15 +631,14 @@ history: results branches + PA memory.
 
 ## Known pre-existing failures
 
-- **Two pre-existing, diff-unrelated scoped-gate failures (as of
-  2026-09-25; unrelated to later diffs — neither test file nor anything it
-  imports touches loop.ts/tool-text.ts)**:
-  `tests/adapter-cdp.test.ts` "observe matches the pinned form.html table"
-  fails twice in a row (not a flake) — the live `ElementRecord` now carries
-  `htmlId`/`obscured`/`placeholder` fields the pinned expectation predates.
-  `tests/cli.test.ts` "chrome show dispatches into chrome-cmd" fails with
-  exit 0 vs expected 1. Do not attribute a future red on these two to a new
-  diff without checking.
+- **One pre-existing, diff-unrelated scoped-gate failure (as of 2026-09-25;
+  unrelated to later diffs)**: `tests/cli.test.ts` "chrome show dispatches
+  into chrome-cmd" fails with exit 0 vs expected 1. Do not attribute a
+  future red on it to a new diff without checking. (The former second entry
+  — `tests/adapter-cdp.test.ts` "observe matches the pinned form.html
+  table" — was FIXED by the 2026-09-26 re-pin: the test now expects
+  `placeholder`/`htmlId`/`obscured` explicitly; r22 verification ran it
+  green twice on a quiet box, so a red there is a real defect again.)
 
 ## Gotchas from the r21 verifier-fix pass (2026-10-04)
 
@@ -729,3 +728,41 @@ history: results branches + PA memory.
   a "fail the first observe" stub makes round 1 (no prior act) the failure,
   which the wedge gate correctly refuses, so the pin reds for the wrong
   reason and looks like a code defect. Count calls and fail the SECOND.
+
+## Gotchas from the r20/r21b t9-forced regression diagnosis (2026-10-04, diagnosis only)
+
+- **The bench round HEADs in round-labeled dispatches can be wrong — read each
+  results.md header.** The healthy r19 bench ran 61df9bb (r16+r17+r18 all
+  ancestors), not "e2b72f0 = r15 code"; the regression window is
+  61df9bb..009d935 (r20 landing), which touches loop.ts ONLY for the S-1a
+  post-action note branch. Any "the r16/r17 wave changed X" timing argument
+  built from round labels is void.
+- **The t9 forced first call is INVARIANT across healthy and regressed runs**
+  (35-37 rounds, 15-16 steps, ends fallback/step-uncertain on "click the
+  Retrieve password button", progress 5/4/7, in r19, r20 and r21b alike — the
+  loop drives the forgot-password submit into the site's flaky 500/result
+  state every time). The +70% wall lives entirely in the post-fallback
+  RECOVERY calls: r19 needed 2 (12 rounds); r20/r21b needed 5-7. Diagnose
+  fragmentation from the recovery, never from the first call.
+- **Error-end presence is the healthy/regressed discriminator**: all 44 calls
+  in the r19 slice carry zero `error/*` and zero `ambiguous/*` ends; every
+  regressed round shows `act-failed` (locator.click 3000 ms timeout during a
+  scheduled navigation) and `page-error` on the same transitions. The
+  loop/adapter code on that path is unchanged r19→r20, so live-site navigation
+  timing crossing the loop's fixed 3 s act cliff is the remaining variable —
+  and the flat playwright control does NOT exonerate it (auto-waiting clicks
+  have no 3 s cliff; they absorb latency inside one turn).
+- **A resumed-cursor re-send can bounce `ambiguous/target-uncertain` with
+  jev_calls=0 and a round record carrying NO probabilities** (r21b calls 10/43:
+  caller re-sends the full chain after a step-uncertain fallback; the loop
+  resumes at the remembered cursor clause and ends in 1 round). An ambiguous
+  target decision requires Jev answers, so an ask ran uncounted or the round
+  record merged wrong — telemetry inconsistency, needs a scoped repro in
+  chain.test.ts before trusting jev_calls on resumed calls.
+- **The caller's forward-vs-re-send recovery choice is not determined by the
+  note branch**: r20 cell 1 forwarded under the new post-action note; r21b
+  re-sent the full chain under the old-equivalent tier-1 note (its first call
+  ended `multi-match`, so S-1a never fired). FORCED_ENGAGEMENT_LINE's "call it
+  again with the same arguments" conflicts with FORCED_POST_ACTION_LINE's
+  "only the steps after this one"; the small caller resolves that conflict
+  unpredictably.

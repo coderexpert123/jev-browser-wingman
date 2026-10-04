@@ -728,6 +728,155 @@ test('covered target is blocked covered-target', async () => {
   assert.equal(r.reason, 'covered-target');
 });
 
+// ---- r22 F-1: nav-shaped act-failed retry (mirrors the r21b observe amendment) ----
+
+const NAV_ACT_MSG = 'locator.click: Timeout 30000ms exceeded - waiting for scheduled navigations to complete';
+
+test('r22 F-1: a nav-shaped act failure retries once behind a settle and the round proceeds', async () => {
+  // Pre-fix the failure throws straight to error/act-failed; post-fix the act
+  // is retried ONCE behind a PRE_CLICK_SETTLE_MS settle and the round runs on.
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  h.driver.failNextAct = new ActFailedError(NAV_ACT_MSG);
+  const r = await h.call({ goal: 'r22 f1 nav retry succeeds goal' });
+  assert.equal(r.status, 'done', `expected the round to proceed, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 2, 'exactly one retry: two sends');
+  assert.equal(acts[1].elementId, acts[0].elementId, 'the retry re-sends the SAME element');
+  assert.equal(acts[1].op, acts[0].op, 'the retry re-sends the SAME verb');
+  const kinds = h.driver.events.map((e) => e.kind);
+  const firstActIdx = kinds.indexOf('act');
+  assert.equal(kinds[firstActIdx + 1], 'settle', 'the retry runs behind a settle');
+  assert.equal(kinds[firstActIdx + 2], 'act');
+});
+
+test('r22 F-1: a persistent nav-shaped act failure sends exactly twice then ends act-failed', async () => {
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({ observations: { p1: [observation()] }, script: [S()] });
+  let failsLeft = 2;
+  const realAct = h.driver.act.bind(h.driver);
+  h.driver.act = async (pageId, elementId, op, value) => {
+    h.driver.events.push({ kind: 'act', pageId, elementId, op, value });
+    if (failsLeft > 0) {
+      failsLeft -= 1;
+      throw new ActFailedError(NAV_ACT_MSG);
+    }
+    return realAct(pageId, elementId, op, value);
+  };
+  const r = await h.call({ goal: 'r22 f1 persistent nav goal' });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'act-failed');
+  assert.equal(h.driver.actCalls().length, 2, 'one retry, then give up: exactly 2 sends');
+  assert.equal(h.driver.events.filter((e) => e.kind === 'settle').length, 1, 'exactly one retry settle');
+});
+
+test('r22 F-1: a deterministic act failure rethrows immediately - one send, no retry', async () => {
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({ observations: { p1: [observation()] }, script: [S()] });
+  h.driver.failNextAct = new ActFailedError('no attached page with id p1');
+  const r = await h.call({ goal: 'r22 f1 deterministic goal' });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'act-failed');
+  assert.equal(h.driver.actCalls().length, 1, 'no retry for a non-nav-shaped failure');
+  assert.equal(h.driver.events.some((e) => e.kind === 'settle'), false, 'no retry settle');
+});
+
+test('r22 F-1: a nav-shaped failure on a non-click verb does not retry', async () => {
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          elements: [
+            el({
+              id: 'e1',
+              path: '#name',
+              tag: 'input',
+              role: 'textbox',
+              name: 'Name',
+              type: 'text',
+              editable: true,
+              fingerprint: { tag: 'input', role: 'textbox', name: 'Name', x: 0, y: 0 },
+            }),
+          ],
+        }),
+      ],
+    },
+    script: [S({ action: ['fill', { fill: 0.9, click: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }], value: ['v', { v: 0.9, none: 0.05 }] })],
+  });
+  h.driver.failNextAct = new ActFailedError('evaluation timed out');
+  const r = await h.call({ goal: 'r22 f1 fill no-retry goal', values: { v: 'x' } });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'act-failed');
+  assert.equal(h.driver.actCalls().length, 1, 'the retry is click-family only');
+});
+
+// ---- r22 F-4: the jev_calls / per-round-probabilities invariant ----
+
+test('r22 F-4: every round that carries probabilities had an ask, and jev_calls counts exactly those rounds', async () => {
+  // The invariant the r22 diagnosis asked to pin: a PhaseRound that carries
+  // any probability field had an askWithCost this round — the counter cannot
+  // silently under-count. Single-stage wingman_do: one ask per round, and the
+  // `done` noul rides every round, so every round carries doneP.
+  let asks = 0;
+  const ask: JevAsk = async () => {
+    asks += 1;
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: asks === 1 ? 0.05 : 0.95 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+    };
+    if (asks === 1) {
+      answers.action = choice('click', { click: 0.9, none: 0.05 });
+      answers.target = choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 });
+    }
+    return {
+      ok: true,
+      answers,
+      usage: { inputTokens: 10, outputTokens: 5 },
+      latencyMs: 1,
+      status: 200,
+      retries: 0,
+    };
+  };
+  const h = harness({ observations: { p1: [observation()] }, script: [], ask });
+  const r = await h.call({ goal: 'r22 f4 counter invariant goal' });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 2);
+  assert.equal(r.cost.jev_calls, asks, 'jev_calls counts every ask');
+  assert.equal(r.cost.jev_calls, 2);
+  for (const round of rounds) {
+    assert.notEqual(round.doneP, undefined, 'every round carried the done noul it was asked');
+  }
+  const withProbs = rounds.filter((round) =>
+    ['doneP', 'stepDoneP', 'readyP', 'rightPageP', 'errorP', 'countMetP'].some((k) => k in round),
+  );
+  assert.equal(withProbs.length, rounds.length, 'every round in a fully-asked call carries probabilities');
+});
+
+test('r22 F-4: a zero-ask pick end (ambiguous/target-uncertain) carries NO probabilities - the jev_calls=0 record shape is legitimate', async () => {
+  // The jev_calls=0 target-uncertain records in the r22 diagnosis trace are
+  // pick calls: the caller decided, no ask ran, and the round must carry no
+  // probability fields. This pins the invariant's other half — a round with
+  // jev_calls 0 never carries probabilities.
+  const h = harness({ observations: { p1: [observation()] }, script: [] });
+  const r = await h.callStep({
+    goal: 'r22 f4 pick zero-ask goal',
+    steps: ['click the Start button'],
+    pick: { role: 'button', name: 'Does Not Exist', action: 'click' },
+  });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'target-uncertain');
+  assert.equal(r.cost.jev_calls, 0, 'a pick round asks nothing');
+  const rounds = h.records[0].phases!.rounds;
+  assert.equal(rounds.length, 1);
+  for (const key of ['doneP', 'stepDoneP', 'readyP', 'rightPageP', 'errorP', 'countMetP', 'actionP', 'target1P'] as const) {
+    assert.equal(key in rounds[0], false, `a zero-ask round carries no ${key}`);
+  }
+});
+
 test('native select picks the option locally when the value matches a label', async () => {
   const h = harness({
     observations: {
