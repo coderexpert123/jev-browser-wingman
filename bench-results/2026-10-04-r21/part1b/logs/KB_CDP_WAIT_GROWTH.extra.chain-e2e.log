@@ -1,0 +1,132 @@
+TAP version 13
+# Subtest: E1: the four-clause chain completes in one call
+ok 1 - E1: the four-clause chain completes in one call
+  ---
+  duration_ms: 5205.963209
+  type: 'test'
+  ...
+# Subtest: E2: max_steps splits the chain; the re-call resumes on clause 3
+ok 2 - E2: max_steps splits the chain; the re-call resumes on clause 3
+  ---
+  duration_ms: 4411.754682
+  type: 'test'
+  ...
+# Subtest: E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+ok 3 - E3: navigate works from a url binding, offers only url-typed bindings, and bounces no-value on none
+  ---
+  duration_ms: 3930.117654
+  type: 'test'
+  ...
+# Subtest: E4: the delay page waits for Finish and finishes
+ok 4 - E4: the delay page waits for Finish and finishes
+  ---
+  duration_ms: 5874.495595
+  type: 'test'
+  ...
+# Subtest: E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+ok 5 - E5: the verbatim 549-char t9 goal is not invalid-input through tools/call
+  ---
+  duration_ms: 3423.230221
+  type: 'test'
+  ...
+# Subtest: E6: a broken link recovers with back and then opens Form
+ok 6 - E6: a broken link recovers with back and then opens Form
+  ---
+  duration_ms: 3628.061025
+  type: 'test'
+  ...
+# Subtest: E7: the ready variant waits for Finish without acting while ready is low
+ok 7 - E7: the ready variant waits for Finish without acting while ready is low
+  ---
+  duration_ms: 5866.889177
+  type: 'test'
+  ...
+# Subtest: E8: scroll_to brings Far away into view and clicks it
+ok 8 - E8: scroll_to brings Far away into view and clicks it
+  ---
+  duration_ms: 3409.156341
+  type: 'test'
+  ...
+# Subtest: E9: a target on the hub page is reached in one call through a supplied start-page address (r13 stuck recover)
+ok 9 - E9: a target on the hub page is reached in one call through a supplied start-page address (r13 stuck recover)
+  ---
+  duration_ms: 4413.70615
+  type: 'test'
+  ...
+# Subtest: E10: with no url binding the stuck recover goes back to the hub (cdp adapter)
+ok 10 - E10: with no url binding the stuck recover goes back to the hub (cdp adapter)
+  ---
+  duration_ms: 4434.519579
+  type: 'test'
+  ...
+# Subtest: E11: an open sub-clause whose link click lands advances on the landing, so the next sub-goal is not acted under it (r14)
+ok 11 - E11: an open sub-clause whose link click lands advances on the landing, so the next sub-goal is not acted under it (r14)
+  ---
+  duration_ms: 3705.071787
+  type: 'test'
+  ...
+# Subtest: E12: a same-address submit that leaves the page not ready ends post-action, and the resume never re-submits (r15)
+ok 12 - E12: a same-address submit that leaves the page not ready ends post-action, and the resume never re-submits (r15)
+  ---
+  duration_ms: 5888.03038
+  type: 'test'
+  ...
+# Subtest: E13: the recover path never reloads after a same-address submit (r15)
+ok 13 - E13: the recover path never reloads after a same-address submit (r15)
+  ---
+  duration_ms: 3417.559851
+  type: 'test'
+  ...
+# Subtest: E14: a confirm opened by the click is accepted per the step text (r17)
+ok 14 - E14: a confirm opened by the click is accepted per the step text (r17)
+  ---
+  duration_ms: 13158.082982
+  type: 'test'
+  ...
+# Subtest: E15: a confirm is dismissed when the step says cancel (r17)
+ok 15 - E15: a confirm is dismissed when the step says cancel (r17)
+  ---
+  duration_ms: 13253.869725
+  type: 'test'
+  ...
+# Subtest: E16: a prompt is never answered; the clause ends blocked/dialog-open (r17)
+ok 16 - E16: a prompt is never answered; the clause ends blocked/dialog-open (r17)
+  ---
+  duration_ms: 13967.998009
+  type: 'test'
+  ...
+# Subtest: E17: a fill then a committed targetless press Enter submits the field (r17)
+ok 17 - E17: a fill then a committed targetless press Enter submits the field (r17)
+  ---
+  duration_ms: 3392.035359
+  type: 'test'
+  ...
+# Subtest: E18: scroll until at least 6 items show advances on count evidence (r17)
+ok 18 - E18: scroll until at least 6 items show advances on count evidence (r17)
+  ---
+  duration_ms: 3787.861768
+  type: 'test'
+  ...
+# Subtest: E18b: an async wheel-triggered append is waited out, not bounced (r17c)
+ok 19 - E18b: an async wheel-triggered append is waited out, not bounced (r17c)
+  ---
+  duration_ms: 3788.435037
+  type: 'test'
+  ...
+# Subtest: E19: a hidden checkbox is checked through its sibling label (r17)
+ok 20 - E19: a hidden checkbox is checked through its sibling label (r17)
+  ---
+  duration_ms: 3196.624447
+  type: 'test'
+  ...
+1..20
+# tests 20
+# suites 0
+# pass 20
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 112802.539037
+RUN-TESTS: files=1 tests=20 pass=20 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

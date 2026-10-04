@@ -1,0 +1,19 @@
+pre-grep kb=true: ''
+KB_CAPTCHA_SCOPED mapped red 1 / 1 missing [] extras 1 [('page-scripts', 'svg-carried captcha class is seen by the id/class arm, still gated by visibility')]
+KB_CAPTCHA_SCOPED restored byte-identical: True
+KB_CURSOR_POINTER mapped red 2 / 2 missing [] extras 0 []
+KB_CURSOR_POINTER restored byte-identical: True
+KB_PW_NOWAIT mapped red 1 / 1 missing [] extras 0 []
+KB_PW_NOWAIT restored byte-identical: True
+KB_PW_PRECLICK mapped red 1 / 1 missing [] extras 0 []
+KB_PW_PRECLICK restored byte-identical: True
+KB_CDP_PRECLICK mapped red 0 / 1 missing ['T-cdp-preclick'] extras 0 []
+KB_CDP_PRECLICK restored byte-identical: True
+KB_OBS_RETRY mapped red 1 / 1 missing [] extras 0 []
+KB_OBS_RETRY restored byte-identical: True
+KB_PW_WAIT_GROWTH mapped red 2 / 2 missing [] extras 0 []
+KB_PW_WAIT_GROWTH restored byte-identical: True
+KB_CDP_WAIT_GROWTH mapped red 0 / 2 missing ['T-wait-growth', 'T-wait-static'] extras 0 []
+KB_CDP_WAIT_GROWTH restored byte-identical: True
+post-grep kb=true: ''
+MUTDONE

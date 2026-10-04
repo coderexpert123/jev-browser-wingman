@@ -1,0 +1,310 @@
+TAP version 13
+# Subtest: log record carries the phases breakdown (fail-first shape test)
+ok 1 - log record carries the phases breakdown (fail-first shape test)
+  ---
+  duration_ms: 8.868265
+  type: 'test'
+  ...
+# Subtest: a chain round's log carries step_done/ready/right_page probabilities; a non-chain round omits them
+ok 2 - a chain round's log carries step_done/ready/right_page probabilities; a non-chain round omits them
+  ---
+  duration_ms: 4.882925
+  type: 'test'
+  ...
+# Subtest: a multi-round non-chain wingman_do call still carries errorP on round >= 2 (error is gated on round alone, not on chain)
+ok 3 - a multi-round non-chain wingman_do call still carries errorP on round >= 2 (error is gated on round alone, not on chain)
+  ---
+  duration_ms: 0.900815
+  type: 'test'
+  ...
+# Subtest: round kinds: a chain act round reads act, its advance round reads advance
+ok 4 - round kinds: a chain act round reads act, its advance round reads advance
+  ---
+  duration_ms: 1.443365
+  type: 'test'
+  ...
+# Subtest: round kinds: a not-ready chain round acts a mechanical wait
+ok 5 - round kinds: a not-ready chain round acts a mechanical wait
+  ---
+  duration_ms: 1.887863
+  type: 'test'
+  ...
+# Subtest: round kinds: a wingman_do round-1 done via the done noul reads done
+ok 6 - round kinds: a wingman_do round-1 done via the done noul reads done
+  ---
+  duration_ms: 0.587931
+  type: 'test'
+  ...
+# Subtest: round kinds: a jev-error ask failure bounces its round
+ok 7 - round kinds: a jev-error ask failure bounces its round
+  ---
+  duration_ms: 0.514708
+  type: 'test'
+  ...
+# Subtest: kindForResult maps every end status exactly (r18 D3)
+ok 8 - kindForResult maps every end status exactly (r18 D3)
+  ---
+  duration_ms: 0.117693
+  type: 'test'
+  ...
+# Subtest: check-path record carries phases with one round
+ok 9 - check-path record carries phases with one round
+  ---
+  duration_ms: 1.35602
+  type: 'test'
+  ...
+# Subtest: done after one click then goal-met
+ok 10 - done after one click then goal-met
+  ---
+  duration_ms: 1.836492
+  type: 'test'
+  ...
+# Subtest: action none with done 0.6 is done
+ok 11 - action none with done 0.6 is done
+  ---
+  duration_ms: 0.544213
+  type: 'test'
+  ...
+# Subtest: action none with done 0.3 is ambiguous no-action with top-3 candidates
+ok 12 - action none with done 0.3 is ambiguous no-action with top-3 candidates
+  ---
+  duration_ms: 0.77138
+  type: 'test'
+  ...
+# Subtest: target below 0.5 is ambiguous target-uncertain
+ok 13 - target below 0.5 is ambiguous target-uncertain
+  ---
+  duration_ms: 0.43198
+  type: 'test'
+  ...
+# Subtest: fill without bindings is ambiguous no-value
+ok 14 - fill without bindings is ambiguous no-value
+  ---
+  duration_ms: 0.674453
+  type: 'test'
+  ...
+# Subtest: two visible tabs are ambiguous tab-ambiguous and url_match picks one
+ok 15 - two visible tabs are ambiguous tab-ambiguous and url_match picks one
+  ---
+  duration_ms: 0.57133
+  type: 'test'
+  ...
+# Subtest: budget-steps after max_steps acts
+ok 16 - budget-steps after max_steps acts
+  ---
+  duration_ms: 0.769997
+  type: 'test'
+  ...
+# Subtest: a non-done wingman_do result carries the continuation line (fail-first shape test)
+ok 17 - a non-done wingman_do result carries the continuation line (fail-first shape test)
+  ---
+  duration_ms: 0.680772
+  type: 'test'
+  ...
+# Subtest: done carries no continuation line; needs_confirmation keeps the token and adds it
+ok 18 - done carries no continuation line; needs_confirmation keeps the token and adds it
+  ---
+  duration_ms: 1.389398
+  type: 'test'
+  ...
+# Subtest: wingman_check results never carry the goal continuation line
+ok 19 - wingman_check results never carry the goal continuation line
+  ---
+  duration_ms: 0.24007
+  type: 'test'
+  ...
+# Subtest: budget-time stops before the floor (fake clock)
+ok 20 - budget-time stops before the floor (fake clock)
+  ---
+  duration_ms: 0.463893
+  type: 'test'
+  ...
+# Subtest: a concurrent call is blocked busy
+ok 21 - a concurrent call is blocked busy
+  ---
+  duration_ms: 0.623271
+  type: 'test'
+  ...
+# Subtest: mode off returns fallback mode-off without attaching
+ok 22 - mode off returns fallback mode-off without attaching
+  ---
+  duration_ms: 0.324899
+  type: 'test'
+  ...
+# Subtest: no key returns fallback no-key without attaching
+ok 23 - no key returns fallback no-key without attaching
+  ---
+  duration_ms: 0.188579
+  type: 'test'
+  ...
+# Subtest: no endpoint returns fallback no-browser
+ok 24 - no endpoint returns fallback no-browser
+  ---
+  duration_ms: 0.28115
+  type: 'test'
+  ...
+# Subtest: jev http error is fallback jev-error and circuit-open is breaker-open
+ok 25 - jev http error is fallback jev-error and circuit-open is breaker-open
+  ---
+  duration_ms: 0.640312
+  type: 'test'
+  ...
+# Subtest: stale element is error stale-element
+ok 26 - stale element is error stale-element
+  ---
+  duration_ms: 1.076199
+  type: 'test'
+  ...
+# Subtest: covered target is blocked covered-target
+ok 27 - covered target is blocked covered-target
+  ---
+  duration_ms: 1.765106
+  type: 'test'
+  ...
+# Subtest: native select picks the option locally when the value matches a label
+ok 28 - native select picks the option locally when the value matches a label
+  ---
+  duration_ms: 1.458652
+  type: 'test'
+  ...
+# Subtest: two-stage selection above max_elements
+ok 29 - two-stage selection above max_elements
+  ---
+  duration_ms: 1.327311
+  type: 'test'
+  ...
+# Subtest: wingman_check returns done answered with the rounded answer
+ok 30 - wingman_check returns done answered with the rounded answer
+  ---
+  duration_ms: 0.385223
+  type: 'test'
+  ...
+# Subtest: an unresolvable target id is target-uncertain, never an act on another element
+ok 31 - an unresolvable target id is target-uncertain, never an act on another element
+  ---
+  duration_ms: 0.38579
+  type: 'test'
+  ...
+# Subtest: an out-of-set action choice is target-uncertain
+ok 32 - an out-of-set action choice is target-uncertain
+  ---
+  duration_ms: 0.53423
+  type: 'test'
+  ...
+# Subtest: gate off submits a gated button without a token
+ok 33 - gate off submits a gated button without a token
+  ---
+  duration_ms: 0.638094
+  type: 'test'
+  ...
+# Subtest: gate off with Jev p(irreversible) 0.9 still acts
+ok 34 - gate off with Jev p(irreversible) 0.9 still acts
+  ---
+  duration_ms: 0.535384
+  type: 'test'
+  ...
+# Subtest: default (absent) gate config acts without needs_confirmation (Q6)
+ok 35 - default (absent) gate config acts without needs_confirmation (Q6)
+  ---
+  duration_ms: 0.873396
+  type: 'test'
+  ...
+# Subtest: a wingman_do fill round below the value threshold is unchanged: ambiguous no-value
+ok 36 - a wingman_do fill round below the value threshold is unchanged: ambiguous no-value
+  ---
+  duration_ms: 0.667767
+  type: 'test'
+  ...
+# Subtest: wingman_do on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 37 - wingman_do on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  duration_ms: 0.513091
+  type: 'test'
+  ...
+# Subtest: wingman_check on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 38 - wingman_check on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  duration_ms: 0.309786
+  type: 'test'
+  ...
+# Subtest: browse_step on a sensitive host under policy.mode enforce carries the sensitive-page note
+ok 39 - browse_step on a sensitive host under policy.mode enforce carries the sensitive-page note
+  ---
+  duration_ms: 0.310243
+  type: 'test'
+  ...
+# Subtest: the same sensitive host under policy.mode off never yields the sensitive-page note
+ok 40 - the same sensitive host under policy.mode off never yields the sensitive-page note
+  ---
+  duration_ms: 0.52539
+  type: 'test'
+  ...
+# Subtest: a step-uncertain browse_step bounce still carries the HEAD caller line and bounce tier 1
+ok 41 - a step-uncertain browse_step bounce still carries the HEAD caller line and bounce tier 1
+  ---
+  duration_ms: 0.666487
+  type: 'test'
+  ...
+# Subtest: wingman_do press-none commits a targetless press (focused element)
+ok 42 - wingman_do press-none commits a targetless press (focused element)
+  ---
+  duration_ms: 0.524689
+  type: 'test'
+  ...
+# Subtest: wingman_do press-none with irreversible refuses ambiguous no-action with zero acts
+ok 43 - wingman_do press-none with irreversible refuses ambiguous no-action with zero acts
+  ---
+  duration_ms: 0.300605
+  type: 'test'
+  ...
+# Subtest: wingman_do press with no key answer falls back to Enter
+ok 44 - wingman_do press with no key answer falls back to Enter
+  ---
+  duration_ms: 0.429451
+  type: 'test'
+  ...
+# Subtest: wingman_do token act answers the page dialog per the goal text
+ok 45 - wingman_do token act answers the page dialog per the goal text
+  ---
+  duration_ms: 1.69238
+  type: 'test'
+  ...
+# Subtest: a fast mid-navigation observe failure retries behind a bounded settle and the call completes normally
+not ok 46 - a fast mid-navigation observe failure retries behind a bounded settle and the call completes normally
+  ---
+  duration_ms: 1.14854
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/loop.test.js:956:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    expected a normal completion, got error/tool-fault
+    
+    'error' !== 'done'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'done'
+  actual: 'error'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/loop.test.js:976:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: a wedged observe (slow first failure, >= 2 s) is never retried and still ends error
+ok 47 - a wedged observe (slow first failure, >= 2 s) is never retried and still ends error
+  ---
+  duration_ms: 2103.905258
+  type: 'test'
+  ...
+1..47
+# tests 47
+# suites 0
+# pass 46
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2275.627226
+RUN-TESTS: files=1 tests=47 pass=46 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

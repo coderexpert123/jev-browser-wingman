@@ -1,0 +1,71 @@
+TAP version 13
+# Subtest: T-nav-nowait: a click that schedules a slow navigation resolves fast and the navigation still completes
+not ok 1 - T-nav-nowait: a click that schedules a slow navigation resolves fast and the navigation still completes
+  ---
+  duration_ms: 6634.804455
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:127:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    locator.click: Timeout 3000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('#go')[22m
+    [2m    - locator resolved to <button id="go" type="button" onclick="location.href='nav-slow-arrive.html?delay=6000'">Go Slow</button>[22m
+    [2m  - attempting click action[22m
+    [2m    - waiting for element to be visible, enabled and stable[22m
+    [2m    - element is visible, enabled and stable[22m
+    [2m    - scrolling into view if needed[22m
+    [2m    - done scrolling[22m
+    [2m    - performing click action[22m
+    [2m    - click action done[22m
+    [2m    - waiting for scheduled navigations to finish[22m
+    
+  code: 'act-failed'
+  name: 'ActFailedError'
+  stack: |-
+    Object.act (file:///home/user/jev-browser-wingman/.build/kb-r21/src/adapters/playwright.js:570:23)
+    async TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:132:9)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: T-preclick-guard: a forever-loading page holds the click for the full pre-click settle budget, then lands
+ok 2 - T-preclick-guard: a forever-loading page holds the click for the full pre-click settle budget, then lands
+  ---
+  duration_ms: 4226.528297
+  type: 'test'
+  ...
+# Subtest: T-preclick-fastpath: an already-loaded page pays one eval, not a settle
+ok 3 - T-preclick-fastpath: an already-loaded page pays one eval, not a settle
+  ---
+  duration_ms: 246.899631
+  type: 'test'
+  ...
+# Subtest: T-cdp-preclick: the CDP driver holds the same guard on a forever-loading page, then lands
+ok 4 - T-cdp-preclick: the CDP driver holds the same guard on a forever-loading page, then lands
+  ---
+  duration_ms: 9135.187156
+  type: 'test'
+  ...
+# Subtest: T-wait-growth: a wait act exits early when delayed content lands, and the content is then visible
+ok 5 - T-wait-growth: a wait act exits early when delayed content lands, and the content is then visible
+  ---
+  duration_ms: 1991.089113
+  type: 'test'
+  ...
+# Subtest: T-wait-static: a wait act on a never-changing page pays the full bounded budget
+ok 6 - T-wait-static: a wait act on a never-changing page pays the full bounded budget
+  ---
+  duration_ms: 3206.363602
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 5
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43551.176669
+RUN-TESTS: files=1 tests=6 pass=5 fail=1
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,101 @@
+{
+ "KB_CAPTCHA_SCOPED": {
+  "mapped": [
+   "captcha-decoys.html does not set the captcha signal"
+  ],
+  "mapped_red": [
+   "captcha-decoys.html does not set the captcha signal"
+  ],
+  "mapped_missing": [],
+  "extras": [
+   [
+    "page-scripts",
+    "svg-carried captcha class is seen by the id/class arm, still gated by visibility"
+   ]
+  ],
+  "restored": true
+ },
+ "KB_CURSOR_POINTER": {
+  "mapped": [
+   "click Save on pointer-interactive.html",
+   "enumerate lists the decoy divs"
+  ],
+  "mapped_red": [
+   "click Save on pointer-interactive.html",
+   "enumerate lists the decoy divs"
+  ],
+  "mapped_missing": [],
+  "extras": [],
+  "restored": true
+ },
+ "KB_PW_NOWAIT": {
+  "mapped": [
+   "T-nav-nowait"
+  ],
+  "mapped_red": [
+   "T-nav-nowait"
+  ],
+  "mapped_missing": [],
+  "extras": [],
+  "restored": true
+ },
+ "KB_PW_PRECLICK": {
+  "mapped": [
+   "T-preclick-guard"
+  ],
+  "mapped_red": [
+   "T-preclick-guard"
+  ],
+  "mapped_missing": [],
+  "extras": [],
+  "restored": true
+ },
+ "KB_CDP_PRECLICK": {
+  "mapped": [
+   "T-cdp-preclick"
+  ],
+  "mapped_red": [],
+  "mapped_missing": [
+   "T-cdp-preclick"
+  ],
+  "extras": [],
+  "restored": true
+ },
+ "KB_OBS_RETRY": {
+  "mapped": [
+   "a fast mid-navigation observe failure retries"
+  ],
+  "mapped_red": [
+   "a fast mid-navigation observe failure retries"
+  ],
+  "mapped_missing": [],
+  "extras": [],
+  "restored": true
+ },
+ "KB_PW_WAIT_GROWTH": {
+  "mapped": [
+   "T-wait-growth",
+   "T-wait-static"
+  ],
+  "mapped_red": [
+   "T-wait-growth",
+   "T-wait-static"
+  ],
+  "mapped_missing": [],
+  "extras": [],
+  "restored": true
+ },
+ "KB_CDP_WAIT_GROWTH": {
+  "mapped": [
+   "T-wait-growth",
+   "T-wait-static"
+  ],
+  "mapped_red": [],
+  "mapped_missing": [
+   "T-wait-growth",
+   "T-wait-static"
+  ],
+  "extras": [],
+  "restored": true
+ }
+}

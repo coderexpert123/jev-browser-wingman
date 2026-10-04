@@ -1,0 +1,72 @@
+TAP version 13
+# Subtest: T-nav-nowait: a click that schedules a slow navigation resolves fast and the navigation still completes
+ok 1 - T-nav-nowait: a click that schedules a slow navigation resolves fast and the navigation still completes
+  ---
+  duration_ms: 6733.246838
+  type: 'test'
+  ...
+# Subtest: T-preclick-guard: a forever-loading page holds the click for the full pre-click settle budget, then lands
+ok 2 - T-preclick-guard: a forever-loading page holds the click for the full pre-click settle budget, then lands
+  ---
+  duration_ms: 4248.723366
+  type: 'test'
+  ...
+# Subtest: T-preclick-fastpath: an already-loaded page pays one eval, not a settle
+ok 3 - T-preclick-fastpath: an already-loaded page pays one eval, not a settle
+  ---
+  duration_ms: 288.280146
+  type: 'test'
+  ...
+# Subtest: T-cdp-preclick: the CDP driver holds the same guard on a forever-loading page, then lands
+ok 4 - T-cdp-preclick: the CDP driver holds the same guard on a forever-loading page, then lands
+  ---
+  duration_ms: 4139.897814
+  type: 'test'
+  ...
+# Subtest: T-wait-growth: a wait act exits early when delayed content lands, and the content is then visible
+not ok 5 - T-wait-growth: a wait act exits early when delayed content lands, and the content is then visible
+  ---
+  duration_ms: 1323.09479
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:206:1'
+  failureType: 'testCodeFailure'
+  error: 'wait act took 1000 ms — expected the growth poll to exit when #finish landed (~1500 ms)'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:217:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: T-wait-static: a wait act on a never-changing page pays the full bounded budget
+not ok 6 - T-wait-static: a wait act on a never-changing page pays the full bounded budget
+  ---
+  duration_ms: 1294.385724
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:225:1'
+  failureType: 'testCodeFailure'
+  error: 'wait act took 1001 ms — expected the full WAIT_GROWTH_MS budget on a static page'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/act-nav.test.js:231:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 4
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 43644.893252
+RUN-TESTS: files=1 tests=6 pass=4 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

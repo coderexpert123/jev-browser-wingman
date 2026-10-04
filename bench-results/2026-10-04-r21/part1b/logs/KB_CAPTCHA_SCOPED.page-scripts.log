@@ -1,0 +1,224 @@
+TAP version 13
+# Subtest: form.html element table matches the pinned table
+ok 1 - form.html element table matches the pinned table
+  ---
+  duration_ms: 376.486435
+  type: 'test'
+  ...
+# Subtest: styled-controls.html proxies hidden inputs through their labels
+ok 2 - styled-controls.html proxies hidden inputs through their labels
+  ---
+  duration_ms: 116.283814
+  type: 'test'
+  ...
+# Subtest: verify resolves proxied styled controls through the label path
+ok 3 - verify resolves proxied styled controls through the label path
+  ---
+  duration_ms: 122.144406
+  type: 'test'
+  ...
+# Subtest: text excerpt never contains the prefilled textarea text
+ok 4 - text excerpt never contains the prefilled textarea text
+  ---
+  duration_ms: 118.133284
+  type: 'test'
+  ...
+# Subtest: enumeration adds no globals and makes no DOM mutations
+ok 5 - enumeration adds no globals and makes no DOM mutations
+  ---
+  duration_ms: 108.744033
+  type: 'test'
+  ...
+# Subtest: many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+ok 6 - many.html returns 300 elements untruncated and 100 with truncated=true at maxElements 100
+  ---
+  duration_ms: 268.291789
+  type: 'test'
+  ...
+# Subtest: password.html sets password and currentPassword signals
+ok 7 - password.html sets password and currentPassword signals
+  ---
+  duration_ms: 130.371547
+  type: 'test'
+  ...
+# Subtest: otp.html sets otpAutocomplete and otpText signals
+ok 8 - otp.html sets otpAutocomplete and otpText signals
+  ---
+  duration_ms: 116.780884
+  type: 'test'
+  ...
+# Subtest: big-select.html carries 300 options on the select element
+ok 9 - big-select.html carries 300 options on the select element
+  ---
+  duration_ms: 114.63082
+  type: 'test'
+  ...
+# Subtest: verify returns mismatch after the button text changes
+ok 10 - verify returns mismatch after the button text changes
+  ---
+  duration_ms: 119.038551
+  type: 'test'
+  ...
+# Subtest: hit test reports covered on overlay.html
+ok 11 - hit test reports covered on overlay.html
+  ---
+  duration_ms: 104.671779
+  type: 'test'
+  ...
+# Subtest: enumeration emits obscured and coveredBy on overlay.html
+ok 12 - enumeration emits obscured and coveredBy on overlay.html
+  ---
+  duration_ms: 102.893128
+  type: 'test'
+  ...
+# Subtest: a button without a type attribute reports the defaulted submit type
+ok 13 - a button without a type attribute reports the defaulted submit type
+  ---
+  duration_ms: 112.814786
+  type: 'test'
+  ...
+# Subtest: enumeration emits placeholder and htmlId on form controls
+ok 14 - enumeration emits placeholder and htmlId on form controls
+  ---
+  duration_ms: 113.087184
+  type: 'test'
+  ...
+# Subtest: a labelled file input enumerates as button and verifies (A1)
+ok 15 - a labelled file input enumerates as button and verifies (A1)
+  ---
+  duration_ms: 132.316839
+  type: 'test'
+  ...
+# Subtest: hidden-controls.html names hidden inputs through sibling labels and their own names
+ok 16 - hidden-controls.html names hidden inputs through sibling labels and their own names
+  ---
+  duration_ms: 115.62776
+  type: 'test'
+  ...
+# Subtest: enumeration reports the focused element
+ok 17 - enumeration reports the focused element
+  ---
+  duration_ms: 158.751579
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts the many.html button field
+ok 18 - repeatedGroups counts the many.html button field
+  ---
+  duration_ms: 200.310534
+  type: 'test'
+  ...
+# Subtest: repeatedGroups counts div.item once the list crosses the group floor
+ok 19 - repeatedGroups counts div.item once the list crosses the group floor
+  ---
+  duration_ms: 412.268226
+  type: 'test'
+  ...
+# Subtest: enumerate reports the page scroll offset
+ok 20 - enumerate reports the page scroll offset
+  ---
+  duration_ms: 421.491934
+  type: 'test'
+  ...
+# Subtest: verify re-finds hidden-control records through the label and their own path
+ok 21 - verify re-finds hidden-control records through the label and their own path
+  ---
+  duration_ms: 112.844027
+  type: 'test'
+  ...
+# Subtest: iframe-boundary.html enumerates zero frame-interior records and the inner path is unresolvable
+ok 22 - iframe-boundary.html enumerates zero frame-interior records and the inner path is unresolvable
+  ---
+  duration_ms: 162.031548
+  type: 'test'
+  ...
+# Subtest: shadow-boundary.html enumerates the host record only and zero shadow-interior records
+ok 23 - shadow-boundary.html enumerates the host record only and zero shadow-interior records
+  ---
+  duration_ms: 145.85439
+  type: 'test'
+  ...
+# Subtest: table-headers.html enumerates th as columnheader under the table path
+ok 24 - table-headers.html enumerates th as columnheader under the table path
+  ---
+  duration_ms: 128.345694
+  type: 'test'
+  ...
+# Subtest: tableId names the enclosing table and is absent outside one
+ok 25 - tableId names the enclosing table and is absent outside one
+  ---
+  duration_ms: 122.599515
+  type: 'test'
+  ...
+# Subtest: double-click.html enumerates the ondblclick div as a named button
+ok 26 - double-click.html enumerates the ondblclick div as a named button
+  ---
+  duration_ms: 100.15552
+  type: 'test'
+  ...
+# Subtest: verify round-trips the new roles (columnheader, ondblclick button)
+ok 27 - verify round-trips the new roles (columnheader, ondblclick button)
+  ---
+  duration_ms: 241.712078
+  type: 'test'
+  ...
+# Subtest: captcha-challenge.html sets the captcha signal and still enumerates Continue
+ok 28 - captcha-challenge.html sets the captcha signal and still enumerates Continue
+  ---
+  duration_ms: 720.606537
+  type: 'test'
+  ...
+# Subtest: captcha-decoys.html does not set the captcha signal
+not ok 29 - captcha-decoys.html does not set the captcha signal
+  ---
+  duration_ms: 488.397556
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/page-scripts.test.js:631:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/page-scripts.test.js:635:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: svg-carried captcha class is seen by the id/class arm, still gated by visibility
+not ok 30 - svg-carried captcha class is seen by the id/class arm, still gated by visibility
+  ---
+  duration_ms: 224.866487
+  type: 'test'
+  location: '/home/user/jev-browser-wingman/.build/kb-r21/tests/page-scripts.test.js:650:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/user/jev-browser-wingman/.build/kb-r21/tests/page-scripts.test.js:662:16)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 28
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6514.593165
+RUN-TESTS: files=1 tests=30 pass=28 fail=2
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
