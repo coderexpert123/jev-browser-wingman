@@ -1,0 +1,303 @@
+TAP version 13
+# Subtest: parity
+    # Subtest: ADAPTER_OPS.playwright deep-equals ADAPTER_OPS.cdp
+    ok 1 - ADAPTER_OPS.playwright deep-equals ADAPTER_OPS.cdp
+      ---
+      duration_ms: 3.707647
+      type: 'test'
+      ...
+    # Subtest: every declared op has at least one test below (static coverage map)
+    ok 2 - every declared op has at least one test below (static coverage map)
+      ---
+      duration_ms: 0.652549
+      type: 'test'
+      ...
+    # Subtest: ops.html element table is identical across adapters
+    ok 3 - ops.html element table is identical across adapters
+      ---
+      duration_ms: 429.330122
+      type: 'test'
+      ...
+    1..3
+ok 1 - parity
+  ---
+  duration_ms: 1142.452098
+  type: 'suite'
+  ...
+# Subtest: playwright
+    # Subtest: O1 hover reveals the hover log
+    ok 1 - O1 hover reveals the hover log
+      ---
+      duration_ms: 365.43364
+      type: 'test'
+      ...
+    # Subtest: O2 dblclick writes the double log
+    ok 2 - O2 dblclick writes the double log
+      ---
+      duration_ms: 342.539052
+      type: 'test'
+      ...
+    # Subtest: O3 press Tab in First moves focus to Second
+    ok 3 - O3 press Tab in First moves focus to Second
+      ---
+      duration_ms: 315.269268
+      type: 'test'
+      ...
+    # Subtest: O4 fill replaces the contenteditable text
+    ok 4 - O4 fill replaces the contenteditable text
+      ---
+      duration_ms: 319.751852
+      type: 'test'
+      ...
+    # Subtest: O5 upload attaches the named file to the file input
+    ok 5 - O5 upload attaches the named file to the file input
+      ---
+      duration_ms: 313.979564
+      type: 'test'
+      ...
+    # Subtest: O6 navigate to form.html then back to ops.html
+    ok 6 - O6 navigate to form.html then back to ops.html
+      ---
+      duration_ms: 241.028348
+      type: 'test'
+      ...
+    # Subtest: O7 navigate rejects a non-http url
+    ok 7 - O7 navigate rejects a non-http url
+      ---
+      duration_ms: 143.26827
+      type: 'test'
+      ...
+    # Subtest: O8 wait sleeps about one second (r21 growth poll: up to 3 s on a never-changing page)
+    ok 8 - O8 wait sleeps about one second (r21 growth poll: up to 3 s on a never-changing page)
+      ---
+      duration_ms: 3192.131251
+      type: 'test'
+      ...
+    # Subtest: O9 scroll_up undoes a deep scroll
+    ok 9 - O9 scroll_up undoes a deep scroll
+      ---
+      duration_ms: 388.037069
+      type: 'test'
+      ...
+    # Subtest: O10 scroll moves the page down
+    ok 10 - O10 scroll moves the page down
+      ---
+      duration_ms: 357.667176
+      type: 'test'
+      ...
+    # Subtest: O11 click with a null element rejects
+    ok 11 - O11 click with a null element rejects
+      ---
+      duration_ms: 132.644396
+      type: 'test'
+      ...
+    # Subtest: O12 legacy ops still behave on form.html
+    ok 12 - O12 legacy ops still behave on form.html
+      ---
+      duration_ms: 342.536176
+      type: 'test'
+      ...
+    # Subtest: O12 check and uncheck on styled-controls.html
+    ok 13 - O12 check and uncheck on styled-controls.html
+      ---
+      duration_ms: 344.308912
+      type: 'test'
+      ...
+    # Subtest: O13 scroll_to brings Far away into view and clicks it
+    ok 14 - O13 scroll_to brings Far away into view and clicks it
+      ---
+      duration_ms: 333.104969
+      type: 'test'
+      ...
+    # Subtest: O14 reload resets the page
+    ok 15 - O14 reload resets the page
+      ---
+      duration_ms: 191.974696
+      type: 'test'
+      ...
+    # Subtest: O15 press ShiftTab in Second moves focus back to First
+    ok 16 - O15 press ShiftTab in Second moves focus back to First
+      ---
+      duration_ms: 302.29922
+      type: 'test'
+      ...
+    # Subtest: O16 press Backspace deletes the character before the cursor
+    ok 17 - O16 press Backspace deletes the character before the cursor
+      ---
+      duration_ms: 481.047656
+      type: 'test'
+      ...
+    # Subtest: O18 a click lands after back restores the previous page
+    ok 18 - O18 a click lands after back restores the previous page # TODO OPEN-1 (r13): playwright click after a bfcache back timed out 5/5 in r12
+      ---
+      duration_ms: 459.272991
+      type: 'test'
+      ...
+    # Subtest: O17 press SelectAll then Backspace empties the field
+    ok 19 - O17 press SelectAll then Backspace empties the field
+      ---
+      duration_ms: 305.321093
+      type: 'test'
+      ...
+    # Subtest: O19 targetless press Tab moves focus from First to Second
+    ok 20 - O19 targetless press Tab moves focus from First to Second
+      ---
+      duration_ms: 278.615837
+      type: 'test'
+      ...
+    # Subtest: O20 answerDialog accepts a confirm, then dismisses on a second page
+    ok 21 - O20 answerDialog accepts a confirm, then dismisses on a second page
+      ---
+      duration_ms: 557.131242
+      type: 'test'
+      ...
+    1..21
+ok 2 - playwright
+  ---
+  duration_ms: 10392.325904
+  type: 'suite'
+  ...
+# Subtest: cdp
+    # Subtest: O1 hover reveals the hover log
+    ok 1 - O1 hover reveals the hover log
+      ---
+      duration_ms: 218.458343
+      type: 'test'
+      ...
+    # Subtest: O2 dblclick writes the double log
+    ok 2 - O2 dblclick writes the double log
+      ---
+      duration_ms: 159.443432
+      type: 'test'
+      ...
+    # Subtest: O3 press Tab in First moves focus to Second
+    ok 3 - O3 press Tab in First moves focus to Second
+      ---
+      duration_ms: 176.593859
+      type: 'test'
+      ...
+    # Subtest: O4 fill replaces the contenteditable text
+    ok 4 - O4 fill replaces the contenteditable text
+      ---
+      duration_ms: 159.868915
+      type: 'test'
+      ...
+    # Subtest: O5 upload attaches the named file to the file input
+    ok 5 - O5 upload attaches the named file to the file input
+      ---
+      duration_ms: 159.999739
+      type: 'test'
+      ...
+    # Subtest: O6 navigate to form.html then back to ops.html
+    ok 6 - O6 navigate to form.html then back to ops.html
+      ---
+      duration_ms: 168.438447
+      type: 'test'
+      ...
+    # Subtest: O7 navigate rejects a non-http url
+    ok 7 - O7 navigate rejects a non-http url
+      ---
+      duration_ms: 113.480423
+      type: 'test'
+      ...
+    # Subtest: O8 wait sleeps about one second (r21 growth poll: up to 3 s on a never-changing page)
+    ok 8 - O8 wait sleeps about one second (r21 growth poll: up to 3 s on a never-changing page)
+      ---
+      duration_ms: 3119.733768
+      type: 'test'
+      ...
+    # Subtest: O9 scroll_up undoes a deep scroll
+    ok 9 - O9 scroll_up undoes a deep scroll
+      ---
+      duration_ms: 344.274649
+      type: 'test'
+      ...
+    # Subtest: O10 scroll moves the page down
+    ok 10 - O10 scroll moves the page down
+      ---
+      duration_ms: 325.583991
+      type: 'test'
+      ...
+    # Subtest: O11 click with a null element rejects
+    ok 11 - O11 click with a null element rejects
+      ---
+      duration_ms: 103.307723
+      type: 'test'
+      ...
+    # Subtest: O12 legacy ops still behave on form.html
+    ok 12 - O12 legacy ops still behave on form.html
+      ---
+      duration_ms: 249.799005
+      type: 'test'
+      ...
+    # Subtest: O12 check and uncheck on styled-controls.html
+    ok 13 - O12 check and uncheck on styled-controls.html
+      ---
+      duration_ms: 162.407876
+      type: 'test'
+      ...
+    # Subtest: O13 scroll_to brings Far away into view and clicks it
+    ok 14 - O13 scroll_to brings Far away into view and clicks it
+      ---
+      duration_ms: 141.854707
+      type: 'test'
+      ...
+    # Subtest: O14 reload resets the page
+    ok 15 - O14 reload resets the page
+      ---
+      duration_ms: 141.793192
+      type: 'test'
+      ...
+    # Subtest: O15 press ShiftTab in Second moves focus back to First
+    ok 16 - O15 press ShiftTab in Second moves focus back to First
+      ---
+      duration_ms: 135.716538
+      type: 'test'
+      ...
+    # Subtest: O16 press Backspace deletes the character before the cursor
+    ok 17 - O16 press Backspace deletes the character before the cursor
+      ---
+      duration_ms: 164.380414
+      type: 'test'
+      ...
+    # Subtest: O18 a click lands after back restores the previous page
+    ok 18 - O18 a click lands after back restores the previous page
+      ---
+      duration_ms: 257.59897
+      type: 'test'
+      ...
+    # Subtest: O17 press SelectAll then Backspace empties the field
+    ok 19 - O17 press SelectAll then Backspace empties the field
+      ---
+      duration_ms: 168.34553
+      type: 'test'
+      ...
+    # Subtest: O19 targetless press Tab moves focus from First to Second
+    ok 20 - O19 targetless press Tab moves focus from First to Second
+      ---
+      duration_ms: 142.121166
+      type: 'test'
+      ...
+    # Subtest: O20 answerDialog accepts a confirm, then dismisses on a second page
+    ok 21 - O20 answerDialog accepts a confirm, then dismisses on a second page
+      ---
+      duration_ms: 20260.597668
+      type: 'test'
+      ...
+    1..21
+ok 3 - cdp
+  ---
+  duration_ms: 27596.599711
+  type: 'suite'
+  ...
+1..3
+# tests 45
+# suites 3
+# pass 44
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 1
+# duration_ms 39758.351462
+RUN-TESTS: files=1 tests=45 pass=44 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
