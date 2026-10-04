@@ -1,0 +1,13 @@
+diff --git a/src/core/page-scripts.ts b/src/core/page-scripts.ts
+index bcab54f..0c75dfd 100644
+--- a/src/core/page-scripts.ts
++++ b/src/core/page-scripts.ts
+@@ -39,7 +39,7 @@ function enumerate(opts: { maxElements: number; maxTextChars: number }): unknown
+    * code. verify()'s implicitRole mirror is deliberately UNGATED (the r19
+    * D-2 precedent): a gated verify would throw stale on every enumerated
+    * heuristic element. */
+-  var KB_CURSOR_POINTER = false;
++  var KB_CURSOR_POINTER = true;
+ 
+   function clip(s: string, n: number): string {
+     return s.length > n ? s.slice(0, n) : s;
