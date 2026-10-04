@@ -58,3 +58,5 @@ Live element counts from captcha-recon (the recon enumerates through the real di
 - run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
 - run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+
+## Final: results.md written (forced 33/34, invariant PASS 52==52, P-5 REJECT (+88..+298 pct live), mutants 6/8 proven, captcha stage PASS with the pre-fix control, capture->replay PASS, doctor 3/3). Spend 9.19 USD bench + <0.10 other of 16. Publish-readiness: NO.
