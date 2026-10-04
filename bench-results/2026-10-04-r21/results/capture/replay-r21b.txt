@@ -1,0 +1,12 @@
+# Grader replay report (r21 P-4)
+
+Generated: 2026-10-04T07:59:52.647Z
+Capture: .calib/capture-r21b.jsonl (6 rounds)
+Thresholds source: dist/src/contract/constants.js
+Baseline (from dist): {"done":0.85,"error":0.5,"stepDone":0.85,"stepDoneWithEvidence":0.5,"ready":0.3,"rightPage":0.5,"target":0.5}
+Overrides: none (D8 drift self-check mode)
+
+Mirror scope: threshold comparisons on recorded probability sets, NOT the full evidence-rule cascade. Unmirrored rounds (evidence-bar advances, guards, budget ends, wingman_check rounds, kindless rounds) are counted, never judged.
+
+Self-check: PASS — 4 mirrored rounds checked, 0 mismatches, 2 unmirrored.
+

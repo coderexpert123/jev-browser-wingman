@@ -1,0 +1,2 @@
+capture: 8 rounds -> /home/user/jev-browser-wingman/.calib/capture-r21.jsonl (4 calls, thresholds from dist/src/contract/constants.js)
+capture: 6 rounds -> /home/user/jev-browser-wingman/.calib/capture-r21b.jsonl (3 calls, thresholds from dist/src/contract/constants.js)
