@@ -1,0 +1,72 @@
+TAP version 13
+# Subtest: attaches to the default context and lists the page
+ok 1 - attaches to the default context and lists the page
+  ---
+  duration_ms: 762.266891
+  type: 'test'
+  ...
+# Subtest: observe matches the pinned form.html table
+ok 2 - observe matches the pinned form.html table
+  ---
+  duration_ms: 743.580974
+  type: 'test'
+  ...
+# Subtest: click Continue writes continued
+ok 3 - click Continue writes continued
+  ---
+  duration_ms: 1060.332743
+  type: 'test'
+  ...
+# Subtest: fill never leaves the value in observe output
+ok 4 - fill never leaves the value in observe output
+  ---
+  duration_ms: 1236.84211
+  type: 'test'
+  ...
+# Subtest: dialog is reported and stays open
+ok 5 - dialog is reported and stays open
+  ---
+  duration_ms: 10843.876217
+  type: 'test'
+  ...
+# Subtest: answerDialog with no open dialog rejects
+ok 6 - answerDialog with no open dialog rejects
+  ---
+  duration_ms: 758.836478
+  type: 'test'
+  ...
+# Subtest: detach leaves the browser answering
+ok 7 - detach leaves the browser answering
+  ---
+  duration_ms: 697.461386
+  type: 'test'
+  ...
+# Subtest: check on a sibling-label hidden checkbox activates the control itself (r17b)
+ok 8 - check on a sibling-label hidden checkbox activates the control itself (r17b)
+  ---
+  duration_ms: 855.6848
+  type: 'test'
+  ...
+# Subtest: scroll waits out a wheel-triggered append (r17c)
+ok 9 - scroll waits out a wheel-triggered append (r17c)
+  ---
+  duration_ms: 1376.783217
+  type: 'test'
+  ...
+# Subtest: attach retries a cold endpoint within its budget
+ok 10 - attach retries a cold endpoint within its budget
+  ---
+  duration_ms: 747.315675
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29360.184583
+RUN-TESTS: files=1 tests=10 pass=10 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
