@@ -17,3 +17,8 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | **conformance-ops 44 pass + 1 t
 - t6 forced: walls 36.9 / 45.4 s (median 41.1; r19 49.0, r21b 51.9), 2 calls, wait acts 7 / 10 (unchanged), act_ms sum 19.4 / 28.2 s (unchanged vs r21b): -16% vs r19 but the playwright t6 cells dropped more (19.8 s vs 34.6). t12 forced: 13.1 / 15.8 s (median 14.4 vs 17.0 / 18.1), 1 call, 0 waits.
 - Time-of-day effect: most simple cells were 15-43% FASTER than r19 on BOTH routes (route medians forced 13.5 -> 10.8 s, playwright 14.3 -> 11.5 s; only 8 of 34 pairs within +-15% of r19 because nearly all moved down), while t9 went +92% (playwright) / +102% (forced). Route-vs-route reading is the only fair one here.
 - NOT publish-ready: forced 33/34, the t9 targets missed, and the run was measured while the live site was stalling.
+
+## Part 3 doctor x3 on the bench Chrome (port 9344): doctor/doctor{1,2,3}.log
+- run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS

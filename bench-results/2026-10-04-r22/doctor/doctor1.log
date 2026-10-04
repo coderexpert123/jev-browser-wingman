@@ -1,0 +1,11 @@
+PASS key-present  source=env
+PASS config-loaded  config loaded; gate: off (optional toggle; set gate.mode "confirm" to require confirmation of irreversible actions)
+SKIP registration-portable  no jev-browser-wingman or with-chrome registration exists
+PASS policy-loaded  policy lists load and the self-test host classifies sensitive-identity
+PASS profile-safe  the Chrome answering on port 9344 uses profile_dir
+PASS adapter-attach  attached to http://127.0.0.1:9344; 1 page(s)
+PASS default-context  attach stayed in the default context; cookies=10
+PASS coexistence  observer fingerprint identical across attach/detach (1 page(s))
+SKIP handoff  no browsing tool registered
+PASS jev-round  runCheck answered with 1 jev call(s)
+verdict: PASS
