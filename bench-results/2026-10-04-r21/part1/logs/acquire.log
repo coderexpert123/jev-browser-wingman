@@ -1,0 +1,48 @@
+TAP version 13
+# Subtest: WINGMAN_CDP_ENDPOINT wins over everything
+ok 1 - WINGMAN_CDP_ENDPOINT wins over everything
+  ---
+  duration_ms: 1.92183
+  type: 'test'
+  ...
+# Subtest: an endpoint env declared by a loaded profile is honoured with source = that name
+ok 2 - an endpoint env declared by a loaded profile is honoured with source = that name
+  ---
+  duration_ms: 1.497085
+  type: 'test'
+  ...
+# Subtest: profile endpoint envs are consulted in load order: the first present wins
+ok 3 - profile endpoint envs are consulted in load order: the first present wins
+  ---
+  duration_ms: 0.205771
+  type: 'test'
+  ...
+# Subtest: an endpoint env no profile declares is ignored: the probe answers instead
+ok 4 - an endpoint env no profile declares is ignored: the probe answers instead
+  ---
+  duration_ms: 0.156561
+  type: 'test'
+  ...
+# Subtest: probe is the fallback
+ok 5 - probe is the fallback
+  ---
+  duration_ms: 0.149322
+  type: 'test'
+  ...
+# Subtest: nothing answering returns null and never launches
+ok 6 - nothing answering returns null and never launches
+  ---
+  duration_ms: 0.150069
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 109.430731
+RUN-TESTS: files=1 tests=6 pass=6 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

@@ -1,0 +1,108 @@
+TAP version 13
+# Subtest: build.mjs scoped build emits BUILD ok
+ok 1 - build.mjs scoped build emits BUILD ok
+  ---
+  duration_ms: 849.532681
+  type: 'test'
+  ...
+# Subtest: build.mjs refuses entries without --out
+ok 2 - build.mjs refuses entries without --out
+  ---
+  duration_ms: 45.875535
+  type: 'test'
+  ...
+# Subtest: build.mjs reports a type error without BUILD ok
+ok 3 - build.mjs reports a type error without BUILD ok
+  ---
+  duration_ms: 794.402781
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on a basename that matches nothing
+ok 4 - run-tests.mjs fails on a basename that matches nothing
+  ---
+  duration_ms: 57.775052
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on a file with zero tests
+ok 5 - run-tests.mjs fails on a file with zero tests
+  ---
+  duration_ms: 187.030682
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails on an empty file beside a file with tests
+ok 6 - run-tests.mjs fails on an empty file beside a file with tests
+  ---
+  duration_ms: 233.538918
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs fails when the dist has no test files
+ok 7 - run-tests.mjs fails when the dist has no test files
+  ---
+  duration_ms: 56.509209
+  type: 'test'
+  ...
+# Subtest: run-tests.mjs child env carries no TypeSafe key and a temp WINGMAN_HOME
+ok 8 - run-tests.mjs child env carries no TypeSafe key and a temp WINGMAN_HOME
+  ---
+  duration_ms: 222.072731
+  type: 'test'
+  ...
+# Subtest: import-boundary flags a path outside the package
+ok 9 - import-boundary flags a path outside the package
+  ---
+  duration_ms: 49.189008
+  type: 'test'
+  ...
+# Subtest: import-boundary flags an undeclared bare package
+ok 10 - import-boundary flags an undeclared bare package
+  ---
+  duration_ms: 47.339167
+  type: 'test'
+  ...
+# Subtest: notices flags a marker without an entry
+ok 11 - notices flags a marker without an entry
+  ---
+  duration_ms: 48.176735
+  type: 'test'
+  ...
+# Subtest: notices flags an entry without a marker
+ok 12 - notices flags an entry without a marker
+  ---
+  duration_ms: 44.886608
+  type: 'test'
+  ...
+# Subtest: packageRoot resolves from a nested build dir
+ok 13 - packageRoot resolves from a nested build dir
+  ---
+  duration_ms: 2.395563
+  type: 'test'
+  ...
+# Subtest: fixture server serves form.html and 404s traversal
+ok 14 - fixture server serves form.html and 404s traversal
+  ---
+  duration_ms: 44.889067
+  type: 'test'
+  ...
+# Subtest: npm pack ships every dir the runtime reads from packageRoot
+ok 15 - npm pack ships every dir the runtime reads from packageRoot
+  ---
+  duration_ms: 563.502339
+  type: 'test'
+  ...
+# Subtest: fixture server sets the persistent cookie on cookie.html
+ok 16 - fixture server sets the persistent cookie on cookie.html
+  ---
+  duration_ms: 9.377048
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3460.441396
+RUN-TESTS: files=1 tests=16 pass=16 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
