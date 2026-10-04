@@ -53,3 +53,8 @@ Live element counts from captcha-recon (the recon enumerates through the real di
 - Capture A: 3 fixture tasks + 1 guardian URL -> 8 rounds / 4 calls. FIRST ATTEMPT USER ERROR (mine): I passed `form.html`; the harness appends `.html` itself, so the 3 fixture calls hit `form.html.html` ("Not found") and recorded wait -> error/page-error rounds. Guardian (dense real page, two-stage `group` requests, repeatedGroups in state): 2 calls-worth of rounds (round 1 10 questions, round 2 12 questions incl. error/recover), decisions kind null / bounce, end status fallback/step-uncertain copied onto each round - pairing is sane: one record per asking round, stage-1/stage-2 requests merged into one round (the F1 fix), 2 rounds for the 1 guardian call. Replay self-check: PASS (7 mirrored, 1 unmirrored, 0 mismatches).
 - Capture B (correct names `form`, `hover-reveal`, `double-click`): 6 rounds / 3 calls, every call act -> advance -> done/goal-met on the real fixture pages; replay self-check: **PASS (4 mirrored, 2 unmirrored, 0 mismatches)** (the 2 unmirrored are the hover/dblclick advance rounds: evidence-bar advances are outside the mirror's scope by D7).
 - Verdict: capture -> replay validated end to end (the drift self-check passes on a dense real page and on three fixture pages).
+
+## Doctor x3 on the bench Chrome (port 9344, clean shipped build): doctor/doctor{1,2,3}.log
+- run 1: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 2: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
+- run 3: PASS coexistence  observer fingerprint identical across attach/detach (1 page(s)) | verdict: PASS
