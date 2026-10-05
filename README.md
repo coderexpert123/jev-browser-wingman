@@ -140,6 +140,8 @@ Phase timing on the 19-step long-chain diagnosis capture put the wingman machine
 
 With n=1 per cell these numbers are indicative only. Nothing in them shows the heavy-task speedup or cost win the wingman design predicts.
 
+The publish gauntlet runs 17 task shapes: 15 deterministic local fixture pages (including the full t9 chain mirror) and 2 live canaries (t10 saucedemo, t11 todomvc) for real-web signal. The local t9 reproduces the chain's pages and the same-URL error banner after the Retrieve-password submit, so it exercises the recovery machinery without the live site's 500 lottery. The `/status_codes/404` fixture serves the 404 page body at HTTP 200; its oracle reads the pathname. A the-internet health probe runs as an untracked observational stage and never enters the table.
+
 Newest pass medians (kept in sync by `scripts/gates/readme-bench.mjs`):
 
 <!-- bench:begin -->

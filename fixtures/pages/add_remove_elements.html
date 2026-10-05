@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>The Internet</title></head>
+<body>
+<div id="flash-messages"></div>
+<div id="content">
+<h3>Add/Remove Elements</h3>
+<br>
+<div class="example">
+  <button onclick="addElement()">Add Element</button>
+  <hr>
+  <div id="elements"></div>
+</div>
+<script>
+function addElement() {
+  var b = document.createElement('button');
+  b.className = 'added-manually';
+  b.onclick = deleteElement;
+  b.textContent = 'Delete';
+  document.getElementById('elements').appendChild(b);
+}
+function deleteElement() {
+  var first = document.querySelector('#elements button:first-child');
+  if (first) first.remove();
+}
+</script>
+<style>
+button.added-manually { margin-right: 0.285em; }
+button { margin-bottom: 10px; }
+</style>
+</div>
+<div id="page-footer"><hr><div>Powered by <a href="http://elementalselenium.com/">Elemental Selenium</a></div></div>
+</body>
+</html>

@@ -766,3 +766,32 @@ history: results branches + PA memory.
   again with the same arguments" conflicts with FORCED_POST_ACTION_LINE's
   "only the steps after this one"; the small caller resolves that conflict
   unpredictably.
+
+## r23 verification notes (2026-10-05)
+
+- **The readme-bench gate reds spuriously on this box's CRLF worktree.** The
+  comparison (`scripts/gates/readme-bench.mjs` current-vs-rendered) is a raw
+  string compare with no EOL normalization; `renderBlock` joins with LF and
+  autocrlf leaves README.md fully CRLF, so the multi-line bench block never
+  matches byte-wise (proven: gate exit 1 on the worktree, exit 0 on an
+  LF-normalized copy of the same file). Run it against an LF copy, normalize
+  the file, or EOL-normalize the gate before trusting a red as content drift.
+- **The fixture server's `.html` suffix is OPTIONAL in BOTH segment rules**
+  (`src/fixture-server.ts`) — the r23 spec D1's literal regexes require
+  `\.html`, which contradicts its own D6/WP-B pins (extension-less task paths
+  must serve). Trust D6, not the D1 regex literal. Consequence: `/cookie`
+  (extension-less) serving + Set-Cookie is NEW behavior — the fail-first log
+  proves it red pre-change, so the test header's "old-rule pins (`/cookie`…)
+  stay green" comment and the spec's "(unchanged behavior pin)" label are both
+  wrong.
+- **The parity recon's `failed` flag is dead code** — `fixture-parity-recon.mjs`
+  sets it on a local page-load failure (its own comment says that must fail
+  the check) but never reads it; `/`, `/dynamic_controls`, `/status_codes/404`
+  and `/key_presses` carry no required name and no count check, so a failed or
+  empty dump on those four exits 0. The other 12 pages gate correctly.
+- Fixture-server hostile-path surface (probed 2026-10-05): all `..` encodings
+  (raw/encoded/mixed/backslash), drive-letter, null-byte and depth-cap cases
+  404; the one quirk is win32 backslash aliasing — `/status_codes\404` serves
+  the nested page WITHIN pagesDir (`[^/]+` admits `\`; no escape is possible
+  while `..` stays substring-rejected). Fine for 127.0.0.1; revisit if the
+  server ever binds wider.

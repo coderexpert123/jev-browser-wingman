@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>The Internet</title></head>
+<body>
+<div id="flash-messages"></div>
+<div id="content">
+<div class='example'>
+  <h3>Dynamically Loaded Page Elements</h3>
+  <h4>Example 1: Element on page that is hidden</h4>
+  <br>
+  <div id='start'>
+    <button>Start</button>
+  </div>
+  <div id='finish' style='display:none'>
+    <h4>Hello World!</h4>
+  </div>
+</div>
+<script>
+document.querySelector('#start button').addEventListener('click', function () {
+  var start = document.getElementById('start');
+  start.style.display = 'none';
+  var loading = document.createElement('div');
+  loading.id = 'loading';
+  loading.textContent = 'Loading... ';
+  start.before(loading);
+  setTimeout(function () {
+    loading.style.display = 'none';
+    document.getElementById('finish').style.display = '';
+  }, 5000);
+});
+</script>
+</div>
+<div id="page-footer"><hr><div>Powered by <a href="http://elementalselenium.com/">Elemental Selenium</a></div></div>
+</body>
+</html>

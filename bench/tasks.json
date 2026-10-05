@@ -4,63 +4,72 @@
     "path": "/checkboxes",
     "goal": "Tick the first checkbox so that both checkboxes are ticked.",
     "values": {},
-    "oracle": "[...document.querySelectorAll('#checkboxes input')].every(i => i.checked)"
+    "oracle": "[...document.querySelectorAll('#checkboxes input')].every(i => i.checked)",
+    "local": true
   },
   {
     "id": "t2-dropdown",
     "path": "/dropdown",
     "goal": "Choose Option 2 in the dropdown list.",
     "values": {},
-    "oracle": "document.querySelector('#dropdown').value === '2'"
+    "oracle": "document.querySelector('#dropdown').value === '2'",
+    "local": true
   },
   {
     "id": "t3-dynamic-controls",
     "path": "/dynamic_controls",
     "goal": "Enable the text field, then type the value named note into it.",
     "values": { "note": "wingman bench" },
-    "oracle": "(() => { const i = document.querySelector('#input-example input'); return !!i && !i.disabled && i.value === 'wingman bench'; })()"
+    "oracle": "(() => { const i = document.querySelector('#input-example input'); return !!i && !i.disabled && i.value === 'wingman bench'; })()",
+    "local": true
   },
   {
     "id": "t4-add-elements",
     "path": "/add_remove_elements/",
     "goal": "Click Add Element three times so that three new buttons appear.",
     "values": {},
-    "oracle": "document.querySelectorAll('#elements .added-manually').length === 3"
+    "oracle": "document.querySelectorAll('#elements .added-manually').length === 3",
+    "local": true
   },
   {
     "id": "t5-inputs",
     "path": "/inputs",
     "goal": "Type the number named amount into the number field.",
     "values": { "amount": "42" },
-    "oracle": "document.querySelector('input[type=number]').value === '42'"
+    "oracle": "document.querySelector('input[type=number]').value === '42'",
+    "local": true
   },
   {
     "id": "t6-dynamic-loading",
     "path": "/dynamic_loading/1",
     "goal": "Start the loading and wait until the hidden text appears.",
     "values": {},
-    "oracle": "(() => { const f = document.querySelector('#finish'); return !!f && getComputedStyle(f).display !== 'none' && f.innerText.includes('Hello World!'); })()"
+    "oracle": "(() => { const f = document.querySelector('#finish'); return !!f && getComputedStyle(f).display !== 'none' && f.innerText.includes('Hello World!'); })()",
+    "local": true
   },
   {
     "id": "t7-sort-table",
     "path": "/tables",
     "goal": "Sort the first table by Last Name in ascending order.",
     "values": {},
-    "oracle": "document.querySelector('#table1 tbody tr td').innerText.trim() === 'Bach'"
+    "oracle": "document.querySelector('#table1 tbody tr td').innerText.trim() === 'Bach'",
+    "local": true
   },
   {
     "id": "t8-status-404",
     "path": "/status_codes",
     "goal": "Open the page for the 404 status code.",
     "values": {},
-    "oracle": "location.pathname === '/status_codes/404'"
+    "oracle": "location.pathname === '/status_codes/404'",
+    "local": true
   },
   {
     "id": "t9-long-chain",
     "path": "/",
     "goal": "Multi-page chain, in order: open Checkboxes and tick the first checkbox; open Dropdown and choose Option 1; open Add/Remove Elements and click the Add Element button twice; open Inputs and type the value named amount into the unlabeled number input, the only input field on the page; open Forgot Password, enter the value named email into the E-mail field and click the Retrieve password button; open Dynamic Loading, open the link named Example 2: Element rendered after the fact and click the Start button; open Status Codes and open the 404 link.",
     "values": { "amount": "77", "email": "wingman@example.com" },
-    "oracle": "location.pathname === '/status_codes/404'"
+    "oracle": "location.pathname === '/status_codes/404'",
+    "local": true
   },
   {
     "id": "t10-saucedemo-checkout",
@@ -84,7 +93,8 @@
     "goal": "Click the button for a JS Confirm, then accept the dialog that appears.",
     "values": {},
     "oracle": "document.querySelector('#result').innerText.includes('Ok')",
-    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
+    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()",
+    "local": true
   },
   {
     "id": "t13-infinite-scroll",
@@ -92,7 +102,8 @@
     "goal": "Scroll down the page until at least ten result blocks have loaded.",
     "values": {},
     "oracle": "document.querySelectorAll('.jscroll-added').length >= 10",
-    "end_state": "document.querySelectorAll('.jscroll-added').length + ' items | scrollY=' + Math.round(window.scrollY)"
+    "end_state": "document.querySelectorAll('.jscroll-added').length + ' items | scrollY=' + Math.round(window.scrollY)",
+    "local": true
   },
   {
     "id": "t14-key-press",
@@ -100,7 +111,8 @@
     "goal": "Click the input field, then press the Escape key.",
     "values": {},
     "oracle": "(() => { const r = document.querySelector('#result'); return !!r && r.innerText.toLowerCase().includes('escape'); })()",
-    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()"
+    "end_state": "(() => { const r = document.querySelector('#result'); const a = document.activeElement; return (r ? r.innerText : '') + ' | focus=' + (a ? (a.id || a.tagName.toLowerCase()) : 'none'); })()",
+    "local": true
   },
   {
     "id": "t15-file-upload",

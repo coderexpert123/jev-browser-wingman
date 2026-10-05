@@ -16,34 +16,60 @@ export async function startFixtureServer(opts?: { port?: number }): Promise<Fixt
   const server = http.createServer((req, res) => {
     void (async () => {
       const rawUrl = req.url ?? '/';
-      const [pathname] = rawUrl.split('?');
+      const [rawPathname] = rawUrl.split('?');
 
-      // Reject anything containing '..' or a second slash beyond the leading one.
-      const withoutLeadingSlash = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-      const isTraversal = pathname.includes('..');
-      const hasSecondSlash = withoutLeadingSlash.includes('/');
-      const nameMatch = /^\/([^/]+)\.html$/.exec(pathname);
-
-      if (isTraversal || hasSecondSlash || !nameMatch) {
+      // r23 (D1) resolution order:
+      // 1. '/' serves the fixture index.
+      // 2. ONE trailing slash is stripped (the live index links end in '/').
+      // 3. Anything containing '..' is rejected — guard unchanged; a
+      //    backslash climb still needs '..' so it dies here too.
+      // 4. Single-segment (unchanged rule) or ONE nested level. The '.html'
+      //    suffix is optional in the URL (the bench task paths are
+      //    extension-less); dots are excluded from nested segments, so '..'
+      //    can never hide inside one, and three-plus segments fail both
+      //    patterns (depth cap).
+      // 5. Everything else 404s with the same body as before.
+      const notFound = (): void => {
         res.statusCode = 404;
         res.end('Not found');
+      };
+
+      let relPath: string | null = null;
+      let isCookieSpecialCase = false;
+      if (rawPathname === '/') {
+        relPath = 'index.html';
+      } else {
+        let pathname = rawPathname;
+        if (pathname.length > 1 && pathname.endsWith('/')) pathname = pathname.slice(0, -1);
+        if (!pathname.includes('..')) {
+          const nestedMatch = /^\/([^/.]+)\/([^/.]+?)(?:\.html)?$/.exec(pathname);
+          const nameMatch = nestedMatch ? null : /^\/([^/]+?)(?:\.html)?$/.exec(pathname);
+          if (nameMatch) {
+            relPath = `${nameMatch[1]}.html`;
+            isCookieSpecialCase = nameMatch[1] === 'cookie';
+          } else if (nestedMatch) {
+            relPath = path.join(nestedMatch[1], `${nestedMatch[2]}.html`);
+          }
+        }
+      }
+
+      if (relPath === null) {
+        notFound();
         return;
       }
 
-      const name = nameMatch[1];
-      const filePath = path.join(pagesDir, `${name}.html`);
+      const filePath = path.join(pagesDir, relPath);
 
       let content: Buffer;
       try {
         content = await fs.readFile(filePath);
       } catch {
-        res.statusCode = 404;
-        res.end('Not found');
+        notFound();
         return;
       }
 
       res.setHeader('content-type', 'text/html; charset=utf-8');
-      if (name === 'cookie') {
+      if (isCookieSpecialCase) {
         res.setHeader('Set-Cookie', 'wingman_fixture=1; Max-Age=86400; Path=/; SameSite=Lax');
       }
       // r21 (P-1, D13): `?delay=<ms>` holds the response before res.end — a

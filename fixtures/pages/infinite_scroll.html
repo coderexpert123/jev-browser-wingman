@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>The Internet</title></head>
+<body>
+<div id="flash-messages"></div>
+<div id="content">
+<div class='example'>
+  <h3>Infinite Scroll</h3>
+  <div class='row'>
+    <div class='scroll large-8 columns large-centered'>
+      <a href='/infinite_scroll/1'>next page</a>
+    </div>
+  </div>
+</div>
+<style>
+.jscroll-added p { min-height: 400px; }
+</style>
+<script>
+var appended = 0;
+var pending = null;
+function appendBlock() {
+  if (appended >= 12) return;
+  appended += 1;
+  var wrap = document.createElement('div');
+  wrap.className = 'jscroll-added';
+  var p = document.createElement('p');
+  p.textContent = 'Added block ' + appended + '. ';
+  var a = document.createElement('a');
+  a.href = '/infinite_scroll/' + (appended + 1);
+  a.textContent = 'next page';
+  p.appendChild(a);
+  wrap.appendChild(p);
+  document.querySelector('.scroll').appendChild(wrap);
+}
+window.addEventListener('scroll', function () {
+  if (appended >= 12 || pending !== null) return;
+  if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200) {
+    pending = setTimeout(function () { pending = null; appendBlock(); }, 250);
+  }
+});
+</script>
+</div>
+<div id="page-footer"><hr><div>Powered by <a href="http://elementalselenium.com/">Elemental Selenium</a></div></div>
+</body>
+</html>

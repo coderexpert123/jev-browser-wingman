@@ -112,8 +112,11 @@ if (beginIdx === -1 || endIdx === -1 || endIdx < beginIdx) {
   process.exit(1);
 }
 
-const current = readme.slice(beginIdx + BEGIN.length, endIdx).trim();
-if (current === block.trim()) {
+// Normalize EOLs on BOTH sides: an autocrlf checkout holds the block with
+// CRLF line endings while the rendered block joins with LF, which would red
+// spuriously with the block content unchanged.
+const current = readme.slice(beginIdx + BEGIN.length, endIdx).replace(/\r\n/g, '\n').trim();
+if (current === block.replace(/\r\n/g, '\n').trim()) {
   console.log(`README-BENCH: ok (${sourceLabel})`);
   process.exit(0);
 }

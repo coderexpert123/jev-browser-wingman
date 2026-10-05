@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>The Internet</title></head>
+<body>
+<div id="flash-messages"></div>
+<div id="content">
+<div class="example">
+  <h4>Dynamic Controls</h4>
+  <p>This example demonstrates when elements (e.g., checkbox, input field, etc.) are changed asynchronously.</p>
+  <h4 class="subheader">Remove/add</h4>
+  <br>
+  <form id="checkbox-example">
+    <div id="checkbox"><input type="checkbox"> A checkbox</div>
+    <button autocomplete="off" type="button" onclick="swapCheckbox()">Remove</button>
+  </form>
+  <hr>
+  <br>
+  <h4 class="subheader">Enable/disable</h4>
+  <br>
+  <form id="input-example">
+    <input type="text" disabled style="width: 30%;">
+    <button autocomplete="off" type="button" onclick="swapInput()">Enable</button>
+  </form>
+</div>
+<script>
+function clearMessage() { var m = document.getElementById('message'); if (m) m.remove(); }
+function showLoading(btn) {
+  var d = document.createElement('div');
+  d.id = 'loading';
+  d.textContent = 'Wait for it... ';
+  btn.after(d);
+}
+function finishLoading(btn, msg, beforeBtn) {
+  var m = document.createElement('p');
+  m.id = 'message';
+  m.textContent = msg;
+  if (beforeBtn) { btn.before(m); } else { btn.after(m); }
+  btn.disabled = false;
+  var l = document.getElementById('loading');
+  if (l) l.remove();
+}
+function swapCheckbox() {
+  var btn = document.querySelector('#checkbox-example button');
+  btn.disabled = true;
+  clearMessage();
+  showLoading(btn);
+  setTimeout(function () {
+    var box = document.getElementById('checkbox');
+    var msg;
+    if (btn.textContent === 'Remove') {
+      box.remove();
+      btn.textContent = 'Add';
+      msg = "It's gone!";
+    } else {
+      var d = document.createElement('div');
+      d.id = 'checkbox';
+      d.innerHTML = '<input type="checkbox"> A checkbox';
+      btn.before(d);
+      btn.textContent = 'Remove';
+      msg = "It's back!";
+    }
+    finishLoading(btn, msg, true);
+  }, 3000);
+}
+function swapInput() {
+  var btn = document.querySelector('#input-example button');
+  var input = document.querySelector('#input-example input');
+  btn.disabled = true;
+  clearMessage();
+  showLoading(btn);
+  setTimeout(function () {
+    var msg;
+    if (btn.textContent === 'Enable') {
+      input.disabled = false;
+      btn.textContent = 'Disable';
+      msg = "It's enabled!";
+    } else {
+      input.disabled = true;
+      btn.textContent = 'Enable';
+      msg = "It's disabled!";
+    }
+    finishLoading(btn, msg, true);
+  }, 3000);
+}
+</script>
+</div>
+<div id="page-footer"><hr><div>Powered by <a href="http://elementalselenium.com/">Elemental Selenium</a></div></div>
+</body>
+</html>
