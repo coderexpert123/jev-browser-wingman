@@ -176,10 +176,23 @@ const NAV_SHAPED_OBS_ERROR_RE = /evaluation timed out|Execution context/i;
 // BOTH adapters throw ActFailedError('evaluation timed out') when an evaluate
 // deadline expires (cdp.ts evalOnSession, playwright.ts evaluateOnPage) and
 // surface a mid-navigation context destruction with the browser's own
-// 'Execution context was destroyed' text. Deterministic act failures ('no
-// attached page with id ...', 'op ... needs an element', 'fill requires a
-// value') carry neither shape.
-const NAV_SHAPED_ACT_ERROR_RE = /scheduled navigations|evaluation timed out|Execution context/i;
+// 'Execution context was destroyed' text.
+//
+// r23: the LOCATOR-WAIT family. Since the r21 `noWaitAfter` change removed
+// Playwright's post-click navigation wait, the live nav-shaped click failure
+// is the LOCATOR wait timing out ("locator.click: Timeout 3000ms exceeded.
+// - waiting for locator(...)") — the pointer never dispatched because the
+// element was not actionable in time, which on the t9 chain happens on
+// element-targeted click-family acts immediately after a back/navigate act
+// (bench-results 2026-10-04-r22 + 2026-10-05-r23: every occurrence sits on
+// the round after a navigation act, local fixture server included). The
+// settle-then-resend retry lets the pending navigation land; the re-send
+// re-verifies the element, so a genuinely stale observation surfaces
+// StaleElementError instead of a silent swallow (exactly 2 sends either way).
+// Deterministic act failures ('no attached page with id ...', 'op ... needs
+// an element', 'fill requires a value') carry none of these shapes.
+const NAV_SHAPED_ACT_ERROR_RE =
+  /scheduled navigations|evaluation timed out|Execution context|locator\.\w+: Timeout \d+ms exceeded/i;
 
 /** r22 F-1 KB proof switch: the one-retry nav-shaped act retry at the shared
  * act tail — an element-targeted click-family act that fails NAV-SHAPED (see

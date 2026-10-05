@@ -393,8 +393,10 @@ test('t13: scrolling in a loop satisfies the oracle', async () => {
   await withTaskPage('t13-infinite-scroll', async (page) => {
     // Spec shape: scrollTo + scroll event, >= 12 iterations with ~300 ms
     // gaps (the fixture appends at most one block per 250 ms throttle tick).
-    // The dispatched scroll event is what kicks the listener while the short
-    // page cannot yet move scrollY.
+    // The fixture overflows at load (its init load mirrors the deployed
+    // page), so the dispatched scroll event rides a genuinely scrollable
+    // document; the dispatch mechanism itself is unchanged.
+    // Fresh load carries 1-2 init blocks, far below the oracle's >= 10.
     for (let i = 0; i < 18; i++) {
       await evalJs(
         page,

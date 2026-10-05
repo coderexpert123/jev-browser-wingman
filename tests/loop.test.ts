@@ -811,6 +811,57 @@ test('r22 F-1: a nav-shaped failure on a non-click verb does not retry', async (
   assert.equal(h.driver.actCalls().length, 1, 'the retry is click-family only');
 });
 
+// ---- r23: the LOCATOR-WAIT nav-shaped family (extends F-1) ----
+//
+// The r23 bench (local fixtures, zero site latency) still ended
+// error/act-failed on `locator.click: Timeout 3000ms exceeded.` — the LOCATOR
+// wait, not the r20-era "scheduled navigations" wait that noWaitAfter removed
+// (P-1a). Every recorded occurrence (bench-results 2026-10-04-r22 record 11,
+// 2026-10-05-r23 records 13 and 16) sits on the round immediately after a
+// back/navigate act, so the failure is nav-shaped in effect and belongs in
+// F-1's family. Pre-fix the message below matches none of
+// NAV_SHAPED_ACT_ERROR_RE's alternatives and throws straight to the error end;
+// this pin is also the KB flip tooth (flipping KB_ACT_NAV_RETRY kills the
+// retry and reds it).
+const NAV_LOCATOR_MSG =
+  'locator.click: Timeout 3000ms exceeded.\n - waiting for locator("#content ul li:nth-of-type(11) a")';
+
+test('r23 F-1: a locator-wait click timeout (no scheduled-navigations text) retries once and the round proceeds', async () => {
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({ observations: { p1: [observation()] }, script: [S(), { done: 0.9 }] });
+  h.driver.failNextAct = new ActFailedError(NAV_LOCATOR_MSG);
+  const r = await h.call({ goal: 'r23 f1 locator retry succeeds goal' });
+  assert.equal(r.status, 'done', `expected the retry to recover the round, got ${r.status}/${r.reason}`);
+  const acts = h.driver.actCalls();
+  assert.equal(acts.length, 2, 'exactly one retry: two sends');
+  assert.equal(acts[1].elementId, acts[0].elementId, 'the retry re-sends the SAME element');
+  assert.equal(acts[1].op, acts[0].op, 'the retry re-sends the SAME verb');
+  const kinds = h.driver.events.map((e) => e.kind);
+  const firstActIdx = kinds.indexOf('act');
+  assert.equal(kinds[firstActIdx + 1], 'settle', 'the retry runs behind a settle');
+  assert.equal(kinds[firstActIdx + 2], 'act');
+});
+
+test('r23 F-1: a persistent locator-wait failure sends exactly twice then ends act-failed', async () => {
+  const { ActFailedError } = await import('../src/contract/errors.js');
+  const h = harness({ observations: { p1: [observation()] }, script: [S()] });
+  let failsLeft = 2;
+  const realAct = h.driver.act.bind(h.driver);
+  h.driver.act = async (pageId, elementId, op, value) => {
+    h.driver.events.push({ kind: 'act', pageId, elementId, op, value });
+    if (failsLeft > 0) {
+      failsLeft -= 1;
+      throw new ActFailedError(NAV_LOCATOR_MSG);
+    }
+    return realAct(pageId, elementId, op, value);
+  };
+  const r = await h.call({ goal: 'r23 f1 persistent locator goal' });
+  assert.equal(r.status, 'error');
+  assert.equal(r.reason, 'act-failed');
+  assert.equal(h.driver.actCalls().length, 2, 'one retry, then give up: exactly 2 sends');
+  assert.equal(h.driver.events.filter((e) => e.kind === 'settle').length, 1, 'exactly one retry settle');
+});
+
 // ---- r22 F-4: the jev_calls / per-round-probabilities invariant ----
 
 test('r22 F-4: every round that carries probabilities had an ask, and jev_calls counts exactly those rounds', async () => {

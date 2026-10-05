@@ -32,6 +32,21 @@ function appendBlock() {
   wrap.appendChild(p);
   document.querySelector('.scroll').appendChild(wrap);
 }
+// The deployed page (jQuery jscroll) loads a first block on INIT, before
+// any user scroll, so it overflows immediately. Mirror that here: without
+// the initial load the page does not overflow, the adapters' wheel act
+// cannot scroll it, no scroll event fires and the appender never runs.
+document.addEventListener('DOMContentLoaded', function () {
+  appendBlock();
+  // Short viewports may still not overflow after one block; keep appending
+  // only until the document is scrollable (never past the 12-block cap).
+  while (
+    appended < 12 &&
+    window.innerHeight >= document.documentElement.scrollHeight
+  ) {
+    appendBlock();
+  }
+});
 window.addEventListener('scroll', function () {
   if (appended >= 12 || pending !== null) return;
   if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200) {

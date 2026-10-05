@@ -2472,10 +2472,22 @@ test('T-act-error-sanitize: describeActError cuts HTML, redacts values, and neve
 
 test('T-act-error-log: a thrown act error lands sanitized in the log record as act_error', async () => {
   const h = harness({ observations: { p1: [observation()] }, script: [CS()] });
-  h.driver.failNextAct = new ActFailedError(V2_MESSAGE);
+  // r23: V2_MESSAGE is the LOCATOR-WAIT nav-shaped family, so the F-1 retry
+  // covers it — the failure must be PERSISTENT (both sends) for the call to
+  // still end error/act-failed and reach the log-record assertion.
+  let failsLeft = 2;
+  const realAct = h.driver.act.bind(h.driver);
+  h.driver.act = async (pageId, elementId, op, value) => {
+    if (failsLeft > 0) {
+      failsLeft -= 1;
+      throw new ActFailedError(V2_MESSAGE);
+    }
+    return realAct(pageId, elementId, op, value);
+  };
   const r = await h.call({ goal: 'chain-acterror-log goal', steps: ['click Details'] });
   assert.equal(r.status, 'error');
   assert.equal(r.reason, 'act-failed');
+  assert.equal(failsLeft, 0, 'both sends failed: the nav-shaped retry ran once');
   assert.deepEqual(h.records[0].act_error, {
     op: 'click',
     head: 'locator.click: Timeout 3000ms exceeded.',

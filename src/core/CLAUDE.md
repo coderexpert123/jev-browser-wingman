@@ -189,6 +189,50 @@
   paths share one `askWithCost` timeout pin — browse_step and wingman_do
   never differ.
 
+## r23: the locator-wait nav-shaped family + the go-back lottery (2026-10-05)
+
+- **Since noWaitAfter (r21 P-1a) removed Playwright's post-click navigation
+  wait, the live nav-shaped act failure text is the LOCATOR wait:
+  `locator.click: Timeout 3000ms exceeded.` — the pointer never dispatched.**
+  `NAV_SHAPED_ACT_ERROR_RE` now matches `locator\.<op>: Timeout <n>ms
+  exceeded` (composes into `KB_ACT_NAV_RETRY`, no new flag; the r23 pins in
+  loop.test.ts are the flip tooth). Every recorded occurrence (r22 record 11
+  live, r23 records 13/16 local — local fixture server, so never "site
+  latency") sat on the round immediately after a back/navigate act. Bounds:
+  one retry behind `PRE_CLICK_SETTLE_MS`, exactly 2 sends; a genuinely stale
+  element then surfaces StaleElementError (error/stale-element), so the
+  retry recovers the transient flavor and RECLASSIFIES the stale one — it
+  never swallows. Corollary: **the r13 sanitize fixtures V1/V2 messages ARE
+  this family** — `T-act-error-log` (chain.test.ts) must fail BOTH sends
+  (persistent act override, not one-shot `failNextAct`) to keep testing the
+  error path; a one-shot fail now yields a fallback end and the pin reds.
+- **The t9 go-back transition rides a stuck-arm lottery (diagnosed r23,
+  NOT fixed — threshold design, pinned deliberately).** The t9 goal text
+  carries no go-back clauses, so every page-to-page transition back to the
+  index depends on the stuck mechanism, which arms only when Jev's
+  target-`none` grade >= `STUCK_NONE_MIN` (0.8) on BOTH looks (`retryNone`
+  + rule 7-8). That grade is bimodal across runs on the IDENTICAL page and
+  state: 0.89-0.96 in every healthy trace (r19 live x2, r22 local x2) vs
+  0.76/0.76 in both r23 t9 forced runs — a sub-0.8 roll bounces the call,
+  the caller restructures the chain (7 -> 5 -> 4 steps), and the 8-call
+  fragmentation follows. Loop code is identical between the healthy and
+  regressed runs at this site. `T-stuck-none-bar` ("0.79 does not") pins
+  the bar on purpose, so relaxing it (e.g. arm on two consecutive
+  none-CHOICE looks below the bar, keeping the ambiguous-exclusion) is a
+  threshold-design decision for the orchestrator, not a builder edit.
+  Related non-fixes, for the record: F-2's resume-skip does not apply to
+  these restructures (they follow no-match bounces on an UNACTED cursor
+  clause, `cursorActed: false` — `resumeSkippedPostAction` correctly never
+  fired); and the post-back observe is NOT stale (probe: driver back +
+  settle + observe returns the fresh document every time), so the
+  locator-timeout was never a pre-swap observation in the recorded runs.
+- **Fail-first proof pattern for a regex-widening with no KB flag**: build
+  the scoped dist, run the new pins green, patch the ONE compiled line in
+  the scoped dist back to the pre-fix expression (the documented
+  dist-patch diagnostic pattern), re-run the pins (red = fail-first), then
+  re-run the scoped build to un-poison. Proven for the RE extension above:
+  2/2 red pre-fix, 2/2 green after restore.
+
 ## Evidence & guards
 
 - **Outcome evidence + no-progress guard (WP-outcome-evidence):**
