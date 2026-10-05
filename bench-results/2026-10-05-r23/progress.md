@@ -1,0 +1,4 @@
+# r23 progress (HEAD 301431b on main; npm ci skipped - lock unchanged; build ok, 115 files; no `= true` KB flags; Xvfb verified alive before every Chrome stage)
+
+## Part 1 chrome-only (20 invocations: the standing set + act-nav + the new fixture-server and bench-fixtures + doctor x2; one file per invocation; no first-run failures, no re-runs)
+acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 todo (O18) | **chain-e2e 20/20 (E12 now green - the ccdb003 pin fix)** | pick-e2e 2/2 | adapter-cdp 10/10 (23 s) | adapter-playwright 10/10 | page-scripts 30/30 | act-nav 7/7 | **fixture-server 14/14 (new)** | **bench-fixtures 14/14 (new)** | doctor 37/37 x2 | with-chrome 32/32 | with-chrome-forced 3/3 | runner-sweep 2/2 | runner-sweep-leak 1/1 | ephemeral-sweep 7/7 | scaffold 16/16. All green.

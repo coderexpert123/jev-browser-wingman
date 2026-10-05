@@ -1,0 +1,96 @@
+TAP version 13
+# Subtest: every migrated oracle is false on its freshly loaded page
+ok 1 - every migrated oracle is false on its freshly loaded page
+  ---
+  duration_ms: 1562.801194
+  type: 'test'
+  ...
+# Subtest: t1: clicking the first checkbox satisfies the oracle
+ok 2 - t1: clicking the first checkbox satisfies the oracle
+  ---
+  duration_ms: 74.577007
+  type: 'test'
+  ...
+# Subtest: t2: a user-shaped change on the select satisfies the oracle
+ok 3 - t2: a user-shaped change on the select satisfies the oracle
+  ---
+  duration_ms: 87.54026
+  type: 'test'
+  ...
+# Subtest: t3: Enable then typing into the enabled input satisfies the oracle
+ok 4 - t3: Enable then typing into the enabled input satisfies the oracle
+  ---
+  duration_ms: 3124.460226
+  type: 'test'
+  ...
+# Subtest: t4: three Add Element clicks satisfy the oracle
+ok 5 - t4: three Add Element clicks satisfy the oracle
+  ---
+  duration_ms: 79.896481
+  type: 'test'
+  ...
+# Subtest: t5: typing the amount into the number input satisfies the oracle
+ok 6 - t5: typing the amount into the number input satisfies the oracle
+  ---
+  duration_ms: 77.827336
+  type: 'test'
+  ...
+# Subtest: t6: Start plus the 5 s load satisfies the oracle
+ok 7 - t6: Start plus the 5 s load satisfies the oracle
+  ---
+  duration_ms: 5591.733969
+  type: 'test'
+  ...
+# Subtest: t7: one Last Name header click satisfies the oracle
+ok 8 - t7: one Last Name header click satisfies the oracle
+  ---
+  duration_ms: 114.193632
+  type: 'test'
+  ...
+# Subtest: t8: clicking the 404 link satisfies the oracle
+ok 9 - t8: clicking the 404 link satisfies the oracle
+  ---
+  duration_ms: 125.84646
+  type: 'test'
+  ...
+# Subtest: t9-support: the index Checkboxes link navigates
+ok 10 - t9-support: the index Checkboxes link navigates
+  ---
+  duration_ms: 133.987636
+  type: 'test'
+  ...
+# Subtest: t12: accepting the JS Confirm dialog satisfies the oracle
+ok 11 - t12: accepting the JS Confirm dialog satisfies the oracle
+  ---
+  duration_ms: 105.452489
+  type: 'test'
+  ...
+# Subtest: t13: scrolling in a loop satisfies the oracle
+ok 12 - t13: scrolling in a loop satisfies the oracle
+  ---
+  duration_ms: 3969.577454
+  type: 'test'
+  ...
+# Subtest: t14: a real Escape keydown satisfies the oracle
+ok 13 - t14: a real Escape keydown satisfies the oracle
+  ---
+  duration_ms: 89.689755
+  type: 'test'
+  ...
+# Subtest: forgot_password: requestSubmit renders the same-URL error banner
+ok 14 - forgot_password: requestSubmit renders the same-URL error banner
+  ---
+  duration_ms: 92.134759
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15701.911365
+RUN-TESTS: files=1 tests=14 pass=14 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

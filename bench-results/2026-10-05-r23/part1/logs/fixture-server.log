@@ -1,0 +1,96 @@
+TAP version 13
+# Subtest: root / serves the fixture index
+ok 1 - root / serves the fixture index
+  ---
+  duration_ms: 37.072755
+  type: 'test'
+  ...
+# Subtest: nested /status_codes/404 serves the nested fixture
+ok 2 - nested /status_codes/404 serves the nested fixture
+  ---
+  duration_ms: 6.86695
+  type: 'test'
+  ...
+# Subtest: nested /dynamic_loading/2 serves the nested fixture
+ok 3 - nested /dynamic_loading/2 serves the nested fixture
+  ---
+  duration_ms: 5.424413
+  type: 'test'
+  ...
+# Subtest: trailing slash /add_remove_elements/ serves the page
+ok 4 - trailing slash /add_remove_elements/ serves the page
+  ---
+  duration_ms: 8.767424
+  type: 'test'
+  ...
+# Subtest: /cookie/ normalization feeds the cookie special case
+ok 5 - /cookie/ normalization feeds the cookie special case
+  ---
+  duration_ms: 8.161121
+  type: 'test'
+  ...
+# Subtest: ?delay holds the response on a real page
+ok 6 - ?delay holds the response on a real page
+  ---
+  duration_ms: 84.750767
+  type: 'test'
+  ...
+# Subtest: nested fixture content-type is text/html; charset=utf-8
+ok 7 - nested fixture content-type is text/html; charset=utf-8
+  ---
+  duration_ms: 3.679333
+  type: 'test'
+  ...
+# Subtest: /cookie keeps the Set-Cookie special case
+ok 8 - /cookie keeps the Set-Cookie special case
+  ---
+  duration_ms: 3.416751
+  type: 'test'
+  ...
+# Subtest: /cookie.html keeps the Set-Cookie special case (the old URL, unchanged)
+ok 9 - /cookie.html keeps the Set-Cookie special case (the old URL, unchanged)
+  ---
+  duration_ms: 6.531307
+  type: 'test'
+  ...
+# Subtest: existing single-segment .html serving is unchanged
+ok 10 - existing single-segment .html serving is unchanged
+  ---
+  duration_ms: 4.268844
+  type: 'test'
+  ...
+# Subtest: traversal /../secret.html is rejected (raw path, verbatim)
+ok 11 - traversal /../secret.html is rejected (raw path, verbatim)
+  ---
+  duration_ms: 8.294539
+  type: 'test'
+  ...
+# Subtest: traversal /a/../checkboxes.html is rejected (raw path, verbatim)
+ok 12 - traversal /a/../checkboxes.html is rejected (raw path, verbatim)
+  ---
+  duration_ms: 1.567138
+  type: 'test'
+  ...
+# Subtest: three-segment depth /a/b/checkboxes.html is rejected
+ok 13 - three-segment depth /a/b/checkboxes.html is rejected
+  ---
+  duration_ms: 1.823438
+  type: 'test'
+  ...
+# Subtest: missing file /missing.html is 404
+ok 14 - missing file /missing.html is 404
+  ---
+  duration_ms: 2.092775
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 386.192463
+RUN-TESTS: files=1 tests=14 pass=14 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes

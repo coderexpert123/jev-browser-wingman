@@ -1,0 +1,21 @@
+acquire rc=0 wall=0s # tests 6 # pass 6 # fail 0 # skipped 0 # todo 0 
+chrome rc=0 wall=12s # tests 28 # pass 28 # fail 0 # skipped 0 # todo 0 
+conformance rc=0 wall=39s # tests 28 # pass 28 # fail 0 # skipped 0 # todo 0 
+conformance-ops rc=0 wall=40s # tests 45 # pass 44 # fail 0 # skipped 0 # todo 1 
+chain-e2e rc=0 wall=124s # tests 20 # pass 20 # fail 0 # skipped 0 # todo 0 
+pick-e2e rc=0 wall=7s # tests 2 # pass 2 # fail 0 # skipped 0 # todo 0 
+adapter-cdp rc=0 wall=23s # tests 10 # pass 10 # fail 0 # skipped 0 # todo 0 
+adapter-playwright rc=0 wall=32s # tests 10 # pass 10 # fail 0 # skipped 0 # todo 0 
+page-scripts rc=0 wall=10s # tests 30 # pass 30 # fail 0 # skipped 0 # todo 0 
+act-nav rc=0 wall=66s # tests 7 # pass 7 # fail 0 # skipped 0 # todo 0 
+fixture-server rc=0 wall=1s # tests 14 # pass 14 # fail 0 # skipped 0 # todo 0 
+bench-fixtures rc=0 wall=16s # tests 14 # pass 14 # fail 0 # skipped 0 # todo 0 
+doctor rc=0 wall=10s # tests 37 # pass 37 # fail 0 # skipped 0 # todo 0 
+doctor@2 rc=0 wall=11s # tests 37 # pass 37 # fail 0 # skipped 0 # todo 0 
+with-chrome rc=0 wall=9s # tests 32 # pass 32 # fail 0 # skipped 0 # todo 0 
+with-chrome-forced rc=0 wall=11s # tests 3 # pass 3 # fail 0 # skipped 0 # todo 0 
+runner-sweep rc=0 wall=2s # tests 2 # pass 2 # fail 0 # skipped 0 # todo 0 
+runner-sweep-leak rc=0 wall=1s # tests 1 # pass 1 # fail 0 # skipped 0 # todo 0 
+ephemeral-sweep rc=0 wall=0s # tests 7 # pass 7 # fail 0 # skipped 0 # todo 0 
+scaffold rc=0 wall=5s # tests 16 # pass 16 # fail 0 # skipped 0 # todo 0 
+P1DONE
