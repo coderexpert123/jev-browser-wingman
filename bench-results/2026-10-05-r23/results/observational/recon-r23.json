@@ -1,0 +1,162 @@
+{
+ "generatedAt": "2026-10-05T04:36:19.460Z",
+ "targets": [
+  [
+   "bbc",
+   "https://www.bbc.com/news"
+  ],
+  [
+   "npr",
+   "https://www.npr.org"
+  ],
+  [
+   "guardian",
+   "https://www.theguardian.com/us"
+  ]
+ ],
+ "sites": {
+  "bbc": {
+   "url": "https://www.bbc.com/news",
+   "finalUrl": "https://www.bbc.com/news",
+   "title": "BBC News - Breaking news, video and the latest top stories from the U.S. and around the world",
+   "signalsCaptcha": false,
+   "elementCount": 117,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  },
+  "npr": {
+   "url": "https://www.npr.org",
+   "finalUrl": "https://www.npr.org/",
+   "title": "NPR - Breaking News, Analysis, Music, Arts & Podcasts : NPR",
+   "signalsCaptcha": false,
+   "elementCount": 166,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    },
+    {
+     "kind": "iframe-src",
+     "src": "https://www.recaptcha.net/recaptcha/api2/anchor?ar=1&k=6LcdN9IZAAAAAOHT985BJjbzjkBjKSxdxK3GeKSt&co=aHR0cHM6Ly93d3cubnByLm9yZzo0NDM.&hl=en&v=guXhH0v-XMxlzmbTwqkaT4i5&size=invisible&anchor-ms=20000&exec",
+     "tag": "iframe",
+     "rect": {
+      "x": 1195,
+      "y": 587,
+      "width": 256,
+      "height": 60
+     },
+     "area": 15360,
+     "visible": false,
+     "sizeInvisible": true
+    },
+    {
+     "kind": "id-class",
+     "id": "",
+     "cls": "grecaptcha-badge",
+     "tag": "div",
+     "rect": {
+      "x": 1195,
+      "y": 587,
+      "width": 256,
+      "height": 60
+     },
+     "area": 15360,
+     "visible": false,
+     "sizeInvisible": false
+    },
+    {
+     "kind": "id-class",
+     "id": "",
+     "cls": "grecaptcha-logo",
+     "tag": "div",
+     "rect": {
+      "x": 1195,
+      "y": 587,
+      "width": 256,
+      "height": 66
+     },
+     "area": 16896,
+     "visible": false,
+     "sizeInvisible": false
+    },
+    {
+     "kind": "id-class",
+     "id": "",
+     "cls": "grecaptcha-error",
+     "tag": "div",
+     "rect": {
+      "x": 1195,
+      "y": 653,
+      "width": 256,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    },
+    {
+     "kind": "id-class",
+     "id": "g-recaptcha-response-100000",
+     "cls": "g-recaptcha-response",
+     "tag": "textarea",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  },
+  "guardian": {
+   "url": "https://www.theguardian.com/us",
+   "finalUrl": "https://www.theguardian.com/us",
+   "title": "Latest news, sport and opinion from the Guardian",
+   "signalsCaptcha": false,
+   "elementCount": 275,
+   "matches": [
+    {
+     "kind": "iframe-src",
+     "src": "https://www.google.com/recaptcha/api2/aframe",
+     "tag": "iframe",
+     "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+     },
+     "area": 0,
+     "visible": false,
+     "sizeInvisible": false
+    }
+   ]
+  }
+ }
+}

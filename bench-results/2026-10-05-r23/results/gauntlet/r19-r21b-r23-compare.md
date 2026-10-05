@@ -1,0 +1,36 @@
+| task | route | r19 wall med s | r21b wall med s | r23 wall med s | r23 vs r19 | within +-15% |
+|---|---|---|---|---|---|---|
+| t1-checkboxes | playwright | 13.9 | 15.9 | 14.4 | +4% | yes |
+| t1-checkboxes | forced | 11.4 | 11.4 | 10.7 | -6% | yes |
+| t2-dropdown | playwright | 11.1 | 12.1 | 8.6 | -22% | NO |
+| t2-dropdown | forced | 11.7 | 13.2 | 10.1 | -14% | yes |
+| t3-dynamic-controls | playwright | 14.1 | 14.6 | 12.9 | -8% | yes |
+| t3-dynamic-controls | forced | 17.6 | 16.2 | 15.3 | -13% | yes |
+| t4-add-elements | playwright | 13.8 | 13.5 | 14.8 | +7% | yes |
+| t4-add-elements | forced | 11.3 | 13.2 | 10.1 | -10% | yes |
+| t5-inputs | playwright | 10.9 | 12.7 | 9.0 | -17% | NO |
+| t5-inputs | forced | 10.4 | 10.7 | 9.8 | -6% | yes |
+| t6-dynamic-loading | playwright | 34.6 | 27.7 | 15.3 | -56% | NO |
+| t6-dynamic-loading | forced | 49.0 | 51.9 | 49.7 | +2% | yes |
+| t7-sort-table | playwright | 14.4 | 13.5 | 11.7 | -19% | NO |
+| t7-sort-table | forced | 11.4 | 10.5 | 10.0 | -13% | yes |
+| t8-status-404 | playwright | 11.9 | 12.5 | 12.4 | +4% | yes |
+| t8-status-404 | forced | 13.1 | 11.6 | 11.7 | -11% | yes |
+| t9-long-chain | playwright | 36.5 | 37.2 | 30.2 | -17% | NO |
+| t9-long-chain | forced | 44.9 | 76.4 | 44.1 | -2% | yes |
+| t10-saucedemo-checkout | playwright | 22.1 | 26.9 | 18.6 | -16% | NO |
+| t10-saucedemo-checkout | forced | 26.9 | 28.9 | 21.8 | -19% | NO |
+| t11-todomvc-spa | playwright | 19.3 | 19.6 | 15.3 | -21% | NO |
+| t11-todomvc-spa | forced | 24.7 | 30.1 | 28.2 | +14% | yes |
+| t12-js-confirm-dialog | playwright | 13.3 | 14.5 | 10.9 | -18% | NO |
+| t12-js-confirm-dialog | forced | 17.0 | 18.1 | 13.7 | -19% | NO |
+| t13-infinite-scroll | playwright | 18.1 | 20.5 | 29.0 | +60% | NO |
+| t13-infinite-scroll | forced | 14.4 | 15.5 | 24.3 | +69% | NO |
+| t14-key-press | playwright | 13.9 | 15.0 | 11.5 | -17% | NO |
+| t14-key-press | forced | 13.5 | 15.6 | 12.1 | -10% | yes |
+| t15-file-upload | playwright | 16.0 | 16.3 | 13.1 | -18% | NO |
+| t15-file-upload | forced | 11.4 | 11.0 | 9.7 | -14% | yes |
+| t16-hover-reveal | playwright | 15.9 | 17.9 | 11.4 | -28% | NO |
+| t16-hover-reveal | forced | 15.3 | 17.7 | 12.4 | -19% | NO |
+| t17-double-click | playwright | 11.6 | 11.1 | 9.7 | -16% | NO |
+| t17-double-click | forced | 11.7 | 10.8 | 10.3 | -12% | yes |

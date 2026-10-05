@@ -1,0 +1,15 @@
+import { createRequire } from 'node:module';
+const require = createRequire('/home/user/jev-browser-wingman/package.json');
+const { chromium } = require('playwright-core');
+const { launchEphemeralChrome } = await import('/home/user/jev-browser-wingman/dist/src/browser/ephemeral.js');
+const { startFixtureServer } = await import('/home/user/jev-browser-wingman/dist/src/fixture-server.js');
+const fx = await startFixtureServer(); const eph = await launchEphemeralChrome({ headless: true });
+const b = await chromium.connectOverCDP(eph.endpoint); const ctx = b.contexts()[0]; const page = ctx.pages()[0] || await ctx.newPage();
+await page.goto(fx.url + '/infinite_scroll', { waitUntil: 'load' });
+const g = () => page.evaluate(() => JSON.stringify({ ih: innerHeight, sh: document.documentElement.scrollHeight, sy: Math.round(scrollY), items: document.querySelectorAll('.jscroll-added').length }));
+console.log('local initial   ', await g());
+await page.mouse.wheel(0, Math.round(0.8 * 800)); await new Promise(r => setTimeout(r, 1800));
+console.log('after mouse.wheel', await g());
+await page.evaluate(() => window.dispatchEvent(new Event('scroll'))); await new Promise(r => setTimeout(r, 600));
+console.log('after scroll evt ', await g());
+await b.close().catch(() => {}); await eph.close(); await fx.close?.();
