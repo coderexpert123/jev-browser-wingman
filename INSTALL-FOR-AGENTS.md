@@ -2,13 +2,13 @@
 
 ## Audience
 
-Any installing agent or human, on any client, beside whatever browser tooling the user already has. Read this whole file before running anything. Run only `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
+Any installing agent or human, on any client, beside whatever browser tooling the user already has. Read this whole file before running anything. Run only `npm install -g jev-browser-wingman`, `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
 
 After installing the command (below), start with `jev-browser-wingman doctor --plan`: it prints, per outcome, the exact steps this setup still needs. Finish with `jev-browser-wingman doctor`: green means done.
 
 ## Install the command
 
-After publish, run `npm install -g jev-browser-wingman`.
+Run `npm install -g jev-browser-wingman`.
 
 To install from a packed tarball (release candidates, offline installs), run
 `npm pack` in a checkout and then `npm install -g ./jev-browser-wingman-<version>.tgz`.
@@ -74,7 +74,7 @@ Map each detected setup to an action. Every row keeps the existing tool register
 | A running debuggable Chrome (its `/json/version` answers) | Attach to that endpoint; never launch. |
 | Playwright `--extension` or the Claude in Chrome extension | No endpoint exists; use the package's own profile. The extension bridge is a later adapter. |
 | A cloud CDP endpoint | Use the raw CDP adapter via `WINGMAN_CDP_ENDPOINT`. |
-| Nothing detected | jev-browser-wingman launches its own Chrome. |
+| Nothing detected | Run `jev-browser-wingman chrome ensure`; wingman starts its own Chrome. |
 
 ## Ask the user
 
@@ -86,7 +86,7 @@ Ask before configuring; never guess these:
 
 ## Shared browser
 
-By default wingman launches its own shared browser on `profile_dir` and `port` at the first tool call. Alternatively it attaches to the browsing tool's own browser through that tool's debugging endpoint.
+By default the `with-browser` wrap launches the shared browser on `profile_dir` and `port` at the first call to the wrapped tool; the wingman server itself never launches a browser, so without a wrap run `jev-browser-wingman chrome ensure`. Alternatively it attaches to the browsing tool's own browser through that tool's debugging endpoint.
 
 Extension case: the browsing tool drives the browser through an extension and exposes no endpoint. Start a Chromium-family browser on a dedicated profile dir with `--remote-debugging-port=<port>` (Chrome 136+ ignores that flag on the default profile), install the extension in that profile, and set `port` and `profile_dir` in wingman's config to match.
 
@@ -94,7 +94,7 @@ Supported browsers: Chrome, Edge, Brave, Chromium, Opera and Vivaldi, found auto
 
 ## Handoff mode
 
-Wingman classes every call to the caller's browsing tools into capability classes. In `forced` mode (the default) the classes the active adapter can do are withheld from the caller, minus any classes listed in `handoff.retain`. The caller's own script tool (arbitrary JavaScript or code in the page or browser) is also withheld by default in forced mode, even though no adapter can run it: a fresh-install round showed a calling agent using its script tool to perform page actions directly, bypassing forced handoff entirely. In `optional` mode nothing is withheld.
+Wingman classes every call to the caller's browsing tools into capability classes. In `forced` mode (the default) the classes the active adapter can do are withheld from the caller, minus any classes listed in `handoff.retain`. The caller's own script tool (arbitrary JavaScript or code in the page or browser) is also withheld by default in forced mode, even though no adapter can run it: a calling agent given a script tool used it to perform page actions directly, bypassing forced handoff entirely. In `optional` mode nothing is withheld.
 
 Which classes are withheld is derived from the adapter, plus `script` (withheld regardless of adapter; see above). The classes that always stay with the caller: `pointer-xy`, `drag`, `tabs`, `dialog`, `read`, `wait`, `session`.
 
@@ -132,9 +132,11 @@ Config lives at `<wingmanHome>/config.json`, by default `~/.jev-browser-wingman/
 | `chrome_path` | string or null | null | as `profile_dir` |
 | `secrets_file` | string or null | null | as `profile_dir`; KEY=VALUE lines; only `TYPESAFE_API_KEY` is read |
 | `plugin` | string or null | null | as `profile_dir`; path to a module exporting `wingmanPlugin` |
-| `sensitive_hosts` | object | `{}` | keys from `SENSITIVE_HOST_CATEGORIES`; values are arrays of host suffixes |
-| `budgets` | object | `DEFAULT_BUDGETS` | each key optional; each value within `BUDGET_LIMITS` |
+| `sensitive_hosts` | object | `{}` | keys from `banking`, `payments`, `webmail`, `identity`, `government`, `tax`, `health`; values are arrays of host suffixes |
+| `budgets` | object | see rule | integer keys, each optional, defaults in parentheses: `max_steps` 1–24 (24), `max_ms` 5000–120000 (90000), `jev_timeout_ms` 1000–10000 (10000), `max_elements` 20–240 (240), `max_text_chars` 0–3000 (3000), `max_state_chars` 2000–24000 (24000) |
 | `gate` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"confirm"`; `confirm` turns on the irreversible-action gate |
+| `policy` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"enforce"`; `enforce` fails closed on sensitive pages |
+| `takeover` | object | `{ threshold: 0.7, mode: "auto", retry: true }` | keys `threshold`: number 0.5–0.95, `mode`: `"auto"` (act on a lower-confidence pick itself) or `"offer"` (return an offer the caller accepts with `takeover: true`), `retry`: boolean; tunes `browse_step`, leave at the defaults unless you are tuning |
 | `handoff` | object | `{ mode: "forced" }` | keys `mode`: `"forced"` (default) or `"optional"`; `tools`: `"browse-only"` or `"all"`; `retain`: array of capability class names kept with the caller |
 
 Unknown top-level keys fail.
@@ -178,6 +180,12 @@ devin:
 {"command":"jev-browser-wingman","args":["mcp"],"transport":"stdio"}
 ```
 
+cursor, under `mcpServers` in `~/.cursor/mcp.json`:
+
+```json
+{"type":"stdio","command":"jev-browser-wingman","args":["mcp"],"env":{}}
+```
+
 codex, in `~/.codex/config.toml`:
 
 ```toml
@@ -197,7 +205,7 @@ For a typical Claude Code entry of the common browsing server the output is exac
 {"type":"stdio","command":"jev-browser-wingman","args":["with-browser","--","npx","-y","@playwright/mcp@0.0.80","--browser","chrome"],"env":{}}
 ```
 
-The shared browser then starts at the first browser tool call, not at session start, in the `window` mode of the config. Codex's wrapped table also adds `startup_timeout_sec = 60`.
+The shared browser then starts at the first call the caller makes to a retained browsing tool, not at session start, in the `window` mode of the config. A `browse_step` call before that returns `fallback` with reason `no-browser`, so run `jev-browser-wingman chrome ensure` once first. Codex's wrapped table also adds `startup_timeout_sec = 60`.
 
 `with-chrome` is a deprecated alias for `with-browser` that still works; prefer `with-browser`.
 
@@ -209,7 +217,9 @@ The shared browser then starts at the first browser tool call, not at session st
 
 ## Verify
 
-`jev-browser-wingman doctor --json` must print `"verdict":"PASS"` and exit 0.
+Run `jev-browser-wingman chrome ensure` first unless you attach to the browsing tool's own endpoint: `doctor` never launches the shared browser, so `adapter-attach` fails until one answers on the port.
+
+`jev-browser-wingman doctor --json` must print `"verdict":"PASS"` and exit 0. Doctor does not check the top-level `mode`: with mode off the `handoff` check passes as `optional`. Run `jev-browser-wingman doctor --plan` as well and confirm O1 reads `[met]`.
 
 Each check id maps to a fix:
 

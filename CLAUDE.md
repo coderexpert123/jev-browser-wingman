@@ -18,7 +18,7 @@ landing, never as a new dated section.
 
 ## Campaign summary (r10-r23b, 2026-09-29 -> 2026-10-05; v0.3.0 RELEASED)
 
-Seventeen validation rounds hardened the forced-verdict/optional-mode loop:
+~20 validation rounds hardened the forced-verdict/optional-mode loop:
 r15 post-action ends -> r17 press/dialogs/login suppression -> r19 upload
 evidence, enumeration coverage, byte-slice fix -> r20 optional-mode
 post-action note + reset-nav retry -> r21 scoped captcha, cursor-pointer
@@ -137,16 +137,12 @@ observational probe if it returns.
   wingman attaches over CDP; it acts on the one visible tab or the tab
   `url_match` names. Spec:
   `pa/plans/2026-09-25-wingman-policy-neutral-tool-text-SPEC.md`.
-- **Tool text alone does not win delegation.** Route-neutral prompts dropped
-  `wingman_do` on the long chain (`typesafe.calls = 0`); with both
-  `browse_step` and legacy tools visible the caller never called
-  `browse_step`; `WINGMAN_BROWSE_ONLY=1` fixed tool selection but Jev
-  bounced all delegations back (`route-caller`, zero takeovers) and the
-  caller declared DONE early — wall "wins" were give-up-early. An engagement
-  line raised calls but they fell back (`jev-error` then binding). The t9-shaped chain does not complete by delegation; the
-  fallback lane IS the run (`fallback` reason `sensitive-auth-path`).
-  `BROWSE_ENGAGEMENT_LINE` stays single-line ASCII (em-dashes fold for the
-  win32 cmd spawn).
+- **Tool text alone does not win delegation — withholding does.**
+  Route-neutral prompts dropped `wingman_do` on the long chain; with
+  `browse_step` beside raw tools the caller never chose it; browse-only
+  tool lists alone gave give-up-early "wins". Forced handoff (raw page
+  tools withheld) made delegation stick. `BROWSE_ENGAGEMENT_LINE` is
+  single-line ASCII (em-dashes fold in win32 cmd).
 - **The caller's forward-vs-re-send recovery choice is not determined by the
   note branch**: r20 cell 1 forwarded under the new post-action note; r21b
   re-sent the full chain under the old-equivalent tier-1 note (its first
@@ -348,9 +344,12 @@ observational probe if it returns.
   chromes by temp-profile cmdline marker (`taskkill /T /F` does not reliably
   take the tree from a plain launcher PID), poll the port CLOSED after
   teardown, fresh port per run.
-- **`WINGMAN_BROWSE_ONLY=1`** (mcp-server.ts) hides wingman_do/wingman_check
-  from tools/list AND refuses them at call time; `bench/run.ts` forwards the
-  env; unset = product default. Probe a spawned server's tool list with SDK
+- **Browse-only is config, not env**: `handoff.tools` (`"browse-only"`
+  default in forced mode, `"all"` in optional) hides wingman_do/wingman_check
+  from tools/list AND refuses them at call time. The old
+  `WINGMAN_BROWSE_ONLY` env var is gone from src (tests/mcp-server.test.ts
+  asserts it is ignored; `bench/.home/mcp-browse.json` still carries it as
+  stale config). With top-level `mode` off the server lists NO tools. Probe a spawned server's tool list with SDK
   `StdioClientTransport` against `dist/src/cli/main.js mcp` and a temp home
   — from inside the repo tree (scratch-dir node cannot see node_modules).
 - **`wingman_do` fill probes must carry the value in `values`**: `values: {}`
@@ -404,12 +403,15 @@ observational probe if it returns.
   old-file fallback renders exactly the pre-r19 four-column block — context
   line + spread column appear only when EVERY summary row carries
   `wall_min_ms`/`wall_max_ms`, so a harness-2 file never gets a false
-  provenance claim. **It reds spuriously on this box's CRLF worktree**: the
-  current-vs-rendered comparison in `scripts/gates/readme-bench.mjs` is a
-  raw string compare with no EOL normalization; `renderBlock` joins with LF
-  and autocrlf leaves README.md fully CRLF, so the bench block never
-  matches byte-wise. Run an LF copy, normalize the file, or EOL-normalize
-  the gate before trusting a red.
+  provenance claim. The gate EOL-normalizes (a red is real); its source
+  `bench/results/*.json` is gitignored, so it reds on a fresh clone.
+- **The MCP server never launches Chrome** (only the `with-browser` wrap or
+  `chrome ensure` does): unwrapped fresh installs fail `adapter-attach`.
+  Doctor passes with top-level `mode` off; `doctor --plan` O1 checks mode.
+- **Re-derive every public number from the results JSON, never from
+  narrative**: r19 figures drifted into r23b copy and none reproduced.
+  r23b per-shape: cheaper 13/17, wall faster 5/17, >=4 s slower on
+  t6/t9/t11/t12/t10; 17/34 forced cells had a fallback; raw_acts 0.
 - **The byte-vs-string slice trap (bench log slicing, r19)**: slicing a
   decoded string by a byte offset is silent data loss —
   `statSync().size` (bytes) + `readFileSync(path, 'utf8').slice(before)`
@@ -713,7 +715,4 @@ observational probe if it returns.
 - **One pre-existing, diff-unrelated scoped-gate failure (as of 2026-09-25)**:
   `tests/cli.test.ts` "chrome show dispatches into chrome-cmd" fails with
   exit 0 vs expected 1. Do not attribute a future red to a new diff without
-  checking. (Former second entry: the 2026-09-26 re-pin fixed
-  `tests/adapter-cdp.test.ts` "observe matches the pinned form.html table"
-  — it now expects `placeholder`/`htmlId`/`obscured` — so a red there is
-  real.)
+  checking. An adapter-cdp form.html-table red is real.

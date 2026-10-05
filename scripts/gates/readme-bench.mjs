@@ -75,6 +75,7 @@ function renderBlock(result, fileName) {
   if (hasSpread) {
     header = [
       `Benchmark: ${fileName} · model=${result.model} · harness=${result.harness_version} · ${result.date ?? fileName} · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.`,
+      '',
       '| route | success | median wall-clock | wall spread (min-max) | median cost (USD) | fallback rate |',
       '|---|---|---|---|---|---|',
     ];
@@ -96,6 +97,9 @@ function renderBlock(result, fileName) {
       );
     }
   }
+  // GFM: a table must be preceded and followed by a blank line, or the
+  // Source line is absorbed as a table row.
+  lines.push('');
   lines.push(`Source: bench/results/${fileName}`);
   return lines.join('\n');
 }

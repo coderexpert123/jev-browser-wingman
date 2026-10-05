@@ -49,6 +49,7 @@ function expectedBlock(summary: object, fileName: string): string {
   for (const [route, row] of Object.entries(s)) {
     lines.push(`| ${route} | ${row.success_rate} | ${row.median_wall_ms} | ${row.median_usd} | ${row.fallback_rate} |`);
   }
+  lines.push('');
   lines.push(`Source: bench/results/${fileName}`);
   return lines.join('\n');
 }
@@ -141,6 +142,7 @@ function expectedR19Block(summary: object, fileName: string): string {
   const date = fileName.replace(/\.json$/, '');
   const lines = [
     `Benchmark: ${fileName} · model=sonnet · harness=1 · ${date} · medians over interleaved cells; ${COST_SENTENCE}`,
+    '',
     '| route | success | median wall-clock | wall spread (min-max) | median cost (USD) | fallback rate |',
     '|---|---|---|---|---|---|',
   ];
@@ -149,6 +151,7 @@ function expectedR19Block(summary: object, fileName: string): string {
       `| ${route} | ${row.success_rate} | ${wallS(row.median_wall_ms)} | ${wallS(row.wall_min_ms)}-${wallS(row.wall_max_ms)} | ${row.median_usd} | ${row.fallback_rate} |`,
     );
   }
+  lines.push('');
   lines.push(`Source: bench/results/${fileName}`);
   return lines.join('\n');
 }
@@ -182,4 +185,24 @@ test('an old results file without the spread fields keeps the old four-column bl
   const text = fs.readFileSync(readme, 'utf8');
   assert.ok(!text.includes('Benchmark: '), 'an old-format file must not gain the r19 context line');
   assert.ok(!text.includes('wall spread (min-max)'), 'an old-format file must not gain the spread column');
+});
+
+test('GFM shape: a blank line precedes the first table row and the Source line (both render paths)', () => {
+  for (const summary of [R19_SUMMARY, SUMMARY]) {
+    const dir = tmpDir('jevw-readmebench-');
+    const fileName = '2026-01-01-0000.json';
+    const resultsDir = path.join(dir, 'results');
+    writeResults(resultsDir, fileName, 'measure', summary);
+    const readme = writeReadme(dir, 'stale');
+    assert.equal(runGate(readme, resultsDir, ['--write']).status, 0);
+    const lines = fs.readFileSync(readme, 'utf8').replace(/\r\n/g, '\n').split('\n');
+    const src = lines.findIndex((l) => l.startsWith('Source: '));
+    const head = lines.findIndex((l) => l.startsWith('| route'));
+    assert.ok(src > 0 && head > 0, 'Source and table header lines must exist');
+    assert.equal(lines[src - 1], '', 'blank line required immediately before Source:');
+    // With a context line the table needs a blank line above it; the four-column
+    // path has no context line, so the table directly follows the begin marker.
+    const above = summary === R19_SUMMARY ? '' : '<!-- bench:begin -->';
+    assert.equal(lines[head - 1], above, 'blank line (or begin marker when no context line) required immediately before the first | route line');
+  }
 });
