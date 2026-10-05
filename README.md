@@ -2,7 +2,7 @@ Agents installing this package: read [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.
 
 # jev-browser-wingman
 
-jev-browser-wingman (wingman for short) lets an AI agent hand its browser clicks, typing and other page actions to one dedicated tool. The agent keeps planning, and wingman does the page work. It attaches to a real, logged-in Chromium-family browser (Chrome, Edge, Brave and similar).
+jev-browser-wingman (wingman for short) hands your AI agent's browser clicks and typing to TypeSafe's Jev. Jev chooses which element each step acts on, handing the step back when unsure, and wingman carries out the action. The agent keeps planning and sends its page work to one tool. It attaches to a real, logged-in Chromium-family browser (Chrome, Edge, Brave and similar).
 
 ## Headline numbers
 
@@ -18,7 +18,7 @@ With two runs per task, read the differences as indicative, not statistically es
 
 Wingman sits in front of your existing browser tool, which is an MCP server such as Playwright MCP. It hides that tool's page-action tools from the agent and keeps its reading, tab, dialog and a few other tools. The agent sends wingman its goal and its steps through one tool, `browse_step`.
 
-For each step, wingman looks at the page and asks Jev which element to act on. Jev is a decision model from TypeSafe that grades how well each page element fits the step. Wingman then acts, checks the result and returns. If it is unsure, it hands that step back to the agent.
+For each step that needs an element, wingman looks at the page and asks Jev which one to act on. Jev grades how well each element on the page fits the step. Wingman then acts, checks the result and returns. If it is unsure, it hands that step back to the agent.
 
 ```
 agent -> MCP client
