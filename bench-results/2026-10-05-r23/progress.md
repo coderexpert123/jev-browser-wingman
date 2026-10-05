@@ -18,3 +18,5 @@ acquire 6/6 | chrome 28/28 | conformance 28/28 | conformance-ops 44 pass + 1 tod
 
 ## Part 4 - doctor x3 on the bench Chrome (port 9344): 3/3 PASS, coexistence identical fingerprint each time (doctor/doctor{1,2,3}.log)
 - NOTE: one bound todo-text value appeared literally in one wingman log record's step_text (the caller typed it instead of naming the binding - the same observation as r16b); it is redacted in evidence/R23-log-slice.jsonl.
+
+## Final: results.md written (forced 32/34 - t13 x2 local-fixture parity defect; t9 8/5 calls; invariant PASS 71==71; doctor 3/3; canaries healthy). Spend 10.44 of 16 USD. README refresh: NO.
