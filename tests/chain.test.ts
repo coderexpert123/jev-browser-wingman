@@ -5602,6 +5602,17 @@ test('T-r24c-pressfocus-keyclause: a press split onto the focused field never co
   assert.equal(r24Rounds(h).filter((x) => x.pressFocusSum !== undefined).length, 0, 'no pressFocusSum round');
 });
 
+test('T-r24c-pressfocus-keyclause-legacy: the legacy single step and its takeover continuation never press on a clause that names no key', async () => {
+  for (const input of [{ goal: 'r24c-pressfocus-keyclause goal legacy', step: 'click the New todo field' }, { goal: 'r24c-pressfocus-keyclause goal takeover', step: 'click the New todo field', takeover: true }]) {
+    const l = harness({
+      observations: { p1: [todoPage] },
+      script: [PRESS(0.36, 'Enter', { action: ['press', { press: 0.46, click: 0.44, none: 0.05 }], target: ['none', { none: 0.5, e1: 0.47, ambiguous: 0.03 }] })],
+    });
+    await l.call(input);
+    assert.equal(l.driver.actCalls().filter((x) => x.op === 'press').length, 0, `${JSON.stringify(input)}: no press act`);
+  }
+});
+
 // r24c recheck: the cover named in target-covered evidence is the one value-bearing string of a RESULT that no
 // backstop covers (the request and log backstops stop at Jev and the log); a site-deletion run left the chain-commit
 // and pick sites green, so this pins both with a current-call value and a remembered one.
