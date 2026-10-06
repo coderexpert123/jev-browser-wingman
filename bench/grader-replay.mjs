@@ -6,7 +6,9 @@
 // green (D9). Nothing in r21 meets that bar; this round ships the harness.
 //
 // Three subcommands:
-//   capture --out <file> [--url <page-url>]... [--task <fixture-page> <step-text>]...
+//   capture --out <file> [--url <page-url>]... [--task <fixture-page> <step-text>]... [--call <page-url> <browse_step-json>]...
+//       --call runs wingman.step with the given arguments on that page; consecutive
+//       calls on the same url share the page and the process's value memory, without re-navigating.
 //       Launches an ephemeral headless Chrome, wraps createDefaultAsk with a
 //       recorder, and appends one JSON line per ASKING round:
 //       {ts, tool, host, round, chain, request, response, ms, decision}.
@@ -572,15 +574,15 @@ function usageExit(message) {
   if (message) process.stderr.write(`${message}\n`);
   process.stderr.write(
     'Usage:\n' +
-      '  node bench/grader-replay.mjs capture --out <file> [--url <page-url>]... [--task <fixture-page> <step-text>]...\n' +
+      '  node bench/grader-replay.mjs capture --out <file> [--url <page-url>]... [--task <fixture-page> <step-text>]... [--call <page-url> <browse_step-json>]...\n' +
       '  node bench/grader-replay.mjs replay --capture <file> [--thresholds <overrides.json>] [--report <file>]\n' +
       '  node bench/grader-replay.mjs margins --slices <glob> [--slices <glob>]... [--report <file>]\n',
   );
   process.exit(2);
 }
 
-function parseArgs(argv) {
-  const opts = { url: [], task: [], slices: [] };
+export function parseArgs(argv) {
+  const opts = { url: [], task: [], slices: [], call: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const val = () => {
@@ -592,6 +594,20 @@ function parseArgs(argv) {
     else if (a === '--url') opts.url.push(val());
     else if (a === '--slices') opts.slices.push(val());
     else if (a === '--task') opts.task.push([val(), val()]);
+    else if (a === '--call') {
+      const url = val();
+      const raw = val();
+      let args = null;
+      try {
+        args = JSON.parse(raw);
+      } catch {
+        args = null;
+      }
+      if (args === null || typeof args !== 'object' || Array.isArray(args)) {
+        usageExit('--call needs a page url and a JSON object of browse_step arguments');
+      }
+      opts.call.push([url, args]);
+    }
     else usageExit(`unknown argument: ${a}`);
   }
   return opts;
@@ -604,7 +620,7 @@ async function cmdCapture(opts) {
     process.stderr.write('capture: TYPESAFE_API_KEY is not set — capture requires a live key (spec WP-5 item 4)\n');
     process.exit(2);
   }
-  if (opts.task.length === 0 && opts.url.length === 0) {
+  if (opts.task.length === 0 && opts.url.length === 0 && opts.call.length === 0) {
     usageExit('capture needs at least one --task <fixture-page> <step-text> or --url <page-url>');
   }
 
@@ -659,6 +675,15 @@ async function cmdCapture(opts) {
       const goal = `summarize what the page at ${url} is for`;
       const r = await wingman.step({ goal, steps: ['state in one short sentence what this page is for'] });
       calls.push({ url, goal, status: r.status, reason: r.reason });
+    }
+    let lastUrl = null;
+    for (const [url, stepArgs] of opts.call) {
+      if (url !== lastUrl) {
+        await navigate(url);
+        lastUrl = url;
+      }
+      const r = await wingman.step(stepArgs);
+      calls.push({ url, goal: String(stepArgs.goal ?? ''), status: r.status, reason: r.reason });
     }
   } finally {
     try {

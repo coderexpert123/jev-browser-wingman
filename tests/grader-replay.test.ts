@@ -21,7 +21,7 @@ import { pathToFileURL } from 'node:url';
 const harnessPath = path.join(process.cwd(), 'bench', 'grader-replay.mjs');
 const harnessRepoRoot = (): string => path.resolve(path.dirname(harnessPath), '..');
 const gr: any = await import(pathToFileURL(harnessPath).href);
-const { parseSlice, extractRoundProbs, extractResponseProbs, mirrorDecision, applyThresholdOverrides, evaluateCapture, computeMargins, globToRegex, askStage, mergeCapture } = gr;
+const { parseSlice, extractRoundProbs, extractResponseProbs, mirrorDecision, applyThresholdOverrides, evaluateCapture, computeMargins, globToRegex, askStage, mergeCapture, parseArgs } = gr;
 
 // The spec-pinned baseline (D7 margins block + constants.ts current values).
 const BASE = {
@@ -433,6 +433,23 @@ test('capture without a key exits 2 and never launches a browser', () => {
     assert.equal(run.status, 2, run.out);
     assert.match(run.out, /TYPESAFE_API_KEY is not set/);
     assert.ok(!fs.existsSync(outPath));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- capture --call (r24c) ---------------------------------------------------------
+
+test('capture --call parses a url and a browse_step JSON object; bad JSON exits 2', () => {
+  const parsed = parseArgs(['--out', 'x.jsonl', '--call', 'https://example.com/', '{"goal":"g","steps":["s"]}']);
+  assert.deepEqual(parsed.call, [['https://example.com/', { goal: 'g', steps: ['s'] }]]);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grader-replay-call-'));
+  try {
+    const env = { ...process.env } as NodeJS.ProcessEnv;
+    delete env.TYPESAFE_API_KEY;
+    const run = node(['capture', '--out', path.join(dir, 'c.jsonl'), '--call', 'https://example.com/', 'not-json'], { env });
+    assert.equal(run.status, 2, run.out);
+    assert.match(run.out, /--call needs a page url and a JSON object/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
