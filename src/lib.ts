@@ -1,6 +1,8 @@
-// Library entry (§ WP-F1 item 2). The mutex and the confirm-token store are
+// Library entry (§ WP-F1 item 2). The mutex, the confirm-token store and the
+// value memory (r24c: values bound in any call stay redacted in later calls) are
 // module-level on purpose: the MCP server builds one wingman instance per
-// tools/call, and the busy lock and tokens must persist across those calls.
+// tools/call, and the busy lock, the tokens and the memory must persist across
+// those calls.
 
 import { ConfigError } from './contract/errors.js';
 import { wingmanHome } from './contract/home.js';
@@ -9,6 +11,7 @@ import { loadPlugin } from './core/plugin.js';
 import { writeLog } from './core/log.js';
 import { createMutex } from './core/mutex.js';
 import { ConfirmTokenStore } from './core/tokens.js';
+import { ValueMemory } from './core/withhold.js';
 import { createDefaultAsk } from './core/jev-client.js';
 import { runDo, runCheck, runStep } from './core/loop.js';
 import { resolveEndpoint } from './browser/acquire.js';
@@ -21,6 +24,7 @@ export { createCdpDriver } from './adapters/cdp.js';
 
 const mutex = createMutex();
 const tokens = new ConfirmTokenStore();
+const valueMemory = new ValueMemory();
 
 export interface Wingman {
   do(input: unknown): Promise<WingmanResult>;
@@ -80,6 +84,7 @@ export async function createWingman(
     ...(plugin?.lockCheck ? { lockCheck: plugin.lockCheck } : {}),
     mutex,
     tokens,
+    valueMemory,
     writeLog: (record: Parameters<typeof writeLog>[0]) => writeLog(record, { home, plugin }),
     logLabels: env.WINGMAN_LOG_LABELS === '1',
   };

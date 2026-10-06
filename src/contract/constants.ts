@@ -169,6 +169,8 @@ export const HANDOFF_REFUSAL_TEXT =
   'jev-browser-wingman forced handoff: this browser action is handled by the wingman. Call browse_step with your goal, the ordered remaining steps in steps, and every URL, file path and text in values; if it returns a step to you, call it again with pick naming the element by role and name.';
 export const CHAIN_MAX_STEPS = 12;
 export const CHAIN_MEMORY_MAX = 64;
+// r24c: distinct values the process remembers for cross-call redaction (least recently bound evicted first)
+export const VALUE_MEMORY_MAX = 1024;
 export const WAIT_OP_MS = 1_000;
 // r21 (P-2, D4): the wait act's growth-poll budget — the act polls the page's
 // scroll/growth signature for up to this long instead of one blind sleep

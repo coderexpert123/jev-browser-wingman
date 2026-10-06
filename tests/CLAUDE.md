@@ -138,6 +138,9 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
 
 - **A test that replaces `process.stdout.write` globally can silently drop other tests' TAP lines** (the runner's TAP stream rides the same stdout). After such a test, check the TOTAL test count in the run summary, and make the replacement a pass-through filter (forward everything it does not intend to swallow) instead of a sink.
 
+- **A harness gets cross-call redaction memory only when the test passes `valueMemory`** (chain.test.ts `harness` opts); `src/lib.ts`'s memory is process-wide, so lib-level tests must use values no other test in the same process binds (the r24c lib test uses `zqlib-oat-41`). A redaction test also asserts `redactionBackstopHits()` did not move: the backstop silently repairs a missed site, so only the counter shows the miss.
+- **The log record carries the page address as origin + path since r24b** (`phases.rounds[].url`), so a "no path in the log" assertion is wrong; `boundary` was red at 922617f for this and now asserts the address instead.
+
 ## § KB-mutant methodology
 
 - **A flag flip proves the feature, not its guards**: r24's flag mutants all

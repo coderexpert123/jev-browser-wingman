@@ -65,7 +65,7 @@ import { evaluatePolicy } from './policy.js';
 import { gateHeuristic } from './gate.js';
 import { gateModeOf, handoffOf, policyModeOf, takeoverOf } from './config.js';
 import { ConfirmTokenStore, type PendingAction } from './tokens.js';
-import { isPathLike, redactDeep, redactValues, typeHint } from './withhold.js';
+import { isPathLike, typeHint, compileRedaction, ValueMemory, backstopRequest, backstopLogRecord, type RedactionSet } from './withhold.js';
 import {
   buildCheckRequest,
   buildGroupRequest,
@@ -95,6 +95,15 @@ export interface LoopDeps {
   now?: () => number;
   forceMode?: Mode;
   logLabels?: boolean; // r24b (O1 b): also log element labels and the page title (redacted, capped); set only from WINGMAN_LOG_LABELS=1 (src/lib.ts)
+  valueMemory?: ValueMemory; // r24c: the process-lifetime value memory (src/lib.ts passes one per process); absent = a fresh memory per call
+}
+
+let backstopHits = 0;
+/** r24c: count of backstop hits (a site-level redaction miss) in this process; tests assert it does not move. */
+export function redactionBackstopHits(): number { return backstopHits; }
+function backstopHit(path: string): void {
+  backstopHits += 1;
+  process.stderr.write(`jev-browser-wingman: redaction backstop ${path}\n`);
 }
 
 type Answer = JevChoiceAnswer | { type: 'noul'; noul: number };
@@ -486,7 +495,7 @@ const POLICY_SIGNAL_KEYS = ['password', 'currentPassword', 'newPassword', 'otpAu
 /** r24b: a round's page address for the log: origin + pathname (the scrubUrl shape Jev already receives), values
  * redacted BEFORE the cut (a cut first could keep a partial value that redaction no longer matches); '' when
  * unparsable. */
-function telemetryUrl(u: string, values: Record<string, string>): string {
+function telemetryUrl(u: string, rs: RedactionSet): string {
   let s = '';
   try {
     const p = new URL(u);
@@ -494,7 +503,7 @@ function telemetryUrl(u: string, values: Record<string, string>): string {
   } catch {
     s = '';
   }
-  return redactValues(s, values).slice(0, TELEMETRY_URL_MAX);
+  return rs.redact(s).slice(0, TELEMETRY_URL_MAX);
 }
 
 /** r24b: an attribute-derived token (role, tag, input type) cut to TELEMETRY_ATTR_MAX. */
@@ -1482,12 +1491,12 @@ function recoverChoice(answers: AnswerMap): string {
 /** r13 D8: one error-message line with page content stripped — cut at the first
  * `<` (drops HTML snippets), quote-strip, redact bound values, collapse
  * whitespace, strip one leading `-`, cap at 120 chars. */
-function sanitizeErrorLine(line: string, values: Record<string, string>): string {
+function sanitizeErrorLine(line: string, rs: RedactionSet): string {
   let s = line;
   const lt = s.indexOf('<');
   if (lt >= 0) s = s.slice(0, lt) + '…';
   s = s.replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '…');
-  s = redactValues(s, values);
+  s = rs.redact(s);
   s = s.replace(/\s+/g, ' ').trim();
   if (s.startsWith('-')) s = s.slice(1).trim();
   return s.slice(0, 120);
@@ -1499,7 +1508,7 @@ function sanitizeErrorLine(line: string, values: Record<string, string>): string
 export function describeActError(
   e: unknown,
   op: Op | null,
-  values: Record<string, string>,
+  rs: RedactionSet,
 ): { op?: Op; head: string; tail?: string } {
   const opPart = op !== null ? { op } : {};
   if (!(e instanceof WingmanError)) {
@@ -1507,7 +1516,7 @@ export function describeActError(
   }
   const lines = e.message
     .split(/\r?\n/)
-    .map((l) => sanitizeErrorLine(l, values))
+    .map((l) => sanitizeErrorLine(l, rs))
     .filter((l) => l !== '');
   const head = lines[0] ?? '';
   return lines.length >= 2 ? { ...opPart, head, tail: lines[lines.length - 1] } : { ...opPart, head };
@@ -1747,6 +1756,8 @@ async function runTool(
   const now = deps.now ?? Date.now;
   const startedAt = now();
   const mode: Mode = deps.forceMode ?? deps.config.mode;
+  const memory = deps.valueMemory ?? new ValueMemory();
+  let redaction: RedactionSet = compileRedaction({}, memory);
   const acc = {
     jevCalls: 0,
     inputTokens: 0,
@@ -1985,7 +1996,7 @@ async function runTool(
       }
       const top = ranked.slice(0, 3).map(([id, p]) => {
         const e = obs?.elements.find((x) => x.id === id);
-        return { id: attr20(id), p, ...(e ? { role: attr20(e.role), tag: attr20(e.tag), ...(deps.logLabels === true ? { label: cut40(redactValues(e.name, values)) } : {}) } : {}) };
+        return { id: attr20(id), p, ...(e ? { role: attr20(e.role), tag: attr20(e.tag), ...(deps.logLabels === true ? { label: cut40(redaction.redact(e.name)) } : {}) } : {}) };
       });
       if (top.length > 0) cur.cands = top;
     }
@@ -2168,7 +2179,7 @@ async function runTool(
       }
     }
     try {
-      await deps.writeLog(buildLogRecord(r));
+      await deps.writeLog(backstopLogRecord(buildLogRecord(r), redaction, backstopHit));
     } catch {
       // ignore
     }
@@ -2219,7 +2230,8 @@ async function runTool(
   ): Promise<JevResult> {
     acc.jevCalls += 1;
     const tAsk = now();
-    const r = await (deps.ask as JevAsk)(request, {
+    const sent = backstopRequest(request, redaction, backstopHit);
+    const r = await (deps.ask as JevAsk)(sent, {
       purpose,
       timeoutMs: Math.min(deps.config.budgets.jev_timeout_ms, remaining() - 500),
     });
@@ -2273,7 +2285,7 @@ async function runTool(
     if (obs.repeatedGroups !== undefined && obs.repeatedGroups.length > 0) {
       raw.repeatedGroups = obs.repeatedGroups;
     }
-    return redactDeep(raw, values);
+    return redaction.redactDeep(raw);
   }
 
   /** § 5.5.7 state-size sizing (orchestrator decision, 2026-09-27): the size
@@ -2334,7 +2346,7 @@ async function runTool(
       .slice(0, 3)
       .flatMap(([id]) => {
         const el = obs.elements.find((e) => e.id === id);
-        return el ? [candidateOf(el, values)] : [];
+        return el ? [candidateOf(el, redaction)] : [];
       });
   }
 
@@ -2730,7 +2742,7 @@ async function runTool(
   ): Promise<OptionOutcome> {
     // Option labels are page text and can echo a typed value, so they leave
     // redacted against the call's bindings, like every other egress surface.
-    const chunks = buildOptionRequests({ state, select: el, bindingName, bindings: values });
+    const chunks = buildOptionRequests({ state, select: el, bindingName, redact: redaction });
     if (chunks.length === 0) return { kind: 'no-value' };
     const winners: Array<{ value: string; label: string; prob: number }> = [];
     for (const { request, ids } of chunks) {
@@ -2750,7 +2762,7 @@ async function runTool(
       return w && w.prob >= THRESHOLDS.value ? { kind: 'value', value: w.value } : { kind: 'no-value' };
     }
     if (winners.length === 0) return { kind: 'no-value' };
-    const final = buildOptionFinalRequest({ state, winners, bindings: values });
+    const final = buildOptionFinalRequest({ state, winners, redact: redaction });
     if (remaining() < TIME_FLOOR_MS) return { kind: 'budget-time' };
     const r = await askWithCost(final.request, 'wingman_do', remaining);
     if (!r.ok) return { kind: 'ask-failed', error: r.error };
@@ -2822,9 +2834,9 @@ async function runTool(
       id: el.id,
       role: attr20(el.role),
       tag: attr20(el.tag),
-      ...(deps.logLabels === true ? { label: cut40(redactValues(el.name, values)) } : {}),
-      ...(action.binding !== undefined ? { binding: redactValues(action.binding, values) } : {}),
-      ...(action.verb === 'press' && action.optionValue !== undefined ? { key: redactValues(action.optionValue, values) } : {}),
+      ...(deps.logLabels === true ? { label: cut40(redaction.redact(el.name)) } : {}),
+      ...(action.binding !== undefined ? { binding: redaction.redact(action.binding) } : {}),
+      ...(action.verb === 'press' && action.optionValue !== undefined ? { key: redaction.redact(action.optionValue) } : {}),
       token: true,
     };
     if (cur) cur.act = actTele;
@@ -2847,7 +2859,7 @@ async function runTool(
     }
     actsByOp[action.verb] = (actsByOp[action.verb] ?? 0) + 1;
     // Result labels are redacted against the call's bindings and capped (§ WP-C7 item 5).
-    lastAction = { verb: action.verb, label: capLabel(redactValues(el.name, values)) };
+    lastAction = { verb: action.verb, label: capLabel(redaction.redact(el.name)) };
     // r15 D4: the executed act enters history before any dialog return.
     const next: HistoryEntry[] = [
       ...history,
@@ -2897,6 +2909,11 @@ async function runTool(
     invalidMessage = validated.message;
     return finish(mk('error', 'invalid-input'));
   }
+
+  const callValues: Record<string, string> =
+    tool === 'wingman_check' ? {} : ((validated.input as DoInput | StepInput).values ?? {});
+  memory.bind(callValues);
+  redaction = compileRedaction(callValues, memory);
 
   if (!deps.mutex.tryAcquire()) {
     return finish(mk('blocked', 'busy'));
@@ -2955,11 +2972,9 @@ async function runTool(
       visiblePages = visiblePages.filter((p) => p.url.includes(urlMatch));
     }
     if (visiblePages.length !== 1) {
-      const values: Record<string, string> =
-        tool === 'wingman_check' ? {} : ((validated.input as DoInput | StepInput).values ?? {});
       const candidates = visiblePages
         .slice(0, 3)
-        .map((p) => ({ label: capLabel(redactValues(p.title, values)) }));
+        .map((p) => ({ label: capLabel(redaction.redact(p.title)) }));
       return await finish(mk('ambiguous', 'tab-ambiguous', { candidates }));
     }
     const pageId = visiblePages[0].id;
@@ -2985,11 +3000,7 @@ async function runTool(
     } else if (e instanceof ActFailedError) {
       reason = 'act-failed';
     }
-    actError = describeActError(
-      e,
-      inFlightOp,
-      tool === 'wingman_check' ? {} : ((validated.input as DoInput | StepInput).values ?? {}),
-    );
+    actError = describeActError(e, inFlightOp, redaction);
     return await finish(mk(status, reason));
   } finally {
     if (driver && attached) {
@@ -3016,7 +3027,7 @@ async function runTool(
       return mk('fallback', policy.reason as Reason);
     }
     const state = buildState(obs, [], null, {});
-    const request = buildCheckRequest({ state, question: check.question, values: {} });
+    const request = buildCheckRequest({ state, question: check.question, redact: redaction });
     if (remaining() < TIME_FLOOR_MS) {
       return mk('fallback', 'budget-time');
     }
@@ -3238,7 +3249,7 @@ async function runTool(
 
     // Legacy entry state: `entryPending` is true while the next round's entry
     // decision is still due. `retried` pins the at-most-one retry of § 3.19.
-    const entryStep = entry?.kind === 'legacy' ? redactValues(entry.step, values).slice(0, 300) : undefined;
+    const entryStep = entry?.kind === 'legacy' ? redaction.redact(entry.step).slice(0, 300) : undefined;
     const entryBindings = entry?.kind === 'legacy' ? bindingsInStep(entry.step, values) : [];
     // § WP-count: the one step text decideEarly's repeat-count rule checks —
     // the browse_step legacy step ONLY, never the wingman_do goal (verifier
@@ -3274,12 +3285,12 @@ async function runTool(
     // r11 Q1: `entry.clauses` is the caller's ORIGINAL array (chainState's is
     // the expanded list) — the step_texts_start telemetry names the caller's
     // own first clause.
-    if (entry?.kind === 'chain') phaseAcc.stepTextsStart = redactValues(entry.clauses[0], values).slice(0, 300);
+    if (entry?.kind === 'chain') phaseAcc.stepTextsStart = redaction.redact(entry.clauses[0]).slice(0, 300);
     const N = chain?.N ?? 0;
-    const clauseText = (i: number): string => redactValues(chain!.clauses[i], values).slice(0, 300);
+    const clauseText = (i: number): string => redaction.redact(chain!.clauses[i]).slice(0, 300);
     // r24b: the caller's steps (redacted and cut like step_texts_start) and the expanded-to-caller index map.
     if (entry?.kind === 'chain' && chain) {
-      phaseAcc.stepTexts = entry.clauses.map((c) => redactValues(c, values).slice(0, 300));
+      phaseAcc.stepTexts = entry.clauses.map((c) => redaction.redact(c).slice(0, 300));
       phaseAcc.stepParents = [...chain.parents];
     }
     const clauseReviewStep = () => capLabel(clauseText(Math.min(chain!.cursor, N - 1)));
@@ -3805,8 +3816,8 @@ async function runTool(
       }
       const obs = await observeTimed(pageId, history);
       pageUrl = obs.url;
-      bucket.url = telemetryUrl(obs.url, values);
-      if (deps.logLabels === true) bucket.title = capLabel(redactValues(obs.title, values));
+      bucket.url = telemetryUrl(obs.url, redaction);
+      if (deps.logLabels === true) bucket.title = capLabel(redaction.redact(obs.title));
       bucket.els = obs.elements.length;
       bucket.text_h = shortHash(obs.text);
       // § outcome evidence choke point: fills the last act's observed result
@@ -3823,7 +3834,7 @@ async function runTool(
         // here closes that gap; every other result shape ('filled'/'empty'/
         // 'checked'/'unchecked'/'page changed'/'no visible change'/'element
         // gone') is a fixed string redactValues leaves untouched.
-        cur.historyResult = redactValues(lastResult, values);
+        cur.historyResult = redaction.redact(lastResult);
       }
       const lastEntry = history.length > 0 ? history[history.length - 1] : undefined;
       if (chain && lastEntry?.beforeUrl !== undefined) bucket.leftPage = leftDocument(lastEntry.beforeUrl, obs.url);
@@ -3916,10 +3927,10 @@ async function runTool(
         const pick = entry!.pick!;
         const pickTele: NonNullable<PhaseRound['pickArgs']> = {
           action: pick.action,
-          ...(pick.role !== undefined ? { role: attr20(pick.role) } : {}),
-          ...(pick.name !== undefined ? { name: cut40(redactValues(pick.name, values)) } : {}),
+          ...(pick.role !== undefined ? { role: attr20(redaction.redact(pick.role)) } : {}),
+          ...(pick.name !== undefined ? { name: cut40(redaction.redact(pick.name)) } : {}),
           ...(pick.key !== undefined ? { key: pick.key } : {}),
-          ...(pick.value !== undefined ? { binding: redactValues(pick.value, values) } : {}),
+          ...(pick.value !== undefined ? { binding: redaction.redact(pick.value) } : {}),
           ...(pick.nth !== undefined ? { nth: pick.nth } : {}),
         };
         bucket.pickArgs = pickTele;
@@ -3933,7 +3944,7 @@ async function runTool(
         if (!res.ok) {
           pickUnmatched = true;
           return mk('ambiguous', 'target-uncertain', {
-            candidates: res.matches.map((m) => candidateOf(m, values)),
+            candidates: res.matches.map((m) => candidateOf(m, redaction)),
           });
         }
         const pickEl = res.el;
@@ -3971,12 +3982,12 @@ async function runTool(
           pickOption = pick.key ?? 'Enter'; // a pick press defaults to 'Enter' (§ 5.6); r17: pick.key may name the key
         }
         if (pickEl !== null && !opFits(pickVerb, pickEl)) {
-          return mk('ambiguous', 'target-uncertain', { candidates: [candidateOf(pickEl, values)] });
+          return mk('ambiguous', 'target-uncertain', { candidates: [candidateOf(pickEl, redaction)] });
         }
         if (!KB_PICK_OBSCURED && pickEl !== null && pickEl.obscured) {
-          const evidence: Array<{ label: string; role?: string; name?: string }> = [candidateOf(pickEl, values)];
+          const evidence: Array<{ label: string; role?: string; name?: string }> = [candidateOf(pickEl, redaction)];
           if (pickEl.coveredBy) {
-            evidence.push({ label: capLabel(redactValues(pickEl.coveredBy, values)) });
+            evidence.push({ label: capLabel(redaction.redact(pickEl.coveredBy)) });
           }
           return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
         }
@@ -4007,13 +4018,13 @@ async function runTool(
         const back = offeredSet.has('back');
         if (!back && urlNames.length === 0) return stuckBounce(pend);
         const sized = withStateSize(chainRoundState(obs),
-          (s) => buildRecoverRequest({ state: s, bindings: values, back, urlNames }), (p) => p);
+          (s) => buildRecoverRequest({ state: s, redact: redaction, back, urlNames }), (p) => p);
         if (!sized.ok || remaining() < TIME_FLOOR_MS) return stuckBounce(pend);
         const rr = await askWithCost(sized.payload, 'browse_step', remaining);
         if (!rr.ok) return mk('fallback', askFailReason(rr));
         const id = recoverChoice(rr.answers as AnswerMap);
         const offeredIds = new Set<string>([...(back ? ['back'] : []), ...urlNames.map((n) => RECOVER_OPEN_PREFIX + n)]);
-        bucket.stuck = offeredIds.has(id) ? redactValues(id, values) : 'give-up';
+        bucket.stuck = offeredIds.has(id) ? redaction.redact(id) : 'give-up';
         if (!offeredIds.has(id)) return stuckBounce(pend);
         chain.recoverActs += 1;
         chain.wrongPageRounds = 0;
@@ -4052,6 +4063,7 @@ async function runTool(
                 state: s,
                 elements: obs.elements,
                 bindings: values,
+                redact: redaction,
                 round,
                 ops: offered,
                 chain: chain !== null,
@@ -4162,6 +4174,7 @@ async function runTool(
                   state: sizedState,
                   elements: targetElements,
                   bindings: values,
+                  redact: redaction,
                   round,
                   chain: chain !== null,
                 });
@@ -4182,6 +4195,7 @@ async function runTool(
                 state: s,
                 elements: obs.elements,
                 bindings: values,
+                redact: redaction,
                 round,
                 ops: offered,
                 chain: chain !== null,
@@ -4324,10 +4338,10 @@ async function runTool(
             // enumerate-time probe already knows are covered).
             if (decide.el !== null && decide.el.obscured) {
               const evidence: Array<{ label: string; role?: string; name?: string }> = [
-                candidateOf(decide.el, values),
+                candidateOf(decide.el, redaction),
               ];
               if (decide.el.coveredBy) {
-                evidence.push({ label: capLabel(redactValues(decide.el.coveredBy, values)) });
+                evidence.push({ label: capLabel(redaction.redact(decide.el.coveredBy)) });
               }
               return mk('fallback', 'target-covered', {
                 step_review: { step: clauseReviewStep(), why: 'target-covered', candidates: evidence },
@@ -4391,7 +4405,7 @@ async function runTool(
               if (chosen?.obscured) {
                 const evidence = topTargetCandidates(merged, obs, values);
                 if (chosen.coveredBy) {
-                  evidence.push({ label: capLabel(redactValues(chosen.coveredBy, values)) });
+                  evidence.push({ label: capLabel(redaction.redact(chosen.coveredBy)) });
                 }
                 return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
               }
@@ -4473,7 +4487,7 @@ async function runTool(
               tag: attr20(decision.el!.tag),
               ...(decision.el!.type ? { type: attr20(decision.el!.type) } : {}),
               ...(irreversibleAnswer && irreversibleAnswer.type === 'noul' ? { irreversibleP: irreversibleAnswer.noul } : {}),
-              ...(deps.logLabels === true ? { label: cut40(redactValues(decision.el!.name, values)) } : {}),
+              ...(deps.logLabels === true ? { label: cut40(redaction.redact(decision.el!.name)) } : {}),
             };
             const pending: PendingAction = {
               url: obs.url,
@@ -4486,7 +4500,7 @@ async function runTool(
             };
             const confirmToken = deps.tokens.mint(pending);
             return mk('needs_confirmation', gate.hit ? 'irreversible-heuristic' : 'irreversible-jev', {
-              pending: { verb: decision.verb, label: capLabel(redactValues(decision.el!.name, values)) },
+              pending: { verb: decision.verb, label: capLabel(redaction.redact(decision.el!.name)) },
               confirm_token: confirmToken,
             });
           }
@@ -4521,7 +4535,7 @@ async function runTool(
         // loop and this guard would otherwise short-circuit it.
         const currentStepKey = chain ? `c${chain.cursor}` : 'single';
         if (!recoveredThisRound && isNoProgress(decision, history, currentStepKey)) {
-          const candidates = decision.el ? [candidateOf(decision.el, values)] : [];
+          const candidates = decision.el ? [candidateOf(decision.el, redaction)] : [];
           if (isBrowse) {
             const step = chain ? clauseReviewStep() : capLabel(entryStep ?? '');
             return mk('fallback', 'no-progress', { step_review: { step, why: 'no-progress', candidates } });
@@ -4560,7 +4574,7 @@ async function runTool(
               (last.path !== undefined ? target.path === last.path : target.name === last.label);
           }
           if (sameTarget) {
-            const candidates = [candidateOf(decision.el, values)];
+            const candidates = [candidateOf(decision.el, redaction)];
             const step = chain ? clauseReviewStep() : capLabel(entryStep ?? '');
             return mk('fallback', 'step-uncertain', { step_review: { step, why: 'repeat', candidates } });
           }
@@ -4577,9 +4591,9 @@ async function runTool(
         const actTele: NonNullable<PhaseRound['act']> = {
           verb: decision.verb,
           ...(decision.el ? { id: decision.el.id, role: attr20(decision.el.role), tag: attr20(decision.el.tag) } : {}),
-          ...(deps.logLabels === true && decision.el ? { label: cut40(redactValues(decision.el.name, values)) } : {}),
-          ...(decision.binding !== undefined ? { binding: redactValues(decision.binding, values) } : {}),
-          ...(decision.verb === 'press' && decision.optionValue !== undefined ? { key: redactValues(decision.optionValue, values) } : {}),
+          ...(deps.logLabels === true && decision.el ? { label: cut40(redaction.redact(decision.el.name)) } : {}),
+          ...(decision.binding !== undefined ? { binding: redaction.redact(decision.binding) } : {}),
+          ...(decision.verb === 'press' && decision.optionValue !== undefined ? { key: redaction.redact(decision.optionValue) } : {}),
         };
         bucket.act = actTele;
         const tAct = now();
@@ -4637,7 +4651,7 @@ async function runTool(
         const actLabel = decision.el
           ? decision.el.name
           : (decision.binding ?? (decision.verb === 'press' ? (decision.optionValue ?? '') : ''));
-        lastAction = { verb: decision.verb, label: capLabel(redactValues(actLabel, values)) };
+        lastAction = { verb: decision.verb, label: capLabel(redaction.redact(actLabel)) };
         // r15 D4: the executed act enters history before any dialog return, so a
         // click that opened a dialog still reaches chain memory through finish().
         history = [

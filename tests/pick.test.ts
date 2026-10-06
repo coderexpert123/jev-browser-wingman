@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validatePick, resolvePick, candidateOf, PICK_VALUE_OPS } from '../src/core/pick.js';
 import { PICK_NTH_MAX } from '../src/contract/constants.js';
+import { compileRedaction } from '../src/core/withhold.js';
 import type { ElementRecord, Observation } from '../src/contract/types.js';
 
 function el(partial: Partial<ElementRecord> & { id: string; role: string; name: string }): ElementRecord {
@@ -207,7 +208,7 @@ test('resolvePick resolves a targetless action to el null', () => {
 
 test('candidateOf redacts a planted value in the name and the label', () => {
   const e = el({ id: 'e1', role: 'textbox', name: 'Jane Doe field' });
-  const c = candidateOf(e, { full_name: 'Jane Doe' });
+  const c = candidateOf(e, compileRedaction({ full_name: 'Jane Doe' }));
   assert.equal(c.role, 'textbox');
   assert.equal(c.name, '<value:full_name> field');
   assert.equal(c.label.includes('Jane Doe'), false);
@@ -216,7 +217,7 @@ test('candidateOf redacts a planted value in the name and the label', () => {
 
 test('candidateOf caps label and name at 80 characters', () => {
   const e = el({ id: 'e1', role: 'textbox', name: 'x'.repeat(100) });
-  const c = candidateOf(e, VALUES);
+  const c = candidateOf(e, compileRedaction(VALUES));
   assert.equal(c.name.length, 80);
   assert.equal(c.label.length, 80);
 });

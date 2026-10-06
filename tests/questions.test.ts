@@ -20,7 +20,7 @@ import {
   buildCheckRequest,
   buildRecoverRequest,
 } from '../src/core/questions.js';
-import { assertNoValues } from '../src/core/withhold.js';
+import { assertNoValues, compileRedaction, ValueMemory } from '../src/core/withhold.js';
 import { PRESS_KEYS } from '../src/contract/types.js';
 import type { ElementRecord, Op } from '../src/contract/types.js';
 
@@ -52,16 +52,16 @@ test('every instruction ends with the untrusted-data sentence', () => {
 
 test('round 1 has no error question and round 2 has one', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const req1 = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1 });
-  const req2 = buildRoundRequest({ state: {}, elements, bindings: {}, round: 2 });
+  const req1 = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
+  const req2 = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 2 });
   assert.equal('error' in req1.questions, false);
   assert.equal('error' in req2.questions, true);
 });
 
 test('value question only when bindings exist', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const noBindings = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1 });
-  const withBindings = buildRoundRequest({ state: {}, elements, bindings: { name: 'Alice' }, round: 1 });
+  const noBindings = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
+  const withBindings = buildRoundRequest({ state: {}, elements, bindings: { name: 'Alice' }, redact: compileRedaction({ name: 'Alice' }), round: 1 });
   assert.equal('value' in noBindings.questions, false);
   assert.equal('value' in withBindings.questions, true);
 });
@@ -161,7 +161,7 @@ test('an empty name renders (no label)', () => {
 
 test('target criteria include none and ambiguous', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const req = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const req = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   const target = req.questions.target;
   assert.equal(target.type, 'choice');
   if (target.type === 'choice') {
@@ -173,7 +173,7 @@ test('target criteria include none and ambiguous', () => {
 test('300 elements produce a group request with 10 groups and no target', () => {
   const elements: ElementRecord[] = [];
   for (let i = 1; i <= 300; i++) elements.push(mkEl({ id: `e${i}`, name: `Item ${i}` }));
-  const { request, groups } = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const { request, groups } = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   assert.equal(groups.length, 10);
   assert.equal('target' in request.questions, false);
   assert.equal('group' in request.questions, true);
@@ -182,10 +182,10 @@ test('300 elements produce a group request with 10 groups and no target', () => 
 test('the target request covers only the top 3 groups', () => {
   const elements: ElementRecord[] = [];
   for (let i = 1; i <= 300; i++) elements.push(mkEl({ id: `e${i}`, name: `Item ${i}` }));
-  const { groups } = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const { groups } = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   const topGroupsElements = groups.slice(0, 3).flat();
   assert.equal(topGroupsElements.length, 90);
-  const targetReq = buildTargetRequest({ state: {}, elements: topGroupsElements, bindings: {}, round: 2 });
+  const targetReq = buildTargetRequest({ state: {}, elements: topGroupsElements, bindings: {}, redact: compileRedaction({}), round: 2 });
   const target = targetReq.questions.target;
   assert.equal(target.type, 'choice');
   if (target.type === 'choice') {
@@ -197,7 +197,7 @@ test('the target request covers only the top 3 groups', () => {
 test('300 options produce 2 chunk requests of at most 251 criteria', () => {
   const options = Array.from({ length: 300 }, (_, i) => ({ value: `v${i}`, label: `Option ${i}` }));
   const select = mkEl({ id: 'e1', role: 'combobox', tag: 'select', options });
-  const requests = buildOptionRequests({ state: {}, select });
+  const requests = buildOptionRequests({ state: {}, select, redact: compileRedaction({}) });
   assert.equal(requests.length, 2);
   for (const { request } of requests) {
     const optionQ = request.questions.option;
@@ -213,16 +213,16 @@ test('300 options produce 2 chunk requests of at most 251 criteria', () => {
 test('binding values never appear in any request', () => {
   const bindings = { email: 'leaktest@example.com' };
   const elements = [mkEl({ id: 'e1', name: `Field for ${bindings.email}` })];
-  const roundReq = buildRoundRequest({ state: {}, elements, bindings, round: 2 });
+  const roundReq = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 2 });
   assertNoValues(JSON.stringify(roundReq), bindings);
 
-  const { request: groupReq } = buildGroupRequest({ state: {}, elements, bindings, round: 1 });
+  const { request: groupReq } = buildGroupRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1 });
   assertNoValues(JSON.stringify(groupReq), bindings);
 
-  const targetReq = buildTargetRequest({ state: {}, elements, bindings, round: 2 });
+  const targetReq = buildTargetRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 2 });
   assertNoValues(JSON.stringify(targetReq), bindings);
 
-  const checkReq = buildCheckRequest({ state: {}, question: `Is ${bindings.email} shown?`, values: bindings });
+  const checkReq = buildCheckRequest({ state: {}, question: `Is ${bindings.email} shown?`, redact: compileRedaction(bindings) });
   assertNoValues(JSON.stringify(checkReq), bindings);
 
   const select = mkEl({
@@ -236,19 +236,19 @@ test('binding values never appear in any request', () => {
       { value: 'v2', label: 'Nothing here' },
     ],
   });
-  for (const { request } of buildOptionRequests({ state: {}, select, bindings })) {
+  for (const { request } of buildOptionRequests({ state: {}, select, redact: compileRedaction(bindings) })) {
     assertNoValues(JSON.stringify(request), bindings);
   }
   const finalReq = buildOptionFinalRequest({
     state: {},
     winners: [{ value: 'v1', label: `Mail to ${bindings.email}` }],
-    bindings,
+    redact: compileRedaction(bindings),
   });
   assertNoValues(JSON.stringify(finalReq.request), bindings);
 });
 
 test('check request carries only the answer question', () => {
-  const req = buildCheckRequest({ state: {}, question: 'Is there a Continue button?', values: {} });
+  const req = buildCheckRequest({ state: {}, question: 'Is there a Continue button?', redact: compileRedaction({}) });
   assert.deepEqual(Object.keys(req.questions), ['answer']);
   assert.equal(req.questions.answer.type, 'noul');
   assert.match(req.questions.answer.instructions, /Is there a Continue button\?/);
@@ -261,13 +261,13 @@ test('check request carries only the answer question', () => {
 
 test('Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in order', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const round = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const round = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   const action = round.questions.action;
   assert.equal(action.type, 'choice');
   if (action.type === 'choice') {
     assert.deepEqual(Object.keys(action.criteria), [...DEFAULT_OFFERED_OPS, 'none']);
   }
-  const group = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const group = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   const groupAction = group.request.questions.action;
   assert.equal(groupAction.type, 'choice');
   if (groupAction.type === 'choice') {
@@ -277,7 +277,7 @@ test('Q1: default action criteria keys are DEFAULT_OFFERED_OPS plus none, in ord
   const scoped = buildRoundRequest({
     state: {},
     elements,
-    bindings: {},
+    bindings: {}, redact: compileRedaction({}),
     round: 1,
     ops: ['wait', 'click', 'reload'] as readonly Op[],
   });
@@ -321,7 +321,7 @@ test('Q3: the url question rides only with navigate offered plus a url binding; 
   const group = buildGroupRequest({
     state: {},
     elements,
-    bindings,
+    bindings, redact: compileRedaction(bindings),
     round: 1,
     ops: ['navigate', 'fill'],
     chain: true,
@@ -334,19 +334,19 @@ test('Q3: the url question rides only with navigate offered plus a url binding; 
     assert.equal(urlQ.criteria['home'], 'home (web address)');
     assert.equal(urlQ.criteria['none'], URL_EXTRA.none);
   }
-  const roundFull = buildRoundRequest({ state: {}, elements, bindings, round: 1, ops: ['navigate', 'fill'] });
+  const roundFull = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, ops: ['navigate', 'fill'] });
   assert.ok(roundFull.questions.url, 'url question missing from the single-round request');
 
   const noUrlBinding = buildRoundRequest({
     state: {},
     elements,
-    bindings: { note: 'plain text value' },
+    bindings: { note: 'plain text value' }, redact: compileRedaction({ note: 'plain text value' }),
     round: 1,
     ops: ['navigate', 'fill'],
   });
   assert.equal('url' in noUrlBinding.questions, false);
 
-  const noNavigate = buildRoundRequest({ state: {}, elements, bindings, round: 1, ops: ['fill'] });
+  const noNavigate = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, ops: ['fill'] });
   assert.equal('url' in noNavigate.questions, false);
 });
 
@@ -356,7 +356,7 @@ test('Q4: the file question rides only with upload offered plus a path binding; 
   const group = buildGroupRequest({
     state: {},
     elements,
-    bindings,
+    bindings, redact: compileRedaction(bindings),
     round: 1,
     ops: ['upload', 'fill'],
     chain: true,
@@ -369,25 +369,25 @@ test('Q4: the file question rides only with upload offered plus a path binding; 
     assert.equal(fileQ.criteria['doc'], 'doc (file)');
     assert.equal(fileQ.criteria['none'], FILE_EXTRA.none);
   }
-  const roundFull = buildRoundRequest({ state: {}, elements, bindings, round: 1, ops: ['upload', 'fill'] });
+  const roundFull = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, ops: ['upload', 'fill'] });
   assert.ok(roundFull.questions.file, 'file question missing from the single-round request');
 
   const noPathBinding = buildRoundRequest({
     state: {},
     elements,
-    bindings: { note: 'plain text value' },
+    bindings: { note: 'plain text value' }, redact: compileRedaction({ note: 'plain text value' }),
     round: 1,
     ops: ['upload', 'fill'],
   });
   assert.equal('file' in noPathBinding.questions, false);
 
-  const noUpload = buildRoundRequest({ state: {}, elements, bindings, round: 1, ops: ['fill'] });
+  const noUpload = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, ops: ['fill'] });
   assert.equal('file' in noUpload.questions, false);
 });
 
 test('Q5: the key question criteria keys are the KEY_CRITERIA keys', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const req = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1 });
+  const req = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1 });
   const keyQ = req.questions.key;
   assert.ok(keyQ, 'key question missing with the default offered ops');
   assert.equal(keyQ.type, 'choice');
@@ -401,7 +401,7 @@ test('Q6: chain adds step_done and the focus sentence immediately before the unt
   const bindings = { name: 'Alice Exampleton' };
   const suffix = `${CHAIN_FOCUS_SENTENCE} ${UNTRUSTED_SENTENCE}`;
 
-  const round = buildRoundRequest({ state: {}, elements, bindings, round: 1, chain: true });
+  const round = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, chain: true });
   assert.equal('step_done' in round.questions, true);
   for (const id of ['action', 'target', 'value'] as const) {
     const q = round.questions[id];
@@ -409,7 +409,7 @@ test('Q6: chain adds step_done and the focus sentence immediately before the unt
       assert.ok(q.instructions.endsWith(suffix), `round request ${id} lacks the chain focus sentence`);
     }
   }
-  const group = buildGroupRequest({ state: {}, elements, bindings, round: 1, chain: true });
+  const group = buildGroupRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, chain: true });
   assert.equal('step_done' in group.request.questions, true);
   for (const id of ['action', 'group'] as const) {
     const q = group.request.questions[id];
@@ -417,7 +417,7 @@ test('Q6: chain adds step_done and the focus sentence immediately before the unt
       assert.ok(q.instructions.endsWith(suffix), `group request ${id} lacks the chain focus sentence`);
     }
   }
-  const targetReq = buildTargetRequest({ state: {}, elements, bindings, round: 2, chain: true });
+  const targetReq = buildTargetRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 2, chain: true });
   for (const id of ['target', 'value'] as const) {
     const q = targetReq.questions[id];
     if (q.type === 'choice') {
@@ -426,13 +426,13 @@ test('Q6: chain adds step_done and the focus sentence immediately before the unt
   }
 
   // Without chain: no focus sentence and no step_done.
-  const plain = buildRoundRequest({ state: {}, elements, bindings, round: 1 });
+  const plain = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1 });
   const plainAction = plain.questions.action;
   assert.equal(plainAction.type, 'choice');
   if (plainAction.type === 'choice') {
     assert.equal(plainAction.instructions.includes(CHAIN_FOCUS_SENTENCE), false);
   }
-  const plainGroup = buildGroupRequest({ state: {}, elements, bindings, round: 1 });
+  const plainGroup = buildGroupRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1 });
   assert.equal('step_done' in plainGroup.request.questions, false);
 });
 
@@ -463,33 +463,33 @@ test('Q9: chain requests never leak binding values planted in names and criterio
   const group = buildGroupRequest({
     state: {},
     elements,
-    bindings,
+    bindings, redact: compileRedaction(bindings),
     round: 2,
     chain: true,
     recover: true,
     ops: ['navigate', 'fill', 'press'],
   });
   assertNoValues(JSON.stringify(group.request), bindings);
-  const targetReq = buildTargetRequest({ state: {}, elements, bindings, round: 2, chain: true });
+  const targetReq = buildTargetRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 2, chain: true });
   assertNoValues(JSON.stringify(targetReq), bindings);
 });
 
 test('Q10: right_page and ready ride iff chain; recover rides iff recover and only where error rides; two-stage keeps all three on request 1', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const noChain = buildGroupRequest({ state: {}, elements, bindings: {}, round: 2, recover: true });
+  const noChain = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 2, recover: true });
   assert.equal('right_page' in noChain.request.questions, false);
   assert.equal('ready' in noChain.request.questions, false);
   assert.equal('recover' in noChain.request.questions, true);
 
-  const chainNoRecover = buildGroupRequest({ state: {}, elements, bindings: {}, round: 2, chain: true });
+  const chainNoRecover = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 2, chain: true });
   assert.equal('right_page' in chainNoRecover.request.questions, true);
   assert.equal('ready' in chainNoRecover.request.questions, true);
   assert.equal('recover' in chainNoRecover.request.questions, false);
 
-  const round1 = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1, chain: true, recover: true });
+  const round1 = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain: true, recover: true });
   assert.equal('recover' in round1.request.questions, false, 'recover rides where error does not (round 1)');
 
-  const both = buildGroupRequest({ state: {}, elements, bindings: {}, round: 2, chain: true, recover: true });
+  const both = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 2, chain: true, recover: true });
   for (const id of ['step_done', 'right_page', 'ready', 'recover'] as const) {
     assert.equal(id in both.request.questions, true, `${id} missing from request 1`);
   }
@@ -499,7 +499,7 @@ test('Q10: right_page and ready ride iff chain; recover rides iff recover and on
   const request2 = buildTargetRequest({
     state: {},
     elements,
-    bindings: { home: 'https://example.com/form', doc: 'C:/tmp/report.pdf' },
+    bindings: { home: 'https://example.com/form', doc: 'C:/tmp/report.pdf' }, redact: compileRedaction({ home: 'https://example.com/form', doc: 'C:/tmp/report.pdf' }),
     round: 2,
     ops: ['press', 'navigate', 'upload', 'fill'],
     chain: true,
@@ -565,7 +565,7 @@ test('Q12: right_page, ready and recover instructions, press and scroll_to crite
 
 test('Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the spec literals, back, open_<name>, give-up in order', () => {
   const bindings = { home: 'https://example.com/', email: 'person@example.org', docs: 'https://docs.example.com/x' };
-  const req = buildRecoverRequest({ state: {}, bindings, back: true, urlNames: ['home', 'docs'] });
+  const req = buildRecoverRequest({ state: {}, redact: compileRedaction(bindings), back: true, urlNames: ['home', 'docs'] });
   assert.deepEqual(Object.keys(req.questions), ['recover']);
   const q = req.questions.recover as { type: string; instructions: string; criteria: Record<string, string> };
   assert.equal(q.type, 'choice');
@@ -584,7 +584,7 @@ test('Q-r13-stuck-shape: buildRecoverRequest is one `recover` question with the 
 });
 
 test('Q-r13-stuck-noback: back:false and no url names leaves give-up as the only criterion; the error-path recover is untouched', () => {
-  const req = buildRecoverRequest({ state: {}, bindings: {}, back: false, urlNames: [] });
+  const req = buildRecoverRequest({ state: {}, redact: compileRedaction({}), back: false, urlNames: [] });
   const q = req.questions.recover as { criteria: Record<string, string> };
   assert.deepEqual(Object.keys(q.criteria), ['give-up']);
   assert.deepEqual(Object.keys(RECOVER_CRITERIA), ['back', 'reload', 'wait', 'continue', 'give-up']);
@@ -602,12 +602,12 @@ test('Q-r17-count-met: the count_met instruction equals the spec literal (C12)',
 test('Q-r17-count-met: count_met rides iff countFor, in both builders, chain and non-chain', () => {
   const elements = [mkEl({ id: 'e1' })];
   for (const chain of [true, false]) {
-    const withCount = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1, chain, countFor: 3 });
-    const without = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1, chain });
+    const withCount = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain, countFor: 3 });
+    const without = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain });
     assert.equal('count_met' in withCount.questions, true, `round builder, chain=${chain}`);
     assert.equal('count_met' in without.questions, false, `round builder, chain=${chain}`);
-    const gWith = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1, chain, countFor: 3 });
-    const gWithout = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1, chain });
+    const gWith = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain, countFor: 3 });
+    const gWithout = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain });
     assert.equal('count_met' in gWith.request.questions, true, `group builder, chain=${chain}`);
     assert.equal('count_met' in gWithout.request.questions, false, `group builder, chain=${chain}`);
   }
@@ -615,10 +615,10 @@ test('Q-r17-count-met: count_met rides iff countFor, in both builders, chain and
 
 test('Q-r17-count-met: position — immediately after the chain nouls in a group request; last in a round request', () => {
   const elements = [mkEl({ id: 'e1' })];
-  const g = buildGroupRequest({ state: {}, elements, bindings: {}, round: 1, chain: true, countFor: 3 });
+  const g = buildGroupRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain: true, countFor: 3 });
   const gKeys = Object.keys(g.request.questions);
   assert.equal(gKeys.indexOf('count_met'), gKeys.indexOf('ready') + 1, 'group request: count_met follows the chain nouls');
-  const r = buildRoundRequest({ state: {}, elements, bindings: {}, round: 1, chain: true, countFor: 3 });
+  const r = buildRoundRequest({ state: {}, elements, bindings: {}, redact: compileRedaction({}), round: 1, chain: true, countFor: 3 });
   const rKeys = Object.keys(r.questions);
   assert.equal(rKeys.indexOf('count_met'), rKeys.indexOf('ready') + 1, 'round request: count_met follows the chain nouls');
   assert.equal(rKeys[rKeys.length - 1], 'count_met');
@@ -627,9 +627,37 @@ test('Q-r17-count-met: position — immediately after the chain nouls in a group
 test('Q-r17-count-met: a count_met request never carries a binding value', () => {
   const bindings = { user: 'leaktest@example.com' };
   const elements = [mkEl({ id: 'e1' })];
-  const req = buildRoundRequest({ state: {}, elements, bindings, round: 1, chain: true, countFor: 3 });
+  const req = buildRoundRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, chain: true, countFor: 3 });
   assert.ok('count_met' in req.questions);
   assertNoValues(JSON.stringify(req), bindings);
-  const g = buildGroupRequest({ state: {}, elements, bindings, round: 1, chain: true, countFor: 3 });
+  const g = buildGroupRequest({ state: {}, elements, bindings, redact: compileRedaction(bindings), round: 1, chain: true, countFor: 3 });
   assertNoValues(JSON.stringify(g.request), bindings);
+});
+
+test('T-r24c-q-set: every builder redacts a remembered-only value', () => {
+  const SECRET = 'buy oat milk';
+  const v = { item1: SECRET };
+  const m = new ValueMemory();
+  m.bind(v);
+  const rs = compileRedaction({}, m);
+  const elements = [mkEl({ id: 'e1', name: SECRET })];
+  const round1 = buildRoundRequest({ state: {}, elements, bindings: {}, redact: rs, round: 1 });
+  const round2 = buildRoundRequest({ state: {}, elements, bindings: {}, redact: rs, round: 2, recover: true });
+  const chain = buildRoundRequest({ state: {}, elements, bindings: {}, redact: rs, round: 2, chain: true });
+  const group = buildGroupRequest({ state: {}, elements, bindings: {}, redact: rs, round: 2, chain: true, recover: true });
+  const target = buildTargetRequest({ state: {}, elements, bindings: {}, redact: rs, round: 2, chain: true });
+  const select = mkEl({ id: 'e2', role: 'combobox', tag: 'select', options: [{ value: 'v1', label: SECRET }] });
+  const options = buildOptionRequests({ state: {}, select, redact: rs });
+  const final = buildOptionFinalRequest({ state: {}, winners: [{ value: 'v1', label: SECRET }], redact: rs });
+  const check = buildCheckRequest({ state: {}, question: 'Is buy oat milk shown?', redact: rs });
+  const recover = buildRecoverRequest({ state: {}, redact: rs, back: true, urlNames: ['home'] });
+  const all: unknown[] = [round1, round2, chain, group.request, target, ...options.map((o) => o.request), final.request, check, recover];
+  for (const req of all) assertNoValues(JSON.stringify(req), v);
+  const crit = (req: { questions: Record<string, unknown> }, id: string): Record<string, string> =>
+    (req.questions[id] as { criteria: Record<string, string> }).criteria;
+  assert.ok(crit(round1, 'target').e1.includes('<value:item1>'));
+  assert.ok(crit(group.request, 'group').g1.includes('<value:item1>'));
+  assert.ok(crit(options[0].request, 'option').o1.includes('<value:item1>'));
+  assert.ok(crit(final.request, 'option').o1.includes('<value:item1>'));
+  assert.ok((check.questions.answer as { instructions: string }).instructions.includes('Is <value:item1> shown?'));
 });

@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { typeHint, redactValues, redactDeep, assertNoValues, isPathLike } from '../src/core/withhold.js';
+import {
+  typeHint, redactValues, redactDeep, assertNoValues, isPathLike,
+  compileRedaction, ValueMemory, backstopRequest, backstopLogRecord,
+} from '../src/core/withhold.js';
 import { PATH_VALUE_MAX } from '../src/contract/constants.js';
+import type { JevRequest, WingmanLogRecord } from '../src/contract/types.js';
 
 test('typeHint classifies email, phone, number, date, url and text', () => {
   assert.equal(typeHint('ada@example.com'), 'email');
@@ -64,4 +68,153 @@ test('isPathLike rejects urls, bare names, oversized and multiline values', () =
   assert.equal(oversized.length, PATH_VALUE_MAX + 1);
   assert.equal(isPathLike(oversized), false);
   assert.equal(isPathLike('line1\nline2'), false);
+});
+
+// ---- r24c: cross-call redaction (spec .build-r24c-redaction-spec.md § 4) ----
+
+test('T-r24c-wh-pass: one pass, longest first, a marker is never re-matched', () => {
+  assert.equal(redactValues('x longvalue1 y', { name1: 'longvalue1', b: 'value' }), 'x <value:name1> y');
+  const rs = compileRedaction({ a: 'Ada Lovelace' });
+  const t = 'Ada Lovelace met ada lovelace';
+  assert.equal(rs.redact(rs.redact(t)), rs.redact(t));
+  assert.equal(rs.redact(t), '<value:a> met <value:a>');
+});
+
+test('T-r24c-wh-mem-markers: remembered values keep their name; a rebound name marks its old value (earlier)', () => {
+  const m = new ValueMemory();
+  m.bind({ item1: 'buy oat milk' });
+  assert.equal(compileRedaction({}, m).redact('Buy oat milk!'), '<value:item1>!');
+  m.bind({ item1: 'walk the dog' });
+  const out = compileRedaction({ item1: 'walk the dog' }, m).redact('buy oat milk, walk the dog');
+  assert.equal(out, '<value:item1 (earlier)>, <value:item1>');
+  assert.equal(compileRedaction({ item1: 'walk the dog' }, m).redact(out), out);
+  const m2 = new ValueMemory();
+  m2.bind({ a: 'shared val', b: 'shared val' });
+  assert.equal(compileRedaction({}, m2).redact('shared val'), '<value:a>');
+  m2.bind({ c: 'shared val' });
+  assert.equal(compileRedaction({}, m2).redact('shared val'), '<value:c>');
+  assert.throws(() => compileRedaction({}, m).assertClean('has buy oat milk'), /value leak: item1/);
+});
+
+test('T-r24c-wh-mem-floor: the floor and the boolean literals', () => {
+  const m = new ValueMemory();
+  m.bind({ flag: 'true', pin: '1234', ab: 'abc' });
+  assert.equal(m.size(), 1);
+  assert.equal(
+    compileRedaction({ flag: 'true', pin: '1234', ab: 'abc' }, m).redact('true 1234 abc'),
+    '<value:flag> <value:pin> abc',
+  );
+  assert.equal(compileRedaction({}, m).redact('true 1234 abc'), 'true <value:pin> abc');
+});
+
+test('T-r24c-wh-mem-evict: least recently bound is evicted; re-binding refreshes; dedupe ignores case', () => {
+  const m = new ValueMemory(3);
+  m.bind({ a: 'aaaa1' });
+  m.bind({ b: 'bbbb2' });
+  m.bind({ c: 'cccc3' });
+  m.bind({ b: 'bbbb2' });
+  m.bind({ d: 'dddd4' });
+  assert.equal(m.size(), 3);
+  assert.equal(compileRedaction({}, m).redact('aaaa1 bbbb2 cccc3 dddd4'), 'aaaa1 <value:b> <value:c> <value:d>');
+  m.bind({ e: 'eeee5' });
+  assert.equal(
+    compileRedaction({}, m).redact('aaaa1 bbbb2 cccc3 dddd4 eeee5'),
+    'aaaa1 <value:b> cccc3 <value:d> <value:e>',
+  );
+  m.bind({ x: 'MiXeD' });
+  m.bind({ y: 'mixed' });
+  assert.equal(m.size(), 3);
+  assert.equal(compileRedaction({}, m).redact('MIXED'), '<value:y>');
+});
+
+function logRecordBase(): WingmanLogRecord {
+  return {
+    ts: 'now', tool: 'wingman_do', mode: 'on', adapter: 'fake', status: 'done', reason: 'goal-met', steps: 0,
+    host: '', gate_hits: 0, jev_calls: 0, input_tokens: 0, output_tokens: 0, ms: 0,
+  } as WingmanLogRecord;
+}
+
+test('T-r24c-wh-scope-log: the log backstop rewrites free text only', () => {
+  const rs = compileRedaction({ item: 'done' });
+  const rec: WingmanLogRecord = {
+    ...logRecordBase(),
+    step_texts: ['mark done'],
+    phases: {
+      rounds: [{ observeMs: 0, jevMs: 0, actMs: 0, settleMs: 0, kind: 'done', cands: [{ id: 'e1', p: 0.9, label: 'done list' }] }],
+    },
+  };
+  const before = JSON.stringify(rec);
+  const hits: string[] = [];
+  const out = backstopLogRecord(rec, rs, (p) => hits.push(p));
+  assert.equal(out.status, 'done');
+  assert.equal(out.phases!.rounds[0].kind, 'done');
+  assert.equal(out.step_texts![0], 'mark <value:item>');
+  assert.equal(out.phases!.rounds[0].cands![0].label, '<value:item> list');
+  assert.deepEqual(hits.sort(), ['phases.rounds[0].cands[0].label', 'step_texts[0]']);
+  assert.equal(JSON.stringify(rec), before);
+  const again: string[] = [];
+  backstopLogRecord(out, rs, (p) => again.push(p));
+  assert.deepEqual(again, []);
+});
+
+test('T-r24c-wh-scope-log-all: every listed free-text field is backstopped, fixed-vocabulary fields never', () => {
+  const rs = compileRedaction({ v: 'zzqq' });
+  const T = 'x zzqq y';
+  const rec = {
+    ...logRecordBase(),
+    status: 'zzqq', reason: 'zzqq', host: 'zzqq', adapter: 'zzqq', ts: 'zzqq',
+    step_texts_start: T,
+    step_texts: [T, T],
+    act_error: { op: 'zzqq', head: T, tail: T },
+    phases: {
+      rounds: [
+        {
+          observeMs: 0, jevMs: 0, actMs: 0, settleMs: 0,
+          kind: 'zzqq', action: 'zzqq', target1: 'zzqq',
+          url: T, title: T, step_text: T, historyResult: T, stuck: T,
+          cands: [{ id: 'zzqq', p: 0.5, role: 'zzqq', tag: 'zzqq', label: T }],
+          pickArgs: { action: 'zzqq', key: 'zzqq', name: T, role: T, binding: T },
+          gate: { rule: 'zzqq', id: 'zzqq', role: 'zzqq', verb: 'zzqq', tag: 'zzqq', type: 'zzqq', label: T },
+          act: { verb: 'zzqq', id: 'zzqq', role: 'zzqq', tag: 'zzqq', flip: 'zzqq', label: T, binding: T, key: T },
+          policy: { reason: 'zzqq' },
+        },
+      ],
+    },
+  } as unknown as WingmanLogRecord;
+  const hits: string[] = [];
+  const out = backstopLogRecord(rec, rs, (p) => hits.push(p)) as unknown as Record<string, any>;
+  const want = [
+    'step_texts_start', 'step_texts[0]', 'step_texts[1]', 'act_error.head', 'act_error.tail',
+    'phases.rounds[0].url', 'phases.rounds[0].title', 'phases.rounds[0].step_text', 'phases.rounds[0].historyResult',
+    'phases.rounds[0].stuck', 'phases.rounds[0].cands[0].label', 'phases.rounds[0].pickArgs.name',
+    'phases.rounds[0].pickArgs.role', 'phases.rounds[0].pickArgs.binding', 'phases.rounds[0].gate.label',
+    'phases.rounds[0].act.label', 'phases.rounds[0].act.binding', 'phases.rounds[0].act.key',
+  ];
+  assert.deepEqual(hits.sort(), [...want].sort());
+  assert.equal(out.step_texts_start, 'x <value:v> y');
+  const r0 = out.phases.rounds[0];
+  for (const bad of [
+    out.status, out.reason, out.host, out.adapter, out.ts, out.act_error.op, r0.kind, r0.action, r0.target1,
+    r0.cands[0].id, r0.cands[0].role, r0.cands[0].tag, r0.pickArgs.action, r0.pickArgs.key,
+    r0.gate.id, r0.gate.role, r0.gate.verb, r0.gate.tag, r0.gate.type, r0.gate.rule,
+    r0.act.verb, r0.act.id, r0.act.role, r0.act.tag, r0.act.flip, r0.policy.reason,
+  ]) {
+    assert.equal(bad, 'zzqq');
+  }
+});
+
+test('T-r24c-wh-scope-request: the request backstop never touches question types', () => {
+  const rs = compileRedaction({ c: 'choice' });
+  const req = {
+    state: { text: 'one choice here' },
+    questions: { action: { type: 'choice', instructions: 'pick a choice', criteria: { none: 'no choice' } } },
+  } as unknown as JevRequest;
+  const hits: string[] = [];
+  const out = backstopRequest(req, rs, (p) => hits.push(p)) as unknown as {
+    state: { text: string };
+    questions: { action: { type: string } };
+  };
+  assert.equal(out.questions.action.type, 'choice');
+  assert.equal(out.state.text, 'one <value:c> here');
+  assert.deepEqual(hits.sort(), ['questions.action.criteria.none', 'questions.action.instructions', 'state.text']);
 });

@@ -1,10 +1,11 @@
 // Jev question set (§ 3.6). Every instruction ends with the fixed
 // untrusted-data sentence. All strings that could carry page or typed-value
-// content pass through `redactValues` with the caller's bindings before they
-// leave this module, so a planted binding value never survives into a built
-// request (proven with `assertNoValues` in tests/questions.test.ts).
+// content pass through the call's redaction set (current values and the
+// process's value memory) before they leave this module, so a planted binding
+// value never survives into a built request (proven with `assertNoValues` in
+// tests/questions.test.ts).
 
-import { redactValues, typeHint, isPathLike } from './withhold.js';
+import { typeHint, isPathLike, type RedactionSet } from './withhold.js';
 import { CRITERION_MAX, TWO_STAGE, SELECT_CHUNK } from '../contract/constants.js';
 import type { ElementRecord, JevChoiceQuestion, JevNoulQuestion, JevRequest, Op } from '../contract/types.js';
 
@@ -166,9 +167,9 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
-function redactRecord(rec: Record<string, string>, bindings: Record<string, string>): Record<string, string> {
+function redactRecord(rec: Record<string, string>, rs: RedactionSet): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(rec)) out[k] = redactValues(v, bindings);
+  for (const [k, v] of Object.entries(rec)) out[k] = rs.redact(v);
   return out;
 }
 
@@ -212,18 +213,18 @@ export function elementCriterion(el: ElementRecord): string {
   return (base + table + attrs).slice(0, CRITERION_MAX);
 }
 
-function targetCriteria(elements: ElementRecord[], bindings: Record<string, string>): Record<string, string> {
+function targetCriteria(elements: ElementRecord[], rs: RedactionSet): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const el of elements) out[el.id] = redactValues(elementCriterion(el), bindings);
+  for (const el of elements) out[el.id] = rs.redact(elementCriterion(el));
   out.none = TARGET_EXTRA.none;
   out.ambiguous = TARGET_EXTRA.ambiguous;
   return out;
 }
 
-function valueCriteria(bindings: Record<string, string>): Record<string, string> {
+function valueCriteria(bindings: Record<string, string>, rs: RedactionSet): Record<string, string> {
   const out: Record<string, string> = {};
   for (const name of Object.keys(bindings)) {
-    out[name] = redactValues(`${name} (${typeHint(bindings[name])})`, bindings);
+    out[name] = rs.redact(`${name} (${typeHint(bindings[name])})`);
   }
   out.none = VALUE_EXTRA.none;
   return out;
@@ -237,62 +238,62 @@ function hasBindings(bindings: Record<string, string>): boolean {
 // key order; ops outside the map (reload) are never offered.
 const ACTION_OP_ORDER: readonly string[] = Object.keys(ACTION_CRITERIA).filter((k) => k !== 'none');
 
-function actionCriteriaFor(ops: readonly Op[], bindings: Record<string, string>): Record<string, string> {
+function actionCriteriaFor(ops: readonly Op[], rs: RedactionSet): Record<string, string> {
   const out: Record<string, string> = {};
   for (const op of ACTION_OP_ORDER) {
     if ((ops as readonly string[]).includes(op)) out[op] = ACTION_CRITERIA[op];
   }
   out.none = ACTION_CRITERIA.none;
-  return redactRecord(out, bindings);
+  return redactRecord(out, rs);
 }
 
 /** § 5.4: with `chain`, the focus sentence goes immediately before the fixed
  * untrusted sentence, which always stays last. */
-function chainInstruction(id: string, chain: boolean, bindings: Record<string, string>): string {
+function chainInstruction(id: string, chain: boolean, rs: RedactionSet): string {
   const base = INSTRUCTIONS[id];
   const text = chain
     ? `${base.slice(0, base.length - UNTRUSTED_SENTENCE.length)}${CHAIN_FOCUS_SENTENCE} ${UNTRUSTED_SENTENCE}`
     : base;
-  return redactValues(text, bindings);
+  return rs.redact(text);
 }
 
 /** § 5.4 key Choice: present iff `press` is among the offered ops. */
-function keyQuestion(bindings: Record<string, string>): JevChoiceQuestion {
+function keyQuestion(rs: RedactionSet): JevChoiceQuestion {
   return {
     type: 'choice',
-    instructions: redactValues(INSTRUCTIONS.key, bindings),
-    criteria: redactRecord(KEY_CRITERIA, bindings),
+    instructions: rs.redact(INSTRUCTIONS.key),
+    criteria: redactRecord(KEY_CRITERIA, rs),
   };
 }
 
 /** § 5.4 url Choice: criteria are the url-typed binding names plus `none`. */
-function urlQuestion(bindings: Record<string, string>): JevChoiceQuestion | null {
+function urlQuestion(bindings: Record<string, string>, rs: RedactionSet): JevChoiceQuestion | null {
   const urls = urlBindings(bindings);
   const names = Object.keys(urls);
   if (names.length === 0) return null;
   const criteria: Record<string, string> = {};
-  for (const name of names) criteria[name] = redactValues(`${name} (web address)`, bindings);
+  for (const name of names) criteria[name] = rs.redact(`${name} (web address)`);
   criteria.none = URL_EXTRA.none;
-  return { type: 'choice', instructions: redactValues(INSTRUCTIONS.url, bindings), criteria };
+  return { type: 'choice', instructions: rs.redact(INSTRUCTIONS.url), criteria };
 }
 
 /** § 5.4 file Choice: criteria are the path-typed binding names plus `none`. */
-function fileQuestion(bindings: Record<string, string>): JevChoiceQuestion | null {
+function fileQuestion(bindings: Record<string, string>, rs: RedactionSet): JevChoiceQuestion | null {
   const files = fileBindings(bindings);
   const names = Object.keys(files);
   if (names.length === 0) return null;
   const criteria: Record<string, string> = {};
-  for (const name of names) criteria[name] = redactValues(`${name} (file)`, bindings);
+  for (const name of names) criteria[name] = rs.redact(`${name} (file)`);
   criteria.none = FILE_EXTRA.none;
-  return { type: 'choice', instructions: redactValues(INSTRUCTIONS.file, bindings), criteria };
+  return { type: 'choice', instructions: rs.redact(INSTRUCTIONS.file), criteria };
 }
 
 /** § 5.4 recover Choice: rides only where `error` rides (round ≥ 2). */
-function recoverQuestion(bindings: Record<string, string>): JevChoiceQuestion {
+function recoverQuestion(rs: RedactionSet): JevChoiceQuestion {
   return {
     type: 'choice',
-    instructions: redactValues(INSTRUCTIONS.recover, bindings),
-    criteria: redactRecord(RECOVER_CRITERIA, bindings),
+    instructions: rs.redact(INSTRUCTIONS.recover),
+    criteria: redactRecord(RECOVER_CRITERIA, rs),
   };
 }
 
@@ -311,10 +312,10 @@ export function recoverOpenCriterion(name: string): string {
 
 /** r13: the one-question stuck recover request. Criteria keys, in order:
  * `back` (only when offered), `open_<name>` per url binding name, `give-up`.
- * Binding NAMES only ever appear; every text passes redactValues. */
+ * Binding NAMES only ever appear; every text passes the redaction set. */
 export function buildRecoverRequest(a: {
   state: object;
-  bindings: Record<string, string>;
+  redact: RedactionSet;
   back: boolean;
   urlNames: readonly string[];
 }): JevRequest {
@@ -327,15 +328,15 @@ export function buildRecoverRequest(a: {
     questions: {
       recover: {
         type: 'choice',
-        instructions: redactValues(RECOVER_STUCK_INSTRUCTION, a.bindings),
-        criteria: redactRecord(rec, a.bindings),
+        instructions: a.redact.redact(RECOVER_STUCK_INSTRUCTION),
+        criteria: redactRecord(rec, a.redact),
       },
     },
   };
 }
 
-function noul(id: string, bindings: Record<string, string>): JevNoulQuestion {
-  return { type: 'noul', instructions: redactValues(INSTRUCTIONS[id], bindings) };
+function noul(id: string, rs: RedactionSet): JevNoulQuestion {
+  return { type: 'noul', instructions: rs.redact(INSTRUCTIONS[id]) };
 }
 
 /** Shared optional params of the round builders (§ 5.4 question inclusion):
@@ -358,51 +359,52 @@ export function buildRoundRequest(a: {
   state: object;
   elements: ElementRecord[];
   bindings: Record<string, string>;
+  redact: RedactionSet;
   round: number;
 } & RoundParams): JevRequest {
   const ops = a.ops ?? DEFAULT_OFFERED_OPS;
   const chain = a.chain ?? false;
   const questions: Record<string, JevChoiceQuestion | JevNoulQuestion> = {
-    done: { type: 'noul', instructions: redactValues(INSTRUCTIONS.done, a.bindings) },
-    blocked: { type: 'noul', instructions: redactValues(INSTRUCTIONS.blocked, a.bindings) },
-    login: { type: 'noul', instructions: redactValues(INSTRUCTIONS.login, a.bindings) },
-    ...(a.round >= 2 ? { error: { type: 'noul', instructions: redactValues(INSTRUCTIONS.error, a.bindings) } } : {}),
-    irreversible: { type: 'noul', instructions: redactValues(INSTRUCTIONS.irreversible, a.bindings) },
+    done: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.done) },
+    blocked: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.blocked) },
+    login: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.login) },
+    ...(a.round >= 2 ? { error: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.error) } } : {}),
+    irreversible: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.irreversible) },
     action: {
       type: 'choice',
-      instructions: chainInstruction('action', chain, a.bindings),
-      criteria: actionCriteriaFor(ops, a.bindings),
+      instructions: chainInstruction('action', chain, a.redact),
+      criteria: actionCriteriaFor(ops, a.redact),
     },
     target: {
       type: 'choice',
-      instructions: chainInstruction('target', chain, a.bindings),
-      criteria: targetCriteria(a.elements, a.bindings),
+      instructions: chainInstruction('target', chain, a.redact),
+      criteria: targetCriteria(a.elements, a.redact),
     },
   };
   if (hasBindings(a.bindings)) {
     questions.value = {
       type: 'choice',
-      instructions: chainInstruction('value', chain, a.bindings),
-      criteria: valueCriteria(a.bindings),
+      instructions: chainInstruction('value', chain, a.redact),
+      criteria: valueCriteria(a.bindings, a.redact),
     };
   }
-  if (ops.includes('press')) questions.key = keyQuestion(a.bindings);
+  if (ops.includes('press')) questions.key = keyQuestion(a.redact);
   if (ops.includes('navigate')) {
-    const urlQ = urlQuestion(a.bindings);
+    const urlQ = urlQuestion(a.bindings, a.redact);
     if (urlQ) questions.url = urlQ;
   }
   if (ops.includes('upload')) {
-    const fileQ = fileQuestion(a.bindings);
+    const fileQ = fileQuestion(a.bindings, a.redact);
     if (fileQ) questions.file = fileQ;
   }
-  if (a.recover === true && a.round >= 2) questions.recover = recoverQuestion(a.bindings);
+  if (a.recover === true && a.round >= 2) questions.recover = recoverQuestion(a.redact);
   if (chain) {
-    questions.step_done = noul('step_done', a.bindings);
-    questions.right_page = noul('right_page', a.bindings);
-    questions.ready = noul('ready', a.bindings);
+    questions.step_done = noul('step_done', a.redact);
+    questions.right_page = noul('right_page', a.redact);
+    questions.ready = noul('ready', a.redact);
   }
   // r17 (D4): count_met rides this request only when a count was parsed.
-  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.bindings);
+  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.redact);
   return { state: a.state, questions };
 }
 
@@ -411,6 +413,7 @@ export function buildGroupRequest(a: {
   state: object;
   elements: ElementRecord[];
   bindings: Record<string, string>;
+  redact: RedactionSet;
   round: number;
 } & RoundParams): { request: JevRequest; groups: ElementRecord[][] } {
   const ops = a.ops ?? DEFAULT_OFFERED_OPS;
@@ -425,40 +428,40 @@ export function buildGroupRequest(a: {
       .map((e) => (e.name ? e.name : '(no label)'))
       .join(' | ');
     const text = `Elements ${firstId}–${lastId}: ${names}`.slice(0, GROUP_TEXT_MAX);
-    groupCriteria[`g${i + 1}`] = redactValues(text, a.bindings);
+    groupCriteria[`g${i + 1}`] = a.redact.redact(text);
   });
   const questions: Record<string, JevChoiceQuestion | JevNoulQuestion> = {
-    done: { type: 'noul', instructions: redactValues(INSTRUCTIONS.done, a.bindings) },
-    blocked: { type: 'noul', instructions: redactValues(INSTRUCTIONS.blocked, a.bindings) },
-    login: { type: 'noul', instructions: redactValues(INSTRUCTIONS.login, a.bindings) },
-    ...(a.round >= 2 ? { error: { type: 'noul', instructions: redactValues(INSTRUCTIONS.error, a.bindings) } } : {}),
-    irreversible: { type: 'noul', instructions: redactValues(INSTRUCTIONS.irreversible, a.bindings) },
+    done: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.done) },
+    blocked: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.blocked) },
+    login: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.login) },
+    ...(a.round >= 2 ? { error: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.error) } } : {}),
+    irreversible: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.irreversible) },
     action: {
       type: 'choice',
-      instructions: chainInstruction('action', chain, a.bindings),
-      criteria: actionCriteriaFor(ops, a.bindings),
+      instructions: chainInstruction('action', chain, a.redact),
+      criteria: actionCriteriaFor(ops, a.redact),
     },
     group: {
       type: 'choice',
-      instructions: chainInstruction('group', chain, a.bindings),
+      instructions: chainInstruction('group', chain, a.redact),
       criteria: groupCriteria,
     },
   };
   if (chain) {
-    questions.step_done = noul('step_done', a.bindings);
-    questions.right_page = noul('right_page', a.bindings);
-    questions.ready = noul('ready', a.bindings);
+    questions.step_done = noul('step_done', a.redact);
+    questions.right_page = noul('right_page', a.redact);
+    questions.ready = noul('ready', a.redact);
   }
   // r17 (D4): immediately after the chain nouls in the questions object.
-  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.bindings);
-  if (a.recover === true && a.round >= 2) questions.recover = recoverQuestion(a.bindings);
-  if (ops.includes('press')) questions.key = keyQuestion(a.bindings);
+  if (a.countFor !== undefined) questions.count_met = noul('count_met', a.redact);
+  if (a.recover === true && a.round >= 2) questions.recover = recoverQuestion(a.redact);
+  if (ops.includes('press')) questions.key = keyQuestion(a.redact);
   if (ops.includes('navigate')) {
-    const urlQ = urlQuestion(a.bindings);
+    const urlQ = urlQuestion(a.bindings, a.redact);
     if (urlQ) questions.url = urlQ;
   }
   if (ops.includes('upload')) {
-    const fileQ = fileQuestion(a.bindings);
+    const fileQ = fileQuestion(a.bindings, a.redact);
     if (fileQ) questions.file = fileQ;
   }
   return { request: { state: a.state, questions }, groups };
@@ -469,22 +472,23 @@ export function buildTargetRequest(a: {
   state: object;
   elements: ElementRecord[];
   bindings: Record<string, string>;
+  redact: RedactionSet;
   round: number;
 } & RoundParams): JevRequest {
   const chain = a.chain ?? false;
   const questions: Record<string, JevChoiceQuestion | JevNoulQuestion> = {
     target: {
       type: 'choice',
-      instructions: chainInstruction('target', chain, a.bindings),
-      criteria: targetCriteria(a.elements, a.bindings),
+      instructions: chainInstruction('target', chain, a.redact),
+      criteria: targetCriteria(a.elements, a.redact),
     },
-    irreversible: { type: 'noul', instructions: redactValues(INSTRUCTIONS.irreversible, a.bindings) },
+    irreversible: { type: 'noul', instructions: a.redact.redact(INSTRUCTIONS.irreversible) },
   };
   if (hasBindings(a.bindings)) {
     questions.value = {
       type: 'choice',
-      instructions: chainInstruction('value', chain, a.bindings),
-      criteria: valueCriteria(a.bindings),
+      instructions: chainInstruction('value', chain, a.redact),
+      criteria: valueCriteria(a.bindings, a.redact),
     };
   }
   return { state: a.state, questions };
@@ -495,9 +499,8 @@ export function buildOptionRequests(a: {
   state: object;
   select: ElementRecord;
   bindingName?: string;
-  bindings?: Record<string, string>;
+  redact: RedactionSet;
 }): Array<{ request: JevRequest; ids: Record<string, string> }> {
-  const bindings = a.bindings ?? {};
   const options = a.select.options ?? [];
   const chunks = chunk(options, SELECT_CHUNK);
   return chunks.map((optionChunk) => {
@@ -505,17 +508,16 @@ export function buildOptionRequests(a: {
     const ids: Record<string, string> = {};
     optionChunk.forEach((opt, i) => {
       const key = `o${i + 1}`;
-      criteria[key] = redactValues(opt.label, bindings);
+      criteria[key] = a.redact.redact(opt.label);
       ids[key] = opt.value;
     });
     criteria.none = OPTION_EXTRA.none;
     const instructions =
       a.bindingName !== undefined
-        ? redactValues(
+        ? a.redact.redact(
             `${OPTION_INSTRUCTION_BASE} The supplied value's name is "${a.bindingName}". ${UNTRUSTED_SENTENCE}`,
-            bindings,
           )
-        : redactValues(INSTRUCTIONS.option, bindings);
+        : a.redact.redact(INSTRUCTIONS.option);
     const questions: Record<string, JevChoiceQuestion> = {
       option: { type: 'choice', instructions, criteria },
     };
@@ -527,19 +529,18 @@ export function buildOptionRequests(a: {
 export function buildOptionFinalRequest(a: {
   state: object;
   winners: Array<{ value: string; label: string }>;
-  bindings?: Record<string, string>;
+  redact: RedactionSet;
 }): { request: JevRequest; ids: Record<string, string> } {
-  const bindings = a.bindings ?? {};
   const criteria: Record<string, string> = {};
   const ids: Record<string, string> = {};
   a.winners.forEach((w, i) => {
     const key = `o${i + 1}`;
-    criteria[key] = redactValues(w.label, bindings);
+    criteria[key] = a.redact.redact(w.label);
     ids[key] = w.value;
   });
   criteria.none = OPTION_EXTRA.none;
   const questions: Record<string, JevChoiceQuestion> = {
-    option: { type: 'choice', instructions: redactValues(INSTRUCTIONS.option, bindings), criteria },
+    option: { type: 'choice', instructions: a.redact.redact(INSTRUCTIONS.option), criteria },
   };
   return { request: { state: a.state, questions }, ids };
 }
@@ -548,10 +549,10 @@ export function buildOptionFinalRequest(a: {
 export function buildCheckRequest(a: {
   state: object;
   question: string;
-  values: Record<string, string>;
+  redact: RedactionSet;
 }): JevRequest {
   const truncated = a.question.slice(0, 300);
-  const instructions = redactValues(INSTRUCTIONS.answer.replace('<question>', truncated), a.values);
+  const instructions = a.redact.redact(INSTRUCTIONS.answer.replace('<question>', truncated));
   const questions: Record<string, JevNoulQuestion> = {
     answer: { type: 'noul', instructions },
   };

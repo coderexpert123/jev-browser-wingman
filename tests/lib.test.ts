@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createWingman } from '../src/lib.js';
 import { FakeDriver } from './helpers/fake-driver.js';
-import type { JevAsk, Observation, PageInfo } from '../src/contract/types.js';
+import type { JevAsk, JevRequest, Observation, PageInfo } from '../src/contract/types.js';
 
 const cleanSignals = {
   password: false,
@@ -66,4 +66,34 @@ test('lib: WINGMAN_LOG_LABELS=1 puts the page title in the log; absent or 0 keep
   assert.equal(off.hasTitle, false);
   const zero = await runOnce({ WINGMAN_LOG_LABELS: '0' }, 'r24b lib wiring goal zero');
   assert.equal(zero.hasTitle, false);
+});
+
+test('lib: a value bound through one createWingman instance is redacted in a later instance (one memory per process)', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'wingman-lib-'));
+  try {
+    fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({ mode: 'on' }));
+    const env = { WINGMAN_HOME: home, WINGMAN_CDP_ENDPOINT: 'http://127.0.0.1:9222', TYPESAFE_API_KEY: 'k' };
+    const requests: JevRequest[] = [];
+    const recordingAsk: JevAsk = async (request) => {
+      requests.push(request);
+      return { ok: false, error: 'network', latencyMs: 1, retries: 0 };
+    };
+    const d1 = new FakeDriver({ pages: [page()], observations: { p1: [observation({ title: 'Home' })] } });
+    const w1 = await createWingman({ env, driver: d1, ask: recordingAsk });
+    await w1.do({ goal: 'r24c lib bind goal', values: { item: 'zqlib-oat-41' } });
+    const n = requests.length;
+    const d2 = new FakeDriver({
+      pages: [page()],
+      observations: { p1: [observation({ title: 'List zqlib-oat-41', text: 'item zqlib-oat-41' })] },
+    });
+    const w2 = await createWingman({ env, driver: d2, ask: recordingAsk });
+    await w2.do({ goal: 'r24c lib later goal zqlib-oat-41' });
+    assert.ok(requests.length > n, 'the later instance reached the wire');
+    for (const req of requests.slice(n)) {
+      assert.equal(JSON.stringify(req).toLowerCase().includes('zqlib-oat-41'), false);
+    }
+    assert.ok(JSON.stringify(requests[n]).includes('<value:item>'));
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
 });

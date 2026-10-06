@@ -404,8 +404,8 @@ test('lock-held refuses before attaching', async () => {
   assert.equal(h.driver.events.some((e) => e.kind === 'attach'), false);
 });
 
-test('one log record per call with no path, title, label, value or page text', async () => {
-  const markers = ['secret-path-XYZ', 'SecretTitle', 'SecretLabel', 'SecretValue', 'SecretText'];
+test('one log record per call with no title, label, value or page text (the page address is origin + path)', async () => {
+  const markers = ['SecretTitle', 'SecretLabel', 'SecretValue', 'SecretText'];
   const h = harness({
     observations: {
       p1: [
@@ -422,6 +422,11 @@ test('one log record per call with no path, title, label, value or page text', a
   const r = await h.call({ goal: 'g', values: { q: 'SecretValue' } });
   assert.equal(r.status, 'done');
   assert.equal(h.records.length, 1);
+  assert.equal(
+    h.records[0].phases?.rounds[0].url,
+    'https://example.com/secret-path-XYZ',
+    'r24b logs the page address as origin + path, by design',
+  );
   const serialized = JSON.stringify(h.records[0]);
   for (const marker of markers) {
     assert.equal(serialized.includes(marker), false, `log record leaked ${marker}`);

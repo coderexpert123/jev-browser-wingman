@@ -3,7 +3,7 @@
 import { PICK_NTH_MAX, LABEL_MAX } from '../contract/constants.js';
 import { OPS, OPTIONAL_TARGET_OPS, PRESS_KEYS, TARGETLESS_OPS, type Op, type PickInput, type ElementRecord, type Observation } from '../contract/types.js';
 import { elementCriterion } from './questions.js';
-import { redactValues } from './withhold.js';
+import type { RedactionSet } from './withhold.js';
 
 /** Pick actions that carry a binding value (§ 5.6). fill/select/upload take it
  * from values; navigate takes a url-typed binding. */
@@ -129,11 +129,11 @@ export function resolvePick(obs: Observation, pick: PickInput): PickResolution {
  * like every criterion string. */
 export function candidateOf(
   el: ElementRecord,
-  values: Record<string, string>,
+  rs: RedactionSet,
 ): { label: string; role: string; name: string } {
   return {
-    label: redactValues(elementCriterion(el), values).slice(0, LABEL_MAX),
+    label: rs.redact(elementCriterion(el)).slice(0, LABEL_MAX),
     role: el.role,
-    name: redactValues(el.name, values).slice(0, LABEL_MAX),
+    name: rs.redact(el.name).slice(0, LABEL_MAX),
   };
 }

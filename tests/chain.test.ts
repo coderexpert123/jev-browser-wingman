@@ -12,12 +12,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runDo, runStep, expandClauses, parseRepeatCount, splitCompoundClause, describeActError, type LoopDeps } from '../src/core/loop.js';
+import { runDo, runStep, runCheck, expandClauses, parseRepeatCount, splitCompoundClause, describeActError, redactionBackstopHits, type LoopDeps } from '../src/core/loop.js';
 import { ActFailedError, NoHistoryError } from '../src/contract/errors.js';
 import { FakeDriver, type FakeDriverEvent } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
-import { assertNoValues } from '../src/core/withhold.js';
+import { assertNoValues, compileRedaction, ValueMemory } from '../src/core/withhold.js';
 import { DEFAULT_BUDGETS, POLICY_SELF_TEST_HOST, WAIT_MAX_PER_CALL } from '../src/contract/constants.js';
 import type { GateMode, PolicyMode, TakeoverMode } from '../src/contract/constants.js';
 import type {
@@ -207,6 +207,7 @@ interface Harness {
   deps: LoopDeps;
   call: (input: unknown) => Promise<WingmanResult>;
   callDo: (input: unknown) => Promise<WingmanResult>;
+  callCheck: (input: unknown) => Promise<WingmanResult>;
 }
 
 function harness(opts: {
@@ -218,6 +219,8 @@ function harness(opts: {
   now?: () => number;
   forceMode?: Mode;
   lockCheck?: () => Promise<LockCheckResult>;
+  valueMemory?: ValueMemory;
+  logLabels?: boolean;
 }): Harness {
   const driver = new FakeDriver({ pages: opts.pages ?? [page()], observations: opts.observations });
   const requests: JevRequest[] = [];
@@ -263,6 +266,8 @@ function harness(opts: {
     },
     ...(opts.now ? { now: opts.now } : {}),
     ...(opts.forceMode ? { forceMode: opts.forceMode } : {}),
+    ...(opts.valueMemory ? { valueMemory: opts.valueMemory } : {}),
+    ...(opts.logLabels ? { logLabels: opts.logLabels } : {}),
   };
   return {
     driver,
@@ -273,6 +278,7 @@ function harness(opts: {
     deps,
     call: (input: unknown) => runStep(input, deps),
     callDo: (input: unknown) => runDo(input, deps),
+    callCheck: (input: unknown) => runCheck(input, deps),
   };
 }
 
@@ -2446,12 +2452,12 @@ const V2_MESSAGE =
   'locator.click: Timeout 3000ms exceeded.\nCall log:\n  - locator resolved to <a href="chain-form.html">Form</a>';
 
 test('T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message', () => {
-  assert.deepEqual(describeActError(new ActFailedError(V1_MESSAGE), 'click', {}), {
+  assert.deepEqual(describeActError(new ActFailedError(V1_MESSAGE), 'click', compileRedaction({})), {
     op: 'click',
     head: 'locator.click: Timeout 3000ms exceeded.',
     tail: 'waiting for element to be visible, enabled and stable',
   });
-  const v2 = describeActError(new ActFailedError(V2_MESSAGE), 'click', {});
+  const v2 = describeActError(new ActFailedError(V2_MESSAGE), 'click', compileRedaction({}));
   assert.equal(v2.tail, 'locator resolved to …');
   const j2 = JSON.stringify(v2);
   for (const bad of ['href', 'chain-form', 'Form<']) assert.ok(!j2.includes(bad), `leaked ${bad}`);
@@ -2459,12 +2465,12 @@ test('T-act-error-sanitize: describeActError cuts HTML, redacts values, and neve
     describeActError(
       new ActFailedError('net::ERR_NAME_NOT_RESOLVED at https://secret.example.org/path'),
       null,
-      { target: 'https://secret.example.org/path' },
+      compileRedaction({ target: 'https://secret.example.org/path' }),
     ),
     { head: 'net::ERR_NAME_NOT_RESOLVED at <value:target>' },
   );
-  assert.deepEqual(describeActError(new TypeError('boom secret'), null, {}), { head: 'fault: TypeError' });
-  assert.deepEqual(describeActError(new NoHistoryError('no previous page'), 'back', {}), {
+  assert.deepEqual(describeActError(new TypeError('boom secret'), null, compileRedaction({})), { head: 'fault: TypeError' });
+  assert.deepEqual(describeActError(new NoHistoryError('no previous page'), 'back', compileRedaction({})), {
     op: 'back',
     head: 'no previous page',
   });
@@ -5198,4 +5204,97 @@ test('T-r24b-recheck-redaction: step texts and the gate and token-act labels are
   await g.call({ goal, steps, values, confirm_token: r1.confirm_token });
   assert.equal(r24bRounds(g, 1)[0].act!.label, 'x'.repeat(36) + '<val');
   for (const rec of g.records) assertNoValues(JSON.stringify(rec), values);
+});
+
+// ---- r24c: cross-call redaction (spec .build-r24c-redaction-spec.md § 4) ----
+
+test('T-r24c-xcall: a value bound in call 1 is redacted in call 2\'s check and in call 3\'s log and Jev requests, and in call 4\'s pick', async () => {
+  const SECRET = 'buy oat milk';
+  const v = { item1: SECRET };
+  const todoBox = (filled: boolean): ElementRecord =>
+    el({
+      id: 'e1', path: '#new', tag: 'input', role: 'textbox', name: 'New todo', type: 'text', editable: true,
+      state: { disabled: false, filled },
+      fingerprint: { tag: 'input', role: 'textbox', name: 'New todo', x: 0, y: 0 },
+    });
+  const todoCheck = (checked: boolean): ElementRecord =>
+    el({
+      id: 'e2', path: '#t1', tag: 'input', role: 'checkbox', name: SECRET, type: 'checkbox',
+      state: { disabled: false, checked },
+      fingerprint: { tag: 'input', role: 'checkbox', name: SECRET, x: 0, y: 0 },
+    });
+  const listEmpty = observation({ title: 'Todos', text: 'todos 0 items left', elements: [todoBox(false)] });
+  const listFilled = observation({ title: 'Todos', text: 'todos typing', elements: [todoBox(true)] });
+  const listOne = observation({ title: 'Todos: ' + SECRET, text: 'todos ' + SECRET + ' 1 item left', elements: [todoBox(false), todoCheck(false)] });
+  const listDone = observation({ title: 'Todos: ' + SECRET, text: 'todos ' + SECRET + ' 0 items left', elements: [todoBox(false), todoCheck(true)] });
+  const h = harness({
+    observations: { p1: [listEmpty, listFilled, listOne, listOne, listDone, listDone, listOne] },
+    script: [
+      CS({ action: ['fill', { fill: 0.95, none: 0.03 }], target: ['e1', { e1: 0.97, none: 0.02 }], value: ['item1', { item1: 0.95 }] }),
+      ADV(),
+      {},
+      CS({ action: ['check', { check: 0.95, none: 0.03 }], target: ['e2', { e2: 0.97, none: 0.02 }] }),
+      ADV(),
+      ADV(),
+    ],
+    valueMemory: new ValueMemory(),
+    logLabels: true,
+  });
+  const hits0 = redactionBackstopHits();
+  const r1 = await h.call({ goal: 'r24c-xcall goal 1', steps: ['type the value named item1 into the New todo field'], values: v });
+  assert.equal(r1.status, 'done');
+  const n1 = h.requests.length;
+  const c1 = h.records.length;
+  const r2 = await h.callCheck({ question: 'Is buy oat milk listed?' });
+  const n2 = h.requests.length;
+  const c2 = h.records.length;
+  const r3 = await h.call({ goal: 'r24c-xcall goal 3', steps: ['check the buy oat milk todo'] });
+  const n3 = h.requests.length;
+  const c3 = h.records.length;
+  const r4 = await h.call({ goal: 'r24c-xcall goal 4', steps: ['uncheck the buy oat milk todo'], pick: { role: 'checkbox', name: SECRET, action: 'uncheck' } });
+  assert.equal(r2.status, 'done');
+  assert.equal(r3.status, 'done');
+  assert.equal(r4.status, 'done');
+  // Calls 2-4 never carry the value: every request, record and result is clean.
+  for (const req of h.requests.slice(n1)) assertNoValues(JSON.stringify(req), v);
+  for (const rec of h.records.slice(c1)) assertNoValues(JSON.stringify(rec), v);
+  for (const r of [r2, r3, r4]) assertNoValues(JSON.stringify(r), v);
+  // Call 2: the check question and the page title ride redacted.
+  const checkReq = h.requests[n1];
+  assert.equal(n2 - n1, 1);
+  assert.ok((checkReq.questions.answer as { instructions: string }).instructions.includes('Is <value:item1> listed?'));
+  assert.equal((checkReq.state as { title: string }).title, 'Todos: <value:item1>');
+  // Call 3: the step text, the target criteria, the log record.
+  const call3First = h.requests[n2];
+  assert.equal((call3First.state as { step: string }).step, 'check the <value:item1> todo');
+  assert.ok((call3First.questions.target as { criteria: Record<string, string> }).criteria.e2.includes('<value:item1>'));
+  assert.ok(n3 > n2);
+  const rec3 = h.records[c2];
+  assert.deepEqual(rec3.step_texts, ['check the <value:item1> todo']);
+  const rd3 = rec3.phases!.rounds[0];
+  assert.equal(rd3.step_text, 'check the <value:item1> todo');
+  assert.equal(rd3.title, 'Todos: <value:item1>');
+  const cand = rd3.cands!.find((c) => c.id === 'e2');
+  assert.ok(cand !== undefined && cand.label !== undefined && cand.label.includes('<value:item1>'));
+  // Call 4: the pick name is redacted in the record and the result label, while the raw-name pick still resolves.
+  const rec4 = h.records[c3];
+  assert.equal(rec4.phases!.rounds[0].pickArgs!.name, '<value:item1>');
+  assert.equal(r4.last_action!.label, '<value:item1>');
+  const acts = h.driver.actCalls().map((a) => [a.op, a.elementId, a.value]);
+  const toggles = acts.filter((a) => a[0] === 'check' || a[0] === 'uncheck');
+  assert.deepEqual(toggles, [['check', 'e2', undefined], ['uncheck', 'e2', undefined]]);
+  assert.equal(redactionBackstopHits(), hits0);
+});
+
+test('T-r24c-pickrole: a pick role that equals a remembered value is redacted at the site, never by the backstop', async () => {
+  const SECRET = 'buy oat milk';
+  const m = new ValueMemory();
+  m.bind({ item1: SECRET });
+  const h = harness({ observations: { p1: [observation()] }, script: [CS()], valueMemory: m });
+  const hits0 = redactionBackstopHits();
+  const r = await h.call({ goal: 'r24c-pickrole goal', steps: ['click the Details button'], pick: { role: SECRET, name: 'Details', action: 'click' } });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(h.records[0].phases!.rounds[0].pickArgs!.role, '<value:item1>');
+  assertNoValues(JSON.stringify(h.records[0]), { item1: SECRET });
+  assert.equal(redactionBackstopHits(), hits0);
 });
