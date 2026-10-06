@@ -299,3 +299,30 @@ test('handback-triage suspect rule: a repeated identical clause is not a re-run 
   assert.equal(v.direct, true);
   assert.equal(v.same, false);
 });
+
+// r24b recheck: teeth for two survivors of the mutation pass (sameChain compared lengths only; the per-task repeat counter was never
+// exercised with two reps, but the cloud prompt runs `--explain '<task>#<rep>'` on a repeats-2 gauntlet).
+test('handback-triage recheck: sameChain compares the step texts, not only their count', () => {
+  assert.equal(sameChain({ step_texts: ['click X', 'click Y'] }, { step_texts: ['click X', 'click X'] }), false);
+  assert.equal(sameChain({ step_texts: ['click X', 'click X'] }, { step_texts: ['click X', 'click X'] }), true);
+  // same length, different chain, cursor advanced: the pure text rule applies, so the re-run is still a suspect
+  const call1: any = { ...rec('fallback', 'low-confidence', [{ kind: 'advance', step_text: 'click X', sameDocEvidence: true, cursor: 0 }], 'low-confidence'), step_texts: ['click X', 'click Y'] };
+  const call2: any = { ...rec('done', 'goal-met', [{ kind: 'act', step_text: 'click X', cursor: 1 }, { kind: 'done', step_text: 'click X', cursor: 1 }]), step_texts: ['click X', 'click X'] };
+  assert.equal(isRerun(call1, call1.phases.rounds[0], call2), true);
+});
+
+test('handback-triage recheck: the second repeat of a task is cell #2 for suspects and --explain', () => {
+  const clean = rec('done', 'goal-met', [{ kind: 'done', step_text: 'click X' }]);
+  const rep2 = [
+    rec('fallback', 'low-confidence', [{ kind: 'advance', step_text: 'click X', sameDocEvidence: true }], 'low-confidence'),
+    rec('done', 'goal-met', [{ kind: 'done', step_text: 'click X' }]),
+  ];
+  const all = [clean, ...rep2];
+  const results = { runs: [run('t-x', [clean]), run('t-x', rep2)] };
+  const out = triage(results, jsonl(all));
+  assert.deepEqual(out.cells.map((c: any) => `${c.task}#${c.rep}`), ['t-x#1', 't-x#2']);
+  assert.equal(out.suspect_lines[0], 'suspect t-x#2/call1/r1/sameDocEvidence');
+  const lines = explainCell(results, jsonl(all), 't-x#2');
+  assert.equal(lines[0], 'EXPLAIN t-x#2 ok=true calls=2 tool_calls=2 usd=0.1');
+  assert.throws(() => explainCell(results, jsonl(all), 't-x#3'), /unknown cell t-x#3/);
+});

@@ -5164,3 +5164,38 @@ test('T-r24b-labels: element labels and the page title reach the log only under 
   assert.equal(tact.label, 'Place order');
   assert.equal(tact.token, true);
 });
+
+// r24b recheck: mutation survivors. Deleting the redaction of the caller's step texts, the redaction of the gate label or of the
+// confirmed-token act label, or the query-dropping URL shape left every test green; each leg below fails against that deletion.
+test('T-r24b-recheck-redaction: step texts and the gate and token-act labels are redacted, and the page address drops its query and fragment', async () => {
+  const values = { secret: 'SECRETVAL' };
+
+  const h = harness({ observations: { p1: [observation()] }, script: [CS(), ADV()] });
+  await h.call({ goal: 'r24b recheck goal A', steps: ['click Details SECRETVAL'], values });
+  assert.deepEqual(h.records[0].step_texts, ['click Details <value:secret>']);
+  assertNoValues(JSON.stringify(h.records[0]), values);
+
+  const hq = harness({
+    observations: { p1: [observation({ url: 'https://example.com/path?token=abc123XYZ&k=1#frag' })] },
+    script: [CS(), ADV()],
+  });
+  await hq.call({ goal: 'r24b recheck goal B', steps: ['click Details'] });
+  assert.equal(r24bRounds(hq)[0].url, 'https://example.com/path');
+  assert.equal(JSON.stringify(hq.records[0]).includes('abc123XYZ'), false);
+
+  const goal = 'r24b recheck goal C';
+  const steps = ['click Place order'];
+  const g = harness({
+    observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'x'.repeat(36) + 'SECRETVAL' })] })] },
+    script: [CS(), ADV()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  g.deps.logLabels = true;
+  const r1 = await g.call({ goal, steps, values });
+  assert.equal(r1.status, 'needs_confirmation');
+  const rsg = r24bRounds(g, 0);
+  assert.equal(rsg[rsg.length - 1].gate!.label, 'x'.repeat(36) + '<val');
+  await g.call({ goal, steps, values, confirm_token: r1.confirm_token });
+  assert.equal(r24bRounds(g, 1)[0].act!.label, 'x'.repeat(36) + '<val');
+  for (const rec of g.records) assertNoValues(JSON.stringify(rec), values);
+});

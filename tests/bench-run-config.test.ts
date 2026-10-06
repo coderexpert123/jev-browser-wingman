@@ -6,6 +6,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -40,6 +41,7 @@ import {
   observedListsFileName,
   parseCallerVersion,
   readCallerVersion,
+  readGitInfo,
   sha256Hex,
   toolTextSha256,
   wingmanConfigSha256,
@@ -1012,4 +1014,24 @@ test('r24b amendment: the pushed results JSON carries hashes and counts only; th
   assert.equal(r2.exit, 0, r2.out + r2.err);
   assert.equal(readResults(h2.resultsDir).observed_lists, null);
   assert.equal(listsFiles(h2.resultsDir).length, 0);
+});
+
+// r24b recheck: readGitInfo had no test (a mutation that made `dirty` always false survived). The recorded git_head / git_dirty are
+// the only record of which code a run measured, so each shape is pinned against a real repository.
+test('r24b recheck: readGitInfo reports the HEAD and tracked-file dirtiness of a real checkout, and nulls outside one', () => {
+  const dir = tmpDir('jevw-rc-git-');
+  const git = (...args: string[]): string =>
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...args], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  git('init', '-q');
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'one\n');
+  git('add', 'a.txt');
+  git('commit', '-q', '-m', 'one');
+  const head = git('rev-parse', 'HEAD').trim();
+  assert.deepEqual(readGitInfo(dir), { head, dirty: false });
+  fs.writeFileSync(path.join(dir, 'untracked.txt'), 'x\n');
+  assert.deepEqual(readGitInfo(dir), { head, dirty: false }, 'an untracked file is not dirt');
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'two\n');
+  assert.deepEqual(readGitInfo(dir), { head, dirty: true }, 'a modified tracked file is dirt');
+  assert.deepEqual(readGitInfo(path.join(dir, 'does-not-exist')), { head: null, dirty: null });
+  fs.rmSync(dir, { recursive: true, force: true });
 });
