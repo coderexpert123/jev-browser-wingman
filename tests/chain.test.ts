@@ -4484,3 +4484,82 @@ test('T-r24-hover-gate: a hover act under a clause that does not name hover neve
   assert.equal(rb.status, 'fallback');
   assert.equal(r24Rounds(b).filter((x) => x.hoverEvidence !== undefined).length, 0);
 });
+
+// ---- r24 WP3: the press focus-sum commit ----
+
+const todoEl = el({
+  id: 'e1',
+  path: '#todo',
+  tag: 'input',
+  role: 'textbox',
+  name: 'New todo',
+  editable: true,
+  state: { disabled: false, filled: true },
+  fingerprint: { tag: 'input', role: 'textbox', name: 'New todo', x: 0, y: 0 },
+});
+const todoFocus = { path: '#todo', role: 'textbox', name: 'New todo' };
+const todoPage = observation({ elements: [todoEl], focus: todoFocus, text: 'todos' });
+const todoAdded = observation({ elements: [todoEl], focus: todoFocus, text: 'todos item1' });
+const splitNone = (): SeqEntry =>
+  PRESS(0.5, 'Enter', { target: ['none', { none: 0.5, e1: 0.47, ambiguous: 0.03 }] });
+
+test('T-r24-pressfocus: a press split between none and the focused field commits targetless', async () => {
+  const a = harness({ observations: { p1: [todoPage, todoAdded] }, script: [splitNone(), ADV()] });
+  const ra = await a.call({ goal: 'r24-pressfocus goal a', steps: ['press Enter to confirm'] });
+  assert.equal(ra.status, 'done', `leg a: expected done, got ${ra.status}/${ra.reason}`);
+  assert.deepEqual(actsOf(a), [['press', null, 'Enter']]);
+  assert.equal(r24Rounds(a)[0].pressFocusSum, true);
+  const b = harness({
+    observations: { p1: [todoPage, todoAdded] },
+    script: [PRESS(0.5, 'Enter', { target: ['e1', { e1: 0.52, none: 0.45, ambiguous: 0.03 }] }), ADV()],
+  });
+  const rb = await b.call({ goal: 'r24-pressfocus goal b', steps: ['press Enter to confirm'] });
+  assert.equal(rb.status, 'done', `leg b: expected done, got ${rb.status}/${rb.reason}`);
+  assert.deepEqual(actsOf(b), [['press', null, 'Enter']]);
+  assert.equal(r24Rounds(b)[0].pressFocusSum, true);
+  // Leg c: the legacy single-step entry.
+  const c = harness({ observations: { p1: [todoPage, todoAdded] }, script: [splitNone(), { done: 0.9 }] });
+  const rc = await c.call({ goal: 'r24-pressfocus goal c', step: 'press Enter to confirm' });
+  assert.equal(rc.status, 'done', `leg c: expected done, got ${rc.status}/${rc.reason}`);
+  assert.deepEqual(actsOf(c), [['press', null, 'Enter']]);
+});
+
+test('T-r24-pressfocus-guards: no focus, a non-editable focus or a third-element choice keeps the press uncommitted', async () => {
+  const pressActs = (h: Harness) => h.driver.actCalls().filter((x) => x.op === 'press').length;
+  const run = async (name: string, obs: Observation, script: SeqEntry[]) => {
+    const h = harness({ observations: { p1: [obs] }, script });
+    const r = await h.call({ goal: `r24-pressfocus-guards goal ${name}`, steps: ['press Enter to confirm'] });
+    assert.equal(r.status, 'fallback', `leg ${name}: expected fallback, got ${r.status}/${r.reason}`);
+    assert.equal(pressActs(h), 0, `leg ${name}: no press act`);
+  };
+  // (a) no focus
+  await run('a', observation({ elements: [todoEl], text: 'todos' }), [splitNone()]);
+  // (b) focus on a non-editable button
+  const goEl = el({ id: 'e1', path: '#go', name: 'Go', editable: false });
+  await run('b', observation({ elements: [goEl], focus: { path: '#go', role: 'button', name: 'Go' }, text: 'todos' }), [splitNone()]);
+  // (c) a third element is the choice
+  const sendEl = el({ id: 'e2', path: '#send', name: 'Send', fingerprint: { tag: 'button', role: 'button', name: 'Send', x: 0, y: 0 } });
+  await run('c', observation({ elements: [todoEl, sendEl], focus: todoFocus, text: 'todos' }), [
+    PRESS(0.5, 'Enter', { target: ['e2', { e2: 0.5, none: 0.45 }] }),
+  ]);
+  // (d) the sum is below the 0.7 takeover threshold
+  await run('d', todoPage, [PRESS(0.4, 'Enter', { target: ['none', { none: 0.4, e1: 0.25, ambiguous: 0.35 }] })]);
+  // (e) wingman_do keeps its own bar: the focus-sum never fires there
+  for (const n of ['e1', 'e2']) {
+    const h = harness({
+      observations: { p1: [todoPage] },
+      script: [PRESS(0.3, 'Enter', { target: ['none', { none: 0.3, e1: 0.25, ambiguous: 0.4 }] })],
+    });
+    await h.callDo({ goal: `r24-pressfocus-guards goal ${n}` });
+    assert.equal(pressActs(h), 0, `leg ${n}: wingman_do never focus-sum commits`);
+  }
+  // (f) wingman_do with a sum >= 0.7 (none 0.4 is under its own 0.5 press-none bar): still no targetless press
+  {
+    const h = harness({
+      observations: { p1: [todoPage] },
+      script: [PRESS(0.4, 'Enter', { target: ['none', { none: 0.4, e1: 0.35, ambiguous: 0.25 }] })],
+    });
+    await h.callDo({ goal: 'r24-pressfocus-guards goal f' });
+    assert.equal(pressActs(h), 0, 'leg f: wingman_do never focus-sum commits at a 0.75 sum');
+  }
+});

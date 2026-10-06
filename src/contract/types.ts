@@ -231,6 +231,8 @@ export interface WingmanLogRecord {
       finalNavEvidence?: true;
       // r24: set only on an advance that ONLY the R3 (hover that changed the page) rule allowed.
       hoverEvidence?: true;
+      // r24: the press focus-sum commit (WP3) decided this round.
+      pressFocusSum?: true;
       // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document.
       leftPage?: boolean;
       // r15: browse_step rounds where the error rule fired: the validated recover answer (give-up when below the bar).

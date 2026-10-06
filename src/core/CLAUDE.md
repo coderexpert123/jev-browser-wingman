@@ -774,3 +774,8 @@
   rejects the #48 wrong-link landing (stepDone 0.45, same as a correct landing). Test traps: a same-document
   page-changing click followed by step_done in [0.3, 0.5) with error < 0.25 now advances (re-script below 0.3);
   a final clause's landed cross-document click at step_done >= 0.25 now ends done.
+- **Press focus-sum (r24 WP3).** `pressFocusSumCommits` extends the press-none commit:
+  choice `none` or the focused EDITABLE element (`obs.focus`), their summed probability >= the gate → targetless
+  commit at the four press-none sites (r23b sums 0.96-0.99), for browse_step (takeover) rounds only at the 0.7 takeover threshold — wingman_do keeps its own 0.5 press-none bar and never uses the focus-sum. Still targetless, so the irreversible refusal applies.
+  Test trap: an observation with `focus` on an editable plus a split press now commits.
+  Mutation note: `T-r24-pressfocus-guards` leg (e) kills a 0.5 wingman_do gate (sum 0.55); leg (f) (wingman_do, none 0.4 + focused field 0.35 = 0.75 >= 0.7) kills dropping the `takeover &&` guard alone. Both are needed.

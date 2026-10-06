@@ -229,6 +229,12 @@ const KB_FINAL_NAV = false;
  * `stepDoneWithEvidence`. Flipping restores the pre-r24 behaviour. Never
  * flip in shipped code. */
 const KB_HOVER_EVIDENCE = false;
+/** r24 WP3 KB proof switch: the press focus-sum commit — a `press` whose
+ * target answer splits between `none` and the focused editable element
+ * commits targetless when the two probabilities together reach the takeover
+ * threshold (browse_step rounds). Flipping restores the pre-r24 behaviour
+ * (only a lone `none` at the bar commits). Never flip in shipped code. */
+const KB_PRESS_FOCUS_SUM = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
@@ -920,6 +926,22 @@ function pressNoneCommits(verb: Op | string | undefined, answers: AnswerMap, gat
   if (KB_PRESS_NONE || verb !== 'press') return false;
   const target = answers['target'] as JevChoiceAnswer | undefined;
   return target?.choice === 'none' && (target.probabilities?.['none'] ?? 0) >= gate;
+}
+
+/** r24 (WP3): the press focus-sum commit — a `press` whose target answer
+ * splits between `none` and the FOCUSED editable element (obs.focus) commits
+ * targetless, exactly like the press-none commit, when the two probabilities
+ * together reach `gate`; the answer's choice must be one of the two. r23b:
+ * none 0.45-0.67 vs the focused field 0.32-0.52, sums 0.96-0.99 on all 8
+ * recorded press rounds (.build-r24-spec.md § 2.4). */
+function pressFocusSumCommits(verb: Op | string | undefined, answers: AnswerMap, gate: number, obs: Observation): boolean {
+  if (KB_PRESS_FOCUS_SUM || verb !== 'press' || obs.focus === undefined) return false;
+  const focused = obs.elements.find((e) => e.path === obs.focus!.path);
+  if (focused === undefined || focused.editable !== true) return false;
+  const target = answers['target'] as JevChoiceAnswer | undefined;
+  if (!target || (target.choice !== 'none' && target.choice !== focused.id)) return false;
+  const p = target.probabilities ?? {};
+  return (p['none'] ?? 0) + (p[focused.id] ?? 0) >= gate;
 }
 
 /** § r11 Q1 compound-clause decomposition: the action words observed in
@@ -1769,6 +1791,7 @@ async function runTool(
     stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
     sameDocEvidence?: true; finalNavEvidence?: true; hoverEvidence?: true; // r24 WP1: set only on an advance that ONLY the R1 / R2 / R3 rule allowed
+    pressFocusSum?: true;  // r24 WP3: the press focus-sum commit decided this round
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -2408,11 +2431,15 @@ async function runTool(
     // and a margin-dominating element never steals a committed key press.
     // The gate is the takeover threshold under takeover, THRESHOLDS.target
     // off it — the same bars the targetless-verb arm already uses.
-    const pressNone = pressNoneCommits(
+    const pressNonePlain = pressNoneCommits(
       verb,
       answers,
       takeover ? takeoverOf(deps.config).threshold : THRESHOLDS.target,
     );
+    // r24 (WP3): the focus-sum commit is takeover-only, at the takeover threshold.
+    const pressFocus =
+      takeover && !pressNonePlain && pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs);
+    const pressNone = pressNonePlain || pressFocus;
     // 6. target uncertainty — skipped for targetless verbs (§ 5.5.3) and for
     // a committed press-none.
     let el: ElementRecord | null = null;
@@ -2579,6 +2606,7 @@ async function runTool(
         };
       }
     }
+    if (pressFocus && cur) cur.pressFocusSum = true;
     return {
       el,
       verb,
@@ -3229,7 +3257,12 @@ async function runTool(
       obs: Observation,
       verb?: Op | string,
     ): 'no-match' | 'multi-match' | 'low-confidence' | null {
-      if (pressNoneCommits(verb, answers, takeoverOf(deps.config).threshold)) return null;
+      if (
+        pressNoneCommits(verb, answers, takeoverOf(deps.config).threshold) ||
+        pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs)
+      ) {
+        return null;
+      }
       const target = answers['target'] as JevChoiceAnswer | undefined;
       const choice = target?.choice;
       if (!target || typeof choice !== 'string') return 'no-match';
@@ -3264,7 +3297,12 @@ async function runTool(
         return marginCommitOp(probs, offered) !== null ? null : 'low-confidence';
       }
       // r17 (C6): the press-none commit precedes the target margin rule.
-      if (pressNoneCommits(choice, answers, takeoverOf(deps.config).threshold)) return null;
+      if (
+        pressNoneCommits(choice, answers, takeoverOf(deps.config).threshold) ||
+        pressFocusSumCommits(choice, answers, takeoverOf(deps.config).threshold, obs)
+      ) {
+        return null;
+      }
       return targetUncertainty(answers, obs, choice);
     }
 
@@ -4147,11 +4185,10 @@ async function runTool(
               // r17 (C6/R15): a committed press-none precedes the entry
               // uncertainty (and therefore the margin rule) — the exact
               // OG-9 defect class if missed on this path.
-              const pressNoneEntry = pressNoneCommits(
-                (merged['action'] as JevChoiceAnswer | undefined)?.choice,
-                merged,
-                takeoverOf(deps.config).threshold,
-              );
+              const entryVerb = (merged['action'] as JevChoiceAnswer | undefined)?.choice;
+              const pressNoneEntry =
+                pressNoneCommits(entryVerb, merged, takeoverOf(deps.config).threshold) ||
+                pressFocusSumCommits(entryVerb, merged, takeoverOf(deps.config).threshold, obs);
               // Amendment 2026-09-21h (two-stage action carry): the entry
               // decision reads request 1 merged under request 2.
               const uncertainty = pressNoneEntry ? null : entryUncertainty(merged, obs);
