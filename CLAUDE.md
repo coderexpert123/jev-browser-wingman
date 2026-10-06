@@ -5,32 +5,58 @@ Build spec: `pa/plans/2026-09-19-jev-browser-wingman-SPEC.md` in the PA repo
 withheld — this file rides a public-bound repository). Gates:
 `node scripts/build.mjs`, `node scripts/run-tests.mjs [--dist <dir>] [basename ...]`,
 `scripts/gates/{import-boundary,notices,lazy-chrome,readme-bench,doc-safety,window-mode}.mjs`.
-Per-round build specs live in `.build-r*-spec.md` (untracked) with their
-execution notes; this file holds only durable knowledge. Loop/evidence
+Per-round build specs live in `.build-r*-spec.md` with their
+execution notes (r17c-r23 specs and the r17/r19 mutants runners are tracked; the
+earlier specs and `.build-r*-intake.md` files stay untracked); this file holds only durable knowledge. Loop/evidence
 internals: `src/core/CLAUDE.md`. Launch texts (thread, posts,
 `blog-draft.md`, `blog-assets/make_visuals.py` — regenerates the blog PNGs
 and audits every drawn number) live in untracked `.launch/`.
 
+## Brain files (read the one that matches your work BEFORE touching it)
+
+- **Read `bench/CLAUDE.md` § Bench harness before touching `bench/` or interpreting results** — bench prompt/spawn layer, spend ledger and caps, results-file semantics, fixture server, grader-replay, public-number provenance, the t9 fragmentation diagnosis.
+- **Read `tests/CLAUDE.md` § Test infrastructure & stubs before writing, running or debugging any test in `tests/`** — stub/FakeDriver traps, runner invocation and dist freshness, off-screen headed Chrome tests.
+- **Read `tests/CLAUDE.md` § KB-mutant methodology before adding, flipping or proving a KB flag, or running the mutants pass** — flag polarity, runner anchors, hard-kill cleanup.
+- **Read `bench/CLAUDE.md` § Spike & cloud harness before touching `spike/` or `bench/cloud/`** — the spike's dist-adapter mode and byte-deterministic results, the cloud chromium wrapper's ancestor-chmod rule.
+- **Read `src/core/CLAUDE.md` before touching the loop, evidence, chain or page-scripts internals** — per-round mechanisms (r17, r20-r23), decision rules, pinned-by-grep contracts.
+- Root (this file) keeps what must fire anywhere: loop/evidence rules, tool-text and delegation policy, Chrome lifecycle & teardown and Machine traps (both fire on EVERY test or bench run: the token sweep, the leak defences, the 16 GB wedge, the reaper), adapters/CDP, enumeration, PA tooling, known failures.
+
 ## Consolidation discipline
 
-Budget: ~46,000 chars (`wc -c` gate <= 46,000). One rule, two halves:
-claims are never dropped — anecdotes and evidence-color numbers are the
-only drop classes — and per-pass gotchas merge into their TOPIC section at
-landing, never as a new dated section.
+Budget: root `CLAUDE.md` <= 40,000 chars soft, 46,000 hard (`wc -c`); leave
+headroom for additions. Move, never drop: when over budget, relocate a topic
+to its folder-level `CLAUDE.md` (it auto-loads where the work happens) or to a
+sub-file behind an active pointer ("**Read X § Heading before touching Y**",
+X in backticks; the pointer token must prefix-match the destination
+`## § Heading`). Deletion is for content that is STALE (evidence: a commit or a src file:line),
+DUPLICATED on another loaded surface (name it) or trivially recoverable (name
+the grep) — never to hit a size target. New gotchas merge into their TOPIC
+section in the file where they fire, never a new dated section. Before
+landing a restructure, run the preservation gate (`.calib/brain-check.py`,
+untracked): every old line's distinctive tokens must appear in one
+destination paragraph or be a listed exemption in `.calib/brain-exemptions.md`.
 
 ## Campaign summary (r10-r23b, 2026-09-29 -> 2026-10-05; v0.3.0 RELEASED)
 
-~20 validation rounds hardened the forced-verdict/optional-mode loop
-(cursor-pointer candidacy was REJECTED by the D12 live bar, see Enumeration;
-per-round mechanisms: `src/core/CLAUDE.md` r17/r20-r23 sections).
+~20 validation rounds hardened the forced-verdict/optional-mode loop: r15
+post-action ends -> r17 press/dialogs/login suppression -> r18 harness-3
+bench reporting + local fixtures -> r19 upload evidence, enumeration
+coverage, byte-slice fix -> r20 optional-mode
+post-action note + reset-nav retry -> r21 scoped captcha, cursor-pointer
+(REJECTED by the D12 live bar, see Enumeration), nav-settled clicks,
+grader-replay harness -> r22/r23b t9 recovery fixes (nav-shaped act retry,
+resume-skips-post-action, engagement/post-action line reconciliation) ->
+r23. Per-round mechanisms: `src/core/CLAUDE.md` r17/r20-r23 sections.
 r23 ENDED THE HEROKUAPP DEPENDENCY: 15 of 17 gauntlet shapes run on
 byte-faithful LOCAL fixtures (fixtures/pages/, served by src/fixture-server.ts
 incl. nested paths); t10 saucedemo + t11 todomvc stay LIVE as real-web canaries. v0.3.0 tagged;
 GitHub release live; the README publish table comes from the r23b
 deterministic 68-cell run (forced 34/34; r19 6da6108 was the last
-live-site table). Bench evidence: `bench/results/`; history: results branches + PA memory. Known live-site residue: the-internet
-stalled ~30 s on ~1-in-3 requests — keep the observational probe if it
-returns.
+live-site table). Round narrative: `.build-r*-spec.md` files; bench evidence:
+`bench/results/` (second-stamped, never overwrites); history: results
+branches + PA memory. Known live-site residue: the-internet stalled ~30 s on
+~1-in-3 requests for two days (r22/r22b probes) — keep the observational
+probe if it returns.
 
 ## Loop & evidence rules (harness-visible)
 
@@ -67,22 +93,20 @@ returns.
   `{...primary, ...secondary}`; the covered-target gate sits between entry
   commit and `decideTarget` — before any value ask, after the retry decision
   — so a covered target costs one ask, zero acts, no self-retry. The
-  two-stage test only covered non-entry rounds.
+  two-stage test only covered non-entry rounds, which is why the suite stayed green.
 - **`BUDGET_LIMITS` validates config `budgets.*` only** (`max_steps` [1, 24], dea43b5); caller overrides are checked inline in loop.ts: `wingman_do` 1-8, `browse_step` 1-24. `runDoRounds` takes `min(caller max_steps, config 24)`.
-- **Raising the step budget does NOT stop caller call fragmentation**: the
-  bottleneck is the calling model's planning; wingman machinery is
+- **Raising the step budget does NOT stop caller call fragmentation**: the long-chain bottleneck is the calling model's planning; wingman machinery is
   ~1 s/round, noise at wall scale.
-- **The `budgets` validation pattern silently accepts `NaN`** —
+- **The `budgets` validation pattern silently accepts `NaN` thresholds** —
   `typeof v !== 'number' || v < min || v > max` passes NaN. `budgets.*` is
   saved by `Number.isInteger`; any future plain-number config key needs an
   explicit `Number.isFinite`.
 - **Jev's grades are bimodal and honest about element choice, never
-  actability**: high when well-labeled, low when genuinely ambiguous — yet
-  most executed high grades hit `CoveredTargetError` (overlay-class covers),
+  actability**: 0.83-1.00 when well-labeled, 0.37-0.38 when genuinely ambiguous — yet 7/9 executed high grades hit `CoveredTargetError` (overlay-class covers: sticky header/consent overlay; a styled select covered by its control),
   and the question set has no "is it covered" probe (`blocked` asks only
   captcha/paywall/etc). Jev over-refused t9 form steps that execute
   fine — the routing criterion needed recalibration (pre-pass since removed), not the element table.
-  Re-asks are bimodal too: a sub-floor re-ask bouncing under the margin
+  Re-asks are bimodal too (0.66 then 0.48 on the same step): a sub-floor re-ask bouncing under the margin
   rule is correct, NOT a regression — validate grading-shape fixes by
   measured-map replay (`.calib/probe6b-replay.mjs` pattern), never one
   natural re-ask.
@@ -98,11 +122,12 @@ returns.
   the previous round's act). The nav-shaped slow path's first settle is
   `PRE_CLICK_SETTLE_MS` (4000); everything else keeps `OBS_RETRY_SETTLE_MS`
   (500). `KB_OBS_RETRY` disables all of it. loop.test.ts pins (beside the
-  r21 pins): retried-after-click (fail-first red pre-amendment),
-  no-prior-act throw green both sides, KB flip kills both.
+  r21 pins): slow-nav-shaped-after-click retried (fail-first red against a dist-patched
+  pre-amendment gate), the old wedge pin covers the no-prior-act slow throw
+  (green both sides), KB flip kills both retry pins.
 - **Hand-back triage**: a `fallback/step-uncertain` hand-back AFTER a landed
   act (`element gone` / `page changed`) is usually an under-graded stepDone
-  (0.2-0.5 vs the 0.5 evidence bar), not target uncertainty — check whether
+  (0.2-0.5 vs the evidence bars: `stepDoneWithEvidence` 0.5 for fill/select/check, `stepDoneWithNavEvidence` 0.25 for a landed own click that left the document), not target uncertainty — check whether
   acts ran (`historyResult`) before blaming target thresholds. Ranked
   fixes are in untracked `.build-r24-intake.md` — read it before any
   hand-back or ready-gate change.
@@ -117,7 +142,7 @@ returns.
 - **A tool description that leads with WHAT then lists prohibitions gets
   skipped.** Fix (39bb27e): first sentence = WHEN (one bounded goal), then a
   prefer-over-driving line WITH the benefit, then a do-NOT-use line; example
-  verbs must cover the target task shapes. Schema friction ruled out. `wingman_do` has since moved to DESCRIPTION v3 (3b44106: '>3 clicks' DEFAULT opener, anti-interleave rule last); only the check text keeps this shape.
+  verbs must cover the target task shapes. Schema friction ruled out (only `goal` required). `wingman_do` has since moved to DESCRIPTION v3 (3b44106: '>3 clicks' DEFAULT opener, anti-interleave rule last); only the check text keeps this shape.
 - **Exact-string pins must inline the SPEC's text as the expected value** —
   a pin importing the same constant the code uses compares code to code and
   never sees spec drift. Add the spec-inline comparison, not a same-constant
@@ -138,300 +163,26 @@ returns.
   `url_match` names. Spec:
   `pa/plans/2026-09-25-wingman-policy-neutral-tool-text-SPEC.md`.
 - **Tool text alone does not win delegation — withholding does.**
-  Route-neutral prompts dropped `wingman_do` on the long chain; with
+  Route-neutral prompts dropped `wingman_do` on the long chain (`typesafe.calls = 0`); with
   `browse_step` beside raw tools the caller never chose it; browse-only
-  tool lists alone gave give-up-early "wins". Forced handoff (raw page
-  tools withheld) made delegation stick. `BROWSE_ENGAGEMENT_LINE` is
+  tool lists alone gave give-up-early "wins". Forced handoff (raw page tools withheld) made delegation stick. Pre-forced
+  history: `WINGMAN_BROWSE_ONLY=1` (env since removed) fixed tool selection
+  but Jev bounced all delegations back (`route-caller`, zero takeovers) and
+  the caller declared DONE early — wall "wins" were give-up-early; an
+  engagement line raised calls 0->5 but they fell back (`jev-error` then the
+  binding defect), and the t9-shaped chain did not complete by delegation
+  (the fallback lane WAS the run: `fallback` reason `sensitive-auth-path`). `BROWSE_ENGAGEMENT_LINE` is
   single-line ASCII (em-dashes fold in win32 cmd).
 - **The caller's forward-vs-re-send recovery choice is not determined by the
-  note branch**: one cell forwarded under the post-action note, another
-  re-sent the full chain under the tier-1 note. FORCED_ENGAGEMENT_LINE's
+  note branch**: r20 cell 1 forwarded under the new post-action note; r21b
+  re-sent the full chain under the old-equivalent tier-1 note (its first call
+  ended `multi-match`, so S-1a never fired). FORCED_ENGAGEMENT_LINE's
   "call it again with the same arguments" conflicted with
   FORCED_POST_ACTION_LINE's "only the steps after this one"; the small
   caller resolved that conflict unpredictably. r22 F-3 (5c13fa0) added the
   post-action exception to FORCED_ENGAGEMENT_LINE (bench/run.ts);
   BROWSE_STEP_DESCRIPTION's 'same arguments' sentence is unchanged; not
   re-measured since.
-
-## Test infrastructure & stubs
-
-- **Config rejects an explicit `"mode": "off"`** (`invalid mode: "off"`):
-  `off` is the key-absent default (`src/core/config.ts`). Tests/fixtures
-  omit the key, never write it.
-- **The loop returns `fallback no-key` BEFORE it attaches** (`src/core/loop.ts`):
-  `if (!deps.ask)` fires before driver attach — a test asserting browser
-  contact on the first tool call must set a key/stub or records zero
-  contact.
-- **Round 2 acts again unless told not to**: the round request always
-  carries `action` and `target`; a stub answering `done` with `action`
-  defaulted clicks a second element first. Script `verb: 'none'` on
-  terminal rounds.
-- **The scripted ask echoes `S()` defaults into EVERY request** — a two-stage
-  test whose request 2 must carry no `action` needs
-  `S({ ..., action: undefined })`, or the fail-first test passes pre-fix.
-- **The scripted ask's entry index is shared across calls on one harness**:
-  script call 2's rounds explicitly (a login-resume test passes vacuously
-  otherwise; only the `loginSuppressed` telemetry assert catches it).
-- **A stub `ask` must return `usage`** (`{inputTokens, outputTokens}`) or
-  `askWithCost` throws and the call ends `error/tool-fault` with no visible
-  stack. Wrapping `createDriver(...)` by iterating `Object.keys(base)`
-  yields an EMPTY driver (methods live on the prototype) — same silent
-  fault. Diagnose either with a direct `runStep` call.
-- **`fillDefaultAnswers` (tests/helpers/typesafe-stub.ts) defaults every noul
-  to LOW (0.05)** — safe only where low is the no-op reading (done, blocked,
-  login, error, irreversible, step_done). `right_page` and `ready` are
-  INVERTED: low means "not yet"/"wrong page", which chain mode reads as a
-  real problem (mechanical `wait`, then `not-ready` after `READY_MAX_WAITS`).
-  Any chain-mode stub (any request carrying `steps`, i.e. every
-  `browse_step` call) must answer both 0.95 — check first for any NEW
-  chain-mode stub.
-- **`FakeDriver.dialogOnNextAct` is a CASCADE, not a per-act drain**: every
-  event in the array delivers, in order, during the ONE act (a second dialog
-  in the same act is otherwise unscriptable). **FakeDriver repeats the last
-  scripted observation** when a script is exhausted — a two-observation
-  script with a changed second entry shows a page change or a late landing.
-- **`evaluateOracle`'s false-only fallback**: a false-only test cannot prove
-  the oracle — keep at least one assert-true expression.
-- **`el()` (outcome-evidence helper) defaults `editable: true`** — a "plain
-  button" fixture must override `editable: false` (and tag/role) explicitly,
-  or the focus-promotion rule fires and the negative pin reads
-  `focus changed`.
-- **Two consecutive rounds acting the same (verb, element) over a single
-  static observation is a no-progress/repeat-guard trip by construction** —
-  audit the WHOLE suite on any change to `isNoProgress`/
-  `annotateLastOutcome`. A count-clause test needs every click's observation to change (or the
-  count met before any repeat) — `isNoProgress` fires before any
-  count/repeat semantics. Alternation must be strict (`round % 2`): an
-  e1/e2 alternation yields two consecutive e2 clicks by round 3 and passes
-  for the wrong reason.
-- **Optional telemetry fields on `PhaseRound` / `WingmanLogRecord`** must
-  never be assigned when the source value is undefined:
-  `assert.deepStrictEqual` treats `{k: undefined}` as different from `{}`,
-  and `tests/loop.test.ts` pins the exact round shape. Guard with
-  `!== undefined`.
-- **dist freshness — `run-tests.mjs` does NOT rebuild**: it runs whatever
-  `dist/` holds. A KB-proof run poisons the scoped `.build` until build.mjs
-  re-runs (`--dist .build/<pkg>` executes the COMPILED copy: a green-looking
-  re-run after a source restore still runs mutated JS — re-run the scoped
-  build after the last restore). Diagnostic `console.error` patches applied
-  to dist directly (for instrumenting adapter internals) survive into
-  run-tests runs and are wiped by the next `scripts/build.mjs`. Verify
-  which build a run executed before interpreting its output.
-- **`run-tests.mjs` output is pipe-buffered to the END**: an empty interim
-  output file does NOT mean a stalled run — TAP lines appear only at
-  completion when piped. `... | tail -40` shows only the last screen (a
-  2-fail summary loses the first failure). Redirect to a file, read the
-  file; check process liveness before killing anything.
-- **Runner invocations**: basenames EXCLUDE the `.test.js` suffix (`chrome`
-  -> `chrome.test.js`; `chrome.test` matches nothing). The env scrub
-  removes `TYPESAFE_API_KEY` — inject through `BenchDeps.env`, never the
-  process env.
-- **A scoped `build.mjs --out <dir> tests/cli.test.ts` compiles only the
-  test's import graph, and `cli.test.ts` spawns `src/cli/main.js` by path
-  without importing it** — every spawn test fails ("Cannot find module").
-  Pass the CLI as a second entry:
-  `node scripts/build.mjs --out <dir> tests/cli.test.ts src/cli/main.ts`.
-- **`guide.js` only exports `guideCommand`** — the CLI path under test is
-  `main.js guide`; a temp package root needs the whole compiled dist plus a
-  `node_modules` junction and `"type": "module"`.
-- **`chromeCommand` tolerates a missing `config.json`** (defaults apply), so
-  an empty-`WINGMAN_HOME` dispatch test reaches the port probe and must
-  assert chrome-cmd's `no-browser` JSON line (exit 1); unwired, `chrome
-  show` exits 2 with usage — the 2-vs-1 delta is the test's teeth.
-  The test pins a free `port` in config (233e92a), so a live Chrome on 9222
-  cannot change it.
-- **A live headed Chrome in a unit test works off-screen**: direct-spawn
-  with the anti-throttling flags plus `--window-position=-32000,-32000` on a
-  `wingman-ephemeral-` temp profile; measure via the PowerShell
-  EnumWindows/GetWindowRect pattern in `scripts/gates/window-mode.mjs`;
-  assert the off-screen PRECONDITION first. It also needs the three
-  `HEADED_ARGS` anti-backgrounding flags plus exactly ONE page target, or
-  `pages()` shows `visible:false` and the loop refuses (`tab-ambiguous` —
-  zero candidates means zero visible).
-- **`if (false && <cond>)` is not a valid KB-mutation shape**: the dead
-  branch loses TS narrowing and the build fails, silently testing the
-  PREVIOUS dist. Mutate via a `const KB_X = true` flag composed with the
-  condition (KB-mutant methodology below).
-- **Adding a dimension to `bench/config.json` silently invalidates the count
-  assertions in `tests/bench-cap.test.ts`** — any route/config-shape change
-  must re-run `bench-cap` alongside the owning package's gate.
-- **`waitForPage`'s first-match URL find returns STALE pages**: `rig.close()`
-  detaches the driver but never closes the page target, so a retry loop
-  that reopens the same fixture URL gets the OLD page and silently measures
-  the wrong document. Close the page target (`Target.closeTarget` over a
-  raw session) when discarding a rig a retry will replace by URL.
-- **Pinning "failure after an act" in a stub**: the harness's observe
-  override fires per DRIVER CALL and round 1's observe comes FIRST — a
-  "fail the first observe" stub makes round 1 (no prior act) the failure,
-  which the wedge gate correctly refuses, so the pin reds for the wrong
-  reason. Count calls and fail the SECOND.
-- **A fail-first test asserting a derived label can red for the wrong
-  reason**: a pin that expected a global round counter reds on the
-  label, not the shift — the discriminating assertions (line count,
-  paired probabilities) must carry the pre/post contrast; derive expected
-  labels from the code's own semantics.
-- **Diagnose a "slow but succeeding" CDP act by patching dist, not by
-  reading src**: source-reading blamed `EVAL_TIMEOUT_MS` (5000), the
-  guard and the dialog race — all wrong once per-substep timestamps existed
-  (cause: the `mouseMoved` stall, Machine traps). `node --test --test-name-pattern="<test name>"
-  dist/tests/<file>.test.js` reproduces single tests cheaply, but bypasses
-  run-tests' token sweep — sweep `wingman-ephemeral-` chromes after.
-
-## Bench harness
-
-- **The bench wingman-route prompt lives in `bench/run.ts` `buildPrompt`**
-  (`bench/claude-run.ts` is the spawn layer). The task goal rides verbatim
-  in every route's prompt — before that fix the goal was in no prompt
- . Fail-first proof:
-  `tests/bench-browse.test.ts` ("both routes carry the task goal verbatim").
-- **`max_turns` is often the binding ceiling, not knowledge**: the 7-page t9
-  chain needs ~2 calls/page, so a low cap is hit first. Raise it or the wall measures the turn cap (config now 40; forced 30).
-- **`detached: true` on the win32 cmd spawn in `bench/claude-run.ts`
-  swallowed ALL stream-json output** (A/B proven, 90ad51d). Never spawn
-  through `cmd /c` detached.
-- **A "wingman" route cell is only a wingman measurement if
-  `typesafe.calls > 0`** — read `bench/results/*.json` before interpreting
-  any wingman-route row.
-- **A spawned bench caller can come up with NO MCP servers despite a correct
-  `--mcp-config` absolute path** (contradicting `--strict-mcp-config`).
-  Before charging a zero-tool-call cell to a mechanism, re-probe the spawn
-  flags with a trivial prompt.
-- **`claude --model sonnet` resolves through the local GLM proxy**
-  (`glm-5.3-flash[1m]`): `usd` prices tokens at Sonnet list rates;
-  `cli_reported_usd` is the proxy's synthetic number; route-vs-route
-  stays valid. Run-level `usd` INCLUDES the Jev (typesafe) cost, `llm.usd`
-  excludes it: totals use run-level `usd`.
-- **`phaseSpentFrom` sums ALL `bench/results/*.json` forever** against the
-  hard `OPERATOR_CEILINGS.phaseUsd` — "cap USD X for this check" means
-  `--phase-cap-usd = history + X`; check the history sum first. An aborted
-  run still burns the whole phase authority; a phase-abort also trips any
-  per-run cap under `killed_run_charge_usd` (1.5). Ledger rotation is a
-  spend-authority decision, not a builder step.
-- **Two concurrent bench phases on the shared port-9344 Chrome poison each
-  other's results** (navigation collisions -> timeouts -> killed-run
-  charges). Serialize bench phases.
-- **`ensureChrome` waits only 10 s for the debug port**: a cold start can
-  exceed it and the cell dies `Chrome did not answer on port 9344` BEFORE
-  any spend. One clean immediate retry fixes it; a fresh profile may need
-  a hand warm-up first. The same window can make the lazy-chrome
-  known-bad `eager-ensure` print `ok` spuriously — rerun before diagnosing.
-- **`stopChrome` skips a Chrome it did not start** (`startedByUs: false`) —
-  sweep diagnostic/bench-profile chromes afterwards, including the surviving
-  `--type=crashpad-handler` orphan (parent dead, `stopChrome` never sees
-  it). The harness guard blocks deleting top-level `D:\` dirs.
-- **Results files are second-stamped** `YYYY-MM-DD-HHMMSS.json`, `_N` on a
-  clash, never overwrite. `--repeats N` (integer 1-5) is a CLI flag of
-  `dist/bench/run.js`.
-- **`wingman_phases.jev_ms` is a rounds-MEDIAN and per-round jev is
-  bimodal**: the run median tracks
-  delegation mix, never "Jev got slower". Scroll rounds' `act_ms` includes
-  the r17c growth wait (up to `SCROLL_GROWTH_WAIT_MS` = 1500 ms) — never
-  read it as Jev latency; a "should have caught this scroll loop"
-  diagnosis checks `scrollY` movement first.
-- **Bench walls are load-sensitive at the caller-fragmentation margin** —
-  the same cells varied >2x under agent load vs clean. Never compare cells
-  measured under different load; treat cross-pass wall ratios >2x as
-  suspect until load is accounted for.
-- **Escalation tiers must be reconstructed from log clustering, not read**:
-  `bench/.home/log.jsonl` records `status`/`reason` per call but never the
-  goal text, so a bounce's tier is only known when bounces are CONSECUTIVE.
-  **Read `log.jsonl` twice before trusting a fresh read**; `wc -l` repeat
-  or mtime check first.
-- **A leaked scratch Chrome holding the probe port silently poisons every
-  later probe**: the port-answering fetch hits the zombie, whose
-  backgrounded window reports `visibilityState: 'hidden'`, so every
-  `wingman_do` returns `tab-ambiguous` with `jev_calls=0`. Kill scratch
-  chromes by temp-profile cmdline marker (`taskkill /T /F` does not reliably
-  take the tree from a plain launcher PID), poll the port CLOSED after
-  teardown, fresh port per run.
-- **Browse-only is config, not env**: `handoff.tools` (`"browse-only"`
-  default in forced mode, `"all"` in optional) hides wingman_do/wingman_check
-  from tools/list AND refuses them at call time. The old
-  `WINGMAN_BROWSE_ONLY` env var is gone from src (tests/mcp-server.test.ts
-  asserts it is ignored; `bench/.home/mcp-browse.json` still carries it as
-  stale config). With top-level `mode` off the server lists NO tools. Probe a spawned server's tool list with SDK
-  `StdioClientTransport` against `dist/src/cli/main.js mcp` and a temp home
-  — from inside the repo tree (scratch-dir node cannot see node_modules).
-- **`wingman_do` fill probes must carry the value in `values`**: `values: {}`
-  never asks the value question and ends `no-value` — a probe artifact, not
-  an execution failure.
-- **Any future `harness_version` bump must `grep -rn harness_version tests/`
-  itself** — the r18 spec's "no external consumer pins HARNESS_VERSION 2"
-  claim was FALSE (`tests/bench-browse.test.ts` pinned 2). Never trust a
-  spec's verification note for this.
-- **`runBench` starts a real localhost fixture server whenever any selected
-  task is `local: true` (15 of 17 since r23; t10/t11 live)** — including fake-deps test invocations,
-  which therefore bind an ephemeral 127.0.0.1 port. Two close sites,
-  disjoint windows (the finally, plus a catch-rethrow over the
-  prepare/wiring window) — do not merge them or move the start after
-  `prepareBrowser`. URL resolution lives in pure `resolveStartUrl`; the
-  local branch beats the absolute branch by design.
-- **The fixture server's `.html` suffix is OPTIONAL in BOTH segment rules**
-  (`src/fixture-server.ts`) — the r23 spec D1's literal regexes require
-  `\.html`, contradicting its own D6/WP-B pins (extension-less task paths
-  must serve). Trust D6, not the D1 literal. `/cookie` (extension-less) serving + Set-Cookie is NEW
-  behavior (fail-first red pre-change).
-- **Fixture-server hostile-path surface**: all `..` encodings,
-  drive-letter, null-byte and depth-cap
-  cases 404; the one quirk is win32 backslash aliasing — `/status_codes\404`
-  serves the nested page WITHIN pagesDir (`[^/]+` admits `\`; no escape is
-  possible while `..` stays substring-rejected). Fine for 127.0.0.1; revisit if it binds wider.
-- **Grader-replay capture lines carry `stage`; rounds consume N asks** (F1):
-  a two-stage round makes TWO askWithCost calls, a native-select resolution
-  one per chunk plus a final — a one-ask-per-round merge shifts every later
-  pairing by one, silently (unmatched rounds only mark `mirrored:false`;
-  capture exits 0). The merge is the exported pure
-  `mergeCapture(records, asks, thresholds)` in `bench/grader-replay.mjs`;
-  `askStage(request)` classifies `group`/`target`/`option`/`recover`/`round`
-  (recover counts only when the SOLE question — buildRoundRequest carries
-  recover as an EXTRA question next to done). A round whose
-  `phases.rounds[].jevMs` never moved ended BEFORE its ask and consumes
-  zero asks. Old capture files (no `stage`) still replay: the stage is
-  re-derived from the request's question keys. The line's `round` field is
-  the per-RECORD round index (what mirrorDecision's error-gate needs),
-  never a global counter.
-- The readme-bench gate picks the newest `measure` results file by name; its
-  old-file fallback renders exactly the pre-r19 four-column block — context
-  line + spread column appear only when EVERY summary row carries
-  `wall_min_ms`/`wall_max_ms`, so a harness-2 file never gets a false
-  provenance claim. The gate EOL-normalizes (a red is real); its source
-  `bench/results/*.json` is gitignored, so it reds on a fresh clone.
-- **The MCP server never launches Chrome** (only the `with-browser` wrap or
-  `chrome ensure` does): unwrapped fresh installs fail `adapter-attach`.
-  Doctor passes with top-level `mode` off; `doctor --plan` O1 checks mode.
-- **Re-derive every public number from the results JSON, never from
-  narrative**: r19 figures drifted into r23b copy and none reproduced. The
-  seven-page before/after figures are r12->r15 live-site numbers, NOT r23b. "34/34
-  completed" counts the wingman setup: in 6 runs the caller finished the final step with retained tools (dialog,
-  snapshot) after a hand-back. The Playwright profile has no scroll tool —
-  never list scroll among its hidden tools.
-- **The byte-vs-string slice trap (bench log slicing, r19)**: slicing a
-  decoded string by a byte offset is silent data loss —
-  `statSync().size` (bytes) + `readFileSync(path, 'utf8').slice(before)`
-  (chars) corrupts the first fresh line whenever the prefix holds any
-  multi-byte UTF-8. Slice Buffers
-  (`subarray(before).toString`); `tool_use_counts` (caller-side) is the
-  cross-check that catches a log-slice under-count; shape correlations on
-  under-counts deserve a byte-level look before a mechanism story. r23b
-  `log-slice.jsonl` starts with 5 part-1 test records: drop them before
-  aligning with the forced runs' `handoff_records`.
-- **Round-labeled dispatch HEADs can be wrong — read each results.md header.**
-- **Diagnose t9 fragmentation from the post-fallback RECOVERY calls, never
-  the first call** — the forced first call is INVARIANT across runs (the loop drives the
-  forgot-password submit into the site's flaky 500 state every time); the
-  wall regression lived entirely in recovery calls.
-- **Error-end presence is the healthy/regressed discriminator**: healthy
-  slices carry zero `error/*`/`ambiguous/*` ends; regressed rounds show
-  `act-failed` (locator.click 3000 ms timeout during a scheduled navigation) and
-  `page-error` on the same transitions. Live-site navigation timing
-  crossing the loop's fixed 3 s act cliff was the remaining variable — the
-  flat playwright control does NOT exonerate it (auto-waiting clicks have no
-  such cliff).
-- **A resumed-cursor re-send can bounce `ambiguous/target-uncertain` with
-  jev_calls=0 and a round record carrying NO probabilities** (an ask ran
-  uncounted or the round record merged wrong — telemetry inconsistency);
-  scoped repro in chain.test.ts needed before trusting jev_calls on
-  resumed calls.
 
 ## Chrome lifecycle & teardown
 
@@ -442,9 +193,7 @@ returns.
   chrome.exe whose command line carries `wingman-ephemeral-<token>` (the token rides the `--user-data-dir` profile name; PID tree, logged `RUN-TESTS: chrome
   sweep (...)`). `launchEphemeralChrome`
   puts the token in the profile dir name; production and bench
-  (token unset) unchanged. A sync exit-registry backstop in
-  `tests/helpers/chrome.ts` tree-kills any browser still registered.
-  Proofs: `tests/runner-sweep.test.ts`; the leak fixture
+  (token unset) unchanged. A sync exit-registry backstop in `tests/helpers/chrome.ts` tree-kills any browser still registered. Fail-first proofs: `tests/runner-sweep.test.ts`; the leak fixture
   `tests/runner-sweep-leak.test.ts` is the drill target — never "fix" it.
 - **The token sweep cannot cover a hard-killed runner** (SIGKILL/taskkill of
   run-tests.mjs itself): sweep manually by the `wingman-ephemeral-` cmdline
@@ -457,8 +206,7 @@ returns.
   layers**: profile dirs embed the launching pid
   (`wingman-ephemeral-<token?>-p<pid>-...`, token before pid so the
   substring match still hits); a `process.on('exit')` guard tree-kills
-  anything this process launched and never closed; `sweepOrphanedEphemeralChromes`
-  (memoized, every launch) kills tagged root chromes whose owner pid
+  anything this process launched and never closed; `sweepOrphanedEphemeralChromes` (memoized, top of every launch) kills tagged root chromes whose owner pid
   is dead and removes their profile dirs, aging untagged legacy dirs out
   after 24h (never kills a legacy chrome — untagged can't prove orphanhood).
   Launch failures (e.g. the `DevToolsActivePort` 30s timeout) kill the tree
@@ -520,7 +268,21 @@ returns.
   (`Page.handleJavaScriptDialog` from a second session then answers `No
   dialog is showing`) but the renderer stays WEDGED forever: every later
   `Runtime.evaluate` on that tab times out, and dialog.html's `'dismissed'`
-  write NEVER lands. The E16 check passes on `log === null` (unreadable page) or `'dismissed'`; a RESOLVED prompt (`#log === ''`) is the only failing shape (tests/chain-e2e.test.ts). Don't tighten it to `assert.equal(log, 'dismissed')` — unreachable here.
+  write NEVER lands (never observed anywhere, local or cloud; 4 repro runs). The E16 check passes on `log === null` (unreadable page) or `'dismissed'`; a RESOLVED prompt (`#log === ''`) is the only failing shape (tests/chain-e2e.test.ts). Don't tighten it to `assert.equal(log, 'dismissed')` — unreachable here.
+- **Doctor coexistence fingerprint must contain only state whose change
+  proves a WRITE into the page** (`src/cli/coexistence-probe.ts`): a 500 ms
+  sentinel-eval timeout was read as `dialogOpen` (a starved renderer is not a
+  modal dialog — the sentinel now retries once with a 4 s budget), and
+  `visibility` is ambient state no known-bad driver pins (dropped from
+  `ProbePage`; the key-set pin in doctor.test.ts keeps it out).
+  **`fingerprintsReconcile`'s guarantee is "healthy-before teeth", not "all
+  writes"**: a degraded before-read proves nothing, so the one-shot before
+  re-read (post-attach) accepts a persistent attach-time write coinciding
+  with an unrelated degraded before; both-healthy and both-degraded
+  mismatches still fail with zero probes. When a retry is guarded by a
+  predicate, check the predicate fires in the failure mode the retry exists
+  for (`onlyUrlsChanged` was false on a nulls-vs-values pair, so the retry
+  never fired).
 
 ## Enumeration & page-scripts
 
@@ -533,28 +295,31 @@ returns.
   text or thresholds.
 - **Cursor-pointer candidacy is a REJECTED, REMOVED heuristic (r21 P-5 ->
   D12, 2026-10-04)** — do not re-propose it. The D12 live bar measured
-  candidate inflation far above the +30% cap (the failure was candidate
-  quality, not time). Shipped `page-scripts.ts` carries zero
+  +88% to +298% candidate inflation against the +30% cap (local wall numbers
+  had accepted it; the real failure was candidate quality, not time). Shipped `page-scripts.ts` carries zero
   cursor arms (grep `cursor` = 0); the rejection is final, not a flag
   default. `fixtures/pages/pointer-interactive.html` stays as the boundary
   fixture: delegation-only pointer-styled divs (framework menu items with
   no onclick/role/own listener) do NOT enumerate, pinned zero-records in
   `tests/pointer-enum.test.ts` (iframe/shadow boundary pins: `tests/page-scripts.test.ts`).
 - **`el.className` on an SVG element is an SVGAnimatedString object**
-  stringifying to `'[object SVGAnimatedString]'`: any RE match over
+  stringifying to `'[object SVGAnimatedString]'` (F3): any RE match over
   className silently misses every SVG-carried class. Read
   `el.getAttribute('class')` instead (works for HTML and SVG). The captcha
-  id/class arm in page-scripts.ts now does; the repeatedGroups signature
-  build (`String(gn.className)`) keeps className by design — SVG
+  id/class arm in page-scripts.ts now does; the repeatedGroups signature build (`String(gn.className)`, r17 C8) keeps className by design — SVG
   groups there read as one `[object...]` bucket, harmless for tallies, but
   any future CONSUMER of that signature must know.
 - **`CAPTCHA_RE` is scoped to real challenge widgets**: a match
   counts only on a visible, non-`size=invisible` element of area >= 16000
   px² (`CHALLENGE_MIN_AREA`); `KB_CAPTCHA_SCOPED` restores the old
   whole-page substring match (it blocked bbc/npr/guardian — reproduced 2026-10-04, results branch r21 commit 4384f0e; the scoped rule clears all three).
+- **Headless GitHub serves the loop a reduced repo page** (154 elements, no
+  Issues/Star/search targets) — Jev's `none` answers were honest; the table,
+  not the grader, was the bottleneck.
 - **A label with `for` — or a wrapped control — is OWNED**: `siblingLabel`
   must skip owned labels or a hidden input adjacent to `label[for=x]`
-  steals x's name.
+  steals x's name (the #16 cloud failure: `#t7` next to `label[for=t6]`
+  enumerated as "Fine print" with `controlPath: '#t7'`).
 - **Clicking a bare sibling `<label>` does NOT toggle the hidden control**
   (no wrap, no `for` -> click is inert). The adapters activate the control
   itself when the label click did not flip (`KB_CDP_CHECK_TOGGLE` /
@@ -571,87 +336,48 @@ returns.
   point off-viewport answers null and is NOT evidence of a cover
   (`obscured` stays false), and a `pointer-events: none` cover is skipped
   by the browser — act-time `CoveredTargetError` remains the backstop.
-- **`pathEl.closest('table')` must run on pathEl, not el**: for a
+- **`pathEl.closest('table')` must run on pathEl, not el** (r19 D2): for a
   proxied hidden control the record's path is the label, and the table
   context must agree with the path the verifier re-finds (defensive — no
   fixture exercises a proxied control inside a table yet).
 - Calibration probe artifacts live in untracked `.calib/`: the ask-spy
   wrapper records per-ask target probabilities, the direct-Driver phase
-  executes Jev's own top candidate, verification is outcome-based
+  executes Jev's own top candidate for would-succeed evidence, verification is outcome-based
   main-world evals. The spy's `twoStage`/`groupCount`
   fields under-report — the reliable two-stage markers are per-ask `count`
   ~ 90 and askCount = 4 for 2 rounds.
 
-## KB-mutant methodology
-
-- **KB flags compose as `!KB_X && <new>`, never `KB_X && <new>`**: flip =
-  restore PRE-fix behaviour, so the new path must be ACTIVE while the flag
-  is `false`. Writing `if (KB_TABLE_HEADERS && tag === 'th')` ships pre-fix
-  behaviour with every pin red at the gate — and the failure looks like
-  "fix didn't work", not like an inversion. Ternary precedent:
-  `KB_X ? <old> : <new>` (`KB_HIDDEN_SIBLING`). **One documented spec-polarity failure**: the r19 spec's draft `checkFlipResult` used `!KB_UPLOAD_EVIDENCE &&` (inverted — flipping the mutant would ENACT the fix); amended 2026-10-03 (61df9bb, spec lines 121-129). Lesson: derive polarity from the mutant
-  convention FIRST, then check the spec literal.
-- **The mutants runner's anchor is `= false;` -> `= true`**; a source-shape
-  tripwire (line replacement) needs the runner's optional 4th tuple
-  element: anchor = the literal good source line, 4th element = the bad
-  line substituted in. A pure one-array append would produce a no-op
-  mutation the pin passes against. Any "revert-detection" mutant uses that
-  form, never a fake flag.
-- **A guard like "never on the final clause" (`cursor < N - 1`) makes any
-  mutant test whose target clause is the last clause vacuous** — give such
-  tests a trailing clause.
-- **Pin a timing bound from the LOCAL measured pair, never the cloud pair**
-  — the KB_CDP_PRECLICK cloud pair does not reproduce on this box (local
-  active is dominated by the PRE_CLICK_SETTLE_MS 4000 floor), so a cloud-derived `>= 7000` bound would be permanently red
-  here. A pin
-  that cannot fail on the flip AND cannot pass locally is doubly wrong;
-  measure both sides on the box that runs the gate.
-- **page-scripts' KB flags ride `var` inside the stringified function
-  body**, not module-level `const` — the anchor matches both declarations
-  (`const|var KB_X = false;`).
-- **`dialogOutcome`'s alert arm returns BEFORE the `KB_DIALOG_ANSWER` gate**
-  (loop.ts): `T-alert is always accepted` cannot fail under that flag — the
-  flag owns the confirm-parse arms only. A mutant-table row mapping the
-  alert test to that flag is unsatisfiable without reordering src; the
-  runner maps it as a pin.
-- **A hard-killed mutants runner leaves KB flags flipped in src** (the
-  byte-identical restore lives in a `finally`, which taskkill/reap skips;
-  a pre-poisoned flag makes the anchor check and its flip vacuous). Before
-  AND after every mutants pass: `grep -rnE '(const|var) KB_\w+ = true' src` must
-  return nothing; restore `= false` immediately. The full pass is ~25+ min,
-  past the 10-min foreground cap — run it DETACHED (`Start-Process python
-  -u`, output redirected, PID saved) and poll the log; the reaper only
-  kills Claude's own background shells; `python -u` streams per-flag OK lines.
-- **`chain-e2e` runs `adapter: 'cdp'`** — e2e results discriminate CDP-side
-  flags; a playwright-adapter e2e claim needs the adapter-playwright rig.
-  Adapter-level waits are invisible to FakeDriver unit tests.
-
 ## Machine traps (this box)
 
 - **The full suite cannot complete as ONE `node --test` invocation** (16 GB
-  box): parallel fan-out holds hundreds of Chrome processes, the machine
-  wedges, the runner hangs buffering. Work in scoped serial
+  box): parallel fan-out holds 160-225 Chrome processes, the machine wedges, the
+  runner hangs past an hour buffering. Work in scoped serial
   chunks of 3-12 basenames against built `dist/`; expect one parallel-load
   flake (a `Page.navigate` cdp timeout) per heavy chunk — rerun the
-  basename alone before calling it a defect. A single file can ACTUALLY HANG
-  (`adapter-cdp.test.ts` with leaked chromes). **Prefer foreground runs with an explicit tool-level timeout
+  basename alone before calling it a defect. Even a scoped run can take 40+
+  min under load, and a single file can ACTUALLY HANG (`adapter-cdp.test.ts`:
+  ~50 min with 48 leaked chromes; alone in the foreground ~1-3 min depending
+  on load, once 65-77 s). **Prefer foreground runs with an explicit tool-level timeout
   (this harness's Bash `timeout_ms`, not a shell `timeout` prefix)** over
   backgrounding+polling — a background run cannot distinguish "buffered"
   from "wedged", and a Monitor on the completion line has the same blind
   spot.
 - **The memory-pressure reaper kills idle-session background shells and
   the Chrome they spawned** — including a RUNNING bench cell mid-flight
-  (no results file, no ledger entries) and backgrounded scoped gates. Chrome-backed
-  adapter files go foreground, split per-basename, instead of one invocation that outlives the 10-min
+  (no results file, no ledger entries) and backgrounded scoped gates (one reap orphaned ~100+ test chromes; 111
+  swept). Chrome-backed adapter files go foreground, split per-basename
+  (adapter-cdp ~1-3 min depending on load, adapter-playwright ~2.5 min,
+  alone) instead of one invocation that outlives the 10-min
   foreground cap and gets backgrounded. Restart only after memory recovers.
 - **The leaked-Chrome wedge is self-compounding**: past ~440 chrome.exe,
   WMI, `tasklist` AND `Get-Process` all stall — the sweep itself cannot
   enumerate. Sweep by the `wingman-ephemeral-` marker IMMEDIATELY after
   each chunk. At ~2.3 GB free even a SERIAL adapter-cdp full-file run can
-  wedge — prefer a single-chrome probe for shape-refresh work.
+  wedge (103 chromes once) — prefer a single-chrome diagnostic probe for
+  shape-refresh work.
 - **This box stalls `Input.dispatchMouseEvent` type `mouseMoved` by exactly
   ~5.0 s under memory pressure while `mousePressed`/`mouseReleased` answer
-  in 1-3 ms**. Any wall-clock
+  in 1-3 ms** (per-send instrumentation in dist, four occurrences). Any wall-clock
   pin over a CDP click act must anchor its delta on the mouseReleased
   response — the moment the page's own click handler (and therefore any
   setTimeout chain) starts — not on act entry; a delta so anchored is
@@ -662,8 +388,7 @@ returns.
   with bare spaces**: embed the quotes in the argument string or an
   unquoted `--user-data-dir=<path with spaces>` splits, Chrome starts on a
   bogus profile that `ensureChrome` refuses.
-- **An `Edit` whose `new_string` re-includes a block adjacent to the
-  deleted one duplicates it.** Read the whole file after any edit that
+- **An `Edit` whose `new_string` re-includes a block adjacent to the deleted one duplicates it** (the removed `visibility` read sat right AFTER the structurally similar `viewport` block, de78ea2; tsc catches it only when it is a redeclaration). Read the whole file after any edit that
   deletes a block next to a structurally identical one.
 
 ## PA repo tooling
@@ -671,7 +396,7 @@ returns.
 - **`pa run commit` refuses paths under your OWN active reservation** —
   `pa release <id>` first, then commit. From a subdirectory it still lands
   in the PA repo root: pass wingman paths ABSOLUTE (repo-relative resolves
-  against `D:/Personal Assistant` -> `pathspec did not match`). Active
+  against the PA repo root -> `pathspec did not match`). Active
   claims are foreign to the commit worker (COMMIT-DEFERRED): release claims
   (renew `--ttl 1`, let lapse) before committing.
 - **`pa_claim` cannot reserve jev-browser-wingman paths** (they resolve
@@ -686,4 +411,7 @@ returns.
 
 ## Known pre-existing failures
 
-- An adapter-cdp form.html-table red is real.
+- An adapter-cdp form.html-table red is real: the 2026-09-26 re-pin fixed
+  `tests/adapter-cdp.test.ts` "observe matches the pinned form.html table"
+  (it now expects `placeholder`/`htmlId`/`obscured` explicitly), and r22
+  verification ran it green twice on a quiet box.
