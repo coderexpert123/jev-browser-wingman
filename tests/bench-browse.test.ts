@@ -115,6 +115,8 @@ function baseDeps(resultsDir: string, pricesPath: string, runOne: BenchDeps['run
     resultsDir,
     pricesPath,
     env: { TYPESAFE_API_KEY: 'bench-test-key' },
+    callerVersion: () => '9.9.9',
+    gitInfo: () => ({ head: 'a'.repeat(40), dirty: false }),
   };
 }
 
@@ -225,7 +227,7 @@ test('browse route mcp config registers the wingman server with its fixed env', 
   };
   const wingman = cfg.mcpServers['jev-browser-wingman'];
   assert.ok(wingman, 'jev-browser-wingman server missing from the browse mcp config');
-  assert.deepEqual(wingman.env, { WINGMAN_HOME: home, WINGMAN_CDP_ENDPOINT: endpoint });
+  assert.deepEqual(wingman.env, { WINGMAN_HOME: home, WINGMAN_CDP_ENDPOINT: endpoint, WINGMAN_LOG_LABELS: '1' });
   assert.ok(cfg.mcpServers['playwright'], 'playwright server missing from the browse mcp config');
 });
 
@@ -252,7 +254,7 @@ test('forced route mcp config has the exact wrapped shape', () => {
       'jev-browser-wingman': {
         command: 'node',
         args: [mainJs, 'mcp'],
-        env: { WINGMAN_HOME: home, WINGMAN_CDP_ENDPOINT: endpoint },
+        env: { WINGMAN_HOME: home, WINGMAN_CDP_ENDPOINT: endpoint, WINGMAN_LOG_LABELS: '1' },
       },
     },
   });
@@ -324,6 +326,8 @@ test('committed bench/config.json keeps its routes and carries route_max_turns.f
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'bench', 'config.json'), 'utf8')) as BenchAppConfig;
   assert.deepEqual(cfg.routes, ['playwright', 'wingman', 'browse']);
   assert.deepEqual(cfg.route_max_turns, { forced: 30 });
+  assert.equal(cfg.gate_off, true);
+  assert.equal(cfg.policy_off, true);
 });
 
 test('--repeats runs a route more than once; out-of-range values are refused', async () => {
@@ -332,7 +336,7 @@ test('--repeats runs a route more than once; out-of-range values are refused', a
   const runner = recordingRunner();
   const { exit, err } = await capture(() =>
     runBench(
-      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--repeats', '2'],
+      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--repeats', '2', '--purpose', 'experiment'],
       baseDeps(resDir, pricesPath, runner.runOne),
     ),
   );
@@ -621,7 +625,7 @@ test('the results file carries wall min/max on the route summary and task_pairs 
   };
   const { exit, err } = await capture(() =>
     runBench(
-      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--repeats', '2'],
+      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--repeats', '2', '--purpose', 'experiment'],
       baseDeps(resDir, pricesPath, runOne),
     ),
   );
@@ -714,7 +718,7 @@ test('--routes forced runs only the forced route', async () => {
   const runner = recordingRunner();
   const { exit, err } = await capture(() =>
     runBench(
-      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced'],
+      ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--routes', 'forced', '--purpose', 'experiment'],
       baseDeps(resDir, pricesPath, runner.runOne),
     ),
   );

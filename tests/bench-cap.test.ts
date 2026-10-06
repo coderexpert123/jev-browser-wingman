@@ -63,6 +63,8 @@ function baseDeps(resultsDir: string, pricesPath: string, runOne: BenchDeps['run
     resultsDir,
     pricesPath,
     env: { TYPESAFE_API_KEY: 'bench-test-key' },
+    callerVersion: () => '9.9.9',
+    gitInfo: () => ({ head: 'a'.repeat(40), dirty: false }),
   };
 }
 
@@ -173,7 +175,7 @@ test('a 0.01 cap stops after the first run', async () => {
   const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
   const runner = fakeRunner(0.02);
   const { exit, out } = await capture(() =>
-    runBench(['--cap-usd', '0.01', '--phase-cap-usd', '10'], baseDeps(resDir, pricesPath, runner.runOne)),
+    runBench(['--cap-usd', '0.01', '--phase-cap-usd', '10', '--purpose', 'experiment'], baseDeps(resDir, pricesPath, runner.runOne)),
   );
   assert.equal(exit, 3);
   assert.match(out, /BENCH-ABORTED: cap reached after 1 runs/);
@@ -196,7 +198,7 @@ test('a harness without the abort check would run all 51', async () => {
   const runner = fakeRunner(0.02);
   const deps = baseDeps(resDir, pricesPath, runner.runOne) as BenchDeps;
   deps.shouldAbort = () => false;
-  const { exit } = await capture(() => runBench(['--cap-usd', '0.01', '--phase-cap-usd', '10'], deps));
+  const { exit } = await capture(() => runBench(['--cap-usd', '0.01', '--phase-cap-usd', '10', '--purpose', 'experiment'], deps));
   assert.equal(exit, 0);
   assert.equal(runner.calls(), 51);
   const files = resultsFiles(resDir);
@@ -212,7 +214,7 @@ test('the phase cap counts earlier results files', async () => {
   const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
   const runner = fakeRunner(0.02);
   const { exit, out } = await capture(() =>
-    runBench(['--cap-usd', '5', '--phase-cap-usd', '10'], baseDeps(resDir, pricesPath, runner.runOne)),
+    runBench(['--cap-usd', '5', '--phase-cap-usd', '10', '--purpose', 'experiment'], baseDeps(resDir, pricesPath, runner.runOne)),
   );
   assert.equal(exit, 3);
   assert.match(out, /BENCH-ABORTED: cap reached after 1 runs/);
@@ -226,7 +228,7 @@ test('BENCH_MODEL overrides the configured caller model', async () => {
   const deps = baseDeps(resDir, pricesPath, runner.runOne) as BenchDeps;
   deps.env = { TYPESAFE_API_KEY: 'bench-test-key', BENCH_MODEL: 'glm-5.3' };
   const { exit } = await capture(() =>
-    runBench(['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain'], deps),
+    runBench(['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't9-long-chain', '--purpose', 'experiment'], deps),
   );
   assert.equal(exit, 0);
   assert.equal(runner.calls(), 3);
@@ -273,7 +275,7 @@ test('resultsFileName stamps seconds and suffixes a taken name', () => {
 test('two runs in the same second never overwrite and both count toward the phase cap', async () => {
   const resDir = tmpDir('jevw-cap-same-second-');
   const pricesPath = writePrices(tmpDir('jevw-cap-prices-'));
-  const argv = ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't1-checkboxes', '--routes', 'playwright', '--repeats', '1'];
+  const argv = ['--cap-usd', '5', '--phase-cap-usd', '10', '--tasks', 't1-checkboxes', '--routes', 'playwright', '--repeats', '1', '--purpose', 'experiment'];
   const mk = (): BenchDeps => {
     const deps = baseDeps(resDir, pricesPath, fakeRunner(0.02).runOne) as BenchDeps;
     deps.now = () => new Date(2026, 9, 1, 9, 53, 12);

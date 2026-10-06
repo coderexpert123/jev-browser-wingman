@@ -6,7 +6,7 @@
   "port": 9344,
   "routes": ["playwright", "wingman", "browse"],
   "repeats": 1,
-  "gate_off": false,
-  "policy_off": false,
+  "gate_off": true,
+  "policy_off": true,
   "route_max_turns": { "forced": 30 }
 }

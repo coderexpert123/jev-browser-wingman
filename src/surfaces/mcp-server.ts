@@ -8,20 +8,9 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { HANDOFF_OPTIONAL, PACKAGE_NAME, PACKAGE_VERSION } from '../contract/constants.js';
 import { handoffOf, loadConfig } from '../core/config.js';
 import { createWingman } from '../lib.js';
-import {
-  BROWSE_STEP_DESCRIPTION,
-  BROWSE_STEP_SCHEMA,
-  WINGMAN_CHECK_DESCRIPTION,
-  WINGMAN_CHECK_SCHEMA,
-  WINGMAN_DO_DESCRIPTION,
-  WINGMAN_DO_SCHEMA,
-} from './tool-text.js';
+import { SERVED_TOOLS } from './tool-text.js';
 
-const TOOLS = [
-  { name: 'wingman_do', description: WINGMAN_DO_DESCRIPTION, inputSchema: WINGMAN_DO_SCHEMA },
-  { name: 'wingman_check', description: WINGMAN_CHECK_DESCRIPTION, inputSchema: WINGMAN_CHECK_SCHEMA },
-  { name: 'browse_step', description: BROWSE_STEP_DESCRIPTION, inputSchema: BROWSE_STEP_SCHEMA },
-];
+const TOOLS = SERVED_TOOLS;
 
 // browse-only (the forced default) lists and serves browse_step only; the
 // legacy tools are refused at call time (§ 5.10).

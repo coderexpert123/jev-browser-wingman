@@ -3,15 +3,17 @@
 //   node dist/bench/run.js --cap-usd <x> --phase-cap-usd <y>
 //        [--tasks <id,...>] [--routes <csv>] [--secrets-file <path>]
 //        [--purpose cap-proof|measure|experiment]
+//        [--baseline <file> [--expect-diff <key,...>]] [--preflight-only]
 //
 // tasks.json entries x routes x repeats on one Chrome (port 9344, profile
 // bench/.home/profile, window offscreen). Spend caps are enforced by
 // bench/cap.ts; the USD ceilings live there and nowhere else.
 //
-// The gate-off/policy-off stance (WP-T3) travels per run only: env
-// BENCH_GATE_OFF=1 / BENCH_POLICY_OFF=1 (or true) inject the off stance into
-// the bench home's config.json for that run; the committed bench/config.json
-// ships both flags false.
+// The gate/policy stance (WP-T3, r24b O6): the committed bench/config.json
+// ships `gate_off: true` and `policy_off: true` (the off stance every publish
+// run used); env BENCH_GATE_ON=1 / BENCH_POLICY_ON=1 (or true) opt in to
+// confirm / enforce for that run. The old BENCH_GATE_OFF / BENCH_POLICY_OFF
+// are accepted as no-ops (the default already is off).
 //
 // This module is NOT run by a builder: every live benchmark run is the
 // operator-gated OG-6/OG-9 stage.
@@ -20,7 +22,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { checkStart, priceRun, shouldAbort, type BenchPrices } from './cap.js';
-import { runClaude } from './claude-run.js';
+import { claudeArgv, runClaude } from './claude-run.js';
+import type { CallerLists } from './claude-run.js';
+import { CONFIG_KEYS, LIST_OBSERVED_KEYS, POST_KEYS, RUN_CONFIG_VERSION, applyListHashes, callerListHashes, callerModelOf, compareObserved, compareToBaseline, emptyObserved, filesSha256, mergeListHashes, observedListsFileName, parseStanceEnv, readBaselineConfig, readCallerVersion, readGitInfo, sha256Hex, summarizeObservedLists, toolTextSha256, treeEntries, wingmanConfigSha256, type BenchRunConfig, type GitInfo, type ListSummaries, type ObservedEnv, type ObservedKey } from './run-config.js';
 import { evaluateOracle, evaluateExpression } from './oracle.js';
 import { ensureChrome, stopChrome } from '../src/browser/chrome.js';
 import { expandHome } from '../src/contract/home.js';
@@ -60,8 +64,8 @@ export interface BenchAppConfig {
   port: number;
   routes: BenchRoute[];
   repeats: number;
-  // WP-T3 stance flags: the committed config.json ships both false; the off
-  // stance is injected per run through BENCH_GATE_OFF / BENCH_POLICY_OFF.
+  // WP-T3 stance flags: the committed config.json ships both true (off, r24b O6);
+  // the confirm / enforce stance is opted into per run through BENCH_GATE_ON / BENCH_POLICY_ON.
   gate_off?: boolean;
   policy_off?: boolean;
   // WP-F: per-route max-turns override (spec § 6 WP-F F2); falls back to
@@ -124,6 +128,7 @@ export interface BenchRunRecord {
   // r17 D8: verbatim string captured when the task defines end_state
   // (evidence beside the oracle verdict — no pass/fail attached to it).
   end_state?: string;
+  caller?: { claude_code_version: string | null; model: string | null; lists_sha256?: Record<string, string>; lists?: CallerLists }; // r24b (O4, O7): the system/init event's version and model, and its list hashes (the names ride only each route's first cell, which runBench lifts into the local observed-lists file and strips)
 }
 
 /** One `browse_step` handoff, parsed from a run's fresh log lines (F3). */
@@ -149,6 +154,10 @@ export interface BenchResultsFile {
   phase_cap_usd: number;
   aborted: null | 'cap' | 'error';
   total_usd: number;
+  config?: BenchRunConfig; // r24b: the effective run config (spec .build-r24b-spec.md section 3)
+  baseline?: { file: string; expect_diff: string[] }; // r24b: the baseline this run was compared to (--baseline / --expect-diff)
+  observed?: ObservedEnv; // r24b (O7): Node/Chrome versions and per-route caller-list hashes
+  observed_lists?: Record<string, ListSummaries> | null; // r24b (O7, amendment 16): per route, per list: hash + count ONLY; the names go to the local <stamp>.observed-lists.json, never pushed
   runs: BenchRunRecord[];
   summary: Record<string, {
     success_rate: number;
@@ -182,6 +191,14 @@ export interface BenchDeps {
   shouldAbort?: typeof shouldAbort;
   // Test seam: a fixed clock makes the same-second collision test deterministic.
   now?: () => Date;
+  // r24b test seam: HEAD + tracked-dirty for the recorded config (default: git in the package root).
+  gitInfo?: () => GitInfo;
+  // r24b test seam: the caller CLI version (default: readCallerVersion(), which spawns claude --version).
+  callerVersion?: () => string | null;
+  // r24b (O7) test seam: the Node version (default: process.version).
+  nodeVersion?: () => string;
+  // r24b (O7) test seam: the Chrome version (default: Browser.getVersion over the bench observer, null without one).
+  chromeVersion?: () => Promise<string | null>;
 }
 
 const PKG_ROOT = packageRoot();
@@ -535,6 +552,8 @@ export async function resetPages(
   await navigateResetWithRetry(observer, sessionId, startUrl);
 }
 
+export const PLAYWRIGHT_MCP_PACKAGE = '@playwright/mcp@0.0.80';
+
 export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
   const servers: Record<string, unknown> = {
     // WP-F: the forced route wraps the caller's own playwright registration
@@ -546,12 +565,12 @@ export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
       route === 'forced'
         ? {
             command: 'node',
-            args: [ctx.mainJsPath, 'with-browser', '--', 'npx', '-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
+            args: [ctx.mainJsPath, 'with-browser', '--', 'npx', '-y', PLAYWRIGHT_MCP_PACKAGE, '--browser', 'chrome'],
             env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint, WINGMAN_HOME: ctx.home },
           }
         : {
             command: 'npx',
-            args: ['-y', '@playwright/mcp@0.0.80', '--browser', 'chrome'],
+            args: ['-y', PLAYWRIGHT_MCP_PACKAGE, '--browser', 'chrome'],
             env: { PLAYWRIGHT_MCP_CDP_ENDPOINT: ctx.endpoint },
           },
   };
@@ -561,7 +580,8 @@ export function mcpConfigFor(ctx: RunContext, route: BenchRoute): object {
     servers['jev-browser-wingman'] = {
       command: 'node',
       args: [ctx.mainJsPath, 'mcp'],
-      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint },
+      // r24b (O1 b): the only place the label/title log switch is set; src/lib.ts reads it (WP-T2). Inert until WP-T2 lands.
+      env: { WINGMAN_HOME: ctx.home, WINGMAN_CDP_ENDPOINT: ctx.endpoint, WINGMAN_LOG_LABELS: '1' },
     };
   }
   return { mcpServers: servers };
@@ -851,6 +871,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
       raw_script,
       tool_use_counts: toolUseCounts,
       first_call_invalid: firstInvalidRun(handoffRecords),
+      ...(res.init ? { caller: { ...res.init, ...(res.lists ? { lists_sha256: callerListHashes(res.lists), lists: res.lists } : {}) } } : {}),
     };
     if (task.end_state !== undefined) {
       record.end_state = String(
@@ -883,6 +904,91 @@ export function benchConfigText(app: BenchAppConfig, secretsFile: string | null,
         : { mode: 'optional', tools: 'all', retain: [] },
   };
   return JSON.stringify(config, null, 2);
+}
+
+// r24b: the effective, machine-independent run config (spec .build-r24b-spec.md
+// section 3). `selected` is the run's task list; `rawTasks` is the whole
+// tasks.json as read (values unexpanded). Stance, adapter and the per-route
+// config hashes derive from benchConfigText, the one renderer of the bench home;
+// the per-route MCP hashes derive from mcpConfigFor with placeholder paths; the
+// per-route caller argv hashes derive from claudeArgv (every fixed flag, the model,
+// the turn cap and the allowed tools; the prompt and the config path are placeholders).
+// caller_model is learned after the first cell, so it starts null.
+export function computeRunConfig(
+  app: BenchAppConfig,
+  selected: BenchTask[],
+  rawTasks: BenchTask[],
+  git: GitInfo,
+  callerVersion: string | null,
+  home: string = BENCH_HOME,
+): BenchRunConfig {
+  const forcedCfg = JSON.parse(benchConfigText(app, null, 'forced')) as {
+    adapter: string;
+    gate: { mode: 'off' | 'confirm' };
+    policy: { mode: 'off' | 'enforce' };
+  };
+  const mcpCtx: RunContext = {
+    app,
+    prices: {} as BenchPrices,
+    home: '<HOME>',
+    endpoint: '<ENDPOINT>',
+    observer: {} as CdpConnection,
+    keptTargetId: '<TARGET>',
+    mainJsPath: '<MAIN>',
+  };
+  const forcedMcp = mcpConfigFor(mcpCtx, 'forced') as { mcpServers: Record<string, { env?: Record<string, string> }> };
+  const logLabels = forcedMcp.mcpServers['jev-browser-wingman']?.env?.WINGMAN_LOG_LABELS === '1';
+  const wingmanByRoute: Record<string, string> = {};
+  const mcpByRoute: Record<string, string> = {};
+  const argvByRoute: Record<string, string> = {};
+  const turnsByRoute: Record<string, number> = {};
+  for (const route of KNOWN_ROUTES) {
+    wingmanByRoute[route] = wingmanConfigSha256(benchConfigText(app, null, route));
+    const mcp = mcpConfigFor(mcpCtx, route) as { mcpServers: Record<string, { env?: Record<string, string> }> };
+    delete mcp.mcpServers['jev-browser-wingman']?.env?.WINGMAN_LOG_LABELS;
+    mcpByRoute[route] = sha256Hex(JSON.stringify(mcp));
+    argvByRoute[route] = sha256Hex(
+      JSON.stringify(
+        claudeArgv({
+          prompt: '<PROMPT>',
+          mcpConfigPath: '<MCP_CONFIG>',
+          allowedTools: allowedToolsFor(route),
+          model: app.model,
+          maxTurns: maxTurnsFor(app, route),
+        }),
+      ),
+    );
+    turnsByRoute[route] = maxTurnsFor(app, route);
+  }
+  const profile = loadProfiles(home).find((p) => p.id === 'playwright-mcp') ?? null;
+  return {
+    config_version: RUN_CONFIG_VERSION,
+    gate_mode: forcedCfg.gate.mode,
+    policy_mode: forcedCfg.policy.mode,
+    git_head: git.head,
+    git_dirty: git.dirty,
+    routes: [...app.routes],
+    repeats: app.repeats,
+    tasks: selected.map((t) => t.id),
+    model: app.model,
+    log_labels: logLabels,
+    caller_cli_version: callerVersion,
+    adapter: forcedCfg.adapter,
+    harness_version: HARNESS_VERSION,
+    playwright_mcp: PLAYWRIGHT_MCP_PACKAGE,
+    wingman_config_sha256: wingmanByRoute,
+    mcp_config_sha256: mcpByRoute,
+    caller_argv_sha256: argvByRoute,
+    tool_text_sha256: toolTextSha256(),
+    tasks_sha256: sha256Hex(JSON.stringify(rawTasks)),
+    prompts_sha256: sha256Hex(JSON.stringify(rawTasks.map((t) => KNOWN_ROUTES.map((r) => buildPrompt(t, r))))),
+    fixtures_sha256: filesSha256(treeEntries(path.join(PKG_ROOT, 'fixtures'))),
+    profile_sha256: sha256Hex(JSON.stringify(profile)),
+    fixture_server: selected.some((t) => t.local === true),
+    max_turns_by_route: turnsByRoute,
+    per_run_timeout_ms: app.per_run_timeout_ms,
+    caller_model: null,
+  };
 }
 
 function defaultPrepareBrowser(
@@ -939,6 +1045,16 @@ function defaultPrepareBrowser(
   return { prepare, stop };
 }
 
+// r24b (O7): the Chrome the cells drive, as Chrome reports it ('Chrome/130.0.6723.58'); null when unobservable.
+async function chromeVersionOf(observer: Pick<CdpConnection, 'send'>): Promise<string | null> {
+  try {
+    const v = await observer.send<{ product?: string }>('Browser.getVersion');
+    return typeof v.product === 'string' && v.product !== '' ? v.product : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promise<number> {
   const resultsDir = deps?.resultsDir ?? path.join(PKG_ROOT, 'bench', 'results');
   const pricesPath = deps?.pricesPath ?? path.join(PKG_ROOT, 'bench', 'prices.json');
@@ -953,11 +1069,18 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   let secretsFile: string | null = null;
   let purpose: 'cap-proof' | 'measure' | 'experiment' = 'measure';
   let repeatsFilter: number | null = null;
+  let baselinePath: string | null = null;
+  let expectDiff: string[] | null = null;
+  let preflightOnly = false;
 
   for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--preflight-only') {
+      preflightOnly = true;
+      continue;
+    }
     const flag = argv[i];
     const value = argv[i + 1];
-    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--routes' || flag === '--secrets-file' || flag === '--purpose' || flag === '--repeats') {
+    if (flag === '--cap-usd' || flag === '--phase-cap-usd' || flag === '--tasks' || flag === '--routes' || flag === '--secrets-file' || flag === '--purpose' || flag === '--repeats' || flag === '--baseline' || flag === '--expect-diff') {
       if (value === undefined) {
         process.stderr.write(`BENCH-REFUSED: ${flag} needs a value\n`);
         return 2;
@@ -981,7 +1104,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
           return 2;
         }
         repeatsFilter = n;
-      } else if (value === 'cap-proof' || value === 'measure' || value === 'experiment') purpose = value;
+      } else if (flag === '--baseline') baselinePath = value;
+      else if (flag === '--expect-diff') expectDiff = value.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      else if (value === 'cap-proof' || value === 'measure' || value === 'experiment') purpose = value;
       else {
         process.stderr.write(`BENCH-REFUSED: --purpose must be cap-proof, measure or experiment\n`);
         return 2;
@@ -993,6 +1118,18 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     }
   }
 
+  // r24b: preflight argument checks (spec section 3.4).
+  if (expectDiff !== null && baselinePath === null) {
+    process.stderr.write('BENCH-REFUSED: --expect-diff needs --baseline\n');
+    return 2;
+  }
+  for (const k of expectDiff ?? []) {
+    if (!(CONFIG_KEYS as readonly string[]).includes(k)) {
+      process.stderr.write(`BENCH-REFUSED: --expect-diff names unknown config key ${k}\n`);
+      return 2;
+    }
+  }
+
   const app = readAppConfig();
   // BENCH_MODEL overrides the caller model from config.json for one pass;
   // config.json itself stays the default (sonnet).
@@ -1000,14 +1137,17 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   if (typeof modelOverride === 'string' && modelOverride.trim() !== '') {
     app.model = modelOverride.trim();
   }
-  // WP-T3 stance injection: the off stance travels per run through the env,
-  // never in the committed config.json (both flags ship false there).
-  if (env.BENCH_GATE_OFF === '1' || env.BENCH_GATE_OFF === 'true') {
-    app.gate_off = true;
+  // r24b (O6): the committed config.json ships gate_off/policy_off true (the off stance); BENCH_GATE_ON / BENCH_POLICY_ON
+  // opt in; the legacy *_OFF names still work. Bad values are refused loudly (spec section 3.4).
+  const stance = parseStanceEnv(env);
+  if (!stance.ok) {
+    process.stderr.write(stance.line + '\n');
+    return 2;
   }
-  if (env.BENCH_POLICY_OFF === '1' || env.BENCH_POLICY_OFF === 'true') {
-    app.policy_off = true;
-  }
+  if (stance.gateOff) app.gate_off = true;
+  if (stance.policyOff) app.policy_off = true;
+  if (stance.gateOn) app.gate_off = false;
+  if (stance.policyOn) app.policy_off = false;
   if (routesFilter) {
     app.routes = routesFilter;
   }
@@ -1038,7 +1178,8 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   // r18 D8: `@REPO@` in task values expands to this repo (forward slashes)
   // right after the read, so every downstream consumer — filters, prompts,
   // value withholding — sees the absolute path, never the placeholder.
-  let tasks = expandTaskValuePlaceholders(readTasks(), PKG_ROOT);
+  const rawTasks = readTasks();
+  let tasks = expandTaskValuePlaceholders(rawTasks, PKG_ROOT);
   if (tasksFilter) {
     const known = new Set(tasks.map((t) => t.id));
     for (const id of tasksFilter) {
@@ -1048,6 +1189,55 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       }
     }
     tasks = tasks.filter((t) => tasksFilter!.includes(t.id));
+  }
+
+  // r24b: the measured-run rule (O3), the run config (recorded in the results file) and the zero-spend baseline
+  // preflight. All run before the fixture server, Chrome or any cell, so a refusal spends nothing and writes no
+  // results file.
+  if (purpose === 'measure' && baselinePath === null && !preflightOnly) {
+    process.stderr.write(
+      'BENCH-REFUSED: --purpose measure needs --baseline <file> (a measured run must name the run it is comparable to; use --purpose experiment for an unbaselined run)\n',
+    );
+    return 2;
+  }
+  const callerVersion = (deps?.callerVersion ?? (() => readCallerVersion()))();
+  if (callerVersion === null) {
+    process.stderr.write('BENCH-REFUSED: caller CLI version unreadable (claude --version failed or printed no version)\n');
+    return 2;
+  }
+  const runConfig = computeRunConfig(app, tasks, rawTasks, (deps?.gitInfo ?? (() => readGitInfo(PKG_ROOT)))(), callerVersion);
+  let baseCfg: Record<string, unknown> | null = null;
+  let baseObs: Record<string, unknown> | null = null;
+  if (baselinePath !== null) {
+    const base = readBaselineConfig(baselinePath);
+    if (!base.ok) {
+      process.stdout.write(base.line + '\n');
+      return 2;
+    }
+    baseCfg = base.config;
+    baseObs = base.observed;
+    const verdict = compareToBaseline(runConfig, baseCfg, expectDiff ?? [], path.basename(baselinePath));
+    for (const line of verdict.lines) process.stdout.write(line + '\n');
+    if (!verdict.ok) return 2;
+  }
+  // r24b (O7): the observed environment. WARNINGS only: nothing here can refuse a run (r23b recorded none of it).
+  const observed: ObservedEnv = emptyObserved();
+  observed.node_version = (deps?.nodeVersion ?? (() => process.version))();
+  let observedLists: Record<string, CallerLists> | null = null;
+  let observedWarnings = 0;
+  const warnObserved = (keys: readonly ObservedKey[], route?: string): void => {
+    if (baselinePath === null) return;
+    const lines = compareObserved(observed, baseObs, keys, route);
+    observedWarnings += lines.length;
+    for (const line of lines) process.stdout.write(line + '\n');
+  };
+  warnObserved(['node_version']);
+  if (preflightOnly) {
+    if (baselinePath !== null) {
+      process.stdout.write(`BENCH-OBSERVED: warnings=${observedWarnings} (preflight sees the Node version only; warnings never block)\n`);
+    }
+    process.stdout.write(`BENCH-PREFLIGHT: ok nothing ran config=${JSON.stringify(runConfig)}\n`);
+    return 0;
   }
 
   // r18: one ephemeral fixture server for the whole invocation when any
@@ -1094,19 +1284,60 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     }
     throw err;
   }
+  // r24b (O7): the Chrome version, recorded now and compared as a WARNING (no cell has run, nothing is spent).
+  observed.chrome_version = await (deps?.chromeVersion ?? (async () => (holder.ctx ? chromeVersionOf(holder.ctx.observer) : null)))();
+  warnObserved(['chrome_version']);
 
   const runs: BenchRunRecord[] = [];
   let aborted: null | 'cap' | 'error' = null;
   let exitCode = 0;
   let runIndex = 0;
+  let postChecked = false;
+  const listsWarnedRoutes = new Set<string>();
 
   try {
     for (let repeat = 0; repeat < app.repeats; repeat++) {
       for (const task of tasks) {
         for (const route of app.routes) {
           const { record, usd } = await fullDeps.runOne(task, route);
-          runs.push({ ...record, usd });
+          // r24b (O7): the init lists ride each route's first cell only; they are lifted into observed_lists (by route) and
+          // stripped from the stored record, which keeps their hashes.
+          let stored = record;
+          if (record.caller?.lists !== undefined) {
+            observedLists ??= {};
+            observedLists[record.route] ??= record.caller.lists;
+            const { lists: _lists, ...callerRest } = record.caller;
+            stored = { ...record, caller: callerRest };
+          }
+          runs.push({ ...stored, usd });
+          if (!listsWarnedRoutes.has(record.route) && record.caller?.lists_sha256 !== undefined) {
+            listsWarnedRoutes.add(record.route);
+            applyListHashes(observed, record.route, record.caller.lists_sha256);
+            warnObserved(LIST_OBSERVED_KEYS, record.route);
+          }
           runIndex += 1;
+          // r24b (O4): the resolved model is known only from a cell's stream, so it is compared right after the
+          // FIRST cell (spec section 3.4); a failure ends the run with the one cell recorded.
+          if (!postChecked && baseCfg !== null) {
+            postChecked = true;
+            const post = compareToBaseline(
+              { ...runConfig, caller_model: callerModelOf([record.caller?.model]) },
+              baseCfg,
+              expectDiff ?? [],
+              path.basename(baselinePath!),
+              {
+                keys: POST_KEYS,
+                tag: 'BENCH-BASELINE-POST',
+                refuse: (bad, total) => `BENCH-ABORTED: baseline mismatch: ${bad} of ${total} keys after ${runIndex} run(s)`,
+              },
+            );
+            for (const line of post.lines) process.stdout.write(line + '\n');
+            if (!post.ok) {
+              aborted = 'error';
+              exitCode = 4;
+              break;
+            }
+          }
           const stop = abortFn({
             runSpentUsd: usd,
             capUsd: capUsd!,
@@ -1129,6 +1360,19 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
     aborted = 'error';
     exitCode = 1;
   } finally {
+    // r24b (O7): per-run list hashes folded (a disagreement reads 'mixed'), warned once, and the warning tally closed.
+    const finalObserved: ObservedEnv = { ...observed, ...mergeListHashes(runs.map((r) => ({ route: r.route, hashes: r.caller?.lists_sha256 }))) };
+    if (baselinePath !== null) {
+      for (const k of LIST_OBSERVED_KEYS) {
+        for (const [route, h] of Object.entries(finalObserved[k] ?? {})) {
+          if (h === 'mixed') {
+            observedWarnings += 1;
+            process.stdout.write(`BENCH-OBSERVED-WARN: observed ${k}[${route}] mixed across runs\n`);
+          }
+        }
+      }
+      process.stdout.write(`BENCH-OBSERVED: warnings=${observedWarnings} (warn-only; nothing was blocked)\n`);
+    }
     const file: BenchResultsFile = {
       date: '',
       purpose,
@@ -1138,6 +1382,11 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       phase_cap_usd: phaseCapUsd!,
       aborted,
       total_usd: round6(runs.reduce((s, r) => s + r.usd, 0)),
+      config: { ...runConfig, caller_model: callerModelOf(runs.map((r) => r.caller?.model)) },
+      ...(baselinePath !== null ? { baseline: { file: path.basename(baselinePath), expect_diff: expectDiff ?? [] } } : {}),
+      observed: finalObserved,
+      // r24b amendment (spec section 16): hashes + counts only here; the name lists go to the local sibling file below.
+      observed_lists: summarizeObservedLists(observedLists),
       runs,
       summary: summarize(runs),
       task_pairs: summarizePairs(runs),
@@ -1147,6 +1396,11 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
       const name = resultsFileName(clock(), (n) => fs.existsSync(path.join(resultsDir, n)));
       file.date = name;
       fs.writeFileSync(path.join(resultsDir, name), JSON.stringify(file, null, 2), { flag: 'wx' });
+      // r24b amendment (spec section 16): the caller's tool/skill/plugin/agent/MCP/hook NAMES stay local; the pushed results
+      // JSON holds only their hashes and counts.
+      if (observedLists !== null) {
+        fs.writeFileSync(path.join(resultsDir, observedListsFileName(name)), JSON.stringify(observedLists, null, 2), { flag: 'wx' });
+      }
     } catch (err) {
       process.stderr.write(`jev-browser-wingman bench: could not write results: ${(err as Error).message}\n`);
       if (exitCode === 0) exitCode = 1;

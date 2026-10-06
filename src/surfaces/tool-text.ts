@@ -94,3 +94,10 @@ export const BROWSE_STEP_SCHEMA = {
     max_ms: { type: 'integer', minimum: 1000, maximum: 120000 },
   },
 } as const;
+
+/** The tools/list entries in served order (src/surfaces/mcp-server.ts serves these; the bench hashes them, r24b). */
+export const SERVED_TOOLS = [
+  { name: 'wingman_do', description: WINGMAN_DO_DESCRIPTION, inputSchema: WINGMAN_DO_SCHEMA },
+  { name: 'wingman_check', description: WINGMAN_CHECK_DESCRIPTION, inputSchema: WINGMAN_CHECK_SCHEMA },
+  { name: 'browse_step', description: BROWSE_STEP_DESCRIPTION, inputSchema: BROWSE_STEP_SCHEMA },
+];
