@@ -4867,3 +4867,15 @@ test('T-r24-pressfocus-verb: a click split between none and the focused field ne
   assert.equal(h.driver.actCalls().length, 0, 'no act');
   assert.equal(r24Rounds(h).filter((x) => x.pressFocusSum !== undefined).length, 0);
 });
+
+test('T-r24-finalnav-count: a counted final clause does not end done after its first landed click', async () => {
+  const X = CS({ step_done: 0.3, target: ['none', { none: 0.5, ambiguous: 0.3 }] });
+  const h = harness({
+    observations: { p1: [hub, formPage, formPage, formPage] },
+    script: [CS(), X, X, X],
+  });
+  const r = await h.call({ goal: 'r24-finalnav-count goal', steps: ['open the Form link twice'] });
+  assert.notEqual(r.status, 'done', `ended ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().filter((x) => x.op === 'click').length, 1);
+  assert.equal(r24Rounds(h).filter((x) => x.finalNavEvidence !== undefined).length, 0);
+});
