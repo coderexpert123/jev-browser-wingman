@@ -4794,3 +4794,76 @@ test('T-r24-dialog-split: a confirm accepted from the click clause leaves the di
   assert.equal(stuckReqs(h).length, 1);
   assert.equal(rounds[4].stuck, 'give-up');
 });
+
+// ---- r24 recheck pass 1: sub-guards the first build left unpinned (each leg reds when its guard is dropped) ----
+
+test('T-r24-samedoc-guards2: a key clause, a count clause or a press act keeps the same-document bar shut', async () => {
+  const noEvidence = (h: Harness) => assert.equal(r24Rounds(h).filter((x) => x.sameDocEvidence !== undefined).length, 0);
+  // (a) the clause names a key: the click alone is not the whole clause.
+  const a = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), R24_NONE_ROUND(0.4), R24_NONE_ROUND(0.4)],
+  });
+  const ra = await a.call({ goal: 'r24-samedoc-guards2 goal a', steps: ['click the Add button to press Enter'] });
+  assert.equal(ra.status, 'fallback');
+  noEvidence(a);
+  // (b) the clause names an at-least count.
+  const b = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), R24_NONE_ROUND(0.4), R24_NONE_ROUND(0.4)],
+  });
+  const rb = await b.call({ goal: 'r24-samedoc-guards2 goal b', steps: ['click the Add button until at least 3 items show'] });
+  assert.equal(rb.status, 'fallback');
+  noEvidence(b);
+  // (c) the one landed act is a PRESS on an element (CLICK_FAMILY_OPS holds press; a targetless press has no path, so only an element press reaches oneClick), not a click.
+  const c = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [PRESS(0.9, 'Enter', { target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] }), R24_NONE_ROUND(0.4), R24_NONE_ROUND(0.4)],
+  });
+  const rc = await c.call({ goal: 'r24-samedoc-guards2 goal c', steps: ['submit the cart'] });
+  assert.equal(rc.status, 'fallback', `leg c: expected fallback, got ${rc.status}/${rc.reason}`);
+  assert.equal(c.driver.actCalls().filter((x) => x.op === 'press').length, 1, 'leg c: the press landed');
+  noEvidence(c);
+});
+
+test('T-r24-finalnav-error: a final-clause landing on a page that shows an error does not end done', async () => {
+  const X = CS({ step_done: 0.3, error: 0.9, target: ['none', { none: 0.5, ambiguous: 0.3 }] });
+  const h = harness({
+    observations: { p1: [hub, formPage, formPage, formPage] },
+    script: [CS(), X, X, X],
+  });
+  const r = await h.call({ goal: 'r24-finalnav-error goal', steps: ['open the Form page'] });
+  assert.notEqual(r.status, 'done');
+  assert.equal(r24Rounds(h).filter((x) => x.finalNavEvidence !== undefined).length, 0);
+});
+
+test('T-r24-hover-guards: step_done 0.45, an error page, a counted or value-naming hover clause keep the hover bar shut', async () => {
+  const hoverFirst = CS({ action: ['hover', { hover: 0.95, none: 0.03 }] });
+  const noEvidence = (h: Harness) => assert.equal(r24Rounds(h).filter((x) => x.hoverEvidence !== undefined).length, 0);
+  const run = async (name: string, step: string, sd: number, error: number, values?: Record<string, string>) => {
+    const none = () => CS({ step_done: sd, error, target: ['none', { none: 0.95 }] });
+    const h = harness({
+      observations: { p1: [menuClosed, menuOpen, menuOpen, menuOpen] },
+      script: [hoverFirst, none(), none(), none()],
+    });
+    const r = await h.call({ goal: `r24-hover-guards goal ${name}`, steps: [step], ...(values ? { values } : {}) });
+    assert.notEqual(r.status, 'done', `leg ${name}: ended ${r.status}/${r.reason}`);
+    assert.equal(h.driver.actCalls().filter((x) => x.op === 'hover').length, 1, `leg ${name}: the hover landed`);
+    noEvidence(h);
+  };
+  await run('a', 'hover over the Menu button', 0.45, 0.05); // under the 0.5 evidence bar
+  await run('b', 'hover over the Menu button', 0.6, 0.6); // an error the page shows
+  await run('c', 'hover over the Menu button twice', 0.6, 0.05); // a counted clause
+  await run('d', 'hover over the value named item', 0.6, 0.05, { item: 'Menu' }); // a clause that names a value
+});
+
+test('T-r24-pressfocus-verb: a click split between none and the focused field never commits targetless', async () => {
+  const h = harness({
+    observations: { p1: [todoPage] },
+    script: [CS({ action: ['click', { click: 0.9, none: 0.05 }], target: ['none', { none: 0.5, e1: 0.47, ambiguous: 0.03 }] })],
+  });
+  const r = await h.call({ goal: 'r24-pressfocus-verb goal', steps: ['click the New todo field'] });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().length, 0, 'no act');
+  assert.equal(r24Rounds(h).filter((x) => x.pressFocusSum !== undefined).length, 0);
+});
