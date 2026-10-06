@@ -145,6 +145,7 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
 
 ## § KB-mutant methodology
 
+- **Redaction sites need a SITE-deletion run (r24c recheck).** Replace each `redact(` call in loop/questions/pick by an identity helper, rebuild, run the redaction-bearing files, count survivors (60 sites, ~15 s each foreground): the request and log backstops repair a missed site silently, so a green suite says nothing about site coverage. A survivor is real only where no backstop covers the string (result labels: cover names, token-act `last_action`); the log fields need a `redactionBackstopHits()` assertion with the value actually present at that site (the select-result test has one), and binding-NAME sites stay equivalent.
 - **A flag flip proves the feature, not its guards**: r24's flag mutants all
   passed while eleven sub-guards (key/count/press exclusions, error and bar
   checks, repeat-count) stayed green-both-sides until each guard was deleted
