@@ -1051,7 +1051,7 @@ test('T17: the chain log record carries only § 5.1 fields plus progress and act
   const allowed = new Set([
     'ts', 'tool', 'mode', 'adapter', 'status', 'reason', 'steps', 'host', 'gate_hits',
     'jev_calls', 'input_tokens', 'output_tokens', 'ms', 'would', 'phases',
-    'progress', 'pick', 'acts_by_op', 'step_texts_start',
+    'progress', 'pick', 'acts_by_op', 'step_texts_start', 'stance', 'step_texts', 'step_parents',
   ]);
   for (const key of Object.keys(h.records[0])) {
     assert.ok(allowed.has(key), `unexpected log key ${key}`);
@@ -4878,4 +4878,216 @@ test('T-r24-finalnav-count: a counted final clause does not end done after its f
   assert.notEqual(r.status, 'done', `ended ${r.status}/${r.reason}`);
   assert.equal(h.driver.actCalls().filter((x) => x.op === 'click').length, 1);
   assert.equal(r24Rounds(h).filter((x) => x.finalNavEvidence !== undefined).length, 0);
+});
+
+// ---- r24b (spec .build-r24b-spec.md WP-T): adjudication telemetry, set A ----
+
+const r24bRounds = (h: Harness, i = 0) => h.records[i].phases!.rounds;
+
+test("T-r24b-round-shape: records carry stance, caller steps, parents, and each round's cursor, url and executed act", async () => {
+  const h = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  const r = await h.call({ goal: 'r24b round-shape goal', steps: NAV_STEPS, values: navValues });
+  assert.equal(r.status, 'done');
+  const record = h.records[0];
+  assert.deepEqual(record.stance, { gate: 'off', policy: 'off' });
+  assert.deepEqual(record.step_texts, NAV_STEPS);
+  assert.deepEqual(record.step_parents, [0, 1]);
+  const rs = r24bRounds(h);
+  assert.deepEqual(rs.map((x) => x.els), [1, 1, 1, 1]);
+  assert.deepEqual(rs.map((x) => x.text_h), ['1naxefc', 'syr4a3', 'syr4a3', 'syr4a3']);
+  assert.deepEqual(rs.map((x) => x.cursor), [0, 0, 1, 1]);
+  assert.deepEqual(rs.map((x) => x.url), [
+    'https://example.com/',
+    'https://example.com/form',
+    'https://example.com/form',
+    'https://example.com/form',
+  ]);
+  assert.deepEqual(rs[0].act, { verb: 'click', id: 'e1', role: 'link', tag: 'a', ok: true });
+  assert.equal('act' in rs[1], false);
+  assert.deepEqual(rs[2].act, { verb: 'fill', id: 'e2', role: 'textbox', tag: 'input', binding: 'email', ok: true });
+  assertNoValues(JSON.stringify(record), navValues);
+
+  const h2 = harness({ observations: { p1: [observation()] }, script: [CS(), ADV()] });
+  await h2.callDo({ goal: 'r24b stance do goal' });
+  assert.equal(h2.records[0].tool, 'wingman_do');
+  assert.deepEqual(h2.records[0].stance, { gate: 'off', policy: 'off' });
+});
+
+test('T-r24b-cands: the top-3 target grades carry role and tag and agree with target1/target2', async () => {
+  const h = harness({
+    observations: {
+      p1: [observation({ elements: [el(), el({ id: 'e2', path: '#e2', tag: 'a', role: 'link', name: 'Docs', fingerprint: { tag: 'a', role: 'link', name: 'Docs', x: 0, y: 0 } })] })],
+    },
+    script: [CS({ target: ['e1', { e1: 0.8, e2: 0.12, none: 0.05, ambiguous: 0.03 }] }), ADV()],
+  });
+  await h.call({ goal: 'r24b cands goal', steps: ['click Details'] });
+  const r0 = r24bRounds(h)[0];
+  assert.deepEqual(r0.cands, [
+    { id: 'e1', p: 0.8, role: 'button', tag: 'button' },
+    { id: 'e2', p: 0.12, role: 'link', tag: 'a' },
+    { id: 'none', p: 0.05 },
+  ]);
+  assert.equal(r0.cands![0].id, r0.target1);
+  assert.equal(r0.cands![1].id, r0.target2);
+});
+
+test('T-r24b-gate: a live gate records the rule and element; a Jev-only gate records jev; the token act is marked', async () => {
+  const goal = 'r24b gate goal A';
+  const steps = ['click Place order'];
+  const hA = harness({
+    observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
+    script: [CS(), ADV()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const r1 = await hA.call({ goal, steps });
+  assert.equal(r1.status, 'needs_confirmation');
+  assert.equal(r1.reason, 'irreversible-heuristic');
+  const rsA = r24bRounds(hA, 0);
+  assert.deepEqual(rsA[rsA.length - 1].gate, { rule: 'type-submit', verb: 'click', id: 'e1', role: 'button', tag: 'button', type: 'submit', irreversibleP: 0.05 });
+  assert.deepEqual(hA.records[0].stance, { gate: 'confirm', policy: 'off' });
+  // Leg C: the confirmed token act.
+  await hA.call({ goal, steps, confirm_token: r1.confirm_token });
+  assert.deepEqual(r24bRounds(hA, 1)[0].act, { verb: 'click', id: 'e1', role: 'button', tag: 'button', token: true, ok: true });
+
+  const hB = harness({
+    observations: { p1: [observation()] },
+    script: [CS({ irreversible: 0.9 }), ADV()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const rB = await hB.call({ goal: 'r24b gate goal B', steps });
+  assert.equal(rB.reason, 'irreversible-jev');
+  const rsB = r24bRounds(hB);
+  assert.deepEqual(rsB[rsB.length - 1].gate, { rule: 'jev', verb: 'click', id: 'e1', role: 'button', tag: 'button', type: 'button', irreversibleP: 0.9 });
+
+  const hD = harness({ observations: { p1: [observation({ elements: [el({ type: 'submit' })] })] }, script: [CS(), ADV()] });
+  const rD = await hD.call({ goal: 'r24b gate goal D', steps });
+  assert.equal(rD.status, 'done');
+  assert.ok(r24bRounds(hD).every((x) => !('gate' in x)));
+});
+
+test('T-r24b-policy: a policy end records its reason and the signals that fired', async () => {
+  const sig = observation({ signals: { ...cleanSignals, password: true } });
+  const h = harness({ observations: { p1: [sig] }, script: [CS()], config: { policy: { mode: 'enforce' } } });
+  const r = await h.call({ goal: 'r24b policy goal', steps: ['click Details'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'sensitive-password');
+  assert.deepEqual(r24bRounds(h)[0].policy, { reason: 'sensitive-password', signals: ['password'] });
+  assert.equal(h.records[0].stance?.policy, 'enforce');
+  const h2 = harness({ observations: { p1: [sig] }, script: [CS()] });
+  await h2.call({ goal: 'r24b policy goal default', steps: ['click Details'] });
+  assert.ok(r24bRounds(h2).every((x) => !('policy' in x)));
+});
+
+test('T-r24b-dialogs: dialogs are recorded by type and outcome, never by message', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [CS(), ADV()] });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r = await h.call({ goal: 'r24b dialog goal A', steps: ['click Remove and accept the dialog'] });
+  assert.equal(r.status, 'done', `got ${r.status}/${r.reason}`);
+  const r0 = r24bRounds(h)[0];
+  assert.deepEqual(r0.dialogs, [{ type: 'confirm', outcome: 'accept' }]);
+  assert.equal(r0.dialog, 'accept');
+  assert.equal(JSON.stringify(h.records[0]).includes('Really remove?'), false);
+
+  const h2 = harness({ observations: { p1: [observation()] }, script: [CS()] });
+  h2.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'Really remove?' };
+  const r2 = await h2.call({ goal: 'r24b dialog goal B', steps: ['click Remove'] });
+  assert.equal(r2.status, 'blocked');
+  assert.equal(r2.reason, 'dialog-open');
+  assert.deepEqual(r24bRounds(h2)[0].dialogs, [{ type: 'confirm', outcome: 'blocked' }]);
+});
+
+test('T-r24b-pick: a pick round records the pick and whether it resolved', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [ADV()] });
+  await h.call({ goal: 'r24b pick goal A', steps: ['click Details'], pick: { role: 'button', name: 'Details', action: 'click' } });
+  assert.deepEqual(r24bRounds(h)[0].pickArgs, { action: 'click', role: 'button', name: 'Details', resolved: true });
+  const h2 = harness({ observations: { p1: [observation()] }, script: [ADV()] });
+  const r2 = await h2.call({ goal: 'r24b pick goal B', steps: ['click Details'], pick: { role: 'button', name: 'Nope', action: 'click' } });
+  assert.equal(r2.status, 'ambiguous');
+  assert.equal(r2.reason, 'target-uncertain');
+  assert.deepEqual(r24bRounds(h2)[0].pickArgs, { action: 'click', role: 'button', name: 'Nope', why: 'no-match' });
+});
+
+test('T-r24b-act-flip-fail: a flip lands in act.flip; a failed act has no ok and marks the nav retry', async () => {
+  const agree = el({ tag: 'input', role: 'checkbox', type: 'checkbox', name: 'Agree', fingerprint: { tag: 'input', role: 'checkbox', name: 'Agree', x: 0, y: 0 } });
+  const h = harness({
+    observations: { p1: [observation({ elements: [agree] })] },
+    script: [CS({ action: ['check', { check: 0.9, none: 0.05 }] }), ADV()],
+  });
+  h.driver.nextActResult = 'checked';
+  await h.call({ goal: 'r24b flip goal', steps: ['tick the Agree checkbox'] });
+  assert.deepEqual(r24bRounds(h)[0].act, { verb: 'check', id: 'e1', role: 'checkbox', tag: 'input', ok: true, flip: 'checked' });
+
+  const h2 = harness({ observations: { p1: [observation()] }, script: [CS()] });
+  let failsLeft = 2;
+  const realAct = h2.driver.act.bind(h2.driver);
+  h2.driver.act = async (pageId, elementId, op, value) => {
+    if (failsLeft > 0) {
+      failsLeft -= 1;
+      throw new ActFailedError(V2_MESSAGE);
+    }
+    return realAct(pageId, elementId, op, value);
+  };
+  const r2 = await h2.call({ goal: 'r24b act-fail goal', steps: ['click Details'] });
+  assert.equal(r2.reason, 'act-failed');
+  assert.deepEqual(r24bRounds(h2)[0].act, { verb: 'click', id: 'e1', role: 'button', tag: 'button', navRetry: true });
+  assert.ok(h2.records[0].act_error !== undefined);
+});
+
+test('T-r24b-bounds: every new string is redacted before it is cut and stays inside its cap', async () => {
+  const values = { secret: 'SECRETVAL' };
+  const h = harness({
+    observations: {
+      p1: [
+        observation({
+          url: 'https://example.com/' + 'a'.repeat(135) + 'SECRETVAL' + 'b'.repeat(500),
+          elements: [el({ role: 'x'.repeat(100), tag: 'custom-' + 'y'.repeat(100) })],
+        }),
+      ],
+    },
+    script: [CS(), ADV()],
+  });
+  await h.call({ goal: 'r24b bounds goal', steps: ['click Details'], values });
+  const r0 = r24bRounds(h)[0];
+  assert.equal(r0.url, 'https://example.com/' + 'a'.repeat(135) + '<valu');
+  assert.equal(r0.url!.length, 160);
+  assert.equal(r0.cands![0].role, 'x'.repeat(20));
+  assert.equal(r0.cands![0].tag, ('custom-' + 'y'.repeat(100)).slice(0, 20));
+  assert.equal(r0.act!.role!.length, 20);
+  assertNoValues(JSON.stringify(h.records[0]), values);
+  const { url, cursor, els, text_h, cands, act } = r0;
+  assert.ok(JSON.stringify({ url, cursor, els, text_h, cands, act }).length <= 760);
+
+  const h2 = harness({ observations: { p1: [observation()] }, script: [ADV()] });
+  await h2.call({
+    goal: 'r24b bounds pick goal',
+    steps: ['click Details'],
+    values,
+    pick: { role: 'button', name: 'z'.repeat(35) + 'SECRETVAL', action: 'click' },
+  });
+  assert.equal(r24bRounds(h2)[0].pickArgs!.name, 'z'.repeat(35) + '<valu');
+
+  const h3 = harness({ observations: { p1: [observation({ text: 'x'.repeat(100000) })] }, script: [CS(), ADV()] });
+  await h3.call({ goal: 'r24b bounds text goal', steps: ['click Details'] });
+  assert.equal(r24bRounds(h3)[0].text_h, '53uc5c');
+  const line = JSON.stringify(h3.records[0]);
+  assert.ok(line.length < 3000, `record line ${line.length}`);
+  assert.equal(line.includes('xxxx'), false);
+});
+
+test('T-r24b-page-fingerprint: a click that adds an element changes els and text_h (the Add Element shape)', async () => {
+  const del = el({ id: 'e2', path: '#e2', name: 'Delete', fingerprint: { tag: 'button', role: 'button', name: 'Delete', x: 0, y: 0 } });
+  const h = harness({
+    observations: { p1: [observation({ text: 'list before', elements: [el()] }), observation({ text: 'list after', elements: [el(), del] })] },
+    script: [CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'r24b fingerprint goal', steps: ['click Details'] });
+  assert.equal(r.status, 'done');
+  const rs = r24bRounds(h);
+  assert.deepEqual(rs.map((x) => x.els), [1, 2]);
+  assert.deepEqual(rs.map((x) => x.text_h), ['1x4jl1d', '1gmh5ga']);
+  const j = JSON.stringify(h.records[0]);
+  assert.ok(!j.includes('list before') && !j.includes('list after'));
 });

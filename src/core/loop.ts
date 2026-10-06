@@ -477,6 +477,30 @@ function cut40(s: string): string {
   return s.length > 40 ? s.slice(0, 40) : s;
 }
 
+/** r24b telemetry caps (spec section 5.2). */
+const TELEMETRY_URL_MAX = 160;
+const TELEMETRY_ATTR_MAX = 20;
+const POLICY_SIGNAL_KEYS = ['password', 'currentPassword', 'newPassword', 'otpAutocomplete', 'otpText', 'ccAutocomplete'] as const;
+
+/** r24b: a round's page address for the log: origin + pathname (the scrubUrl shape Jev already receives), values
+ * redacted BEFORE the cut (a cut first could keep a partial value that redaction no longer matches); '' when
+ * unparsable. */
+function telemetryUrl(u: string, values: Record<string, string>): string {
+  let s = '';
+  try {
+    const p = new URL(u);
+    s = p.origin + p.pathname;
+  } catch {
+    s = '';
+  }
+  return redactValues(s, values).slice(0, TELEMETRY_URL_MAX);
+}
+
+/** r24b: an attribute-derived token (role, tag, input type) cut to TELEMETRY_ATTR_MAX. */
+function attr20(s: string): string {
+  return s.slice(0, TELEMETRY_ATTR_MAX);
+}
+
 /** § 5.5.3: a file input. click/dblclick/press on one convert to upload. */
 function isFileInput(el: ElementRecord): boolean {
   return el.tag === 'input' && el.type === 'file';
@@ -1756,18 +1780,28 @@ async function runTool(
       .slice(dialogBase)
       .find((e) => e.pageId === pageId && !answeredDialogs.has(e));
     if (pending === undefined) return null;
-    if (answeredThisAct) return mk('blocked', 'dialog-open');
+    if (answeredThisAct) {
+      noteDialog(pending.type, 'blocked');
+      return mk('blocked', 'dialog-open');
+    }
     const outcome = dialogOutcome(pending, stepText);
-    if (outcome === null) return mk('blocked', 'dialog-open');
+    if (outcome === null) {
+      noteDialog(pending.type, 'blocked');
+      return mk('blocked', 'dialog-open');
+    }
     try {
       await driver.answerDialog(pageId, outcome === 'accept');
       answeredDialogs.add(pending);
       if (cur) cur.dialog = outcome;
+      noteDialog(pending.type, outcome);
     } catch {
+      noteDialog(pending.type, 'blocked');
       return mk('blocked', 'dialog-open');
     }
     // A second open dialog in the same act lands unanswered → blocked (C4).
-    if (dialogEvents.slice(dialogBase).some((e) => e.pageId === pageId && !answeredDialogs.has(e))) {
+    const second = dialogEvents.slice(dialogBase).find((e) => e.pageId === pageId && !answeredDialogs.has(e));
+    if (second !== undefined) {
+      noteDialog(second.type, 'blocked');
       return mk('blocked', 'dialog-open');
     }
     return null;
@@ -1830,12 +1864,27 @@ async function runTool(
     // post-action cursor clause before the first ask (resume-cheap). Enum-adjacent
     // boolean, never page text.
     resumeSkippedPostAction?: true;
+    // r24b (spec .build-r24b-spec.md section 5): adjudication fields, contract-safe set A - ids, grades,
+    // attribute-derived role/tag/type (cut to 20), caller text, enums, binding NAMES and the page address as
+    // origin + path; values redacted BEFORE any cut. Never page text: labels and titles are WP-T2's, behind deps.logLabels (O1 b).
+    url?: string;
+    cursor?: number;
+    els?: number;     // O9: the observation's element count
+    text_h?: string;  // O9: shortHash(obs.text), a fingerprint, never the text
+    cands?: Array<{ id: string; p: number; role?: string; tag?: string }>;
+    pickArgs?: { action: string; role?: string; name?: string; key?: string; binding?: string; nth?: number; resolved?: true; why?: 'no-match' | 'multi-match' };
+    dialogs?: Array<{ type: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; outcome: 'accept' | 'dismiss' | 'blocked' }>;
+    gate?: { rule: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' | 'jev'; verb: string; id: string; role: string; tag: string; type?: string; irreversibleP?: number };
+    policy?: { reason: string; signals?: string[] };
+    act?: { verb: string; id?: string; role?: string; tag?: string; binding?: string; key?: string; token?: true; navRetry?: true; ok?: true; flip?: string };
     kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error'; // r18 (D3): outcome class — explicit site assignment wins over the end-status default; absent when no site knew the value. Enum only, never page text.
   };
   const phaseAcc: {
     attachMs?: number;
     firstObserveMs?: number;
     stepTextsStart?: string;
+    stepTexts?: string[];
+    stepParents?: number[];
     rounds: PhaseRound[];
   } = { rounds: [] };
   let cur: PhaseRound | null = null;
@@ -1852,6 +1901,10 @@ async function runTool(
     phaseAcc.rounds.push(round);
     cur = round;
     return round;
+  };
+  /** r24b: one dialog this round answered or blocked on - type and outcome only, never the message (C3). */
+  const noteDialog = (type: DialogEvent['type'], outcome: 'accept' | 'dismiss' | 'blocked'): void => {
+    if (cur) (cur.dialogs ??= []).push({ type, outcome });
   };
   /** Timed observe (r21 P-1c, D3; bound corrected by the r21 verifier F2,
    * 2026-10-04; slow-nav-shaped retry added by the r21b mid-nav amendment):
@@ -1909,7 +1962,7 @@ async function runTool(
    * target's top-1/top-2 candidates, with probabilities — ids and
    * probabilities only (already sent to Jev as criteria and returned in
    * results), never a raw value or page text beyond that. */
-  const recordDecisionTelemetry = (answers: AnswerMap): void => {
+  const recordDecisionTelemetry = (answers: AnswerMap, obs?: Observation): void => {
     if (!cur) return;
     const action = answers['action'];
     if (action && action.type === 'choice') {
@@ -1928,6 +1981,11 @@ async function runTool(
         cur.target2 = ranked[1][0];
         cur.target2P = ranked[1][1];
       }
+      const top = ranked.slice(0, 3).map(([id, p]) => {
+        const e = obs?.elements.find((x) => x.id === id);
+        return { id: attr20(id), p, ...(e ? { role: attr20(e.role), tag: attr20(e.tag) } : {}) };
+      });
+      if (top.length > 0) cur.cands = top;
     }
     // Noul-question probabilities (tuning data, 2026-09-28): written only
     // when that question was actually asked this round. step_done/ready/
@@ -2121,6 +2179,7 @@ async function runTool(
       tool,
       mode,
       adapter: deps.config.adapter,
+      stance: { gate: gateModeOf(deps.config), policy: policyModeOf(deps.config) },
       status: r.status,
       reason: r.reason,
       steps: r.steps,
@@ -2139,6 +2198,8 @@ async function runTool(
       // (handoffRecordsFromLog parses log.jsonl, so it has to ride here).
       ...(r.step_review ? { step_review: { why: r.step_review.why, candidates: r.step_review.candidates.length } } : {}),
       ...(phaseAcc.stepTextsStart !== undefined ? { step_texts_start: phaseAcc.stepTextsStart } : {}),
+      ...(phaseAcc.stepTexts !== undefined ? { step_texts: phaseAcc.stepTexts } : {}),
+      ...(phaseAcc.stepParents !== undefined ? { step_parents: phaseAcc.stepParents } : {}),
       ...(actError !== undefined ? { act_error: actError } : {}),
       phases: {
         ...(phaseAcc.attachMs !== undefined ? { attachMs: phaseAcc.attachMs } : {}),
@@ -2754,6 +2815,16 @@ async function runTool(
     if (remaining() < TIME_FLOOR_MS) {
       return { result: mk('fallback', 'budget-time'), history };
     }
+    const actTele: NonNullable<PhaseRound['act']> = {
+      verb: action.verb,
+      id: el.id,
+      role: attr20(el.role),
+      tag: attr20(el.tag),
+      ...(action.binding !== undefined ? { binding: redactValues(action.binding, values) } : {}),
+      ...(action.verb === 'press' && action.optionValue !== undefined ? { key: redactValues(action.optionValue, values) } : {}),
+      token: true,
+    };
+    if (cur) cur.act = actTele;
     const tAct0 = now();
     inFlightOp = action.verb;
     // r17 (C4): dialogs are correlated with this act temporally — only events
@@ -2762,6 +2833,8 @@ async function runTool(
     // r17b (F3): a check/uncheck that flipped reports its own result.
     const actFlip = checkFlipResult(await driver.act(pageId, el.id, action.verb, actValue));
     inFlightOp = null;
+    actTele.ok = true;
+    if (actFlip !== undefined) actTele.flip = actFlip;
     if (cur) cur.actMs += now() - tAct0;
     if (cur) cur.kind = action.verb === 'wait' ? 'wait' : 'act'; // r18 (D3)
     if (action.verb === 'wait') {
@@ -3201,6 +3274,11 @@ async function runTool(
     if (entry?.kind === 'chain') phaseAcc.stepTextsStart = redactValues(entry.clauses[0], values).slice(0, 300);
     const N = chain?.N ?? 0;
     const clauseText = (i: number): string => redactValues(chain!.clauses[i], values).slice(0, 300);
+    // r24b: the caller's steps (redacted and cut like step_texts_start) and the expanded-to-caller index map.
+    if (entry?.kind === 'chain' && chain) {
+      phaseAcc.stepTexts = entry.clauses.map((c) => redactValues(c, values).slice(0, 300));
+      phaseAcc.stepParents = [...chain.parents];
+    }
     const clauseReviewStep = () => capLabel(clauseText(Math.min(chain!.cursor, N - 1)));
     /** A wrong-page / not-ready bounce: no retry (§ 5.5.2 rules 5–6). */
     const chainBounce = (why: 'wrong-page' | 'not-ready'): WingmanResult =>
@@ -3720,9 +3798,13 @@ async function runTool(
         bucket.step_text = chain
           ? clauseText(Math.min(chain.cursor, N - 1))
           : (entryStep ?? '');
+        if (chain) bucket.cursor = chain.cursor;
       }
       const obs = await observeTimed(pageId, history);
       pageUrl = obs.url;
+      bucket.url = telemetryUrl(obs.url, values);
+      bucket.els = obs.elements.length;
+      bucket.text_h = shortHash(obs.text);
       // § outcome evidence choke point: fills the last act's observed result
       // from this round's fresh obs, before anything reads history.
       history = annotateLastOutcome(history, obs);
@@ -3759,14 +3841,17 @@ async function runTool(
         const pending = dialogEvents.find((e) => e.pageId === pageId && !answeredDialogs.has(e))!;
         const outcome = dialogOutcome(pending, activeStepText || doInput.goal);
         if (outcome === null) {
+          noteDialog(pending.type, 'blocked');
           return mk('blocked', 'dialog-open');
         }
         try {
           await driver.answerDialog(pageId, outcome === 'accept');
           answeredDialogs.add(pending);
           if (cur) cur.dialog = outcome;
+          noteDialog(pending.type, outcome);
           if (cur) cur.kind = 'act'; // r18 (D3): the dialog answer is the round's action
         } catch {
+          noteDialog(pending.type, 'blocked');
           return mk('blocked', 'dialog-open');
         }
         continue;
@@ -3782,6 +3867,10 @@ async function runTool(
         ? ({ sensitive: false } as ReturnType<typeof evaluatePolicy>)
         : evaluatePolicy(obs.url, obs.signals, deps.config.sensitive_hosts, policyModeOf(deps.config));
       if (policy.sensitive) {
+        // r24b: the arm that fired. The reason names it (host category / auth path / page signal / protocol);
+        // the signal flags say which page signal. Page-level, so no element (O2, deferred by the operator).
+        const signals = POLICY_SIGNAL_KEYS.filter((k) => obs.signals[k] === true);
+        bucket.policy = { reason: String(policy.reason), ...(signals.length > 0 ? { signals: [...signals] } : {}) };
         // A policy hit leaves a confirm token unconsumed.
         return mk('fallback', policy.reason as Reason);
       }
@@ -3821,11 +3910,22 @@ async function runTool(
         // After the pick, legacy continues as a committed takeover (§ 5.6).
         entryPending = false;
         const pick = entry!.pick!;
+        const pickTele: NonNullable<PhaseRound['pickArgs']> = {
+          action: pick.action,
+          ...(pick.role !== undefined ? { role: attr20(pick.role) } : {}),
+          ...(pick.name !== undefined ? { name: cut40(redactValues(pick.name, values)) } : {}),
+          ...(pick.key !== undefined ? { key: pick.key } : {}),
+          ...(pick.value !== undefined ? { binding: redactValues(pick.value, values) } : {}),
+          ...(pick.nth !== undefined ? { nth: pick.nth } : {}),
+        };
+        bucket.pickArgs = pickTele;
         // § 5.5.6 verb check: before any ask, zero acts.
         if (!hasOp(pick.action)) {
           return mk('fallback', 'unsupported-op');
         }
         const res = resolvePick(obs, pick);
+        if (res.ok) pickTele.resolved = true;
+        else pickTele.why = res.why;
         if (!res.ok) {
           pickUnmatched = true;
           return mk('ambiguous', 'target-uncertain', {
@@ -3970,7 +4070,7 @@ async function runTool(
           }
           primary = r1.answers as AnswerMap;
           decisionAnswers = primary;
-          recordDecisionTelemetry(primary);
+          recordDecisionTelemetry(primary, obs);
           if (chain) {
             // § 5.5.2 step 6: in shadow mode return after this ask.
             if (mode === 'shadow') return shadowResult();
@@ -4102,7 +4202,7 @@ async function runTool(
           }
           primary = r.answers as AnswerMap;
           decisionAnswers = primary;
-          recordDecisionTelemetry(primary);
+          recordDecisionTelemetry(primary, obs);
           if (chain) {
             if (mode === 'shadow') return shadowResult();
             const early = runChainEarly(primary, round, obs);
@@ -4149,7 +4249,7 @@ async function runTool(
         if (decision === null) {
           const merged = (secondary ? { ...primary, ...secondary } : primary) as AnswerMap;
           decisionAnswers = merged;
-          recordDecisionTelemetry(merged);
+          recordDecisionTelemetry(merged, obs);
           if (chain) {
             // § 5.5.2 step 8.
             const cands = () => topTargetCandidates(merged, obs, values);
@@ -4361,6 +4461,15 @@ async function runTool(
           const irreversibleP =
             decision.el && irreversibleAnswer && irreversibleAnswer.type === 'noul' ? irreversibleAnswer.noul : 0;
           if (gate.hit || irreversibleP >= THRESHOLDS.irreversible) {
+            bucket.gate = {
+              rule: gate.hit ? (gate.rule ?? 'jev') : 'jev',
+              verb: decision.verb,
+              id: decision.el!.id,
+              role: attr20(decision.el!.role),
+              tag: attr20(decision.el!.tag),
+              ...(decision.el!.type ? { type: attr20(decision.el!.type) } : {}),
+              ...(irreversibleAnswer && irreversibleAnswer.type === 'noul' ? { irreversibleP: irreversibleAnswer.noul } : {}),
+            };
             const pending: PendingAction = {
               url: obs.url,
               elementPath: decision.el!.path,
@@ -4459,6 +4568,14 @@ async function runTool(
             : decision.verb === 'select' || decision.verb === 'press'
               ? decision.optionValue
               : undefined;
+        // r24b: what is executed (it can differ from Jev's choice after coercion, margin or stuck); completed below.
+        const actTele: NonNullable<PhaseRound['act']> = {
+          verb: decision.verb,
+          ...(decision.el ? { id: decision.el.id, role: attr20(decision.el.role), tag: attr20(decision.el.tag) } : {}),
+          ...(decision.binding !== undefined ? { binding: redactValues(decision.binding, values) } : {}),
+          ...(decision.verb === 'press' && decision.optionValue !== undefined ? { key: redactValues(decision.optionValue, values) } : {}),
+        };
+        bucket.act = actTele;
         const tAct = now();
         const stuckPend = decision.stuck;
         inFlightOp = decision.verb;
@@ -4488,6 +4605,7 @@ async function runTool(
             CLICK_FAMILY_OPS.has(decision.verb) &&
             NAV_SHAPED_ACT_ERROR_RE.test(String(e))
           ) {
+            actTele.navRetry = true;
             const tRetrySettle = now();
             await driver.settle(pageId, PRE_CLICK_SETTLE_MS);
             bucket.settleMs += now() - tRetrySettle;
@@ -4497,6 +4615,8 @@ async function runTool(
           }
         }
         inFlightOp = null;
+        actTele.ok = true;
+        if (actFlip !== undefined) actTele.flip = actFlip;
         bucket.actMs += now() - tAct;
         bucket.kind = decision.verb === 'wait' ? 'wait' : 'act'; // r18 (D3)
         if (decision.verb === 'wait') {
