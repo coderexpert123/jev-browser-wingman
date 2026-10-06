@@ -5672,3 +5672,63 @@ test('T-r24c-candidates: a value in an element name is redacted in the candidate
     assert.ok(labelsOf(r).some((l) => l.includes('<value:item1>')), `${leg.name}: a candidate carries the marker (${labelsOf(r).join(' | ')})`);
   }
 });
+
+// r24c recheck: a seeded property run (250 random value sets, pages and call mixes, ~1 s). Every request, log record and result of
+// every call must be free of every remembered value, and no backstop may fire (a site miss shows only there). It fails under
+// KB_CROSS_CALL_REDACT (1,213 leaks) and under a deleted site (hits), so a green run is a real zero.
+test('T-r24c-fuzz: no remembered value reaches a request, a record or a result (250 random cross-call runs)', async () => {
+  let seed = 987654321;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const pick = <T,>(a: T[]): T => a[Math.floor(rnd() * a.length)];
+  const POOL = ['zqovel', 'Kiwi-Plum', 'Orange Pie 7', 'a.b@zq.io', 'c++ guide', '(x)[y]', 'Ünïcode Wörd', 'zq_under_score', 'MiXeD CaSe Val', 'veil-oat-milk-91', 'jo$h^smith', 'weird\path', 'quote"d val', 'x.y.z.w'];
+  const caseVar = (v: string) => pick([v, v.toUpperCase(), v.toLowerCase()]);
+  const hits0 = redactionBackstopHits();
+  const failures: string[] = [];
+  for (let it = 0; it < 250; it += 1) {
+    const mem = new ValueMemory(3 + Math.floor(rnd() * 5));
+    const vals: Record<string, string> = {};
+    const nv = 1 + Math.floor(rnd() * 3);
+    for (let i = 0; i < nv; i += 1) vals['v' + i] = pick(POOL) + (rnd() < 0.5 ? '' : String(it));
+    const V = Object.values(vals);
+    const any = () => pick(V);
+    const els = [
+      el({ id: 'e1', path: '#new', name: 'New ' + any(), editable: true, role: 'textbox', tag: 'input', type: 'text' }),
+      el({ id: 'e2', path: '#add', name: 'Add ' + any(), role: 'button', tag: 'button', editable: false }),
+      el({ id: 'e3', path: '#chk', name: any(), role: 'checkbox', tag: 'input', type: 'checkbox', editable: false, state: { disabled: false, checked: false } }),
+      el({ id: 'e4', path: '#sel', name: 'Pick', role: 'combobox', tag: 'select', type: '', editable: false, state: { disabled: false, selected: any() }, options: V.map((v, i) => ({ value: 'o' + i, label: v })) }),
+      el({ id: 'e5', path: '#veil', name: 'Overlay ' + any(), role: 'button', tag: 'button', editable: false, obscured: rnd() < 0.4, coveredBy: rnd() < 0.5 ? any() : 'div#veil' }),
+    ];
+    const obs = () => observation({ url: 'https://example.com/p/' + (rnd() < 0.5 ? 'list' : (any().replace(/[^A-Za-z0-9._@-]/g, '') || 'x')), title: 'T ' + caseVar(any()), text: 'row ' + caseVar(any()) + ' done ' + any(), elements: els });
+    const h = harness({
+      observations: { p1: Array.from({ length: 6 }, obs) },
+      script: [CS(), CS({ action: ['fill', { fill: 0.9, none: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }] }), CS({ action: ['select', { select: 0.9, none: 0.05 }], target: ['e4', { e4: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }], option: ['o0', { o0: 0.9, none: 0.05 }] }), CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['e3', { e3: 0.9, none: 0.05 }] }), CS({ target: ['e5', { e5: 0.9, none: 0.05 }] }), ADV()],
+      valueMemory: mem,
+      logLabels: rnd() < 0.7,
+      config: rnd() < 0.3 ? { gate: { mode: 'confirm' } } : undefined,
+    });
+    let nreq = 0;
+    let nrec = 0;
+    const check = (what: string, r: WingmanResult | null) => {
+      const blob = JSON.stringify([...h.requests.slice(nreq), ...h.records.slice(nrec), r]).toLowerCase();
+      for (const [n, v] of Object.entries(vals)) {
+        if (blob.includes(v.toLowerCase())) failures.push(`it${it} ${what}: leaked ${n}=${JSON.stringify(v)} in ${blob.slice(Math.max(0, blob.indexOf(v.toLowerCase()) - 80), blob.indexOf(v.toLowerCase()) + 60)}`);
+      }
+      nreq = h.requests.length;
+      nrec = h.records.length;
+    };
+    const r1 = await h.call({ goal: 'fz g1 ' + it, steps: ['type the value named v0 into the New field', 'click the Add button'], values: vals });
+    check('call1', r1);
+    for (let k = 0; k < 3; k += 1) {
+      const kind = pick(['step', 'check', 'pick', 'select', 'do']);
+      const mention = `${pick(['find', 'check', 'open', 'press', 'select'])} ${caseVar(any())}${pick(['', '.', ' now', '!'])}`;
+      let r: WingmanResult;
+      if (kind === 'check') r = await h.callCheck({ question: `Is ${caseVar(any())} shown?` });
+      else if (kind === 'pick') r = await h.call({ goal: 'fz gp ' + it + k, steps: [mention], pick: { role: pick(['button', 'checkbox', 'textbox']), name: pick(els).name, action: pick(['click', 'check']) } });
+      else if (kind === 'do') r = await h.callDo({ goal: 'fz do ' + it + k + ' ' + caseVar(any()) });
+      else r = await h.call({ goal: 'fz g ' + it + k + ' ' + caseVar(any()), steps: [mention, 'click ' + caseVar(any())], ...(kind === 'select' ? { values: { x0: any() } } : {}) });
+      check(`call${k + 2}:${kind}`, r);
+    }
+  }
+  assert.equal(failures.length, 0, `${failures.length} leaks, first: ${failures.slice(0, 3).join(' || ')}`);
+  assert.equal(redactionBackstopHits(), hits0, 'a site missed a value (backstop repaired it)');
+});
