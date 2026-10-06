@@ -1,0 +1,62 @@
+HANDBACK-TRIAGE results=bench/results/2026-10-06-083333.json offset=0 handbacks=50
+class error-page 2
+class landed-not-advanced 15
+class other 21
+class press-split 1
+class stuck-exhausted 2
+class target-uncertain 9
+no_wingman_done_cells 7 t4-add-elements#1 t6-dynamic-loading#1 t10-saucedemo-checkout#1 t16-hover-reveal#1 t6-dynamic-loading#2 t10-saucedemo-checkout#2 t16-hover-reveal#2
+route playwright runs=34 ok=32 usd_total=4.979342 usd_median=0.167182 tool_calls_total=167 tool_calls_median=4 tool_calls_mean=4.911765 wall_median_ms=13208
+route forced runs=34 ok=30 usd_total=5.096782 usd_median=0.152883 tool_calls_total=133 tool_calls_median=2 tool_calls_mean=3.911765 wall_median_ms=13618
+r24_flags 15 hoverEvidence=2 pressFocusSum=4 readySkipped=2 sameDocEvidence=6 stuckSecond=1
+r24_flag_suspects 7 t4-add-elements#1/call2/r2/sameDocEvidence t6-dynamic-loading#1/call1/r1/readySkipped t4-add-elements#2/call2/r2/sameDocEvidence t4-add-elements#2/call3/r2/sameDocEvidence t6-dynamic-loading#2/call1/r1/readySkipped t9-long-chain#2/call11/r7/stuckSecond t11-todomvc-spa#2/call1/r4/pressFocusSum
+handback t4-add-elements#1 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t4-add-elements#1 call2 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t4-add-elements#1 call3 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t4-add-elements#1 call4 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t6-dynamic-loading#1 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t6-dynamic-loading#1 call2 fallback/step-uncertain why=no-match class=target-uncertain
+handback t6-dynamic-loading#1 call3 fallback/step-uncertain why=no-match class=target-uncertain
+handback t6-dynamic-loading#1 call4 fallback/step-uncertain why=no-match class=target-uncertain
+handback t6-dynamic-loading#1 call5 fallback/step-uncertain why=no-match class=target-uncertain
+handback t8-status-404#1 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t9-long-chain#1 call1 needs_confirmation/irreversible-heuristic why=null class=stuck-exhausted
+handback t9-long-chain#1 call2 needs_confirmation/irreversible-heuristic why=null class=other
+handback t9-long-chain#1 call3 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t9-long-chain#1 call5 needs_confirmation/irreversible-heuristic why=null class=other
+handback t9-long-chain#1 call7 fallback/step-uncertain why=not-ready class=error-page
+handback t9-long-chain#1 call8 fallback/step-uncertain why=wrong-page class=error-page
+handback t9-long-chain#1 call9 needs_confirmation/irreversible-heuristic why=null class=other
+handback t10-saucedemo-checkout#1 call1 fallback/sensitive-password why=null class=other
+handback t10-saucedemo-checkout#1 call2 fallback/sensitive-password why=null class=landed-not-advanced
+handback t10-saucedemo-checkout#1 call3 fallback/sensitive-password why=null class=landed-not-advanced
+handback t10-saucedemo-checkout#1 call4 needs_confirmation/irreversible-heuristic why=null class=other
+handback t11-todomvc-spa#1 call1 fallback/step-uncertain why=no-match class=press-split
+handback t11-todomvc-spa#1 call2 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t12-js-confirm-dialog#1 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t16-hover-reveal#1 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t4-add-elements#2 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t4-add-elements#2 call2 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t4-add-elements#2 call3 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t6-dynamic-loading#2 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t6-dynamic-loading#2 call2 fallback/step-uncertain why=no-match class=target-uncertain
+handback t6-dynamic-loading#2 call3 fallback/step-uncertain why=no-match class=target-uncertain
+handback t6-dynamic-loading#2 call4 fallback/step-uncertain why=no-match class=target-uncertain
+handback t8-status-404#2 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t9-long-chain#2 call2 needs_confirmation/irreversible-heuristic why=null class=stuck-exhausted
+handback t9-long-chain#2 call3 needs_confirmation/irreversible-heuristic why=null class=other
+handback t9-long-chain#2 call4 needs_confirmation/irreversible-heuristic why=null class=landed-not-advanced
+handback t9-long-chain#2 call6 needs_confirmation/irreversible-heuristic why=null class=other
+handback t9-long-chain#2 call9 fallback/step-uncertain why=low-confidence class=landed-not-advanced
+handback t9-long-chain#2 call10 needs_confirmation/irreversible-heuristic why=null class=other
+handback t10-saucedemo-checkout#2 call1 fallback/sensitive-password why=null class=other
+handback t10-saucedemo-checkout#2 call2 fallback/sensitive-password why=null class=landed-not-advanced
+handback t10-saucedemo-checkout#2 call3 fallback/sensitive-password why=null class=landed-not-advanced
+handback t10-saucedemo-checkout#2 call4 needs_confirmation/irreversible-heuristic why=null class=other
+handback t10-saucedemo-checkout#2 call6 fallback/sensitive-password why=null class=other
+handback t10-saucedemo-checkout#2 call7 needs_confirmation/irreversible-heuristic why=null class=other
+handback t10-saucedemo-checkout#2 call8 fallback/sensitive-password why=null class=other
+handback t11-todomvc-spa#2 call1 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t11-todomvc-spa#2 call2 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t12-js-confirm-dialog#2 call1 needs_confirmation/irreversible-heuristic why=null class=other
+handback t16-hover-reveal#2 call1 needs_confirmation/irreversible-heuristic why=null class=other

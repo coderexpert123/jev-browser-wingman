@@ -1,0 +1,909 @@
+{
+  "offset": 0,
+  "handback_total": 50,
+  "classes": {
+    "other": 21,
+    "landed-not-advanced": 15,
+    "target-uncertain": 9,
+    "stuck-exhausted": 2,
+    "error-page": 2,
+    "press-split": 1
+  },
+  "no_wingman_done_cells": [
+    "t4-add-elements#1",
+    "t6-dynamic-loading#1",
+    "t10-saucedemo-checkout#1",
+    "t16-hover-reveal#1",
+    "t6-dynamic-loading#2",
+    "t10-saucedemo-checkout#2",
+    "t16-hover-reveal#2"
+  ],
+  "byRoute": {
+    "playwright": {
+      "runs": 34,
+      "ok": 32,
+      "usd_total": 4.979342,
+      "usd_median": 0.167182,
+      "tool_calls_total": 167,
+      "tool_calls_median": 4,
+      "tool_calls_mean": 4.911765,
+      "wall_median_ms": 13208
+    },
+    "forced": {
+      "runs": 34,
+      "ok": 30,
+      "usd_total": 5.096782,
+      "usd_median": 0.152883,
+      "tool_calls_total": 133,
+      "tool_calls_median": 2,
+      "tool_calls_mean": 3.911765,
+      "wall_median_ms": 13618
+    }
+  },
+  "handbacks": [
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 2,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 3,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 4,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 4,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 5,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "stuck-exhausted"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 2,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 3,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 5,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 7,
+      "end": "fallback/step-uncertain",
+      "why": "not-ready",
+      "class": "error-page"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 8,
+      "end": "fallback/step-uncertain",
+      "why": "wrong-page",
+      "class": "error-page"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 9,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "call": 3,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "call": 4,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "press-split"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 1,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 2,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 3,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 4,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 2,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "stuck-exhausted"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 3,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 4,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 6,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 9,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 10,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 4,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 6,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 7,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 8,
+      "end": "fallback/sensitive-password",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 1,
+      "end": "needs_confirmation/irreversible-heuristic",
+      "why": null,
+      "class": "other"
+    }
+  ],
+  "flags": [
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 2,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": true
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 1,
+      "flag": "readySkipped",
+      "suspect": true
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 2,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "hoverEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 2,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": true
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 3,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": true
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 4,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "round": 1,
+      "flag": "readySkipped",
+      "suspect": true
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 2,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 11,
+      "round": 7,
+      "flag": "stuckSecond",
+      "suspect": true
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 1,
+      "round": 4,
+      "flag": "pressFocusSum",
+      "suspect": true
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 3,
+      "round": 1,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "call": 1,
+      "round": 3,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 1,
+      "round": 2,
+      "flag": "hoverEvidence",
+      "suspect": false
+    }
+  ],
+  "cells": [
+    {
+      "task": "t1-checkboxes",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.152626
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.153191
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.153532
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "ok": true,
+      "calls": 4,
+      "handbacks": 4,
+      "wingman_done": false,
+      "tool_calls": 7,
+      "usd": 0.26289
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.153053
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "ok": true,
+      "calls": 5,
+      "handbacks": 5,
+      "wingman_done": false,
+      "tool_calls": 7,
+      "usd": 0.263473
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.152709
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.174397
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "ok": true,
+      "calls": 10,
+      "handbacks": 7,
+      "wingman_done": true,
+      "tool_calls": 12,
+      "usd": 0.419673
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "ok": false,
+      "calls": 4,
+      "handbacks": 4,
+      "wingman_done": false,
+      "tool_calls": 5,
+      "usd": 0.23771
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 2,
+      "wingman_done": true,
+      "tool_calls": 4,
+      "usd": 0.205616
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 6,
+      "usd": 0.235025
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.153484
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.152713
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.154931
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "ok": false,
+      "calls": 1,
+      "handbacks": 1,
+      "wingman_done": false,
+      "tool_calls": 2,
+      "usd": 0.15615
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.153214
+    },
+    {
+      "task": "t1-checkboxes",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.052351
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.053672
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.05383
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "ok": true,
+      "calls": 4,
+      "handbacks": 3,
+      "wingman_done": true,
+      "tool_calls": 5,
+      "usd": 0.11849
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.052776
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "ok": true,
+      "calls": 4,
+      "handbacks": 4,
+      "wingman_done": false,
+      "tool_calls": 7,
+      "usd": 0.157551
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.052452
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.073959
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "ok": true,
+      "calls": 12,
+      "handbacks": 6,
+      "wingman_done": true,
+      "tool_calls": 13,
+      "usd": 0.342982
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "ok": false,
+      "calls": 8,
+      "handbacks": 7,
+      "wingman_done": false,
+      "tool_calls": 11,
+      "usd": 0.295177
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 2,
+      "wingman_done": true,
+      "tool_calls": 5,
+      "usd": 0.126629
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 5,
+      "usd": 0.114431
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.053215
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.052465
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054892
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "ok": false,
+      "calls": 1,
+      "handbacks": 1,
+      "wingman_done": false,
+      "tool_calls": 2,
+      "usd": 0.055366
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.052157
+    }
+  ]
+}
