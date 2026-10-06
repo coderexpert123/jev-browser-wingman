@@ -5649,3 +5649,26 @@ test('T-r24c-token-label: a confirmed token act redacts a value-named element in
   assertNoValues(JSON.stringify(r1), values);
   assertNoValues(JSON.stringify(r2), values);
 });
+
+// r24c recheck: the candidate labels of a RESULT (`step_review.candidates`, `candidates`) are built by candidateOf at five
+// loop sites; a site-argument deletion run left four of them green (results carry no backstop).
+test('T-r24c-candidates: a value in an element name is redacted in the candidates of pick and covered-target results', async () => {
+  const SECRET = 'veil-oat-milk-91';
+  const named = (id: string, extra: Record<string, unknown> = {}) => el({ id, path: '#' + id, name: 'Open ' + SECRET, ...extra });
+  const values = { item1: SECRET };
+  const labelsOf = (r: WingmanResult): string[] =>
+    [...(r.step_review?.candidates ?? []), ...(r.candidates ?? [])].map((c) => (c as { label: string }).label);
+  const legs: Array<{ name: string; elements: ElementRecord[]; pick?: Record<string, unknown>; reason: string }> = [
+    { name: 'chain commit onto a covered element', elements: [named('e1', { obscured: true, coveredBy: 'div#veil' })], reason: 'target-covered' },
+    { name: 'pick onto a covered element', elements: [named('e1', { obscured: true, coveredBy: 'div#veil' })], pick: { role: 'button', name: 'Open ' + SECRET, action: 'click' }, reason: 'target-covered' },
+    { name: 'pick matching two elements', elements: [named('e1'), named('e2')], pick: { role: 'button', name: 'Open ' + SECRET, action: 'click' }, reason: 'target-uncertain' },
+    { name: 'pick with a verb the element does not fit', elements: [named('e1')], pick: { role: 'button', name: 'Open ' + SECRET, action: 'check' }, reason: 'target-uncertain' },
+  ];
+  for (const leg of legs) {
+    const h = harness({ observations: { p1: [observation({ elements: leg.elements })] }, script: [CS()] });
+    const r = await h.call({ goal: `r24c-candidates goal ${leg.name}`, steps: ['click Open'], values, ...(leg.pick ? { pick: leg.pick } : {}) });
+    assert.equal(r.reason, leg.reason, `${leg.name}: ${r.status}/${r.reason}`);
+    assertNoValues(JSON.stringify(r), values);
+    assert.ok(labelsOf(r).some((l) => l.includes('<value:item1>')), `${leg.name}: a candidate carries the marker (${labelsOf(r).join(' | ')})`);
+  }
+});
