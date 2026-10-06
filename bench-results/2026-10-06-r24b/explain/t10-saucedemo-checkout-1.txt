@@ -1,0 +1,31 @@
+EXPLAIN t10-saucedemo-checkout#1 ok=false calls=2 tool_calls=3 usd=0.09318
+call1 login/login-page why=null steps=2 rounds=5 jev_calls=5 stance=off/off
+  step1 "type the value named user into the Username field"
+  step2 "type the value named pass into the Password field"
+  step3 "click the Login button"
+  step4 "click the Add to cart button of the first listed product"
+  step5 "click the shopping cart link"
+  step6 "click the Checkout button"
+  step7 "type the value named first into the First Name field"
+  step8 "type the value named last into the Last Name field"
+  step9 "type the value named zip into the Zip/Postal Code field"
+  step10 "click the Continue button"
+  step11 "click the Finish button"
+  step_parents [0,1,2,3,4,5,6,7,8,9,10]
+  r1 ms=13/280/123/221 kind=act cursor=0 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="type the value named user into the Username field" action=fill actionP=0.98 stepDoneP=0.09 readyP=0.58 rightPageP=0.81 doneP=0.02 cands=[{"id":"e1","p":0.99,"role":"textbox","tag":"input","label":"Username"},{"id":"none","p":0.01},{"id":"e3","p":0,"role":"button","tag":"input","label":"Login"}] act={"verb":"fill","id":"e1","role":"textbox","tag":"input","label":"Username","binding":"user","ok":true} flags=loginSuppressed
+  r2 ms=13/147/0/0 kind=advance cursor=0 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="type the value named user into the Username field" action=fill actionP=0.84 stepDoneP=0.84 readyP=0.61 rightPageP=0.78 errorP=0.06 doneP=0.02 cands=[{"id":"e2","p":0.5,"role":"textbox","tag":"input","label":"Password"},{"id":"e1","p":0.36,"role":"textbox","tag":"input","label":"Username"},{"id":"none","p":0.1}] historyResult="filled" leftPage=false flags=loginSuppressed
+  r3 ms=11/133/28/218 kind=act cursor=1 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="type the value named pass into the Password field" action=fill actionP=1 stepDoneP=0.07 readyP=0.63 rightPageP=0.83 errorP=0.07 doneP=0.02 cands=[{"id":"e2","p":0.99,"role":"textbox","tag":"input","label":"Password"},{"id":"none","p":0.01},{"id":"ambiguous","p":0}] historyResult="filled" leftPage=false act={"verb":"fill","id":"e2","role":"textbox","tag":"input","label":"Password","binding":"pass","ok":true} flags=loginSuppressed
+  r4 ms=9/143/0/0 kind=advance cursor=1 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="type the value named pass into the Password field" action=fill actionP=0.79 stepDoneP=0.6 readyP=0.65 rightPageP=0.82 errorP=0.07 doneP=0.03 cands=[{"id":"e2","p":0.56,"role":"textbox","tag":"input","label":"Password"},{"id":"e3","p":0.34,"role":"button","tag":"input","label":"Login"},{"id":"none","p":0.09}] historyResult="filled" leftPage=false flags=loginSuppressed
+  r5 ms=11/139/0/0 kind=error cursor=2 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="click the Login button" action=click actionP=1 stepDoneP=0.13 readyP=0.68 rightPageP=0.8 errorP=0.09 doneP=0.02 cands=[{"id":"e3","p":1,"role":"button","tag":"input","label":"Login"},{"id":"ambiguous","p":0},{"id":"e2","p":0,"role":"textbox","tag":"input","label":"Password"}] historyResult="filled" leftPage=false
+call2 login/login-page why=null steps=0 rounds=1 jev_calls=1 stance=off/off
+  step1 "click the Login button"
+  step2 "click the Add to cart button of the first listed product"
+  step3 "click the shopping cart link"
+  step4 "click the Checkout button"
+  step5 "type the value named first into the First Name field"
+  step6 "type the value named last into the Last Name field"
+  step7 "type the value named zip into the Zip/Postal Code field"
+  step8 "click the Continue button"
+  step9 "click the Finish button"
+  step_parents [0,1,2,3,4,5,6,7,8]
+  r1 ms=12/163/0/0 kind=error cursor=0 url="https://www.saucedemo.com/" els=3 th=1dl5dfa title="Swag Labs" step="click the Login button" action=click actionP=0.56 stepDoneP=0.11 readyP=0.52 rightPageP=0.74 doneP=0.02 cands=[{"id":"e3","p":0.8,"role":"button","tag":"input","label":"Login"},{"id":"e1","p":0.13,"role":"textbox","tag":"input","label":"Username"},{"id":"none","p":0.06}]
