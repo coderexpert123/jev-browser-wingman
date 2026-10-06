@@ -138,6 +138,15 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
 
 ## § KB-mutant methodology
 
+- **A flag flip proves the feature, not its guards**: r24's flag mutants all
+  passed while eleven sub-guards (key/count/press exclusions, error and bar
+  checks, repeat-count) stayed green-both-sides until each guard was deleted
+  alone (57f81b7, 095bea7). Prove every guard's tooth by deleting it in a
+  mutation run; a guard no test kills is unverified. Check the scoped build
+  printed `BUILD: ok` first (a failed build leaves the stale dist), and count
+  anchor hits: worktree `loop.ts` checks out CRLF here, so a multi-line `
+`
+  anchor silently matches zero times and reads as "survived".
 - **KB flags compose as `!KB_X && <new>`, never `KB_X && <new>`**: flip =
   restore PRE-fix behaviour, so the new path must be ACTIVE while the flag
   is `false`. Writing `if (KB_TABLE_HEADERS && tag === 'th')` ships pre-fix

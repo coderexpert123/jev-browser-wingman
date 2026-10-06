@@ -128,10 +128,12 @@ probe if it returns.
 - **Hand-back triage**: a `fallback/step-uncertain` hand-back AFTER a landed
   act (`element gone` / `page changed`) is usually an under-graded stepDone
   (0.2-0.5 vs the evidence bars: `stepDoneWithEvidence` 0.5 for fill/select/check, `stepDoneWithNavEvidence` 0.25 for a landed own click that left the document), not target uncertainty — check whether
-  acts ran (`historyResult`) before blaming target thresholds. Ranked
-  fixes are in untracked `.build-r24-intake.md` — read it before any
-  hand-back or ready-gate change.
-- **Ready gate reads the goal (CONFIRMED by P0b live probe, 2026-10-06)**: the goal text rides in the ready question's state (`chainRoundState` -> `buildState(... doInput.goal ...)`); on the t6 start page readyP is 0.21 as asked, 0.40 with goal+history removed (6 asks/arm), 0.35 with the amended ready wording (missed its +0.15 lift bar); r24 shipped W2-S — the ready gate is skipped for a committed fresh click (`KB_READY_SKIP_COMMITTED`) — and left the question text unchanged. Probe: untracked `.calib/r24-probe0b/`.
+  acts ran (`historyResult`) before blaming target thresholds. Classify
+  mechanically with `bench/handback-triage.mjs` (r23b baseline: 32
+  hand-backs); its landed-not-advanced class mixes landed acts (r24 R1/R2/R3),
+  wait clauses and act-ahead. Ranked fixes and the r24 rules: untracked
+  `.build-r24-intake.md`, `.build-r24-spec.md`, and `src/core/CLAUDE.md` § r24.
+- **Ready gate reads the goal (CONFIRMED by P0b live probe, 2026-10-06)**: the goal text rides in the ready question's state (`chainRoundState` -> `buildState(... doInput.goal ...)`); on the t6 start page readyP is 0.21 as asked, 0.40 with goal+history removed (6 asks/arm; the t9 chain's 0.55 was `/dynamic_loading/2`, a different page), 0.35 with the amended ready wording (missed its +0.15 lift bar); r24 shipped W2-S — the ready gate is skipped for a committed fresh click (`KB_READY_SKIP_COMMITTED`) — and left the question text unchanged. Probe: untracked `.calib/r24-probe0b/`.
 
 ## Tool text, delegation & policy
 
