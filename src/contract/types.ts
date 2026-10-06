@@ -230,6 +230,9 @@ export interface WingmanLogRecord {
       navEvidence?: true;
       // r24: set only on an advance that ONLY the R1 (same-document own click) rule allowed.
       sameDocEvidence?: true;
+      // r24c F2/F3: set only on an advance that rule allowed (element-state evidence / wait evidence).
+      stateEvidence?: true;
+      waitEvidence?: true;
       // r24: set only on an advance that ONLY the R2 (final-clause landed navigation) rule allowed.
       finalNavEvidence?: true;
       // r24: set only on an advance that ONLY the R3 (hover that changed the page) rule allowed.

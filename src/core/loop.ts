@@ -259,8 +259,30 @@ const KB_STUCK_SECOND = false;
  * click (r23b t6: Start 0.97-0.99 at readyP 0.18-0.24 burned four hand-backs).
  * Flipping restores the pre-r24 gate. Never flip in shipped code. */
 const KB_READY_SKIP_COMMITTED = false;
+/** r24c F2 KB proof switch: the element-state evidence advance — a clause's
+ * landed fill/select/check/uncheck (a refill keeps the first fill's evidence)
+ * advances at `stepDoneWithStateEvidence` (0.25) while errorP < `sameDocErrorMax`.
+ * Flipping restores the 0.5 element-state bar, last-fill-only. Never flip in shipped code. */
+const KB_STATE_EVIDENCE = false;
+/** r24c F3 KB proof switch: the wait evidence advance — a wait clause whose
+ * page text changed since its first wait advances at `stepDoneWithWaitEvidence`
+ * (0.35) while errorP < `sameDocErrorMax`. Flipping restores wait clauses that
+ * never advance below 0.85. Never flip in shipped code. */
+const KB_WAIT_EVIDENCE = false;
+/** r24c F4 KB proof switch: the second stuck round acts back without an ask
+ * when `back` is offered (r24b t9 rep 2 call 8: Jev answered give-up to a
+ * history where the first back had not helped). Flipping restores the second
+ * ask to Jev. Never flip in shipped code. */
+const KB_STUCK_SECOND_BACK = false;
+/** r24c WP3 KB proof switch: the press focus-sum commit requires the clause to
+ * NAME a key (`parseKeyPress`); a click clause whose split press lands on the
+ * focused field never commits a targetless Enter. Flipping restores focus-sum
+ * on any clause. Never flip in shipped code. */
+const KB_PRESS_FOCUS_KEYGUARD = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
+/** r24c F3: a clause that waits ("wait until the hidden text appears"). */
+const WAIT_CLAUSE_RE = /^\s*wait\b/i;
 /** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
  * on purpose: `VALUE_NAMED_RE` carries the `g` flag, whose `lastIndex` makes
  * repeated `.test` calls unreliable. NOT `bindingsInStep`, a substring match. */
@@ -445,6 +467,7 @@ interface ChainState {
   // r24 (WP7): the one extra stuck round of this clause ran (this call only;
   // not in chain memory).
   stuckSecondUsed: boolean;
+  waitBegin: string | null; // r24c F3: shortHash(obs.text) when this clause's first wait act ran (this call only, never in chain memory)
   stuckPending: StuckPending | null;
   // r13 D1 guard 1: the look that consumed the clause's retry was itself a
   // confident none (verb in STUCK_VERBS, target none >= STUCK_NONE_MIN), so a
@@ -896,6 +919,34 @@ function hasStepEvidence(history: HistoryEntry[], currentStepKey: string): boole
   }
 }
 
+/** r24c F2: element-state evidence for the 0.25 bar. Looser than
+ * `hasStepEvidence` on fills only: the LAST fill of the clause may be a refill
+ * (`before` 'filled'), provided some fill of this clause on the same path
+ * landed from an empty field ('empty' -> 'filled'). A field never filled from
+ * empty in this clause proves nothing (pre-filled fields stay excluded).
+ * select/check/uncheck read exactly as `hasStepEvidence` does. */
+function hasElementStateEvidence(history: HistoryEntry[], stepKey: string): boolean {
+  const last = lastEvidenceEntry(history, stepKey);
+  if (last === undefined || last.result === undefined) return false;
+  switch (last.verb) {
+    case 'fill':
+      return (
+        last.result === 'filled' &&
+        history.some(
+          (h) => h.stepKey === stepKey && h.verb === 'fill' && h.path === last.path && h.before === 'empty' && h.result === 'filled',
+        )
+      );
+    case 'select':
+      return last.intendedLabel !== undefined && last.result === `selected: ${last.intendedLabel}`;
+    case 'check':
+      return last.result === 'checked';
+    case 'uncheck':
+      return last.result === 'unchecked';
+    default:
+      return false;
+  }
+}
+
 /** § WP-count word-form counts: "N times" with N spelled out, two..ten.
  * once/twice/thrice have no digit form and are matched separately below. */
 const REPEAT_WORD_COUNTS: Readonly<Record<string, number>> = {
@@ -987,8 +1038,10 @@ function pressNoneCommits(verb: Op | string | undefined, answers: AnswerMap, gat
  * together reach `gate`; the answer's choice must be one of the two. r23b:
  * none 0.45-0.67 vs the focused field 0.32-0.52, sums 0.96-0.99 on all 8
  * recorded press rounds (.build-r24-spec.md § 2.4). */
-function pressFocusSumCommits(verb: Op | string | undefined, answers: AnswerMap, gate: number, obs: Observation): boolean {
+function pressFocusSumCommits(verb: Op | string | undefined, answers: AnswerMap, gate: number, obs: Observation, stepText: string): boolean {
   if (KB_PRESS_FOCUS_SUM || verb !== 'press' || obs.focus === undefined) return false;
+  // r24c WP3: the clause must name a key (r24b t14 rep 2: a click clause's split press committed a targetless Enter).
+  if (!KB_PRESS_FOCUS_KEYGUARD && parseKeyPress(stepText) === undefined) return false;
   const focused = obs.elements.find((e) => e.path === obs.focus!.path);
   if (focused === undefined || focused.editable !== true) return false;
   const target = answers['target'] as JevChoiceAnswer | undefined;
@@ -1862,6 +1915,7 @@ async function runTool(
     stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
     sameDocEvidence?: true; finalNavEvidence?: true; hoverEvidence?: true; // r24 WP1: set only on an advance that ONLY the R1 / R2 / R3 rule allowed
+    stateEvidence?: true; waitEvidence?: true; // r24c F2/F3: set only on an advance that rule allowed
     pressFocusSum?: true;  // r24 WP3: the press focus-sum commit decided this round
     verbCoerced?: true;    // r24 WP5: a check/uncheck on a link or button acted as click
     stuckSecond?: true;    // r24 WP7: the second stuck round of a clause
@@ -2541,7 +2595,7 @@ async function runTool(
     );
     // r24 (WP3): the focus-sum commit is takeover-only, at the takeover threshold.
     const pressFocus =
-      takeover && !pressNonePlain && pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs);
+      takeover && !pressNonePlain && pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs, activeStepText);
     const pressNone = pressNonePlain || pressFocus;
     // 6. target uncertainty — skipped for targetless verbs (§ 5.5.3) and for
     // a committed press-none.
@@ -3091,6 +3145,7 @@ async function runTool(
         cursorActed: mem?.cursorActed ?? false,
         stuckUsed: mem?.stuckTried ?? false,
         stuckSecondUsed: false,
+        waitBegin: null,
         stuckPending: null,
         retryNone: false,
         priorClicks: mem?.clicks ?? [],
@@ -3113,6 +3168,7 @@ async function runTool(
         chainState.cursorActed = false;
         chainState.stuckUsed = false;
         chainState.stuckSecondUsed = false;
+        chainState.waitBegin = null;
         chainState.priorClicks = [];
         chainState.loginSeen = false;
         // r22 F-2b: the new cursor starts on the SKIPPED clause's response
@@ -3416,7 +3472,7 @@ async function runTool(
     ): 'no-match' | 'multi-match' | 'low-confidence' | null {
       if (
         pressNoneCommits(verb, answers, takeoverOf(deps.config).threshold) ||
-        pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs)
+        pressFocusSumCommits(verb, answers, takeoverOf(deps.config).threshold, obs, activeStepText)
       ) {
         return null;
       }
@@ -3456,7 +3512,7 @@ async function runTool(
       // r17 (C6): the press-none commit precedes the target margin rule.
       if (
         pressNoneCommits(choice, answers, takeoverOf(deps.config).threshold) ||
-        pressFocusSumCommits(choice, answers, takeoverOf(deps.config).threshold, obs)
+        pressFocusSumCommits(choice, answers, takeoverOf(deps.config).threshold, obs, activeStepText)
       ) {
         return null;
       }
@@ -3623,7 +3679,24 @@ async function runTool(
         evEntry.result === 'page changed' &&
         stepDone >= THRESHOLDS.stepDoneWithEvidence &&
         errorClear;
-      if (priorAdvance || navAdvance || sameDocAdvance || finalNavAdvance || hoverAdvance) {
+      // r24c F2: a clause's landed fill/select/check/uncheck (a refill keeps the first fill's evidence).
+      const stateAdvance =
+        !KB_STATE_EVIDENCE &&
+        !priorAdvance &&
+        stepBindingCount <= 1 &&
+        stepDone >= THRESHOLDS.stepDoneWithStateEvidence &&
+        noulOf('error') < THRESHOLDS.sameDocErrorMax &&
+        hasElementStateEvidence(history, evKey);
+      // r24c F3: a wait clause whose page text changed since its first wait.
+      const waitAdvance =
+        !KB_WAIT_EVIDENCE &&
+        !priorAdvance &&
+        WAIT_CLAUSE_RE.test(chain!.clauses[chain!.cursor]) &&
+        chain!.waitBegin !== null &&
+        shortHash(obs.text) !== chain!.waitBegin &&
+        stepDone >= THRESHOLDS.stepDoneWithWaitEvidence &&
+        noulOf('error') < THRESHOLDS.sameDocErrorMax;
+      if (priorAdvance || navAdvance || sameDocAdvance || finalNavAdvance || hoverAdvance || stateAdvance || waitAdvance) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
         if (bareClickEvidence && cur) cur.clickEvidence = true;
         if (keyAdvance && cur) cur.keyEvidence = true;
@@ -3632,6 +3705,8 @@ async function runTool(
         if (sameDocAdvance && cur) cur.sameDocEvidence = true;
         if (finalNavAdvance && cur) cur.finalNavEvidence = true;
         if (hoverAdvance && cur) cur.hoverEvidence = true;
+        if (stateAdvance && cur) cur.stateEvidence = true;
+        if (waitAdvance && cur) cur.waitEvidence = true;
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
@@ -3751,6 +3826,7 @@ async function runTool(
         chain!.cursorActed = false;
         chain!.stuckUsed = false;
         chain!.stuckSecondUsed = false;
+        chain!.waitBegin = null;
         chain!.stuckPending = null;
         chain!.retryNone = false;
         chain!.priorClicks = [];
@@ -4017,12 +4093,18 @@ async function runTool(
           : [];
         const back = offeredSet.has('back');
         if (!back && urlNames.length === 0) return stuckBounce(pend);
-        const sized = withStateSize(chainRoundState(obs),
-          (s) => buildRecoverRequest({ state: s, redact: redaction, back, urlNames }), (p) => p);
-        if (!sized.ok || remaining() < TIME_FLOOR_MS) return stuckBounce(pend);
-        const rr = await askWithCost(sized.payload, 'browse_step', remaining);
-        if (!rr.ok) return mk('fallback', askFailReason(rr));
-        const id = recoverChoice(rr.answers as AnswerMap);
+        let id: string;
+        if (!KB_STUCK_SECOND_BACK && secondStuck && back) {
+          id = 'back'; // r24c F4: the first stuck back landed and the page still lacks the target; Jev's answer would see a
+                       // history where going back did not help (r24b t9 rep 2 call 8 answered give-up)
+        } else {
+          const sized = withStateSize(chainRoundState(obs),
+            (s) => buildRecoverRequest({ state: s, redact: redaction, back, urlNames }), (p) => p);
+          if (!sized.ok || remaining() < TIME_FLOOR_MS) return stuckBounce(pend);
+          const rr = await askWithCost(sized.payload, 'browse_step', remaining);
+          if (!rr.ok) return mk('fallback', askFailReason(rr));
+          id = recoverChoice(rr.answers as AnswerMap);
+        }
         const offeredIds = new Set<string>([...(back ? ['back'] : []), ...urlNames.map((n) => RECOVER_OPEN_PREFIX + n)]);
         bucket.stuck = offeredIds.has(id) ? redaction.redact(id) : 'give-up';
         if (!offeredIds.has(id)) return stuckBounce(pend);
@@ -4375,7 +4457,7 @@ async function runTool(
               const entryVerb = (merged['action'] as JevChoiceAnswer | undefined)?.choice;
               const pressNoneEntry =
                 pressNoneCommits(entryVerb, merged, takeoverOf(deps.config).threshold) ||
-                pressFocusSumCommits(entryVerb, merged, takeoverOf(deps.config).threshold, obs);
+                pressFocusSumCommits(entryVerb, merged, takeoverOf(deps.config).threshold, obs, activeStepText);
               // Amendment 2026-09-21h (two-stage action carry): the entry
               // decision reads request 1 merged under request 2.
               const uncertainty = pressNoneEntry ? null : entryUncertainty(merged, obs);
@@ -4645,6 +4727,8 @@ async function runTool(
           steps += 1;
         }
         if (chain && decision.el !== null) chain.cursorActed = true;
+        // r24c F3: the page text at this clause's first wait (covers Jev waits, rule-5 and recover mechanical waits and a picked wait).
+        if (chain && decision.verb === 'wait' && chain.waitBegin === null) chain.waitBegin = shortHash(obs.text);
         actsByOp[decision.verb] = (actsByOp[decision.verb] ?? 0) + 1;
         // r17: a targetless press's label is the pressed key — there is no
         // element name and no binding.

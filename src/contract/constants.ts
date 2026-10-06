@@ -1,5 +1,5 @@
 export const PACKAGE_NAME = 'jev-browser-wingman';
-export const PACKAGE_VERSION = '0.3.0';
+export const PACKAGE_VERSION = '0.3.1';
 export const ENV = {
   HOME: 'WINGMAN_HOME', CDP_ENDPOINT: 'WINGMAN_CDP_ENDPOINT',
   PLAYWRIGHT_CDP: 'PLAYWRIGHT_MCP_CDP_ENDPOINT', // deleted by WP-R
@@ -81,6 +81,12 @@ export const THRESHOLDS = {
   // r24 WP1 (R1): the strict error gate of the same-document bar. The post-submit
   // error page reads stepDone 0.38-0.71 (inseparable) with errorP 0.32-0.72.
   sameDocErrorMax: 0.25,
+  // r24c F2: a clause's landed fill/select/check/uncheck (a refill keeps the first fill's evidence) advances here
+  // with errorP < sameDocErrorMax. r24b non-advancing reads with landed evidence: .29-.49; advancing .55+.
+  stepDoneWithStateEvidence: 0.25,
+  // r24c F3: a wait clause whose page text changed since its first wait. r24b t6: loading .22-.28 (n=4), shown
+  // .42-.57 (n=36).
+  stepDoneWithWaitEvidence: 0.35,
 } as const;
 export const TWO_STAGE = { groupSize: 30, topGroups: 3 } as const;
 export const SELECT_CHUNK = 250;

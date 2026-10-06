@@ -633,14 +633,14 @@ test('WP-evidence-a: step_done 0.6 with a confirmed fill result advances (eviden
   assert.equal(fillActs.length, 1, 'only the first fill should act; the second round must advance on evidence, not repeat the fill');
 });
 
-/** Same shape as evidenceAdvanceAsk, but step_done never clears 0.4 — below
- * stepDoneWithEvidence (0.5) even once the fill result confirms. */
+/** Same shape as evidenceAdvanceAsk, but step_done never clears 0.2 — below
+ * stepDoneWithStateEvidence (0.25) even once the fill result confirms. */
 function evidenceBelowBarAsk(): JevAsk {
   return async (request) => {
     const hasEvidence = JSON.stringify(request.state).includes('"result":"filled"');
     return reply({
       ...baseNouls(),
-      step_done: { type: 'noul', noul: hasEvidence ? 0.4 : 0.05 },
+      step_done: { type: 'noul', noul: hasEvidence ? 0.2 : 0.05 },
       action: choice('fill', { fill: 0.9, none: 0.05 }),
       target: choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }),
       value: choice('amount', { amount: 0.9, none: 0.05 }),
@@ -648,7 +648,7 @@ function evidenceBelowBarAsk(): JevAsk {
   };
 }
 
-test('WP-evidence-b: step_done 0.4 with a confirmed fill result does not advance (below the evidence bar)', async () => {
+test('WP-evidence-b: step_done 0.2 with a confirmed fill result does not advance (below the element-state evidence bar)', async () => {
   const unfilled = observation();
   const filled = observation({ elements: [el({ state: { disabled: false, filled: true } })] });
   const h = harness({
@@ -661,7 +661,7 @@ test('WP-evidence-b: step_done 0.4 with a confirmed fill result does not advance
     steps: ['fill the amount field'],
     values: { amount: '42' },
   });
-  assert.notEqual(r.status, 'done', `must not advance/finish on a 0.4 step_done, got ${r.status}/${r.reason}`);
+  assert.notEqual(r.status, 'done', `must not advance/finish on a 0.2 step_done, got ${r.status}/${r.reason}`);
   assert.equal(r.reason, 'no-progress', `expected the no-progress guard to end this, got reason ${r.reason}`);
   const fillActs = h.driver.actCalls().filter((a) => a.op === 'fill');
   assert.equal(fillActs.length, 2, 'the first fill and its identical repeat both land; the guard — not evidence — stops the third');
@@ -1321,7 +1321,7 @@ test('T-element-gone-click: an element-gone click result counts as click evidenc
 });
 
 test('T-wait-transparency-state: a wait act between a fill and its confirm round still advances on the fill evidence', async () => {
-  // r1 commits fill→e1; r2 decides wait at step_done 0.3 (below every advance
+  // r1 commits fill→e1; r2 decides wait at step_done 0.2 (below every advance
   // bar, so the wait ACTUALLY LANDS — its history entry carries
   // `before === undefined`); r3 sits at the evidence tier (0.6). The fill's
   // 'filled' result is annotated from r2's fresh obs and remains the last
@@ -1346,7 +1346,7 @@ test('T-wait-transparency-state: a wait act between a fill and its confirm round
     if (call === 2) {
       return reply({
         ...baseNouls(),
-        step_done: { type: 'noul', noul: 0.3 }, // below every bar: the wait lands
+        step_done: { type: 'noul', noul: 0.2 }, // below every bar (0.25 element-state bar included): the wait lands
         action: choice('wait', { wait: 0.9, none: 0.05 }),
         target: choice('none', { none: 0.9, e1: 0.05 }),
       });

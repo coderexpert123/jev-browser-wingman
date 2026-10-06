@@ -4655,12 +4655,12 @@ const stuckTop = observation({ url: 'https://example.com/top', text: 'top page' 
 test('T-r24-stuck2: a landed stuck back on a page that still lacks the target allows one more stuck back', async () => {
   const h = harness({
     observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, hub, formPage] },
-    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), CS(), ADV()],
+    script: [NONE(), NONE(), STUCK('back'), NONE(), CS(), ADV()], // r24c F4: the second stuck round goes back without an ask
   });
   const r = await h.call({ goal: 'r24-stuck2 goal', steps: ['open the Form page'] });
   assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
   assert.deepEqual(actsOf(h), [['back', null, undefined], ['back', null, undefined], ['click', 'e1', undefined]]);
-  assert.equal(stuckReqs(h).length, 2);
+  assert.equal(stuckReqs(h).length, 1); // r24c F4: was 2
   assert.equal(r24Rounds(h)[4].stuckSecond, true);
 });
 
@@ -4678,13 +4678,13 @@ test('T-r24-stuck2-limits: an unchanged stuck back or a used second stuck bounce
   // (b) a third stuck round never starts.
   const b = harness({
     observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, stuckTop, stuckTop, stuckTop] },
-    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE()],
+    script: [NONE(), NONE(), STUCK('back'), NONE(), NONE()], // r24c F4: the second stuck round goes back without an ask
   });
   const rb = await b.call({ goal: 'r24-stuck2-limits goal b', steps: ['open the Form page'] });
   assert.equal(rb.status, 'fallback');
   assert.equal(rb.step_review?.why, 'no-match');
-  assert.ok(stuckReqs(b).length <= 2, 'leg b: at most two stuck asks');
-  assert.ok(actsOf(b).filter((x) => x[0] === 'back').length <= 2, 'leg b: at most two backs');
+  assert.equal(stuckReqs(b).length, 1, 'leg b: one stuck ask');
+  assert.equal(actsOf(b).filter((x) => x[0] === 'back').length, 2, 'leg b: exactly two backs');
 });
 
 test('T-r24-stuck2-reset: a clause that advanced gets its own second stuck round', async () => {
@@ -4692,11 +4692,11 @@ test('T-r24-stuck2-reset: a clause that advanced gets its own second stuck round
   const z2 = observation({ url: 'https://example.com/z', text: 'z mid page' });
   const h = harness({
     observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, hub, formPage, formPage, formPage, formPage, z1, z1, z2] },
-    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), CS(), ADV(), NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE()],
+    script: [NONE(), NONE(), STUCK('back'), NONE(), CS(), ADV(), NONE(), NONE(), STUCK('back'), NONE(), NONE()], // r24c F4: the second stuck round goes back without an ask
   });
   const r = await h.call({ goal: 'r24-stuck2-reset goal', steps: ['open the Form page', 'open the Check page'] });
   assert.equal(r.status, 'fallback');
-  assert.equal(stuckReqs(h).length, 4, `clause 1 gets its own two stuck rounds (${r.status}/${r.reason})`);
+  assert.equal(stuckReqs(h).length, 2, `clause 1 gets its own two stuck rounds (${r.status}/${r.reason})`); // r24c F4: was 4
   assert.equal(r24Rounds(h).filter((x) => x.stuckSecond === true).length, 2);
 });
 
@@ -5297,4 +5297,294 @@ test('T-r24c-pickrole: a pick role that equals a remembered value is redacted at
   assert.equal(h.records[0].phases!.rounds[0].pickArgs!.role, '<value:item1>');
   assertNoValues(JSON.stringify(h.records[0]), { item1: SECRET });
   assert.equal(redactionBackstopHits(), hits0);
+});
+
+// ---- r24c: step fixes (F2 element-state evidence, F3 wait evidence, F4 second stuck back, WP3 key guard) ----
+// Spec .build-r24c-redaction-spec.md § 2.5 / § 5; seeds .calib/r24/r24c-replays.ts.txt. F1 (coalesce) was DROPPED.
+
+const r24cInEl = (filled: boolean): ElementRecord =>
+  el({
+    id: 'e1',
+    path: '#email',
+    tag: 'input',
+    role: 'textbox',
+    name: 'E-mail',
+    editable: true,
+    state: { disabled: false, filled },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'E-mail', x: 0, y: 0 },
+  });
+const r24cBtnEl = el({
+  id: 'e2',
+  path: '#go',
+  name: 'Retrieve password',
+  fingerprint: { tag: 'button', role: 'button', name: 'Retrieve password', x: 0, y: 0 },
+});
+const r24cFormObs = (filled: boolean, text: string): Observation => observation({ elements: [r24cInEl(filled), r24cBtnEl], text });
+const r24cFILL = (over: SeqEntry = {}): SeqEntry =>
+  CS({ action: ['fill', { fill: 0.9, none: 0.05 }], value: ['email', { email: 0.95 }], ...over });
+const R24C_E1: [string, Record<string, number>] = ['e1', { e1: 0.9, none: 0.05 }];
+const r24cEmailSteps = ['type the value named email into the E-mail field', 'click the Retrieve password button'];
+const r24cStateRounds = (h: Harness) => r24Rounds(h).filter((x) => x.stateEvidence !== undefined);
+const r24cWaitRounds = (h: Harness) => r24Rounds(h).filter((x) => x.waitEvidence !== undefined);
+
+test('T-r24c-state: a landed fill, a refill after an under-graded first fill, and a landed check advance at 0.25', async () => {
+  // Leg a (r24b t9 rep 1 shape): first landed fill read 0.35, the re-ask would refill; the 0.25 bar advances it.
+  const a = harness({
+    observations: { p1: [r24cFormObs(false, 'f0'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f2')] },
+    script: [
+      r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }),
+      r24cFILL({ step_done: 0.35, target: ['e1', { e1: 0.5, e2: 0.45, none: 0.05 }] }),
+      CS({ target: ['e2', { e2: 0.95, none: 0.03 }] }),
+      ADV(),
+    ],
+    config: FORCED,
+  });
+  const ra = await a.call({ goal: 'r24c-state goal a', steps: r24cEmailSteps, values: { email: 'a@b.c' } });
+  assert.equal(ra.status, 'done', `leg a: expected done, got ${ra.status}/${ra.reason}`);
+  assert.deepEqual(actsOf(a), [['fill', 'e1', 'a@b.c'], ['click', 'e2', undefined]]);
+  assert.equal(r24Rounds(a)[1].stateEvidence, true, 'leg a: the advance carries stateEvidence');
+  // Leg b (t11 item2 shape): the first read is 0.2 (no advance), the refill reads 0.3 and rides the first fill's evidence.
+  const b = harness({
+    observations: { p1: [r24cFormObs(false, 'f0'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f2')] },
+    script: [
+      r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }),
+      r24cFILL({ step_done: 0.2, target: R24C_E1 }),
+      r24cFILL({ step_done: 0.3, target: R24C_E1 }),
+      CS({ target: ['e2', { e2: 0.95, none: 0.03 }] }),
+      ADV(),
+    ],
+    config: FORCED,
+  });
+  const rb = await b.call({ goal: 'r24c-state goal b', steps: r24cEmailSteps, values: { email: 'a@b.c' } });
+  assert.equal(rb.status, 'done', `leg b: expected done, got ${rb.status}/${rb.reason}`);
+  assert.deepEqual(actsOf(b), [['fill', 'e1', 'a@b.c'], ['fill', 'e1', 'a@b.c'], ['click', 'e2', undefined]]);
+  assert.equal(r24Rounds(b)[2].stateEvidence, true, 'leg b: the refill round advances on the first fill');
+  assert.equal(r24Rounds(b)[1].stateEvidence, undefined, 'leg b: the 0.2 read does not');
+  // Leg c (r24b row 27 shape): a landed check read 0.29 with the target answer collapsed to none.
+  const box = (checked: boolean): ElementRecord =>
+    el({
+      id: 'e1',
+      path: '#box',
+      tag: 'input',
+      role: 'checkbox',
+      name: 'Accept',
+      state: { disabled: false, checked },
+      fingerprint: { tag: 'input', role: 'checkbox', name: 'Accept', x: 0, y: 0 },
+    });
+  const c = harness({
+    observations: { p1: [observation({ elements: [box(false)], text: 'c0' }), observation({ elements: [box(true)], text: 'c1' })] },
+    script: [
+      CS({ action: ['check', { check: 0.95, none: 0.03 }], target: ['e1', { e1: 0.97, none: 0.02 }] }),
+      CS({ step_done: 0.29, action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.57, e1: 0.3 }] }),
+    ],
+    config: FORCED,
+  });
+  const rc = await c.call({ goal: 'r24c-state goal c', steps: ['check the Accept checkbox'] });
+  assert.equal(rc.status, 'done', `leg c: expected done, got ${rc.status}/${rc.reason}`);
+  assert.equal(c.driver.actCalls().filter((x) => x.op === 'check').length, 1, 'leg c: one check act');
+});
+
+test('T-r24c-state-guards: an error, two bindings or a pre-filled field never take the 0.25 bar', async () => {
+  const runA = async (name: string, over: SeqEntry, obsList: Observation[], steps: string[], values: Record<string, string>, script?: SeqEntry[]) => {
+    const h = harness({
+      observations: { p1: obsList },
+      script: script ?? [r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }), r24cFILL(over), r24cFILL(over), r24cFILL(over)],
+      config: FORCED,
+    });
+    const r = await h.call({ goal: `r24c-state-guards goal ${name}`, steps, values });
+    assert.notEqual(r.status, 'done', `leg ${name}: must not end done (${r.status}/${r.reason})`);
+    assert.equal(r24cStateRounds(h).length, 0, `leg ${name}: no round with stateEvidence`);
+  };
+  const std = (): Observation[] => [r24cFormObs(false, 'f0'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1')]; // fresh per leg (the FakeDriver consumes it)
+  // (1) an error on the page (errorP 0.6, recover give-up)
+  await runA('1', { step_done: 0.35, error: 0.6, recover: ['give-up', { 'give-up': 0.9 }], target: R24C_E1 }, std(), r24cEmailSteps, { email: 'a@b.c' });
+  // (1b) the strict gate: errorP 0.3 is under errorClear (0.5) but not under sameDocErrorMax (0.25)
+  await runA('1b', { step_done: 0.35, error: 0.3, target: R24C_E1 }, std(), r24cEmailSteps, { email: 'a@b.c' });
+  // (2) two bindings in one step
+  await runA('2', { step_done: 0.35, target: R24C_E1 }, std(), ['type the value named email and the value named name into the form'], { email: 'a@b.c', name: 'Ann Lee' });
+  // (3) the field was already filled before the act
+  await runA('3', { step_done: 0.35, target: R24C_E1 }, [r24cFormObs(true, 'f0'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1'), r24cFormObs(true, 'f1')], r24cEmailSteps, { email: 'a@b.c' });
+  // (4) a second field: the fill landed on e2 (already filled in every observation), the evidence is for e1 only
+  const backup = el({
+    id: 'e2',
+    path: '#backup',
+    tag: 'input',
+    role: 'textbox',
+    name: 'Backup email',
+    editable: true,
+    state: { disabled: false, filled: true },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'Backup email', x: 0, y: 0 },
+  });
+  const two = (f1: boolean, text: string): Observation => observation({ elements: [r24cInEl(f1), backup], text });
+  const E2: [string, Record<string, number>] = ['e2', { e2: 0.9, none: 0.05 }];
+  await runA('4', {}, [two(false, 'g0'), two(true, 'g1'), two(true, 'g1'), two(true, 'g1')], ['type the value named email into the E-mail field'], { email: 'a@b.c' }, [
+    r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }),
+    r24cFILL({ step_done: 0.1, target: E2 }),
+    r24cFILL({ step_done: 0.35, target: E2 }),
+    r24cFILL({ step_done: 0.35, target: E2 }),
+  ]);
+  // (5) an earlier clause's fill never counts for the next clause
+  const h5 = harness({
+    observations: { p1: [r24cFormObs(false, 'h0'), r24cFormObs(true, 'h1'), r24cFormObs(true, 'h2'), r24cFormObs(true, 'h2'), r24cFormObs(true, 'h2')] },
+    script: [
+      r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }),
+      r24cFILL({ step_done: 0.6, target: R24C_E1 }),
+      r24cFILL({ target: ['e1', { e1: 0.99, none: 0.01 }] }),
+      r24cFILL({ step_done: 0.35, target: R24C_E1 }),
+      r24cFILL({ step_done: 0.35, target: R24C_E1 }),
+    ],
+    config: FORCED,
+  });
+  const r5 = await h5.call({
+    goal: 'r24c-state-guards goal 5',
+    steps: ['type the value named email into the E-mail field', 'type the value named email into the E-mail field again'],
+    values: { email: 'a@b.c' },
+  });
+  assert.notEqual(r5.status, 'done', `leg 5: must not end done (${r5.status}/${r5.reason})`);
+  assert.equal(r24cStateRounds(h5).length, 0, 'leg 5: clause 1 never rides clause 0\'s fill');
+  // (6) a check that did not take: the box reads unchecked in both observations
+  const box = el({
+    id: 'e1',
+    path: '#box',
+    tag: 'input',
+    role: 'checkbox',
+    name: 'Accept',
+    state: { disabled: false, checked: false },
+    fingerprint: { tag: 'input', role: 'checkbox', name: 'Accept', x: 0, y: 0 },
+  });
+  const h6 = harness({
+    observations: { p1: [observation({ elements: [box], text: 'c0' }), observation({ elements: [box], text: 'c1' })] },
+    script: [
+      CS({ action: ['check', { check: 0.95, none: 0.03 }], target: ['e1', { e1: 0.97, none: 0.02 }] }),
+      CS({ step_done: 0.29, action: ['check', { check: 0.9, none: 0.05 }], target: ['none', { none: 0.57, e1: 0.3 }] }),
+    ],
+    config: FORCED,
+  });
+  const r6 = await h6.call({ goal: 'r24c-state-guards goal 6', steps: ['check the Accept checkbox'] });
+  assert.notEqual(r6.status, 'done', `leg 6: must not end done (${r6.status}/${r6.reason})`);
+  assert.equal(r24cStateRounds(h6).length, 0, 'leg 6: no stateEvidence');
+  // (6b) an uncheck that did not take: the box reads checked in both observations (kills an uncheck arm that ignores the result)
+  const tick = el({
+    id: 'e1',
+    path: '#box',
+    tag: 'input',
+    role: 'checkbox',
+    name: 'Accept',
+    state: { disabled: false, checked: true },
+    fingerprint: { tag: 'input', role: 'checkbox', name: 'Accept', x: 0, y: 0 },
+  });
+  const h6b = harness({
+    observations: { p1: [observation({ elements: [tick], text: 'u0' }), observation({ elements: [tick], text: 'u1' })] },
+    script: [
+      CS({ action: ['uncheck', { uncheck: 0.95, none: 0.03 }], target: ['e1', { e1: 0.97, none: 0.02 }] }),
+      CS({ step_done: 0.29, action: ['uncheck', { uncheck: 0.9, none: 0.05 }], target: ['none', { none: 0.57, e1: 0.3 }] }),
+    ],
+    config: FORCED,
+  });
+  const r6b = await h6b.call({ goal: 'r24c-state-guards goal 6b', steps: ['uncheck the Accept checkbox'] });
+  assert.notEqual(r6b.status, 'done', `leg 6b: must not end done (${r6b.status}/${r6b.reason})`);
+  assert.equal(r24cStateRounds(h6b).length, 0, 'leg 6b: no stateEvidence');
+});
+
+const r24cStartObs = observation({
+  elements: [el({ id: 'e1', path: '#start', name: 'Start', fingerprint: { tag: 'button', role: 'button', name: 'Start', x: 0, y: 0 } })],
+  text: 'start',
+});
+const r24cLoadingObs = observation({ elements: [], text: 'Loading...' });
+const r24cShownObs = observation({ elements: [], text: 'Hello World!' });
+const R24C_WAIT = (s: number, over: SeqEntry = {}): SeqEntry =>
+  CS({ step_done: s, action: ['wait', { wait: 0.97, none: 0.02 }], target: ['none', { none: 0.86, ambiguous: 0.1 }], ...over });
+// A FACTORY: the FakeDriver consumes the array it is given (queue.shift()), so a shared const goes stale after the first test.
+const r24cWaitObs = (): Observation[] => [r24cStartObs, r24cLoadingObs, r24cLoadingObs, r24cLoadingObs, r24cShownObs, r24cShownObs, r24cShownObs, r24cShownObs, r24cShownObs, r24cShownObs];
+const r24cWaitSteps = ['click the Start button', 'wait until the hidden text appears'];
+
+test('T-r24c-wait: a wait clause advances once the page text changed and step_done reaches 0.35', async () => {
+  const h = harness({
+    observations: { p1: r24cWaitObs() },
+    script: [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), R24C_WAIT(0.48), R24C_WAIT(0.48), R24C_WAIT(0.48), R24C_WAIT(0.48), R24C_WAIT(0.48)],
+    config: FORCED,
+  });
+  const r = await h.call({ goal: 'r24c-wait goal', steps: r24cWaitSteps });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h).map((x) => x[0]), ['click', 'wait', 'wait']);
+  assert.equal(r24Rounds(h)[4].waitEvidence, true);
+  // Leg b: the text changes at a 0.3 read (below the bar); the 0.48 read comes on an already-stable page. The baseline is
+  // the clause's FIRST wait, never the previous round's text.
+  const b = harness({
+    observations: { p1: r24cWaitObs() },
+    script: [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), R24C_WAIT(0.3), R24C_WAIT(0.48), R24C_WAIT(0.48)],
+    config: FORCED,
+  });
+  const rb = await b.call({ goal: 'r24c-wait goal b', steps: r24cWaitSteps });
+  assert.equal(rb.status, 'done', `leg b: expected done, got ${rb.status}/${rb.reason}`);
+  assert.equal(r24Rounds(b)[5].waitEvidence, true, 'leg b: the advance rides the first-wait baseline');
+});
+
+test('T-r24c-wait-guards: unchanged page text, a read under 0.35 or an error never advance a wait clause', async () => {
+  // (1) loading forever
+  const h1 = harness({ observations: { p1: [r24cStartObs, r24cLoadingObs] }, script: [CS(), ADV(), R24C_WAIT(0.48)], config: FORCED });
+  const r1 = await h1.call({ goal: 'r24c-wait-guards goal 1', steps: r24cWaitSteps });
+  assert.equal(r1.status, 'fallback', `leg 1: ${r1.status}/${r1.reason}`);
+  assert.equal(r24cWaitRounds(h1).length, 0, 'leg 1: no waitEvidence');
+  // (2) the text changed but every read is 0.3
+  const h2 = harness({
+    observations: { p1: r24cWaitObs() },
+    script: [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), R24C_WAIT(0.3), R24C_WAIT(0.3), R24C_WAIT(0.3), R24C_WAIT(0.3), R24C_WAIT(0.3)],
+    config: FORCED,
+  });
+  const r2 = await h2.call({ goal: 'r24c-wait-guards goal 2', steps: r24cWaitSteps });
+  assert.equal(r2.status, 'fallback', `leg 2: ${r2.status}/${r2.reason}`);
+  assert.equal(r24cWaitRounds(h2).length, 0, 'leg 2: a 0.3 read never advances');
+  // (3) the text changed and the read is 0.48 but the page shows an error
+  const E = R24C_WAIT(0.48, { error: 0.6, recover: ['give-up', { 'give-up': 0.9 }] });
+  const h3 = harness({ observations: { p1: r24cWaitObs() }, script: [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), E, E, E], config: FORCED });
+  const r3 = await h3.call({ goal: 'r24c-wait-guards goal 3', steps: r24cWaitSteps });
+  assert.notEqual(r3.status, 'done', `leg 3: ${r3.status}/${r3.reason}`);
+  assert.equal(r24cWaitRounds(h3).length, 0, 'leg 3: an error never advances');
+  // (3b) the strict gate: errorP 0.3 is under errorClear (0.5) but not under sameDocErrorMax (0.25)
+  const E3 = R24C_WAIT(0.48, { error: 0.3 });
+  const h3b = harness({ observations: { p1: r24cWaitObs() }, script: [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), E3, E3, E3, E3, E3], config: FORCED });
+  const r3b = await h3b.call({ goal: 'r24c-wait-guards goal 3b', steps: r24cWaitSteps });
+  assert.notEqual(r3b.status, 'done', `leg 3b: ${r3b.status}/${r3b.reason}`);
+  assert.equal(r24cWaitRounds(h3b).length, 0, 'leg 3b: errorP 0.3 never advances');
+  // (4) two wait clauses: the first clause's stale waitBegin must not fire the second
+  const h4 = harness({
+    observations: { p1: [r24cLoadingObs, r24cLoadingObs, ...Array.from({ length: 9 }, () => r24cShownObs)] },
+    script: [R24C_WAIT(0.2), R24C_WAIT(0.2), ...Array.from({ length: 8 }, () => R24C_WAIT(0.48))],
+    config: FORCED,
+  });
+  const r4 = await h4.call({ goal: 'r24c-wait-guards goal 4', steps: ['wait until the first text appears', 'wait until the second text appears'] });
+  assert.equal(r4.status, 'fallback', `leg 4: ${r4.status}/${r4.reason}`);
+  assert.ok(r24cWaitRounds(h4).length <= 1, 'leg 4: at most one waitEvidence round');
+  // (5) a clause that does not wait ('click ...') never takes the wait bar even when Jev decides wait and the text changes
+  const h5 = harness({
+    observations: { p1: [r24cStartObs, r24cLoadingObs, r24cLoadingObs, r24cLoadingObs] },
+    script: [R24C_WAIT(0.2), R24C_WAIT(0.4), R24C_WAIT(0.4), R24C_WAIT(0.4)],
+    config: FORCED,
+  });
+  const r5 = await h5.call({ goal: 'r24c-wait-guards goal 5', steps: ['click the Start button'] });
+  assert.notEqual(r5.status, 'done', `leg 5: ${r5.status}/${r5.reason}`);
+  assert.equal(r24cWaitRounds(h5).length, 0, 'leg 5: a click clause never takes the wait bar');
+});
+
+test('T-r24c-stuck2-auto: the second stuck round goes back even where Jev would answer give-up', async () => {
+  const h = harness({
+    observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('back'), NONE(), CS({ recover: ['give-up', { 'give-up': 0.9 }] }), ADV()],
+  });
+  const r = await h.call({ goal: 'r24c-stuck2-auto goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['back', null, undefined], ['back', null, undefined], ['click', 'e1', undefined]]);
+  assert.equal(stuckReqs(h).length, 1);
+});
+
+test('T-r24c-pressfocus-keyclause: a press split onto the focused field never commits on a clause that names no key', async () => {
+  const h = harness({
+    observations: { p1: [todoPage] },
+    script: [PRESS(0.36, 'Enter', { action: ['press', { press: 0.46, click: 0.44, none: 0.05 }], target: ['e1', { e1: 0.63, none: 0.36, ambiguous: 0.01 }] })],
+  });
+  const r = await h.call({ goal: 'r24c-pressfocus-keyclause goal', steps: ['click the New todo field'] });
+  assert.equal(r.status, 'fallback', `expected fallback, got ${r.status}/${r.reason}`);
+  assert.equal(h.driver.actCalls().filter((x) => x.op === 'press').length, 0, 'no press act');
+  assert.equal(r24Rounds(h).filter((x) => x.pressFocusSum !== undefined).length, 0, 'no pressFocusSum round');
 });
