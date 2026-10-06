@@ -779,3 +779,6 @@
   commit at the four press-none sites (r23b sums 0.96-0.99), for browse_step (takeover) rounds only at the 0.7 takeover threshold — wingman_do keeps its own 0.5 press-none bar and never uses the focus-sum. Still targetless, so the irreversible refusal applies.
   Test trap: an observation with `focus` on an editable plus a split press now commits.
   Mutation note: `T-r24-pressfocus-guards` leg (e) kills a 0.5 wingman_do gate (sum 0.55); leg (f) (wingman_do, none 0.4 + focused field 0.35 = 0.75 >= 0.7) kills dropping the `takeover &&` guard alone. Both are needed.
+- **Verb coercion (r24 WP5).** `decideTarget` turns a check/uncheck on a committed
+  link/button into click before `opFits` (`verbCoerced`). Test trap: a check scripted on a role link/button acts.
+  Mutation note: `T-r24-coerce-guards` kills the `uncheck` arm, the `button` role arm and the `offeredSet.has('click')` guard individually (legs a, c); leg b (hover on a link stays hover) is the verb-guard tooth. Dropping the `el !== null` guard is a TS18047 build error, so the compiler is its tooth (a mutation run whose build fails leaves the PREVIOUS dist: read "BUILD: ok" before trusting a red).

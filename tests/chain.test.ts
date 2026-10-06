@@ -4563,3 +4563,79 @@ test('T-r24-pressfocus-guards: no focus, a non-editable focus or a third-element
     assert.equal(pressActs(h), 0, 'leg f: wingman_do never focus-sum commits at a 0.75 sum');
   }
 });
+
+// ---- r24 WP5: verb coercion ----
+
+const cbLinkEl = el({ id: 'e2', path: '#cb', tag: 'a', role: 'link', name: 'Checkboxes', fingerprint: { tag: 'a', role: 'link', name: 'Checkboxes', x: 0, y: 0 } });
+const cbHub = observation({ url: 'https://example.com/', elements: [cbLinkEl] });
+const cbPage = observation({ url: 'https://example.com/checkboxes', text: 'checkboxes' });
+
+test('T-r24-coerce: a check decided on a committed link acts as click', async () => {
+  const h = harness({
+    observations: { p1: [cbHub, cbPage] },
+    script: [CS({ action: ['check', { check: 0.53, click: 0.4 }], target: ['e2', { e2: 0.91, none: 0.09 }] }), ADV()],
+  });
+  const r = await h.call({ goal: 'r24-coerce goal', steps: ['open Checkboxes'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['click', 'e2', undefined]]);
+  assert.equal(r24Rounds(h)[0].verbCoerced, true);
+});
+
+test('T-r24-coerce-checkbox: a check on a checkbox stays a check', async () => {
+  const box = el({
+    id: 'e1',
+    path: '#box',
+    tag: 'input',
+    role: 'checkbox',
+    name: 'Accept',
+    state: { disabled: false, checked: false },
+    fingerprint: { tag: 'input', role: 'checkbox', name: 'Accept', x: 0, y: 0 },
+  });
+  const before = observation({ elements: [box], text: 'form' });
+  const after = observation({
+    elements: [el({ ...box, state: { disabled: false, checked: true } })],
+    text: 'form checked',
+  });
+  const h = harness({
+    observations: { p1: [before, after] },
+    script: [CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['e1', { e1: 0.95, none: 0.03 }] }), ADV()],
+  });
+  const r = await h.call({ goal: 'r24-coerce-checkbox goal', steps: ['check the Accept box'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['check', 'e1', undefined]]);
+  assert.equal(r24Rounds(h)[0].verbCoerced, undefined);
+});
+
+test('T-r24-coerce-guards: only check/uncheck on a link or button, with click offered, coerces', async () => {
+  // (a) uncheck on a button coerces too.
+  const btn = el({ id: 'e3', path: '#tg', name: 'Toggle', fingerprint: { tag: 'button', role: 'button', name: 'Toggle', x: 0, y: 0 } });
+  const a = harness({
+    observations: { p1: [observation({ elements: [btn], text: 'tg' }), observation({ elements: [btn], text: 'tg done' })] },
+    script: [CS({ action: ['uncheck', { uncheck: 0.55, click: 0.4 }], target: ['e3', { e3: 0.9, none: 0.08 }] }), ADV()],
+  });
+  const ra = await a.call({ goal: 'r24-coerce-guards goal a', steps: ['toggle it'] });
+  assert.equal(ra.status, 'done', `leg a: expected done, got ${ra.status}/${ra.reason}`);
+  assert.deepEqual(actsOf(a), [['click', 'e3', undefined]]);
+  assert.equal(r24Rounds(a)[0].verbCoerced, true);
+  // (b) another verb on a link is never rewritten to click.
+  const b = harness({
+    observations: { p1: [cbHub, cbHub] },
+    script: [CS({ action: ['hover', { hover: 0.9, click: 0.05 }], target: ['e2', { e2: 0.91, none: 0.09 }] }), ADV()],
+  });
+  await b.call({ goal: 'r24-coerce-guards goal b', steps: ['hover Checkboxes'] });
+  assert.deepEqual(actsOf(b).map((x) => x[0]), ['hover']);
+  assert.equal(r24Rounds(b)[0].verbCoerced, undefined);
+  // (c) a driver that does not offer click never gets the rewrite.
+  const c = harness({
+    observations: { p1: [cbHub, cbPage, cbPage] },
+    script: [
+      CS({ action: ['check', { check: 0.53, none: 0.4 }], target: ['e2', { e2: 0.91, none: 0.09 }] }),
+      CS({ action: ['check', { check: 0.53, none: 0.4 }], target: ['e2', { e2: 0.91, none: 0.09 }] }),
+      ADV(),
+    ],
+  });
+  c.driver.ops = (OPS as readonly Op[]).filter((o) => o !== 'click') as never;
+  await c.call({ goal: 'r24-coerce-guards goal c', steps: ['open Checkboxes'] });
+  assert.equal(actsOf(c).filter((x) => x[0] === 'click').length, 0);
+  assert.equal(r24Rounds(c).filter((x) => x.verbCoerced !== undefined).length, 0);
+});

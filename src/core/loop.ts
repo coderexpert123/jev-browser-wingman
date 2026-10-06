@@ -235,6 +235,11 @@ const KB_HOVER_EVIDENCE = false;
  * threshold (browse_step rounds). Flipping restores the pre-r24 behaviour
  * (only a lone `none` at the bar commits). Never flip in shipped code. */
 const KB_PRESS_FOCUS_SUM = false;
+/** r24 WP5 KB proof switch: verb coercion — a check/uncheck decided on a
+ * committed link or button acts as click (r23b t9: action `check` 0.53 on the
+ * Checkboxes link bounced no-match because `opFits` refuses check on a link).
+ * Flipping restores the pre-r24 behaviour. Never flip in shipped code. */
+const KB_VERB_COERCE = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
@@ -1792,6 +1797,7 @@ async function runTool(
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
     sameDocEvidence?: true; finalNavEvidence?: true; hoverEvidence?: true; // r24 WP1: set only on an advance that ONLY the R1 / R2 / R3 rule allowed
     pressFocusSum?: true;  // r24 WP3: the press focus-sum commit decided this round
+    verbCoerced?: true;    // r24 WP5: a check/uncheck on a link or button acted as click
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -2477,6 +2483,19 @@ async function runTool(
     // therefore never opens the OS file chooser (P9).
     if (el !== null && (verb === 'click' || verb === 'dblclick' || verb === 'press') && isFileInput(el)) {
       verb = 'upload';
+    }
+    // r24 (WP5): a check/uncheck decided on a committed link or button acts as
+    // click. r23b t9 rep 2 call 1: action check 0.53 on the Checkboxes link
+    // (target 0.91) bounced no-match twice because opFits refuses check on a link.
+    if (
+      !KB_VERB_COERCE &&
+      el !== null &&
+      (verb === 'check' || verb === 'uncheck') &&
+      (el.role === 'link' || el.role === 'button') &&
+      (offeredSet === undefined || offeredSet.has('click'))
+    ) {
+      verb = 'click';
+      if (cur) cur.verbCoerced = true;
     }
     if (el !== null && !opFits(verb, el)) {
       return uncertain();

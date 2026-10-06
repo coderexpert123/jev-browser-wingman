@@ -233,6 +233,8 @@ export interface WingmanLogRecord {
       hoverEvidence?: true;
       // r24: the press focus-sum commit (WP3) decided this round.
       pressFocusSum?: true;
+      // r24: a check/uncheck on a link or button acted as click (WP5).
+      verbCoerced?: true;
       // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document.
       leftPage?: boolean;
       // r15: browse_step rounds where the error rule fired: the validated recover answer (give-up when below the bar).
