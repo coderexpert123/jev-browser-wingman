@@ -5676,6 +5676,25 @@ test('T-r24c-candidates: a value in an element name is redacted in the candidate
 // r24c recheck: a seeded property run (250 random value sets, pages and call mixes, ~1 s). Every request, log record and result of
 // every call must be free of every remembered value, and no backstop may fire (a site miss shows only there). It fails under
 // KB_CROSS_CALL_REDACT (1,213 leaks) and under a deleted site (hits), so a green run is a real zero.
+test('T-r24c-acterror: a thrown act error naming a bound or remembered value is redacted in the log record at its site', async () => {
+  // r24c recheck: the loop's describeActError call argument survived deletion (only the unit test pinned the redaction; the log backstop repaired the rest).
+  const SECRET = 'veil-oat-milk-91';
+  for (const mode of ['bound', 'remembered'] as const) {
+    const memory = new ValueMemory();
+    if (mode === 'remembered') memory.bind({ item1: SECRET });
+    const h = harness({ observations: { p1: [observation()] }, script: [CS()], ...(mode === 'remembered' ? { valueMemory: memory } : {}) });
+    h.driver.act = async () => {
+      throw new ActFailedError(`locator.click: ${SECRET} is not clickable`);
+    };
+    const hits0 = redactionBackstopHits();
+    const r = await h.call({ goal: `r24c-acterror goal ${mode}`, steps: ['click Details'], ...(mode === 'bound' ? { values: { item1: SECRET } } : {}) });
+    assert.equal(r.reason, 'act-failed', `${mode}: ${r.status}/${r.reason}`);
+    assert.equal(h.records[0].act_error?.head, 'locator.click: <value:item1> is not clickable', mode);
+    assertNoValues(JSON.stringify(h.records[0]), { item1: SECRET });
+    assert.equal(redactionBackstopHits(), hits0, `${mode}: a site, not the backstop, redacted the error line`);
+  }
+});
+
 test('T-r24c-option: a value in an option label is redacted in the chunk requests and the final request of a native select', async () => {
   // r24c recheck: the local label match skips the option requests whenever the bound value equals a label, so no earlier
   // test reached buildOptionRequests / buildOptionFinalRequest with a value-bearing label (both call-site arguments survived deletion).
