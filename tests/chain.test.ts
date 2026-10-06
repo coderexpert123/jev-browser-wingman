@@ -2606,13 +2606,13 @@ test('T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead a
   assert.equal(c.askActs[2], 1);
 });
 
-test('T-nav-same-url: a click that stays on the same document (or only changes the hash) keeps the 0.5 bar and acts ahead', async () => {
+test('T-nav-same-url: a click that stays on the same document (or only changes the hash) never takes the navigation bar and acts ahead below the 0.3 same-document bar', async () => {
   for (const [i, url] of ['https://example.com/', 'https://example.com/#panel'].entries()) {
     const panel = observation({ url, title: 'Home', elements: [hubEl, emailEl], text: 'panel open' });
     const panelFilled = observation({ url, title: 'Home', elements: [hubEl, emailFilledEl], text: 'panel open' });
     const h = harness({
       observations: { p1: [hub, panel, panelFilled, panelFilled] },
-      script: [CS(), AHEAD(0.35), ADV(), ADV()],
+      script: [CS(), AHEAD(0.2), ADV(), ADV()],
     });
     const r = await h.call({ goal: `chain-nav-sameurl goal ${i}`, steps: NAV_STEPS, values: navValues });
     assert.equal(r.status, 'done', url);
@@ -2710,16 +2710,28 @@ test('T-nav-token: a confirmed token click records beforeUrl, so the next round 
   assert.equal(h.records[1].phases!.rounds[1].navEvidence, true);
 });
 
-test('T-nav-final-clause: navigation evidence never advances the FINAL clause (it would end done/goal-met on a weak landing)', async () => {
+test('T-nav-final-clause: the r14 navigation evidence never advances the FINAL clause; r24 ends it done only through finalNavEvidence (>= 0.25, one click), below 0.25 it acts ahead', async () => {
+  // Leg A (r24 WP1 R2): the landing at 0.35 ends the final clause done after
+  // ONE click, tagged finalNavEvidence, never navEvidence (gate 6 of navAdvance holds).
   const h = harness({
     observations: { p1: [hub, formEmpty, formFilled] },
     script: [CS(), AHEAD(0.35), ADV()],
   });
   const r = await h.call({ goal: 'chain-nav-final goal', steps: ['open the Form link'], values: navValues });
-  assert.equal(navEvidenceRounds(h).length, 0);
-  assert.equal(h.askActs[2], 2, 'acted ahead under the final clause: the old bars apply');
-  assert.deepEqual(actsOf(h), FILL_AFTER_CLICK);
   assert.equal(r.status, 'done');
+  assert.equal(navEvidenceRounds(h).length, 0, 'navAdvance still never fires on the final clause');
+  assert.equal(navRounds(h)[1].finalNavEvidence, true);
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  // Leg B: below the 0.25 floor the old bars apply: acted ahead under the final clause.
+  const h2 = harness({
+    observations: { p1: [hub, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.2), ADV()],
+  });
+  const r2 = await h2.call({ goal: 'chain-nav-final goal below floor', steps: ['open the Form link'], values: navValues });
+  assert.equal(r2.status, 'done');
+  assert.equal(navEvidenceRounds(h2).length, 0);
+  assert.equal(h2.askActs[2], 2, 'acted ahead under the final clause: the old bars apply');
+  assert.deepEqual(actsOf(h2), FILL_AFTER_CLICK);
 });
 
 test('T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing', async () => {
@@ -4305,4 +4317,170 @@ test('T-ready gate still applies to press', async () => {
   });
   await h.call({ goal: 'r17-ready-press goal', steps: ['press Enter to submit'] });
   assert.equal(h.driver.actCalls()[0].op, 'wait', 'press keeps the ready gate (R8) — it acts on the current page');
+});
+
+// ---- r24 (.build-r24-spec.md) ----
+
+const r24Rounds = (h: Harness) => h.records[h.records.length - 1].phases!.rounds;
+const R24_NONE_ROUND = (sd: number): SeqEntry =>
+  CS({ step_done: sd, target: ['none', { none: 0.45, e1: 0.3, ambiguous: 0.2 }] });
+const cart0 = observation({
+  url: 'https://example.com/inventory',
+  title: 'Inventory',
+  elements: [el({ id: 'e1', path: '#add', name: 'Add to cart', fingerprint: { tag: 'button', role: 'button', name: 'Add to cart', x: 0, y: 0 } })],
+  text: 'cart 0',
+});
+const cart1 = observation({
+  url: 'https://example.com/inventory',
+  title: 'Inventory',
+  elements: [el({ id: 'e1', path: '#remove', name: 'Remove', fingerprint: { tag: 'button', role: 'button', name: 'Remove', x: 0, y: 0 } })],
+  text: 'cart 1',
+});
+
+test('T-r24-samedoc: a same-document landed own click advances at step_done 0.3 with no page error', async () => {
+  const h = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), R24_NONE_ROUND(0.3), R24_NONE_ROUND(0.3)],
+  });
+  const r = await h.call({ goal: 'r24-samedoc goal', steps: ['add the first listed product to the cart'], values: { first: 'Wing' } });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(r24Rounds(h)[1].sameDocEvidence, true);
+  assert.equal(r24Rounds(h)[1].kind, 'advance');
+});
+
+test('T-r24-samedoc-guards: errorP 0.25, a second clause click, a named binding or step_done 0.29 keep the same-document bar shut', async () => {
+  const noEvidence = (h: Harness) => assert.equal(r24Rounds(h).filter((x) => x.sameDocEvidence !== undefined).length, 0);
+  const steps = ['add the first listed product to the cart'];
+  // (a) errorP 0.25 is not under the strict error gate.
+  const a = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), CS({ error: 0.25, step_done: 0.4, target: ['none', { none: 0.45, e1: 0.3, ambiguous: 0.2 }] }), CS({ error: 0.25, step_done: 0.4, target: ['none', { none: 0.45, e1: 0.3, ambiguous: 0.2 }] })],
+  });
+  const ra = await a.call({ goal: 'r24-samedoc-guards goal a', steps, values: { first: 'Wing' } });
+  assert.equal(ra.status, 'fallback');
+  noEvidence(a);
+  // (b) two different effective clicks on the clause.
+  const cart1b = observation({
+    url: 'https://example.com/inventory',
+    title: 'Inventory',
+    elements: [el({ id: 'e2', path: '#checkout', name: 'Checkout', fingerprint: { tag: 'button', role: 'button', name: 'Checkout', x: 0, y: 0 } })],
+    text: 'cart 1',
+  });
+  const cart2 = observation({ url: 'https://example.com/inventory', title: 'Inventory', elements: [cart1b.elements[0]], text: 'cart 2' });
+  const b = harness({
+    observations: { p1: [cart0, cart1b, cart2, cart2] },
+    script: [
+      CS(),
+      CS({ step_done: 0.1, target: ['e2', { e2: 0.9, none: 0.05, ambiguous: 0.05 }] }),
+      CS({ step_done: 0.4, target: ['none', { none: 0.45, e1: 0.3, ambiguous: 0.2 }] }),
+      CS({ step_done: 0.4, target: ['none', { none: 0.45, e1: 0.3, ambiguous: 0.2 }] }),
+    ],
+  });
+  const rb = await b.call({ goal: 'r24-samedoc-guards goal b', steps, values: { first: 'Wing' } });
+  assert.equal(rb.status, 'fallback');
+  assert.equal(b.driver.actCalls().filter((x) => x.op === 'click').length, 2);
+  noEvidence(b);
+  // (c) a clause that names a value.
+  const c = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), R24_NONE_ROUND(0.4), R24_NONE_ROUND(0.4)],
+  });
+  const rc = await c.call({ goal: 'r24-samedoc-guards goal c', steps: ['add the value named item to the cart'], values: { item: 'blue shirt' } });
+  assert.equal(rc.status, 'fallback');
+  noEvidence(c);
+  // (d) step_done under the bar.
+  const d = harness({
+    observations: { p1: [cart0, cart1, cart1] },
+    script: [CS(), R24_NONE_ROUND(0.29), R24_NONE_ROUND(0.29)],
+  });
+  const rd = await d.call({ goal: 'r24-samedoc-guards goal d', steps, values: { first: 'Wing' } });
+  assert.equal(rd.status, 'fallback');
+  noEvidence(d);
+  // (e) the click LEFT the document (two bindings by substring, so only R1's
+  // !leftDocument keeps it shut: navAdvance needs stepBindingCount <= 1).
+  const X = R24_NONE_ROUND(0.35);
+  const e = harness({
+    observations: { p1: [hub, formPage, formPage, formPage] },
+    script: [CS(), X, X, X],
+  });
+  const re = await e.call({ goal: 'r24-samedoc-guards goal e', steps: ['open the user and pass page'], values: { user: 'u1', pass: 'p1' } });
+  assert.equal(re.status, 'fallback');
+  noEvidence(e);
+});
+
+test('T-r24-finalnav: a final clause whose one landed own click left the document ends done at step_done 0.25', async () => {
+  const X = CS({ step_done: 0.25, target: ['none', { none: 0.5, ambiguous: 0.3 }] });
+  const h = harness({
+    observations: { p1: [hub, formPage, formPage] },
+    script: [CS(), X, X],
+  });
+  const r = await h.call({ goal: 'r24-finalnav goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(r24Rounds(h)[1].finalNavEvidence, true);
+});
+
+test('T-r24-finalnav-second-click: a final-clause landing after a second click on the clause does not end done', async () => {
+  const landing = observation({
+    url: 'https://example.com/form/404',
+    title: '404',
+    elements: [el({ id: 'e1', path: '#here', tag: 'a', role: 'link', name: 'here', fingerprint: { tag: 'a', role: 'link', name: 'here', x: 0, y: 0 } })],
+    text: '404 page',
+  });
+  const back2 = observation({ url: 'https://example.com/codes', title: 'Codes', text: 'codes again' });
+  const h = harness({
+    observations: { p1: [hub, landing, back2, back2] },
+    script: [
+      CS(),
+      CS({ step_done: 0.1 }),
+      CS({ step_done: 0.45, target: ['none', { none: 0.9 }] }),
+      CS({ step_done: 0.45, target: ['none', { none: 0.9 }] }),
+    ],
+  });
+  const r = await h.call({ goal: 'r24-finalnav-second goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(h.driver.actCalls().filter((x) => x.op === 'click').length, 2);
+  assert.equal(r24Rounds(h).filter((x) => x.finalNavEvidence !== undefined).length, 0);
+});
+
+const menuEl = el({ id: 'e1', path: '#menu', name: 'Menu', fingerprint: { tag: 'button', role: 'button', name: 'Menu', x: 0, y: 0 } });
+const openEl = el({ id: 'e2', path: '#open', name: 'Open panel', fingerprint: { tag: 'button', role: 'button', name: 'Open panel', x: 0, y: 0 } });
+const menuClosed = observation({ elements: [menuEl], text: 'menu' });
+const menuOpen = observation({ elements: [menuEl, openEl], text: 'menu open' });
+const menuOpened = observation({ elements: [menuEl, openEl], text: 'panel opened' });
+
+test('T-r24-hover: a hover clause whose hover changed the page advances at step_done 0.5', async () => {
+  const h = harness({
+    observations: { p1: [menuClosed, menuOpen, menuOpen, menuOpened] },
+    script: [
+      CS({ action: ['hover', { hover: 0.95, none: 0.03 }] }),
+      CS({ step_done: 0.6, action: ['hover', { hover: 0.5, click: 0.4 }], target: ['e2', { e2: 0.74, e1: 0.22 }] }),
+      CS({ target: ['e2', { e2: 0.95, none: 0.03 }] }),
+      ADV(),
+    ],
+  });
+  const r = await h.call({ goal: 'r24-hover goal', steps: ['hover over the Menu button', 'click the Open panel button'] });
+  assert.equal(r.status, 'done');
+  assert.deepEqual(actsOf(h), [['hover', 'e1', undefined], ['click', 'e2', undefined]]);
+  assert.equal(r24Rounds(h)[1].hoverEvidence, true);
+});
+
+test('T-r24-hover-gate: a hover act under a clause that does not name hover never advances on hover evidence', async () => {
+  const none = () => CS({ step_done: 0.6, target: ['none', { none: 0.95 }] });
+  const a = harness({
+    observations: { p1: [menuClosed, menuOpen, menuOpen] },
+    script: [CS({ action: ['hover', { hover: 0.95, none: 0.03 }] }), none(), none()],
+  });
+  const ra = await a.call({ goal: 'r24-hover-gate goal a', steps: ['open the Menu'] });
+  assert.equal(ra.status, 'fallback');
+  assert.equal(r24Rounds(a).filter((x) => x.hoverEvidence !== undefined).length, 0);
+  // Leg B: the hover read 'no visible change'.
+  const b = harness({
+    observations: { p1: [menuClosed, menuClosed, menuClosed] },
+    script: [CS({ action: ['hover', { hover: 0.95, none: 0.03 }] }), none(), none()],
+  });
+  const rb = await b.call({ goal: 'r24-hover-gate goal b', steps: ['hover over the Menu button'] });
+  assert.equal(rb.status, 'fallback');
+  assert.equal(r24Rounds(b).filter((x) => x.hoverEvidence !== undefined).length, 0);
 });

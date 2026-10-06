@@ -761,3 +761,16 @@
   end the call with a terminal script entry (give-up, or ADV to
   end-of-chain) instead.
 
+## r24: landed-act bars, ready skip, press focus-sum, verb coercion, second stuck back (2026-10-06)
+
+- **Landed-act bars below 0.5 (r24 WP1, spec `.build-r24-spec.md` § 2.4).** `runChainEarly` rule 3 has
+  three more advance branches after `navAdvance`, each needing exactly one effective click on the clause
+  (`clauseClicks().length === 1`) where it reads clicks: R1 same-document own click/dblclick (`page changed`/`element gone`,
+  `!leftDocument`) at `stepDoneWithSameDocEvidence` 0.3 with errorP < `sameDocErrorMax` 0.25, a clause that does not say 'value named' (`NAMES_A_VALUE_RE`; NOT `bindingsInStep`, a substring match that counts t10's `first` binding inside 'add the first listed product'),
+  no key/count clause (`sameDocEvidence`); R2 the FINAL expanded clause's own click that left the document at the
+  nav bar 0.25 with errorClear (`finalNavEvidence`) — the r14 gate 6 still holds for `navAdvance` itself; R3 a
+  hover clause (`HOVER_CLAUSE_RE`) whose own hover read `page changed` at 0.5 (`hoverEvidence`). The post-submit
+  error page reads stepDone 0.38-0.71, so only the strict error gate keeps R1 off it; the one-click guard is what
+  rejects the #48 wrong-link landing (stepDone 0.45, same as a correct landing). Test traps: a same-document
+  page-changing click followed by step_done in [0.3, 0.5) with error < 0.25 now advances (re-script below 0.3);
+  a final clause's landed cross-document click at step_done >= 0.25 now ends done.

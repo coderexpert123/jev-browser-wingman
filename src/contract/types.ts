@@ -225,6 +225,12 @@ export interface WingmanLogRecord {
       stuck?: string;
       // r14: set only on an advance that ONLY landed-navigation evidence allowed.
       navEvidence?: true;
+      // r24: set only on an advance that ONLY the R1 (same-document own click) rule allowed.
+      sameDocEvidence?: true;
+      // r24: set only on an advance that ONLY the R2 (final-clause landed navigation) rule allowed.
+      finalNavEvidence?: true;
+      // r24: set only on an advance that ONLY the R3 (hover that changed the page) rule allowed.
+      hoverEvidence?: true;
       // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document.
       leftPage?: boolean;
       // r15: browse_step rounds where the error rule fired: the validated recover answer (give-up when below the bar).

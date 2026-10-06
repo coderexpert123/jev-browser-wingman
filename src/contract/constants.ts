@@ -72,6 +72,15 @@ export const THRESHOLDS = {
   // on the next round; an open clause on any other page read <= 0.17; the one
   // wrong landing 0.14).
   stepDoneWithNavEvidence: 0.25,
+  // r24 WP1 (R1): a clause's ONE landed own click (click/dblclick, 'page changed' or
+  // 'element gone') that stayed on the same document advances at this stepDone,
+  // only while errorP < sameDocErrorMax. r23b: same-document positives read
+  // 0.33-0.44 (errorP 0.06-0.07); landed clicks on unfinished clauses read
+  // 0.07-0.14, r13's wrong landing 0.14 / open clause elsewhere <= 0.17.
+  stepDoneWithSameDocEvidence: 0.3,
+  // r24 WP1 (R1): the strict error gate of the same-document bar. The post-submit
+  // error page reads stepDone 0.38-0.71 (inseparable) with errorP 0.32-0.72.
+  sameDocErrorMax: 0.25,
 } as const;
 export const TWO_STAGE = { groupSize: 30, topGroups: 3 } as const;
 export const SELECT_CHUNK = 250;

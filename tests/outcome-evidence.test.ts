@@ -986,7 +986,7 @@ test('WP-count-b: chain step "click the Add button 3 times" advances after exact
 test('WP-count-c: a step with no count word never advances on count evidence (falls back to the ordinary stepDone bar)', async () => {
   const h = harness({
     observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
-    ask: clickStepDoneAsk(0.3),
+    ask: clickStepDoneAsk(0.2),
     config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 3 } },
   });
   const r = await h.call({ goal: 'WP-count goal c', steps: ['click the Add button'] });
@@ -1080,7 +1080,7 @@ test('WP-click-a: chain step "click the Add button" (no count) advances after ex
 test('WP-click-b: chain step "click the Add button" (no count) hands back why repeat when the same target is picked again below the evidence bar', async () => {
   const h = harness({
     observations: { p1: [addElementsObs(0), addElementsObs(1), addElementsObs(2)] },
-    ask: clickStepDoneAsk(0.3),
+    ask: clickStepDoneAsk(0.2),
     config: { budgets: { ...DEFAULT_BUDGETS, max_steps: 5 } },
   });
   const r = await h.call({ goal: 'WP-click goal b', steps: ['click the Add button'] });
@@ -1396,7 +1396,7 @@ test('T-wait-shadow-landed: a landed wait after an element-gone click does not s
     if (call === 2) {
       return reply({
         ...baseNouls(),
-        step_done: { type: 'noul', noul: 0.3 }, // below every bar: the wait lands
+        step_done: { type: 'noul', noul: 0.2 }, // below every bar: the wait lands
         action: choice('wait', { wait: 0.9, none: 0.05 }),
         target: choice('none', { none: 0.9, e1: 0.05 }),
       });

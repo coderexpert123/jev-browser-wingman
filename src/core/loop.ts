@@ -212,6 +212,30 @@ const KB_ACT_NAV_RETRY = false;
  * code. */
 const KB_RESUME_SKIP_POSTACTION = false;
 
+/** r24 WP1 (R1) KB proof switch: the same-document landed-click advance — a
+ * clause's ONE landed own click (click/dblclick, 'page changed'/'element
+ * gone') that stayed on the same document advances at
+ * `stepDoneWithSameDocEvidence` while errorP < `sameDocErrorMax`. Flipping
+ * restores the pre-r24 0.5 bar. Never flip in shipped code. */
+const KB_SAMEDOC_CLICK = false;
+/** r24 WP1 (R2) KB proof switch: the final-clause landed-navigation advance —
+ * the FINAL expanded clause's one landed own click that left the document
+ * advances (ends the call done) at `stepDoneWithNavEvidence`. Flipping
+ * restores the pre-r24 behaviour (navAdvance never fires on the final
+ * clause). Never flip in shipped code. */
+const KB_FINAL_NAV = false;
+/** r24 WP1 (R3) KB proof switch: the hover-evidence advance — a hover clause
+ * whose own hover act read 'page changed' advances at
+ * `stepDoneWithEvidence`. Flipping restores the pre-r24 behaviour. Never
+ * flip in shipped code. */
+const KB_HOVER_EVIDENCE = false;
+/** r24 WP1: a clause that asks for a hover. */
+const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
+/** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
+ * on purpose: `VALUE_NAMED_RE` carries the `g` flag, whose `lastIndex` makes
+ * repeated `.test` calls unreliable. NOT `bindingsInStep`, a substring match. */
+const NAMES_A_VALUE_RE = /\bvalue named\b/i;
+
 // r17 (D3): a `press|hit|push` verb followed by a key phrase. The alternation is
 // longest-first so `arrow down` beats `down`; `delete` is deliberately absent
 // (not a PRESS_KEYS member — "press Delete" parses undefined rather than
@@ -1744,6 +1768,7 @@ async function runTool(
     clickEvidence?: true;  // WP-click: set on the round where bare-click evidence fired
     stuck?: string;        // r13: the stuck-recover answer id (back / open_<name> / give-up), stuck rounds only
     navEvidence?: true;    // r14: set only on an advance that ONLY landed-navigation evidence allowed
+    sameDocEvidence?: true; finalNavEvidence?: true; hoverEvidence?: true; // r24 WP1: set only on an advance that ONLY the R1 / R2 / R3 rule allowed
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -3359,12 +3384,59 @@ async function runTool(
         stepDone >= THRESHOLDS.stepDoneWithNavEvidence &&
         errorClear &&
         hasNavClickEvidence(history, `c${chain!.cursor}`, obs.url);
-      if (priorAdvance || navAdvance) {
+      // r24 WP1: landed-act bars below 0.5 (.build-r24-spec.md § 2.4).
+      const evKey = `c${chain!.cursor}`;
+      const evEntry = lastEvidenceEntry(history, evKey);
+      const oneClick = clauseClicks().length === 1;
+      // R1: the clause's one landed own click stayed on the same document.
+      const sameDocAdvance =
+        !KB_SAMEDOC_CLICK &&
+        !priorAdvance &&
+        !navAdvance &&
+        bareClickEvidence &&
+        evEntry !== undefined &&
+        (evEntry.verb === 'click' || evEntry.verb === 'dblclick') &&
+        evEntry.beforeUrl !== undefined &&
+        !leftDocument(evEntry.beforeUrl, obs.url) &&
+        oneClick &&
+        !NAMES_A_VALUE_RE.test(chain!.clauses[chain!.cursor]) &&
+        keyWanted === undefined &&
+        countFor === undefined &&
+        stepDone >= THRESHOLDS.stepDoneWithSameDocEvidence &&
+        noulOf('error') < THRESHOLDS.sameDocErrorMax;
+      // R2: the FINAL expanded clause's one landed own click left the document.
+      const finalNavAdvance =
+        !KB_FINAL_NAV &&
+        !priorAdvance &&
+        !navAdvance &&
+        bareClickEvidence &&
+        chain!.cursor === chain!.N - 1 &&
+        oneClick &&
+        stepBindingCount <= 1 &&
+        stepDone >= THRESHOLDS.stepDoneWithNavEvidence &&
+        errorClear &&
+        hasNavClickEvidence(history, evKey, obs.url);
+      // R3: a hover clause's own hover visibly changed the page.
+      const hoverAdvance =
+        !KB_HOVER_EVIDENCE &&
+        !priorAdvance &&
+        HOVER_CLAUSE_RE.test(chain!.clauses[chain!.cursor]) &&
+        repeatCount === undefined &&
+        !NAMES_A_VALUE_RE.test(chain!.clauses[chain!.cursor]) &&
+        evEntry !== undefined &&
+        evEntry.verb === 'hover' &&
+        evEntry.result === 'page changed' &&
+        stepDone >= THRESHOLDS.stepDoneWithEvidence &&
+        errorClear;
+      if (priorAdvance || navAdvance || sameDocAdvance || finalNavAdvance || hoverAdvance) {
         if (repeatCountMet && cur) cur.countEvidence = repeatCount;
         if (bareClickEvidence && cur) cur.clickEvidence = true;
         if (keyAdvance && cur) cur.keyEvidence = true;
         if (countAdvance && cur && countFor !== undefined) cur.countEvidence = countFor;
         if (navAdvance && cur) cur.navEvidence = true;
+        if (sameDocAdvance && cur) cur.sameDocEvidence = true;
+        if (finalNavAdvance && cur) cur.finalNavEvidence = true;
+        if (hoverAdvance && cur) cur.hoverEvidence = true;
         return { kind: 'advance' };
       }
       // 4. error and recover (round ≥ 2; the question rides only then)
