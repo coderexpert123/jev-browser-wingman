@@ -94,6 +94,7 @@ export interface LoopDeps {
   writeLog: (r: WingmanLogRecord) => Promise<void>;
   now?: () => number;
   forceMode?: Mode;
+  logLabels?: boolean; // r24b (O1 b): also log element labels and the page title (redacted, capped); set only from WINGMAN_LOG_LABELS=1 (src/lib.ts)
 }
 
 type Answer = JevChoiceAnswer | { type: 'noul'; noul: number };
@@ -1868,15 +1869,16 @@ async function runTool(
     // attribute-derived role/tag/type (cut to 20), caller text, enums, binding NAMES and the page address as
     // origin + path; values redacted BEFORE any cut. Never page text: labels and titles are WP-T2's, behind deps.logLabels (O1 b).
     url?: string;
+    title?: string;   // r24b (O1 b): page title, only under deps.logLabels (redacted, cut to 80)
     cursor?: number;
     els?: number;     // O9: the observation's element count
     text_h?: string;  // O9: shortHash(obs.text), a fingerprint, never the text
-    cands?: Array<{ id: string; p: number; role?: string; tag?: string }>;
+    cands?: Array<{ id: string; p: number; role?: string; tag?: string; label?: string }>; // label: r24b (O1 b), only under deps.logLabels
     pickArgs?: { action: string; role?: string; name?: string; key?: string; binding?: string; nth?: number; resolved?: true; why?: 'no-match' | 'multi-match' };
     dialogs?: Array<{ type: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; outcome: 'accept' | 'dismiss' | 'blocked' }>;
-    gate?: { rule: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' | 'jev'; verb: string; id: string; role: string; tag: string; type?: string; irreversibleP?: number };
+    gate?: { rule: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' | 'jev'; verb: string; id: string; role: string; tag: string; type?: string; irreversibleP?: number; label?: string /* r24b (O1 b) */ };
     policy?: { reason: string; signals?: string[] };
-    act?: { verb: string; id?: string; role?: string; tag?: string; binding?: string; key?: string; token?: true; navRetry?: true; ok?: true; flip?: string };
+    act?: { verb: string; id?: string; role?: string; tag?: string; binding?: string; key?: string; token?: true; navRetry?: true; ok?: true; flip?: string; label?: string /* r24b (O1 b) */ };
     kind?: 'act' | 'advance' | 'wait' | 'bounce' | 'done' | 'error'; // r18 (D3): outcome class — explicit site assignment wins over the end-status default; absent when no site knew the value. Enum only, never page text.
   };
   const phaseAcc: {
@@ -1962,7 +1964,7 @@ async function runTool(
    * target's top-1/top-2 candidates, with probabilities — ids and
    * probabilities only (already sent to Jev as criteria and returned in
    * results), never a raw value or page text beyond that. */
-  const recordDecisionTelemetry = (answers: AnswerMap, obs?: Observation): void => {
+  const recordDecisionTelemetry = (answers: AnswerMap, obs?: Observation, values: Record<string, string> = {}): void => {
     if (!cur) return;
     const action = answers['action'];
     if (action && action.type === 'choice') {
@@ -1983,7 +1985,7 @@ async function runTool(
       }
       const top = ranked.slice(0, 3).map(([id, p]) => {
         const e = obs?.elements.find((x) => x.id === id);
-        return { id: attr20(id), p, ...(e ? { role: attr20(e.role), tag: attr20(e.tag) } : {}) };
+        return { id: attr20(id), p, ...(e ? { role: attr20(e.role), tag: attr20(e.tag), ...(deps.logLabels === true ? { label: cut40(redactValues(e.name, values)) } : {}) } : {}) };
       });
       if (top.length > 0) cur.cands = top;
     }
@@ -2820,6 +2822,7 @@ async function runTool(
       id: el.id,
       role: attr20(el.role),
       tag: attr20(el.tag),
+      ...(deps.logLabels === true ? { label: cut40(redactValues(el.name, values)) } : {}),
       ...(action.binding !== undefined ? { binding: redactValues(action.binding, values) } : {}),
       ...(action.verb === 'press' && action.optionValue !== undefined ? { key: redactValues(action.optionValue, values) } : {}),
       token: true,
@@ -3803,6 +3806,7 @@ async function runTool(
       const obs = await observeTimed(pageId, history);
       pageUrl = obs.url;
       bucket.url = telemetryUrl(obs.url, values);
+      if (deps.logLabels === true) bucket.title = capLabel(redactValues(obs.title, values));
       bucket.els = obs.elements.length;
       bucket.text_h = shortHash(obs.text);
       // § outcome evidence choke point: fills the last act's observed result
@@ -4070,7 +4074,7 @@ async function runTool(
           }
           primary = r1.answers as AnswerMap;
           decisionAnswers = primary;
-          recordDecisionTelemetry(primary, obs);
+          recordDecisionTelemetry(primary, obs, values);
           if (chain) {
             // § 5.5.2 step 6: in shadow mode return after this ask.
             if (mode === 'shadow') return shadowResult();
@@ -4202,7 +4206,7 @@ async function runTool(
           }
           primary = r.answers as AnswerMap;
           decisionAnswers = primary;
-          recordDecisionTelemetry(primary, obs);
+          recordDecisionTelemetry(primary, obs, values);
           if (chain) {
             if (mode === 'shadow') return shadowResult();
             const early = runChainEarly(primary, round, obs);
@@ -4249,7 +4253,7 @@ async function runTool(
         if (decision === null) {
           const merged = (secondary ? { ...primary, ...secondary } : primary) as AnswerMap;
           decisionAnswers = merged;
-          recordDecisionTelemetry(merged, obs);
+          recordDecisionTelemetry(merged, obs, values);
           if (chain) {
             // § 5.5.2 step 8.
             const cands = () => topTargetCandidates(merged, obs, values);
@@ -4469,6 +4473,7 @@ async function runTool(
               tag: attr20(decision.el!.tag),
               ...(decision.el!.type ? { type: attr20(decision.el!.type) } : {}),
               ...(irreversibleAnswer && irreversibleAnswer.type === 'noul' ? { irreversibleP: irreversibleAnswer.noul } : {}),
+              ...(deps.logLabels === true ? { label: cut40(redactValues(decision.el!.name, values)) } : {}),
             };
             const pending: PendingAction = {
               url: obs.url,
@@ -4572,6 +4577,7 @@ async function runTool(
         const actTele: NonNullable<PhaseRound['act']> = {
           verb: decision.verb,
           ...(decision.el ? { id: decision.el.id, role: attr20(decision.el.role), tag: attr20(decision.el.tag) } : {}),
+          ...(deps.logLabels === true && decision.el ? { label: cut40(redactValues(decision.el.name, values)) } : {}),
           ...(decision.binding !== undefined ? { binding: redactValues(decision.binding, values) } : {}),
           ...(decision.verb === 'press' && decision.optionValue !== undefined ? { key: redactValues(decision.optionValue, values) } : {}),
         };

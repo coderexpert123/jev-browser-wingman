@@ -177,10 +177,7 @@ export interface WingmanLogRecord {
   progress?: { step_index: number; steps_done: number; steps_total: number };
   pick?: true;
   acts_by_op?: Partial<Record<Op, number>>;
-  // No-progress telemetry (WP-outcome-evidence): the why and the candidate
-  // COUNT of this call's final step_review, when it carries one. Never the
-  // candidate labels themselves — those are page text, kept out of log.jsonl
-  // like every other field here.
+  // Candidate labels and the page title are page text. They are kept out of log.jsonl unless the wingman server runs with WINGMAN_LOG_LABELS=1 (the bench sets it; r24b O1 b); then they appear only on the round fields below, redacted then cut (label 40, title 80). step_review keeps only the count.
   step_review?: { why: string; candidates: number };
   // WP-click: the redacted first chain clause (chain mode only, capped to 300 chars).
   step_texts_start?: string;
@@ -192,7 +189,7 @@ export interface WingmanLogRecord {
   step_parents?: number[];
   // r13: the sanitized act error (op in flight, first and last message lines), written only on the exception path.
   act_error?: { op?: Op; head: string; tail?: string };
-  // Per-phase wall-time breakdown (ms) plus per-round adjudication fields. Never page text and never a bound value (r24b: see the round fields below).
+  // Per-phase wall-time breakdown (ms) plus per-round adjudication fields. Never a bound value; page text (labels, title) only under WINGMAN_LOG_LABELS=1 (r24b O1 b).
   // attachMs/firstObserveMs are once per invocation; rounds is one entry per
   // § 3.7 round (wingman_check records one round with observeMs/jevMs only).
   // The per-round fields below are for threshold tuning (WP-outcome-evidence
@@ -268,24 +265,26 @@ export interface WingmanLogRecord {
       resumeSkippedPostAction?: true;
       // r24b: page address as origin + path, values redacted before the 160 cut; '' when unparsable.
       url?: string;
+      // r24b (O1 b): page title, only under WINGMAN_LOG_LABELS=1; redacted then cut to 80.
+      title?: string;
       // r24b: chain.cursor at round top (chain rounds).
       cursor?: number;
       // r24b (O9): the observation's element count.
       els?: number;
       // r24b (O9): short hash fingerprint of the page text, never the text.
       text_h?: string;
-      // r24b: top-3 target grades; id/role/tag cut to 20, no labels.
-      cands?: Array<{ id: string; p: number; role?: string; tag?: string }>;
+      // r24b: top-3 target grades; id/role/tag cut to 20; label (r24b O1 b) only under WINGMAN_LOG_LABELS=1.
+      cands?: Array<{ id: string; p: number; role?: string; tag?: string; label?: string }>;
       // r24b: the pick's arguments; name redacted then cut to 40, binding NAME only.
       pickArgs?: { action: string; role?: string; name?: string; key?: string; binding?: string; nth?: number; resolved?: true; why?: 'no-match' | 'multi-match' };
       // r24b: dialogs answered or blocked this round; type and outcome, never the message.
       dialogs?: Array<{ type: 'alert' | 'confirm' | 'prompt' | 'beforeunload'; outcome: 'accept' | 'dismiss' | 'blocked' }>;
       // r24b: the live gate hit (rule, element ids and attributes, irreversibleP).
-      gate?: { rule: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' | 'jev'; verb: string; id: string; role: string; tag: string; type?: string; irreversibleP?: number };
+      gate?: { rule: 'word' | 'type-submit' | 'enter-in-form' | 'form-word' | 'jev'; verb: string; id: string; role: string; tag: string; type?: string; irreversibleP?: number; label?: string /* r24b (O1 b) */ };
       // r24b: the policy arm that fired: reason plus the true page-signal flags.
       policy?: { reason: string; signals?: string[] };
       // r24b: the EXECUTED act (written before the driver call; ok only after it returned).
-      act?: { verb: string; id?: string; role?: string; tag?: string; binding?: string; key?: string; token?: true; navRetry?: true; ok?: true; flip?: string };
+      act?: { verb: string; id?: string; role?: string; tag?: string; binding?: string; key?: string; token?: true; navRetry?: true; ok?: true; flip?: string; label?: string /* r24b (O1 b) */ };
     }>;
   };
 }

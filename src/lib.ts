@@ -81,6 +81,7 @@ export async function createWingman(
     mutex,
     tokens,
     writeLog: (record: Parameters<typeof writeLog>[0]) => writeLog(record, { home, plugin }),
+    logLabels: env.WINGMAN_LOG_LABELS === '1',
   };
 
   return {

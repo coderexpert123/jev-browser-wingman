@@ -5091,3 +5091,76 @@ test('T-r24b-page-fingerprint: a click that adds an element changes els and text
   const j = JSON.stringify(h.records[0]);
   assert.ok(!j.includes('list before') && !j.includes('list after'));
 });
+
+test('T-r24b-labels: element labels and the page title reach the log only under deps.logLabels, redacted then cut', async () => {
+  const docs = el({ id: 'e2', path: '#e2', tag: 'a', role: 'link', name: 'Docs', fingerprint: { tag: 'a', role: 'link', name: 'Docs', x: 0, y: 0 } });
+  const candObs = () => observation({ title: 'T'.repeat(100), elements: [el(), docs] });
+  const candScript = () => [CS({ target: ['e1', { e1: 0.8, e2: 0.12, none: 0.05, ambiguous: 0.03 }] }), ADV()];
+
+  // Leg A: flag on.
+  const a = harness({ observations: { p1: [candObs()] }, script: candScript() });
+  a.deps.logLabels = true;
+  await a.call({ goal: 'r24b labels goal A', steps: ['click Details'] });
+  const ra = r24bRounds(a)[0];
+  assert.equal(ra.title, 'T'.repeat(80));
+  assert.deepEqual(ra.cands, [
+    { id: 'e1', p: 0.8, role: 'button', tag: 'button', label: 'Details' },
+    { id: 'e2', p: 0.12, role: 'link', tag: 'a', label: 'Docs' },
+    { id: 'none', p: 0.05 },
+  ]);
+  assert.deepEqual(ra.act, { verb: 'click', id: 'e1', role: 'button', tag: 'button', label: 'Details', ok: true });
+
+  // Leg B: flag off (same fixtures): no title, no label anywhere.
+  const b = harness({ observations: { p1: [candObs()] }, script: candScript() });
+  await b.call({ goal: 'r24b labels goal B', steps: ['click Details'] });
+  for (const rd of r24bRounds(b)) {
+    assert.equal('title' in rd, false);
+    for (const c of rd.cands ?? []) assert.equal('label' in c, false);
+    if (rd.gate) assert.equal('label' in rd.gate, false);
+    if (rd.act) assert.equal('label' in rd.act, false);
+  }
+  assert.equal(JSON.stringify(b.records[0]).includes('TTTT'), false);
+
+  // Redaction: values are replaced BEFORE the cut, so no partial value survives.
+  const values = { secret: 'SECRETVAL' };
+  const c = harness({
+    observations: { p1: [observation({ title: 'T'.repeat(78) + 'SECRETVAL', elements: [el({ name: 'x'.repeat(36) + 'SECRETVAL' })] })] },
+    script: [CS(), ADV()],
+  });
+  c.deps.logLabels = true;
+  await c.call({ goal: 'r24b labels goal C', steps: ['click Details'], values });
+  const rc = r24bRounds(c)[0];
+  assert.equal(rc.cands![0].label, 'x'.repeat(36) + '<val');
+  assert.equal(rc.title, 'T'.repeat(78) + '<v');
+  assert.equal(rc.act!.label, 'x'.repeat(36) + '<val');
+  assertNoValues(JSON.stringify(c.records[0]), values);
+
+  // A typed (filled) bound value never appears, labels on.
+  const d = harness({
+    observations: { p1: [hub, formEmpty, formEmpty, formFilled] },
+    script: [CS(), AHEAD(0.35), AHEAD(0.05), ADV()],
+  });
+  d.deps.logLabels = true;
+  const rd = await d.call({ goal: 'r24b labels goal D', steps: NAV_STEPS, values: navValues });
+  assert.equal(rd.status, 'done');
+  assert.equal(r24bRounds(d)[0].title, 'Home');
+  assertNoValues(JSON.stringify(d.records[0]), navValues);
+
+  // Gate leg and token leg.
+  const goal = 'r24b labels goal E';
+  const steps = ['click Place order'];
+  const e = harness({
+    observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
+    script: [CS(), ADV()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  e.deps.logLabels = true;
+  const r1 = await e.call({ goal, steps });
+  assert.equal(r1.status, 'needs_confirmation');
+  const rse = r24bRounds(e, 0);
+  assert.equal(rse[rse.length - 1].gate!.label, 'Place order');
+  await e.call({ goal, steps, confirm_token: r1.confirm_token });
+  const tact = r24bRounds(e, 1)[0].act!;
+  assert.equal(tact.label, 'Place order');
+  assert.equal(tact.token, true);
+});
