@@ -78,6 +78,8 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
   -> `chrome.test.js`; `chrome.test` matches nothing). The env scrub
   removes `TYPESAFE_API_KEY` — inject through `BenchDeps.env`, never the
   process env.
+- **`bench-browse` git-greps `WINGMAN_BROWSE_ONLY` over `bench/`**, so no brain
+  file under `bench/` may name that variable literally (08661af broke this).
 - **A scoped `build.mjs --out <dir> tests/cli.test.ts` compiles only the
   test's import graph, and `cli.test.ts` spawns `src/cli/main.js` by path
   without importing it** — every spawn test fails ("Cannot find module").

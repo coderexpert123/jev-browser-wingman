@@ -81,7 +81,7 @@ Auto-loads when working in `bench/`. Root `CLAUDE.md` still holds Machine traps 
 - **Browse-only is config, not env**: `handoff.tools` (`"browse-only"`
   default in forced mode, `"all"` in optional) hides wingman_do/wingman_check
   from tools/list AND refuses them at call time. The old
-  `WINGMAN_BROWSE_ONLY` env var is gone from src (tests/mcp-server.test.ts
+  browse-only environment variable (name pinned in tests/bench-browse.test.ts) is gone from src (tests/mcp-server.test.ts
   asserts it is ignored; `bench/.home/mcp-browse.json` still carries it as
   stale config). With top-level `mode` off the server lists NO tools. Probe a spawned server's tool list with SDK
   `StdioClientTransport` against `dist/src/cli/main.js mcp` and a temp home
@@ -188,6 +188,11 @@ Auto-loads when working in `bench/`. Root `CLAUDE.md` still holds Machine traps 
   uncounted or the round record merged wrong — telemetry inconsistency;
   scoped repro in chain.test.ts needed before trusting jev_calls on
   resumed calls.
+- **`bench/handback-triage.mjs` is the r24 hand-back metric** — it
+  aligns the forced runs' `handoff_records` to a log slice by searching for the unique offset on (status, reason,
+  rounds, steps) (exit 2 when none or several match), classifies each non-done/non-login/non-error end mechanically,
+  counts cells without a wingman `done`, audits r24 rule rounds (suspect = a later call re-ran the clause), and uses
+  `sum(tool_use_counts)` as the turn proxy (results files carry no turn count). r23b baseline: 32 hand-backs, offset 5.
 
 ## § Spike & cloud harness — spike/ and bench/cloud/
 
