@@ -793,3 +793,8 @@
   skip never fires there (`readySkipped`; flag `KB_READY_SKIP_COMMITTED`). Question text unchanged (W2-S branch; P0b's amended ready wording lifted readyP only 0.21 -> 0.35, under its +0.15 bar).
   O4 accepted (a): `cursorActed` is per clause, so a committed click on the very element an EARLIER clause already clicked (act-ahead) is skipped through and re-clicks; not observed in r23b.
   Mutation note: dropping `cursorActed`, the threshold check or `obscured` reds `T-r24-readyskip-guards` (threshold also reds the three T24 tests); the verb guard reds the existing `readyP 0.2 (< 0.3) still waits, then bounces not-ready`; the missing-element guard (`el !== undefined`) and the file-input guard need legs e and f (the skip would otherwise end `no-match`/`no-value` with zero acts). The `id === 'none'|'ambiguous'` arm and `!skipsReadyGate` in `readySkip` are equivalent by design (no element carries those ids; the skip verbs never include click). `readySkipped` is set only when ready was actually under the bar (leg g).
+- **t12 dialog split (r24 WP6, characterization).** A confirm is answered from the CURRENT
+  clause text, so a click clause naming a button labelled 'Confirm' accepts it (`DIALOG_ACCEPT_RE`); the next
+  'accept the dialog' clause then has nothing to act on and bounces no-match. Pinned by `T-r24-dialog-split`; no fix ships
+  (operator decision 2026-10-06, O2: pin only; a fix would advance a clause at stepDone 0.13-0.17, below the kept 0.2 floor).
+  Teeth proven by dropping `confirm` from `DIALOG_ACCEPT_RE` in a throwaway worktree: the test reds.

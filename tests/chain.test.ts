@@ -4763,3 +4763,34 @@ test('T-r24-readyskip-guards: any element act on the clause or a margin-only com
   assert.equal(actsOf(g)[0]?.[0], 'click', 'leg g');
   assert.equal(r24Rounds(g)[0].readySkipped, undefined, 'leg g');
 });
+
+// ---- r24 WP6 (spec .build-r24-spec.md, O2): t12 dialog split, characterization ----
+
+// Pins today's mechanism: DIALOG_ACCEPT_RE matches the button label "Confirm" in the CLICK clause's text, so the
+// confirm is accepted during clause 1; clause 2 ("accept the confirm dialog") then has nothing to act on and
+// bounces no-match. O2 is RESOLVED as pin-only: no WP changes this behaviour, and this test must stay green and unchanged in every package.
+test('T-r24-dialog-split: a confirm accepted from the click clause leaves the dialog clause nothing to do (characterization, O2)', async () => {
+  const alertsEls = [
+    el({ id: 'e1', path: '#alert', name: 'Click for JS Alert', fingerprint: { tag: 'button', role: 'button', name: 'Click for JS Alert', x: 0, y: 0 } }),
+    el({ id: 'e2', path: '#confirm', name: 'Click for JS Confirm', fingerprint: { tag: 'button', role: 'button', name: 'Click for JS Confirm', x: 0, y: 40 } }),
+  ];
+  const alerts = observation({ elements: alertsEls, text: 'JavaScript Alerts' });
+  const alertsOk = observation({ elements: alertsEls, text: 'You clicked: Ok' });
+  const h = harness({
+    observations: { p1: [alerts, alertsOk, alertsOk, alertsOk, alertsOk] },
+    script: [CS({ target: ['e2', { e2: 0.97, none: 0.03 }] }), CS({ step_done: 0.65 }), NONE(), NONE(), STUCK('give-up')],
+  });
+  h.driver.dialogOnNextAct = { pageId: 'p1', type: 'confirm', message: 'I am a JS Confirm' };
+  const r = await h.call({ goal: 'r24-dialog-split goal', steps: ['click the Click for JS Confirm button', 'accept the confirm dialog'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(r.reason, 'step-uncertain');
+  assert.equal(r.step_review?.why, 'no-match');
+  const answers = answerDialogEvents(h);
+  assert.equal(answers.length, 1);
+  assert.equal(answers[0].accept, true);
+  const rounds = h.records[0].phases?.rounds ?? [];
+  assert.equal(rounds[0].dialog, 'accept');
+  assert.deepEqual(actsOf(h), [['click', 'e2', undefined]]);
+  assert.equal(stuckReqs(h).length, 1);
+  assert.equal(rounds[4].stuck, 'give-up');
+});
