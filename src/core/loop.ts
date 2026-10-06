@@ -245,6 +245,10 @@ const KB_VERB_COERCE = false;
  * two pages back; one back landed on /dynamic_loading and the clause bounced).
  * Flipping restores once-per-clause. Never flip in shipped code. */
 const KB_STUCK_SECOND = false;
+/** r24 WP2 KB proof switch: the ready gate is skipped for a committed fresh
+ * click (r23b t6: Start 0.97-0.99 at readyP 0.18-0.24 burned four hand-backs).
+ * Flipping restores the pre-r24 gate. Never flip in shipped code. */
+const KB_READY_SKIP_COMMITTED = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
@@ -1815,6 +1819,7 @@ async function runTool(
     pressFocusSum?: true;  // r24 WP3: the press focus-sum commit decided this round
     verbCoerced?: true;    // r24 WP5: a check/uncheck on a link or button acted as click
     stuckSecond?: true;    // r24 WP7: the second stuck round of a clause
+    readySkipped?: true;   // r24 WP2: readyP was under the bar and the committed-fresh-click skip let the round act
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -3257,6 +3262,24 @@ async function runTool(
     const clauseClicks = (): ClickRef[] =>
       chain ? [...chain.priorClicks, ...effectiveClicks(history, `c${chain.cursor}`)] : [];
     if (chain) chain.clicksNow = clauseClicks;
+    /** r24 (WP2): the ready-gate skip predicate — the decided click/dblclick
+     * target commits by THRESHOLD (never the margin rule) on a FRESH clause (no
+     * element-targeted act yet: `cursorActed`, memory included — a click that read
+     * 'no visible change' still counts, the chain-e2e E7 shape, where re-clicking
+     * would trip no-progress). Single-stage rounds only: request 1
+     * of a two-stage round carries no target. r23b: t6 Start 0.97-0.99 at readyP
+     * 0.18-0.24 burned four hand-backs; after an effective click the gate stays
+     * (r15 post-action / chain-e2e E7 semantics). */
+    const committedFreshClick = (answers: AnswerMap, obs: Observation, verb: string | undefined): boolean => {
+      if (verb !== 'click' && verb !== 'dblclick') return false;
+      if (chain!.cursorActed) return false;
+      const target = answers['target'] as JevChoiceAnswer | undefined;
+      const id = target?.choice;
+      if (!target || typeof id !== 'string' || id === 'none' || id === 'ambiguous') return false;
+      if ((target.probabilities?.[id] ?? 0) < takeoverOf(deps.config).threshold) return false;
+      const el = obs.elements.find((e) => e.id === id);
+      return el !== undefined && el.obscured !== true && !isFileInput(el);
+    };
     /** r15 D1: the step_review of an end that follows this clause's own effective click. */
     const postActionReview = () => ({
       step_review: { step: clauseReviewStep(), why: 'post-action' as const, candidates: [] },
@@ -3581,7 +3604,8 @@ async function runTool(
       const decidedAction = action?.choice;
       const skipsReadyGate =
         typeof decidedAction === 'string' && (READY_GATE_SKIP_OPS as ReadonlySet<string>).has(decidedAction);
-      if (!skipsReadyGate) {
+      const readySkip = !skipsReadyGate && !KB_READY_SKIP_COMMITTED && committedFreshClick(answers, obs, decidedAction);
+      if (!skipsReadyGate && !readySkip) {
         // 5. ready (Q5)
         if (noulOf('ready') < THRESHOLDS.ready) {
           if (chain!.notReadyRounds >= READY_MAX_WAITS || waits >= WAIT_MAX_PER_CALL) {
@@ -3594,7 +3618,7 @@ async function runTool(
           return { kind: 'mechanical', verb: 'wait' };
         }
         chain!.notReadyRounds = 0;
-      }
+      } else if (readySkip && noulOf('ready') < THRESHOLDS.ready && cur) cur.readySkipped = true;
       // 6. right page (Q5): below WRONG_PAGE_MAX the round continues to rule 7
       // and the decide step unchanged, so Jev may still choose back/navigate.
       // Always runs, even when rule 5 was skipped above (see comment there).

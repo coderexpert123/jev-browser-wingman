@@ -131,11 +131,7 @@ probe if it returns.
   acts ran (`historyResult`) before blaming target thresholds. Ranked
   fixes are in untracked `.build-r24-intake.md` — read it before any
   hand-back or ready-gate change.
-- **Ready-gate hypothesis (UNTESTED)**: the goal text rides in the ready
-  question's state (`chainRoundState` -> `buildState(... doInput.goal ...)`),
-  so a goal like "wait until the hidden text appears" can depress readyP on
-  the start page.
-  Confirm by replay before acting.
+- **Ready gate reads the goal (CONFIRMED by P0b live probe, 2026-10-06)**: the goal text rides in the ready question's state (`chainRoundState` -> `buildState(... doInput.goal ...)`); on the t6 start page readyP is 0.21 as asked, 0.40 with goal+history removed (6 asks/arm), 0.35 with the amended ready wording (missed its +0.15 lift bar); r24 shipped W2-S — the ready gate is skipped for a committed fresh click (`KB_READY_SKIP_COMMITTED`) — and left the question text unchanged. Probe: untracked `.calib/r24-probe0b/`.
 
 ## Tool text, delegation & policy
 

@@ -530,7 +530,7 @@ test('T7: every § 5.5.5 forced-table row is exact under forced; optional keeps 
       run: async () => {
         const h = harness({
           observations: { p1: [observation()] },
-          script: [CS({ ready: 0.2 }), CS({ ready: 0.2 }), CS({ ready: 0.2 })],
+          script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] })],
           config: FORCED,
         });
         return h.call({ goal: 'chain-t7 not ready goal', steps: ['n1'] });
@@ -1310,7 +1310,7 @@ test('T23: right_page low then high does not bounce, and an advance resets the c
 test('T24: a not-ready round waits without counting a step; three low rounds bounce not-ready', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [CS({ ready: 0.2 }), CS({ ready: 0.2 }), CS({ ready: 0.2 })],
+    script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] })],
     config: FORCED,
   });
   const r = await h.call({ goal: 'chain-t24 not ready goal', steps: ['n1'] });
@@ -1331,7 +1331,7 @@ test('T24: a not-ready round waits without counting a step; three low rounds bou
 test('T24: ready low then high decides normally', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [CS({ ready: 0.2 }), CS(), ADV()],
+    script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS(), ADV()],
   });
   const r = await h.call({ goal: 'chain-t24 ready later goal', steps: ['r1', 'r2'] });
   assert.equal(r.status, 'done');
@@ -1342,7 +1342,7 @@ test('T24: ready low then high decides normally', async () => {
 test('T24: a driver without wait settles instead of acting on a not-ready round', async () => {
   const h = harness({
     observations: { p1: [observation()] },
-    script: [CS({ ready: 0.2 }), CS({ ready: 0.2 }), CS({ ready: 0.2 })],
+    script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] })],
   });
   h.driver.ops = LEGACY_OPS;
   const r = await h.call({ goal: 'chain-t24 no wait op goal', steps: ['n1'] });
@@ -3263,7 +3263,7 @@ test('T-error-gate: below the 0.85 bar no advance passes an error the page shows
   // Leg C: action none at 0.6 with error 0.7, no act on the clause.
   const hc = harness({
     observations: { p1: [resetForm, resetForm, resetForm] },
-    script: [CS({ ready: 0.2 }), POST({ step_done: 0.6, error: 0.7, ready: 0.95, action: ['none', { none: 0.9 }], ...GIVE_UP }), ADV()],
+    script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.3, ambiguous: 0.1 }] }), POST({ step_done: 0.6, error: 0.7, ready: 0.95, action: ['none', { none: 0.9 }], ...GIVE_UP }), ADV()],
     config: FORCED,
   });
   const rc = await hc.call({ goal: 'chain-error-gate none goal', steps: SUBMIT_STEPS });
@@ -4692,4 +4692,74 @@ test('T-r24-stuck2-reset: a clause that advanced gets its own second stuck round
   assert.equal(r.status, 'fallback');
   assert.equal(stuckReqs(h).length, 4, `clause 1 gets its own two stuck rounds (${r.status}/${r.reason})`);
   assert.equal(r24Rounds(h).filter((x) => x.stuckSecond === true).length, 2);
+});
+
+// ---- r24 WP2: ready-gate skip for a committed fresh click (.build-r24-spec.md WP2) ----
+
+const readyStartEl = el({ id: 'e1', path: '#start', name: 'Start', fingerprint: { tag: 'button', role: 'button', name: 'Start', x: 0, y: 0 } });
+const readyStart = observation({ url: 'https://example.com/start', title: 'Start', elements: [readyStartEl], text: 'start' });
+const readyAfterStart = observation({ url: 'https://example.com/start', title: 'Start', elements: [], text: 'Loading...' });
+const readyStartChanged = observation({ url: 'https://example.com/start', title: 'Start', elements: [readyStartEl], text: 'start pressed' });
+
+test('T-r24-readyskip: a fresh clause whose click target commits at the takeover threshold skips the ready gate', async () => {
+  const h = harness({
+    observations: { p1: [readyStart, readyAfterStart] },
+    script: [CS({ ready: 0.2 }), ADV()],
+  });
+  const r = await h.call({ goal: 'r24-readyskip goal', steps: ['click the Start button'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['click', 'e1', undefined]]);
+  assert.equal(r24Rounds(h)[0].readySkipped, true);
+});
+
+test('T-r24-readyskip-guards: any element act on the clause or a margin-only commit keeps the ready gate', async () => {
+  // (a) a landed click already acted on the clause: the gate stays (post-action).
+  const a = harness({
+    observations: { p1: [readyStart, readyStartChanged, readyStartChanged, readyStartChanged] },
+    script: [CS(), CS({ ready: 0.2 }), CS({ ready: 0.2 }), CS({ ready: 0.2 })],
+  });
+  const ra = await a.call({ goal: 'r24-readyskip-guards goal a', steps: ['click the Start button'] });
+  assert.deepEqual(actsOf(a).map((x) => x[0]), ['click', 'wait', 'wait'], 'leg a');
+  assert.equal(ra.status, 'fallback');
+  assert.equal(ra.step_review?.why, 'post-action', 'leg a');
+  // (b) a margin-only commit (0.6 < 0.7) keeps the gate.
+  const b = harness({
+    observations: { p1: [readyStart] },
+    script: [CS({ ready: 0.2, target: ['e1', { e1: 0.6, none: 0.25, ambiguous: 0.15 }] })],
+  });
+  await b.call({ goal: 'r24-readyskip-guards goal b', steps: ['click the Start button'] });
+  assert.equal(actsOf(b)[0][0], 'wait', 'leg b');
+  // (c) the chain-e2e E7 shape: the click reads 'no visible change'; the second round must wait, never no-progress.
+  const c = harness({
+    observations: { p1: [readyStart, readyStart, readyStart, readyStart] },
+    script: [CS(), CS({ ready: 0.2 }), CS({ ready: 0.2 }), CS({ ready: 0.2 })],
+  });
+  const rc = await c.call({ goal: 'r24-readyskip-guards goal c', steps: ['click the Start button'] });
+  assert.deepEqual(actsOf(c).map((x) => x[0]), ['click', 'wait', 'wait'], 'leg c');
+  assert.equal(rc.status, 'fallback');
+  assert.equal(rc.step_review?.why, 'not-ready', 'leg c');
+  assert.notEqual(rc.reason, 'no-progress', 'leg c');
+  // (d) an obscured target: without the guard the skip fires and the call ends target-covered with zero acts.
+  const covered = observation({
+    url: 'https://example.com/start',
+    title: 'Start',
+    elements: [el({ ...readyStartEl, obscured: true, coveredBy: 'overlay' })],
+    text: 'start',
+  });
+  const d = harness({ observations: { p1: [covered] }, script: [CS({ ready: 0.2 })] });
+  await d.call({ goal: 'r24-readyskip-guards goal d', steps: ['click the Start button'] });
+  assert.equal(actsOf(d)[0]?.[0], 'wait', 'leg d');
+  // (e) a target id the observation does not list: the skip never fires (the round waits).
+  const e = harness({ observations: { p1: [readyAfterStart] }, script: [CS({ ready: 0.2 })] });
+  await e.call({ goal: 'r24-readyskip-guards goal e', steps: ['click the Start button'] });
+  assert.equal(actsOf(e)[0]?.[0], 'wait', 'leg e');
+  // (f) a file input: without the guard the skip fires and the call ends no-value with zero acts.
+  const f = harness({ observations: { p1: [observation({ elements: [fileInput()] })] }, script: [CS({ ready: 0.2 })] });
+  await f.call({ goal: 'r24-readyskip-guards goal f', steps: ['attach the document'] });
+  assert.equal(actsOf(f)[0]?.[0], 'wait', 'leg f');
+  // (g) readySkipped is telemetry for a round that WOULD have waited; a ready round never carries it.
+  const g = harness({ observations: { p1: [readyStart, readyAfterStart] }, script: [CS(), ADV()] });
+  await g.call({ goal: 'r24-readyskip-guards goal g', steps: ['click the Start button'] });
+  assert.equal(actsOf(g)[0]?.[0], 'click', 'leg g');
+  assert.equal(r24Rounds(g)[0].readySkipped, undefined, 'leg g');
 });

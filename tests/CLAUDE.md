@@ -132,6 +132,9 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
 - **Timeout flakes need real renderer starvation, not node-side CPU load**:
   8 CPU-burner processes kept every probe eval under budget — the cloud
   failure mode is the 160-chrome wedge starving Chrome itself.
+- **A low-ready round no longer waits on a fresh clause
+  whose click target is scripted >= 0.7** (r24 WP2 ready skip): `CS({ ready: 0.2 })` with the default click e1 0.9
+  now CLICKS. A not-ready scenario scripts a non-committing target (`e1: 0.6`) or an element act on the clause first.
 
 ## § KB-mutant methodology
 
