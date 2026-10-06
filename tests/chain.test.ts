@@ -5676,6 +5676,35 @@ test('T-r24c-candidates: a value in an element name is redacted in the candidate
 // r24c recheck: a seeded property run (250 random value sets, pages and call mixes, ~1 s). Every request, log record and result of
 // every call must be free of every remembered value, and no backstop may fire (a site miss shows only there). It fails under
 // KB_CROSS_CALL_REDACT (1,213 leaks) and under a deleted site (hits), so a green run is a real zero.
+test('T-r24c-option: a value in an option label is redacted in the chunk requests and the final request of a native select', async () => {
+  // r24c recheck: the local label match skips the option requests whenever the bound value equals a label, so no earlier
+  // test reached buildOptionRequests / buildOptionFinalRequest with a value-bearing label (both call-site arguments survived deletion).
+  const SECRET = 'veil-oat-milk-91';
+  const options = Array.from({ length: 260 }, (_, i) => ({ value: 'o' + i, label: i === 3 ? SECRET : i === 255 ? 'x ' + SECRET.toUpperCase() : 'Opt ' + i }));
+  const select = el({ id: 'e1', path: '#sel', name: 'Pick', role: 'combobox', tag: 'select', type: '', editable: false, state: { disabled: false, selected: 'Opt 0' }, options });
+  const values = { pick: 'no-such-option', item1: SECRET };
+  const h = harness({
+    observations: { p1: [observation({ elements: [select] }), observation({ elements: [{ ...select, state: { disabled: false, selected: 'Opt 3' } }] })] },
+    script: [
+      CS({ action: ['select', { select: 0.9, none: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05 }], value: ['pick', { pick: 0.9 }] }),
+      { option: ['o4', { o4: 0.9, none: 0.05 }] },
+      { option: ['o6', { o6: 0.9, none: 0.05 }] },
+      { option: ['o1', { o1: 0.9, none: 0.05 }] },
+      ADV(),
+    ],
+  });
+  const hits0 = redactionBackstopHits();
+  const r = await h.call({ goal: 'r24c-option goal', steps: ['select the value named pick in the Pick dropdown'], values });
+  const optionReqs = h.requests.filter((q) => q.questions.option !== undefined);
+  assert.equal(optionReqs.length, 3, `two chunk requests and one final request (${r.status}/${r.reason})`);
+  for (const q of h.requests) assertNoValues(JSON.stringify(q), values);
+  const crit = (q: JevRequest): string[] => Object.values((q.questions.option as { criteria: Record<string, string> }).criteria);
+  assert.ok(crit(optionReqs[0]).includes('<value:item1>'), 'chunk 1 names the value by its marker');
+  assert.ok(crit(optionReqs[1]).includes('x <value:item1>'), 'chunk 2 names the upper-cased value by its marker');
+  assert.deepEqual(crit(optionReqs[2]).slice(0, 2), ['<value:item1>', 'x <value:item1>'], 'the final request carries both winners redacted');
+  assert.equal(redactionBackstopHits(), hits0, 'a site, not the backstop, redacted the option labels');
+});
+
 test('T-r24c-fuzz: no remembered value reaches a request, a record or a result (250 random cross-call runs)', async () => {
   let seed = 987654321;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -5701,10 +5730,11 @@ test('T-r24c-fuzz: no remembered value reaches a request, a record or a result (
     const obs = () => observation({ url: 'https://example.com/p/' + (rnd() < 0.5 ? 'list' : (any().replace(/[^A-Za-z0-9._@-]/g, '') || 'x')), title: 'T ' + caseVar(any()), text: 'row ' + caseVar(any()) + ' done ' + any(), elements: els });
     const h = harness({
       observations: { p1: Array.from({ length: 6 }, obs) },
-      script: [CS(), CS({ action: ['fill', { fill: 0.9, none: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }] }), CS({ action: ['select', { select: 0.9, none: 0.05 }], target: ['e4', { e4: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }], option: ['o0', { o0: 0.9, none: 0.05 }] }), CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['e3', { e3: 0.9, none: 0.05 }] }), CS({ target: ['e5', { e5: 0.9, none: 0.05 }] }), ADV()],
+      script: [CS(), CS({ action: ['fill', { fill: 0.9, none: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }] }), CS({ action: ['select', { select: 0.9, none: 0.05 }], target: ['e4', { e4: 0.9, none: 0.05 }], value: ['v0', { v0: 0.9 }], option: ['o0', { o0: 0.9, none: 0.05 }] }), CS({ action: ['check', { check: 0.9, none: 0.05 }], target: ['e3', { e3: 0.9, none: 0.05 }] }), CS({ target: ['e5', { e5: 0.9, none: 0.05 }] }), ADV()].map((e) => ({ ...e, group: ['g1', { g1: 0.9, g2: 0.05 }] as [string, Record<string, number>] })),
       valueMemory: mem,
       logLabels: rnd() < 0.7,
-      config: rnd() < 0.3 ? { gate: { mode: 'confirm' } } : undefined,
+      // a third of the runs force the two-stage path (max_elements 4 < the five elements), so group and target requests carry the value-named elements too
+      config: { ...(rnd() < 0.3 ? { gate: { mode: 'confirm' as const } } : {}), ...(rnd() < 0.35 ? { budgets: { ...DEFAULT_BUDGETS, max_elements: 4 } } : {}) },
     });
     let nreq = 0;
     let nrec = 0;
