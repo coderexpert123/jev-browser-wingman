@@ -450,6 +450,12 @@ test('capture --call parses a url and a browse_step JSON object; bad JSON exits 
     const run = node(['capture', '--out', path.join(dir, 'c.jsonl'), '--call', 'https://example.com/', 'not-json'], { env });
     assert.equal(run.status, 2, run.out);
     assert.match(run.out, /--call needs a page url and a JSON object/);
+    // r24c recheck: each rejected JSON shape alone (deleting the array, typeof or null conjunct left the test green).
+    for (const bad of ['[1]', '"text"', '5', 'null']) {
+      const r = node(['capture', '--out', path.join(dir, 'c.jsonl'), '--call', 'https://example.com/', bad], { env });
+      assert.equal(r.status, 2, `${bad}: ${r.out}`);
+      assert.match(r.out, /--call needs a page url and a JSON object/, bad);
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
