@@ -5520,6 +5520,19 @@ test('T-r24c-wait: a wait clause advances once the page text changed and step_do
   assert.equal(r24Rounds(b)[5].waitEvidence, true, 'leg b: the advance rides the first-wait baseline');
 });
 
+test('T-r24c-wait-bar: a read of 0.34 holds a wait clause and 0.36 advances it (the 0.35 bar, not 0.3 or 0.4)', async () => {
+  // r24c recheck: raising the bar to 0.4 left every test green (the legs read 0.3 and 0.48 only).
+  const at = (x: number) => [CS(), ADV(), R24C_WAIT(0.24), R24C_WAIT(0.28), ...Array.from({ length: 5 }, () => R24C_WAIT(x))];
+  const up = harness({ observations: { p1: r24cWaitObs() }, script: at(0.36), config: FORCED });
+  const ru = await up.call({ goal: 'r24c-wait-bar goal up', steps: r24cWaitSteps });
+  assert.equal(ru.status, 'done', `0.36: ${ru.status}/${ru.reason}`);
+  assert.equal(r24Rounds(up)[4].waitEvidence, true);
+  const down = harness({ observations: { p1: r24cWaitObs() }, script: at(0.34), config: FORCED });
+  const rd = await down.call({ goal: 'r24c-wait-bar goal down', steps: r24cWaitSteps });
+  assert.equal(rd.status, 'fallback', `0.34: ${rd.status}/${rd.reason}`);
+  assert.equal(r24Rounds(down).filter((x) => x.waitEvidence !== undefined).length, 0);
+});
+
 test('T-r24c-wait-guards: unchanged page text, a read under 0.35 or an error never advance a wait clause', async () => {
   // (1) loading forever
   const h1 = harness({ observations: { p1: [r24cStartObs, r24cLoadingObs] }, script: [CS(), ADV(), R24C_WAIT(0.48)], config: FORCED });
