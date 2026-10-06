@@ -1,0 +1,50 @@
+HANDBACK-TRIAGE results=/tmp/r23b.json offset=5 handbacks=32
+class error-page 1
+class landed-not-advanced 10
+class not-ready 4
+class other 2
+class press-split 4
+class stuck-exhausted 1
+class target-uncertain 10
+no_wingman_done_cells 6 t6-dynamic-loading#1 t12-js-confirm-dialog#1 t6-dynamic-loading#2 t9-long-chain#2 t11-todomvc-spa#2 t12-js-confirm-dialog#2
+route playwright runs=34 ok=32 usd_total=5.396889 usd_median=0.176974 tool_calls_total=181 tool_calls_median=4 tool_calls_mean=5.323529 wall_median_ms=11702
+route forced runs=34 ok=34 usd_total=4.855623 usd_median=0.161893 tool_calls_total=118 tool_calls_median=2.5 tool_calls_mean=3.470588 wall_median_ms=13135
+r24_flags 0
+r24_flag_suspects 0
+handback t3-dynamic-controls#1 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t6-dynamic-loading#1 call1 fallback/step-uncertain why=not-ready class=not-ready
+handback t6-dynamic-loading#1 call2 fallback/step-uncertain why=not-ready class=not-ready
+handback t6-dynamic-loading#1 call3 fallback/step-uncertain why=low-confidence class=landed-not-advanced
+handback t8-status-404#1 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t9-long-chain#1 call1 fallback/step-uncertain why=no-match class=stuck-exhausted
+handback t9-long-chain#1 call2 fallback/step-uncertain why=low-confidence class=landed-not-advanced
+handback t10-saucedemo-checkout#1 call2 fallback/step-uncertain why=no-match class=landed-not-advanced
+handback t11-todomvc-spa#1 call1 fallback/step-uncertain why=no-match class=press-split
+handback t11-todomvc-spa#1 call2 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t11-todomvc-spa#1 call3 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t12-js-confirm-dialog#1 call1 fallback/step-uncertain why=no-match class=target-uncertain
+handback t14-key-press#1 call1 fallback/step-uncertain why=no-match class=press-split
+handback t3-dynamic-controls#2 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t6-dynamic-loading#2 call1 fallback/step-uncertain why=not-ready class=not-ready
+handback t6-dynamic-loading#2 call2 fallback/step-uncertain why=not-ready class=not-ready
+handback t6-dynamic-loading#2 call3 fallback/step-uncertain why=no-match class=target-uncertain
+handback t8-status-404#2 call1 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t9-long-chain#2 call1 fallback/step-uncertain why=no-match class=target-uncertain
+handback t9-long-chain#2 call3 fallback/step-uncertain why=not-ready class=error-page
+handback t9-long-chain#2 call5 fallback/step-uncertain why=low-confidence class=target-uncertain
+handback t9-long-chain#2 call6 fallback/step-uncertain why=no-value class=other
+handback t9-long-chain#2 call7 fallback/step-uncertain why=repeat class=landed-not-advanced
+handback t9-long-chain#2 call8 fallback/step-uncertain why=low-confidence class=landed-not-advanced
+handback t10-saucedemo-checkout#2 call2 fallback/step-uncertain why=no-match class=landed-not-advanced
+handback t11-todomvc-spa#2 call1 fallback/step-uncertain why=low-confidence class=press-split
+handback t11-todomvc-spa#2 call2 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t11-todomvc-spa#2 call3 fallback/step-uncertain why=low-confidence class=landed-not-advanced
+handback t12-js-confirm-dialog#2 call1 fallback/step-uncertain why=no-match class=target-uncertain
+handback t14-key-press#2 call1 fallback/step-uncertain why=no-match class=press-split
+handback t16-hover-reveal#2 call1 fallback/no-progress why=no-progress class=landed-not-advanced
+handback t16-hover-reveal#2 call2 fallback/no-progress why=no-progress class=other
+config none
+policy_ends 0 needs_confirmation=0 sensitive=0 unsupported_page=0
+observed none
+log_stance absent=65
+telemetry rounds=328 with_url=0

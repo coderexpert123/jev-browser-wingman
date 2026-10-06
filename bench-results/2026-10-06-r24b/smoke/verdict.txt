@@ -1,0 +1,13 @@
+a PASS
+b PASS
+c PASS
+N=0
+g PASS
+i PASS
+run t4-add-elements ok=true wall_ms=32070 usd=0.209118
+run t10-saucedemo-checkout ok=true wall_ms=23142 usd=0.195775
+total_usd 0.404893
+h titles=29 PASS
+d PASS
+e PASS (log_stance off/off=4, handoff_records sum 4 verified above)
+f PASS (with_url=29)

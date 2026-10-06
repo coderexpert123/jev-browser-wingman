@@ -1,0 +1,825 @@
+{
+  "offset": 0,
+  "handback_total": 27,
+  "classes": {
+    "target-uncertain": 11,
+    "landed-not-advanced": 12,
+    "press-split": 2,
+    "other": 1,
+    "stuck-exhausted": 1
+  },
+  "no_wingman_done_cells": [
+    "t4-add-elements#1",
+    "t6-dynamic-loading#1",
+    "t10-saucedemo-checkout#1",
+    "t4-add-elements#2",
+    "t6-dynamic-loading#2",
+    "t11-todomvc-spa#2"
+  ],
+  "byRoute": {
+    "playwright": {
+      "runs": 34,
+      "ok": 32,
+      "usd_total": 5.422032,
+      "usd_median": 0.176301,
+      "tool_calls_total": 181,
+      "tool_calls_median": 4,
+      "tool_calls_mean": 5.323529,
+      "wall_median_ms": 13448.5
+    },
+    "forced": {
+      "runs": 34,
+      "ok": 33,
+      "usd_total": 4.610805,
+      "usd_median": 0.138348,
+      "tool_calls_total": 116,
+      "tool_calls_median": 2,
+      "tool_calls_mean": 3.411765,
+      "wall_median_ms": 13984
+    }
+  },
+  "handbacks": [
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 5,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 6,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "press-split"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "repeat",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 4,
+      "end": "fallback/step-uncertain",
+      "why": "wrong-page",
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 5,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 8,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "stuck-exhausted"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "press-split"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/no-progress",
+      "why": "no-progress",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 4,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "landed-not-advanced"
+    }
+  ],
+  "flags": [
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 1,
+      "flag": "readySkipped",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "call": 1,
+      "round": 3,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "hoverEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "round": 1,
+      "flag": "readySkipped",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 8,
+      "round": 13,
+      "flag": "stuckSecond",
+      "suspect": true
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 9,
+      "round": 6,
+      "flag": "finalNavEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 2,
+      "round": 4,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "call": 1,
+      "round": 2,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 1,
+      "round": 2,
+      "flag": "hoverEvidence",
+      "suspect": false
+    }
+  ],
+  "cells": [
+    {
+      "task": "t1-checkboxes",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.16126
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161825
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.184091
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 2,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.097796
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161688
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 6,
+      "usd": 0.24445
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161343
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.184163
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "ok": true,
+      "calls": 8,
+      "handbacks": 3,
+      "wingman_done": true,
+      "tool_calls": 10,
+      "usd": 0.365624
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "ok": false,
+      "calls": 2,
+      "handbacks": 0,
+      "wingman_done": false,
+      "tool_calls": 3,
+      "usd": 0.09318
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 2,
+      "wingman_done": true,
+      "tool_calls": 5,
+      "usd": 0.238647
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 6,
+      "usd": 0.240375
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162118
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161346
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.163776
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161616
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161024
+    },
+    {
+      "task": "t1-checkboxes",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054138
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054724
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.055017
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 2,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.09901
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054562
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 5,
+      "usd": 0.121338
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054238
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.075711
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "ok": true,
+      "calls": 9,
+      "handbacks": 5,
+      "wingman_done": true,
+      "tool_calls": 12,
+      "usd": 0.306577
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.088717
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "ok": true,
+      "calls": 4,
+      "handbacks": 4,
+      "wingman_done": false,
+      "tool_calls": 6,
+      "usd": 0.155357
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 5,
+      "usd": 0.113088
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054999
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054252
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.056319
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054493
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.053943
+    }
+  ],
+  "config": {
+    "config_version": 1,
+    "gate_mode": "off",
+    "policy_mode": "off",
+    "git_head": "922617fd037d7d5a18f6a370d8392f312f8a1011",
+    "git_dirty": false,
+    "routes": [
+      "playwright",
+      "forced"
+    ],
+    "repeats": 2,
+    "tasks": [
+      "t1-checkboxes",
+      "t2-dropdown",
+      "t3-dynamic-controls",
+      "t4-add-elements",
+      "t5-inputs",
+      "t6-dynamic-loading",
+      "t7-sort-table",
+      "t8-status-404",
+      "t9-long-chain",
+      "t10-saucedemo-checkout",
+      "t11-todomvc-spa",
+      "t12-js-confirm-dialog",
+      "t13-infinite-scroll",
+      "t14-key-press",
+      "t15-file-upload",
+      "t16-hover-reveal",
+      "t17-double-click"
+    ],
+    "model": "sonnet",
+    "log_labels": true,
+    "caller_cli_version": "2.1.291",
+    "adapter": "playwright",
+    "harness_version": 3,
+    "playwright_mcp": "@playwright/mcp@0.0.80",
+    "wingman_config_sha256": {
+      "playwright": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "wingman": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "browse": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "forced": "3735e56fd01871cc2bd3f077eeab00e90479a8607d2bee3506a64f6b7e0f076b"
+    },
+    "mcp_config_sha256": {
+      "playwright": "cb482cf816c0f1258cbc35fef82623a5c4728bf34e82cb7f8282f95a25da73cb",
+      "wingman": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "browse": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "forced": "b22a6bc6c776b6c57ee29e18f2223c80a1909a182c27a9b4a63189879ddfa44d"
+    },
+    "caller_argv_sha256": {
+      "playwright": "fb2553ff594cb24e32364e7f352d5f3442c41821d3a064c67944cb3d56269095",
+      "wingman": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "browse": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "forced": "d5106ff0065b9757d63a65894abc41508562f75bed6ff2fd630840cd7a6fe1cd"
+    },
+    "tool_text_sha256": "a24b17c43e2afd3cd51b2ccfdf9ae8b56448b19036560bf4dabf24f0d556c897",
+    "tasks_sha256": "e2ff2f0737df21c50fa7ed06d65c7ca27a796eb2b35d4f1d8c060918b51478e4",
+    "prompts_sha256": "7c9dcc33b4a65dffd9439f100d065dd0f771429667b200276cf007b6de9b46f6",
+    "fixtures_sha256": "e0ae18e08fb69fa6b82567617cc49796bee284a0de6e75bd026471e2565ef8fd",
+    "profile_sha256": "ca39002d4236fc902643ef357bdea1be90ea174ec3fe1633935a724190f9b882",
+    "fixture_server": true,
+    "max_turns_by_route": {
+      "playwright": 40,
+      "wingman": 40,
+      "browse": 40,
+      "forced": 30
+    },
+    "per_run_timeout_ms": 600000,
+    "caller_model": "claude-sonnet-5-5"
+  },
+  "policy_ends": {
+    "total": 0,
+    "needs_confirmation": 0,
+    "sensitive": 0,
+    "unsupported_page": 0
+  },
+  "observed": {
+    "node_version": "v22.22.0",
+    "chrome_version": "Chrome/141.0.7390.37",
+    "caller_tools_sha256": {
+      "playwright": "eb118c362480aa65c7a91633b3418492a665483f32617faf1435bfcc67ee9161",
+      "forced": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2"
+    },
+    "caller_skills_sha256": {
+      "playwright": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+      "forced": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301"
+    },
+    "caller_plugins_sha256": {
+      "playwright": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+      "forced": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0"
+    },
+    "caller_agents_sha256": {
+      "playwright": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+      "forced": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d"
+    },
+    "caller_mcp_servers_sha256": {
+      "playwright": "9811ff690b4db4e77225c6059c9f336fa13495ca455d836a0f9da472b7ce20d6",
+      "forced": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728"
+    },
+    "caller_hooks_sha256": {
+      "playwright": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "forced": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "log_stance": {
+    "off/off": 65
+  },
+  "telemetry": {
+    "rounds": 311,
+    "with_url": 311
+  },
+  "suspect_lines": [
+    "suspect t9-long-chain#2/call8/r13/stuckSecond",
+    "  r1 ms=11/0/52/257 kind=act cursor=0 url=\"<value:home_url>forgot_password\" els=3 th=1y8hxi4 title=\"The Internet\" step=\"open the web address named home_url\" pickArgs={\"action\":\"navigate\",\"binding\":\"home_url\",\"resolved\":true} act={\"verb\":\"navigate\",\"binding\":\"home_url\",\"ok\":true}",
+    "  r2 ms=11/156/0/0 kind=advance cursor=0 url=\"<value:home_url>\" els=13 th=1lka8tc title=\"The Internet\" step=\"open the web address named home_url\" action=click actionP=0.81 stepDoneP=0.91 readyP=0.75 rightPageP=0.81 errorP=0.04 doneP=0.02 cands=[{\"id\":\"e5\",\"p\":0.96,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Dynamic Loading\"},{\"id\":\"none\",\"p\":0.01},{\"id\":\"e11\",\"p\":0.01,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Status Codes\"}] historyResult=\"page changed\" leftPage=true",
+    "  r3 ms=12/148/88/301 kind=act cursor=1 url=\"<value:home_url>\" els=13 th=1lka8tc title=\"The Internet\" step=\"open Dynamic Loading\" action=click actionP=0.88 stepDoneP=0.11 readyP=0.5 rightPageP=0.76 errorP=0.05 doneP=0.03 cands=[{\"id\":\"e5\",\"p\":1,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Dynamic Loading\"},{\"id\":\"ambiguous\",\"p\":0},{\"id\":\"e8\",\"p\":0,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Inputs\"}] historyResult=\"page changed\" leftPage=true act={\"verb\":\"click\",\"id\":\"e5\",\"role\":\"link\",\"tag\":\"a\",\"label\":\"Dynamic Loading\",\"ok\":true}",
+    "  r4 ms=12/157/0/0 kind=advance cursor=1 url=\"<value:home_url>dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open Dynamic Loading\" action=click actionP=0.67 stepDoneP=0.39 readyP=0.53 rightPageP=0.69 errorP=0.07 doneP=0.03 cands=[{\"id\":\"e2\",\"p\":0.96,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 2: Element rendered after the fa\"},{\"id\":\"none\",\"p\":0.03},{\"id\":\"e1\",\"p\":0.01,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 1: Element on page that is hidde\"}] historyResult=\"element gone\" leftPage=true flags=clickEvidence,navEvidence",
+    "  r5 ms=10/214/89/299 kind=act cursor=2 url=\"<value:home_url>dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open the link named Example 2: Element rendered after the fact\" action=click actionP=0.88 stepDoneP=0.13 readyP=0.49 rightPageP=0.71 errorP=0.08 doneP=0.03 cands=[{\"id\":\"e2\",\"p\":0.99,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 2: Element rendered after the fa\"},{\"id\":\"none\",\"p\":0.01},{\"id\":\"ambiguous\",\"p\":0}] historyResult=\"element gone\" leftPage=true act={\"verb\":\"click\",\"id\":\"e2\",\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 2: Element rendered after the fa\",\"ok\":true}",
+    "  r6 ms=12/154/0/0 kind=advance cursor=2 url=\"<value:home_url>dynamic_loading/2\" els=2 th=1ly9bf8 title=\"The Internet\" step=\"open the link named Example 2: Element rendered after the fact\" action=click actionP=0.73 stepDoneP=0.7 readyP=0.54 rightPageP=0.74 errorP=0.06 doneP=0.05 cands=[{\"id\":\"e1\",\"p\":0.75,\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\"},{\"id\":\"none\",\"p\":0.22},{\"id\":\"e2\",\"p\":0.02,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"}] historyResult=\"element gone\" leftPage=true flags=clickEvidence",
+    "  r7 ms=8/130/94/228 kind=act cursor=3 url=\"<value:home_url>dynamic_loading/2\" els=2 th=1ly9bf8 title=\"The Internet\" step=\"click the Start button\" action=click actionP=0.83 stepDoneP=0.12 readyP=0.44 rightPageP=0.81 errorP=0.07 doneP=0.04 cands=[{\"id\":\"e1\",\"p\":0.97,\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\"},{\"id\":\"none\",\"p\":0.03},{\"id\":\"e2\",\"p\":0,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"}] historyResult=\"element gone\" leftPage=true act={\"verb\":\"click\",\"id\":\"e1\",\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\",\"ok\":true}",
+    "  r8 ms=10/171/0/0 kind=advance cursor=3 url=\"<value:home_url>dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"click the Start button\" action=wait actionP=0.72 stepDoneP=0.59 readyP=0.47 rightPageP=0.79 errorP=0.06 doneP=0.05 cands=[{\"id\":\"none\",\"p\":0.93},{\"id\":\"e1\",\"p\":0.05,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.02}] historyResult=\"element gone\" leftPage=false flags=clickEvidence",
+    "  r9 ms=11/171/0/0 cursor=4 url=\"<value:home_url>dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.37 stepDoneP=0.09 readyP=0.41 rightPageP=0.58 errorP=0.08 doneP=0.04 cands=[{\"id\":\"none\",\"p\":0.83},{\"id\":\"e1\",\"p\":0.15,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.02}] historyResult=\"element gone\" leftPage=false",
+    "  r10 ms=11/168/0/0 cursor=4 url=\"<value:home_url>dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.38 stepDoneP=0.09 readyP=0.4 rightPageP=0.59 errorP=0.06 doneP=0.04 cands=[{\"id\":\"none\",\"p\":0.84},{\"id\":\"e1\",\"p\":0.14,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.02}] historyResult=\"element gone\" leftPage=false",
+    "  r11 ms=11/178/65/230 kind=act cursor=4 url=\"<value:home_url>dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" historyResult=\"element gone\" leftPage=false act={\"verb\":\"back\",\"ok\":true} stuck=\"back\"",
+    "  r12 ms=12/162/0/0 cursor=4 url=\"<value:home_url>dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.8 stepDoneP=0.1 readyP=0.55 rightPageP=0.68 errorP=0.08 doneP=0.04 cands=[{\"id\":\"none\",\"p\":0.93},{\"id\":\"e3\",\"p\":0.05,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.01}] historyResult=\"page changed\" leftPage=true",
+    "  r13 ms=12/133/0/0 kind=bounce cursor=4 url=\"<value:home_url>dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open Status Codes\" historyResult=\"page changed\" leftPage=true stuck=\"give-up\" flags=stuckSecond"
+  ]
+}
