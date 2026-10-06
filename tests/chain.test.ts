@@ -4639,3 +4639,57 @@ test('T-r24-coerce-guards: only check/uncheck on a link or button, with click of
   assert.equal(actsOf(c).filter((x) => x[0] === 'click').length, 0);
   assert.equal(r24Rounds(c).filter((x) => x.verbCoerced !== undefined).length, 0);
 });
+
+// ---- r24 WP7: one more stuck back when the target is two pages back ----
+
+const stuckDeep = observation({ url: 'https://example.com/a/b', text: 'deep page' });
+const stuckMid = observation({ url: 'https://example.com/a', text: 'mid page' });
+const stuckTop = observation({ url: 'https://example.com/top', text: 'top page' });
+
+test('T-r24-stuck2: a landed stuck back on a page that still lacks the target allows one more stuck back', async () => {
+  const h = harness({
+    observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, hub, formPage] },
+    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), CS(), ADV()],
+  });
+  const r = await h.call({ goal: 'r24-stuck2 goal', steps: ['open the Form page'] });
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  assert.deepEqual(actsOf(h), [['back', null, undefined], ['back', null, undefined], ['click', 'e1', undefined]]);
+  assert.equal(stuckReqs(h).length, 2);
+  assert.equal(r24Rounds(h)[4].stuckSecond, true);
+});
+
+test('T-r24-stuck2-limits: an unchanged stuck back or a used second stuck bounces without another stuck ask', async () => {
+  // (a) the first back did not land (same page): no second stuck round.
+  const a = harness({
+    observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckDeep, stuckDeep] },
+    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back')],
+  });
+  const ra = await a.call({ goal: 'r24-stuck2-limits goal a', steps: ['open the Form page'] });
+  assert.equal(ra.status, 'fallback');
+  assert.equal(ra.step_review?.why, 'no-match');
+  assert.equal(stuckReqs(a).length, 1, 'leg a: one stuck ask');
+  assert.equal(actsOf(a).filter((x) => x[0] === 'back').length, 1, 'leg a: one back');
+  // (b) a third stuck round never starts.
+  const b = harness({
+    observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, stuckTop, stuckTop, stuckTop] },
+    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE()],
+  });
+  const rb = await b.call({ goal: 'r24-stuck2-limits goal b', steps: ['open the Form page'] });
+  assert.equal(rb.status, 'fallback');
+  assert.equal(rb.step_review?.why, 'no-match');
+  assert.ok(stuckReqs(b).length <= 2, 'leg b: at most two stuck asks');
+  assert.ok(actsOf(b).filter((x) => x[0] === 'back').length <= 2, 'leg b: at most two backs');
+});
+
+test('T-r24-stuck2-reset: a clause that advanced gets its own second stuck round', async () => {
+  const z1 = observation({ url: 'https://example.com/z/y', text: 'z deep page' });
+  const z2 = observation({ url: 'https://example.com/z', text: 'z mid page' });
+  const h = harness({
+    observations: { p1: [stuckDeep, stuckDeep, stuckDeep, stuckMid, stuckMid, hub, formPage, formPage, formPage, formPage, z1, z1, z2] },
+    script: [NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), CS(), ADV(), NONE(), NONE(), STUCK('back'), NONE(), STUCK('back'), NONE()],
+  });
+  const r = await h.call({ goal: 'r24-stuck2-reset goal', steps: ['open the Form page', 'open the Check page'] });
+  assert.equal(r.status, 'fallback');
+  assert.equal(stuckReqs(h).length, 4, `clause 1 gets its own two stuck rounds (${r.status}/${r.reason})`);
+  assert.equal(r24Rounds(h).filter((x) => x.stuckSecond === true).length, 2);
+});

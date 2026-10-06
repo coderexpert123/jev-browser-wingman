@@ -782,3 +782,8 @@
 - **Verb coercion (r24 WP5).** `decideTarget` turns a check/uncheck on a committed
   link/button into click before `opFits` (`verbCoerced`). Test trap: a check scripted on a role link/button acts.
   Mutation note: `T-r24-coerce-guards` kills the `uncheck` arm, the `button` role arm and the `offeredSet.has('click')` guard individually (legs a, c); leg b (hover on a link stays hover) is the verb-guard tooth. Dropping the `el !== null` guard is a TS18047 build error, so the compiler is its tooth (a mutation run whose build fails leaves the PREVIOUS dist: read "BUILD: ok" before trusting a red).
+- **Second stuck back (r24 WP7).** `stuckEligible` rule 4b allows ONE more stuck round on a
+  clause only when the last signal-carrying act is a stuck-recover `back` (`HistoryEntry.stuckBack`) that landed
+  (`page changed`); `stuckSecondUsed` is per call (not in memory), reset on advance and on the F-2 skip
+  (`stuckSecond`); `RECOVER_MAX_PER_CLAUSE` (2) already caps a clause at two stuck rounds, so `stuckSecondUsed` is belt-and-braces. A navigate first stuck keeps once-per-clause (`T-stuck-once`).
+  Mutation note: dropping `c.stuckSecondUsed`, the `ev.stuckBack === true` check or the `ev.verb === 'back'` check changes no recorded shape (equivalent by design; the cap and the tag make them redundant); dropping the `stuckBack` tag push, `landedStuckBack`, its `page changed` clause or the advance-branch `stuckSecondUsed` reset each red a test (`T-r24-stuck2-reset` kills the reset: a two-clause chain whose second clause needs its own second stuck; the F-2 skip reset is redundant with the `false` initialiser).

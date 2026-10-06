@@ -240,6 +240,11 @@ const KB_PRESS_FOCUS_SUM = false;
  * Checkboxes link bounced no-match because `opFits` refuses check on a link).
  * Flipping restores the pre-r24 behaviour. Never flip in shipped code. */
 const KB_VERB_COERCE = false;
+/** r24 WP7 KB proof switch: one more stuck round per clause, only right after
+ * the first stuck BACK landed (r23b t9 rep 1 call 1: the Status Codes link sat
+ * two pages back; one back landed on /dynamic_loading and the clause bounced).
+ * Flipping restores once-per-clause. Never flip in shipped code. */
+const KB_STUCK_SECOND = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24 WP1: a clause that names a supplied value ("value named x"). Non-global
@@ -423,6 +428,9 @@ interface ChainState {
   // `stuckPending` = a deferred stuck round awaits (set at the would-be bounce).
   cursorActed: boolean;
   stuckUsed: boolean;
+  // r24 (WP7): the one extra stuck round of this clause ran (this call only;
+  // not in chain memory).
+  stuckSecondUsed: boolean;
   stuckPending: StuckPending | null;
   // r13 D1 guard 1: the look that consumed the clause's retry was itself a
   // confident none (verb in STUCK_VERBS, target none >= STUCK_NONE_MIN), so a
@@ -508,6 +516,8 @@ interface HistoryEntry {
   // r13 D6: a stuck-recover navigate that is NOT the clause's own named
   // binding act is never step evidence. Internal only.
   stuckRecover?: true;
+  // r24 (WP7): a stuck-recover back. Internal only.
+  stuckBack?: true;
   // r15 (verifier pass 1): a click-family act whose `result` read 'no visible
   // change' but whose page changed at a LATER round (a slow response that had
   // not arrived at the one observation `result` is taken from). Only
@@ -1165,6 +1175,12 @@ function hasNavClickEvidence(history: HistoryEntry[], currentStepKey: string, cu
   return last.beforeUrl !== undefined && leftDocument(last.beforeUrl, currentUrl);
 }
 
+/** r24 (WP7): the clause's last signal-carrying act is a stuck-recover back that landed. */
+function landedStuckBack(history: HistoryEntry[], stepKey: string): boolean {
+  const ev = lastEvidenceEntry(history, stepKey);
+  return ev !== undefined && ev.verb === 'back' && ev.stuckBack === true && ev.result === 'page changed';
+}
+
 /** r15 D3: `stepKey`'s effective clicks: its click-family acts on an element
  * whose observed result is not 'no visible change' (an act whose result was
  * never observed counts: it may have landed; so does a 'no visible change'
@@ -1798,6 +1814,7 @@ async function runTool(
     sameDocEvidence?: true; finalNavEvidence?: true; hoverEvidence?: true; // r24 WP1: set only on an advance that ONLY the R1 / R2 / R3 rule allowed
     pressFocusSum?: true;  // r24 WP3: the press focus-sum commit decided this round
     verbCoerced?: true;    // r24 WP5: a check/uncheck on a link or button acted as click
+    stuckSecond?: true;    // r24 WP7: the second stuck round of a clause
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -2981,6 +2998,7 @@ async function runTool(
         recoverActs: 0,
         cursorActed: mem?.cursorActed ?? false,
         stuckUsed: mem?.stuckTried ?? false,
+        stuckSecondUsed: false,
         stuckPending: null,
         retryNone: false,
         priorClicks: mem?.clicks ?? [],
@@ -3002,6 +3020,7 @@ async function runTool(
         chainState.cursor += 1;
         chainState.cursorActed = false;
         chainState.stuckUsed = false;
+        chainState.stuckSecondUsed = false;
         chainState.priorClicks = [];
         chainState.loginSeen = false;
         // r22 F-2b: the new cursor starts on the SKIPPED clause's response
@@ -3212,7 +3231,11 @@ async function runTool(
       if (participation !== 'execute') return false; // 2
       const c = chain!;
       if (c.cursorActed) return false; // 3
-      if (c.stuckUsed || c.stuckPending !== null) return false; // 4
+      if (c.stuckPending !== null) return false; // 4
+      // r24 (WP7): one more stuck round per clause, only right after the first
+      // stuck BACK landed (r23b t9 rep 1 call 1: the Status Codes link sat two
+      // pages back; one back landed on /dynamic_loading and the clause bounced).
+      if (c.stuckUsed && (KB_STUCK_SECOND || c.stuckSecondUsed || !landedStuckBack(history, `c${c.cursor}`))) return false; // 4b
       if (c.recoverActs >= RECOVER_MAX_PER_CLAUSE) return false; // 5
       if (steps >= maxSteps || remaining() < TIME_FLOOR_MS) return false; // 6
       if (!confidentNoneLook()) return false; // 7-8
@@ -3611,6 +3634,7 @@ async function runTool(
         chain!.recoverActs = 0;
         chain!.cursorActed = false;
         chain!.stuckUsed = false;
+        chain!.stuckSecondUsed = false;
         chain!.stuckPending = null;
         chain!.retryNone = false;
         chain!.priorClicks = [];
@@ -3846,7 +3870,9 @@ async function runTool(
       if (decision === null && chain && chain.stuckPending !== null) {
         const pend = chain.stuckPending;
         chain.stuckPending = null;
+        const secondStuck = chain.stuckUsed;
         chain.stuckUsed = true;
+        if (secondStuck) { chain.stuckSecondUsed = true; bucket.stuckSecond = true; }
         const urlNames = offeredSet.has('navigate')
           ? Object.keys(urlBindings(values)).filter((n) => isNavigableBinding(n, values) && !sameDocument(values[n], obs.url))
           : [];
@@ -4486,6 +4512,7 @@ async function runTool(
             ...(decision.verb === 'select' && decision.optionValue !== undefined && decision.el
               ? { intendedLabel: decision.el.options?.find((o) => o.value === decision.optionValue)?.label }
               : {}),
+            ...(decision.stuck !== undefined && decision.verb === 'back' ? { stuckBack: true as const } : {}),
             // r13 D6: a stuck navigate is not step evidence unless the clause
             // itself names the chosen binding.
             ...(decision.stuck !== undefined &&
