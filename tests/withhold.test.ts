@@ -97,6 +97,23 @@ test('T-r24c-wh-teeth: longest value at one position, an existing marker is a fi
   assert.equal(compileRedaction({ a: 'Shared Val', b: 'shared val' }).size, 1);
 });
 
+test('T-r24c-wh-shape: redactDeep keeps arrays as arrays and never rewrites a key; the request backstop names array leaves with an index', () => {
+  // r24c recheck: deleting the array branch of redactDeep (arrays became index-keyed objects) and rewriting object keys
+  // each left every test green; the Jev request carries arrays (state.history, repeatedGroups) and keys are element ids.
+  const rs = compileRedaction({ v: 'zzqq' });
+  const deep = rs.redactDeep({ 'zzqq key': 'x zzqq y', list: ['a zzqq', { n: ['zzqq'] }], k: null, n: 7 });
+  assert.deepEqual(deep, { 'zzqq key': 'x <value:v> y', list: ['a <value:v>', { n: ['<value:v>'] }], k: null, n: 7 });
+  assert.equal(Array.isArray(deep.list), true);
+  const hits: string[] = [];
+  const out = backstopRequest(
+    { state: { history: [{ label: 'x zzqq y' }, 'plain'], text: 'ok' }, questions: {} } as unknown as JevRequest,
+    rs,
+    (path) => hits.push(path),
+  );
+  assert.deepEqual(hits, ['state.history[0].label']);
+  assert.equal(Array.isArray((out.state as { history: unknown }).history), true);
+});
+
 test('T-r24c-wh-mem-markers: remembered values keep their name; a rebound name marks its old value (earlier)', () => {
   const m = new ValueMemory();
   m.bind({ item1: 'buy oat milk' });
@@ -122,6 +139,21 @@ test('T-r24c-wh-mem-floor: the floor and the boolean literals', () => {
     '<value:flag> <value:pin> abc',
   );
   assert.equal(compileRedaction({}, m).redact('true 1234 abc'), 'true <value:pin> abc');
+});
+
+test('T-r24c-wh-mem-cap: the default memory keeps the 1,024 most recently bound values (the README number)', () => {
+  // r24c recheck: the README and the release notes state 1,024; nothing pinned VALUE_MEMORY_MAX itself.
+  const m = new ValueMemory();
+  const values: Record<string, string> = {};
+  for (let i = 0; i < 1030; i += 1) {
+    values['v' + (i % 10)] = 'cap-value-' + String(i).padStart(4, '0');
+    m.bind({ ['v' + (i % 10)]: values['v' + (i % 10)] });
+  }
+  assert.equal(m.size(), 1024);
+  const rs = compileRedaction({}, m);
+  assert.equal(rs.redact('cap-value-0005 cap-value-0006 cap-value-1029').includes('cap-value-1029'), false);
+  assert.equal(rs.redact('cap-value-0005').includes('cap-value-0005'), true, 'the 6 oldest were evicted');
+  assert.equal(rs.redact('cap-value-0006').includes('cap-value-0006'), false, 'the 1,024th most recent is kept');
 });
 
 test('T-r24c-wh-mem-evict: least recently bound is evicted; re-binding refreshes; dedupe ignores case', () => {
