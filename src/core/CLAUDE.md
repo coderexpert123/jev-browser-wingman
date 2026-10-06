@@ -85,21 +85,13 @@
 ## Notes & routing
 
 - **Result-text steering (`note`) did NOT stop interleaving**: every
-  non-done `wingman_do` result carries the static `CONTINUE_LINE`
+  non-done `wingman_do` result except sensitive-*/unsupported-page fallbacks (SENSITIVE_LINE / FORCED_SENSITIVE_LINE) and invalid-input carries the static `CONTINUE_LINE`
   (appended at the single `finish()` return path; `wingman_check` never
   gets it, and it serializes last so `confirm_token` stays primary on
   needs_confirmation). Re-measure after DESCRIPTION v3 + note showed
   wingman.calls going UP while raw browser tool calls stayed flat —
   numeric-opinionated tool text alone does not fix fragmentation.
-- **browse_step routing rides the ENTRY result too**: `runBrowse` (the
-  routing pre-pass inside `runTool`) must attach its `routing` array onto
-  whatever `runDoRounds` returns on the takeover-entry path — the round
-  machinery builds fresh results and knows nothing of routing. § 3.17's
-  rule is "every browse_step result that completed the routing ask carries
-  `routing`" — including done/needs_confirmation/budget-* ends of a
-  takeover, excluding only token continuations and results that return
-  before the ask. The first gate run failed exactly here (done came back
-  with no routing).
+- **browse_step has no routing pre-pass** (removed 2026-09-21, 16081ef): entry is first-round-decides via runDoRounds (§ 3.19); `WingmanResult.routing` and `buildRoutingRequest` are gone; bounce evidence rides `step_review`.
 
 ## Chain mode
 
@@ -110,7 +102,7 @@
   (`clauseText(cursor)`), advances on `step_done`, and resumes from a
   module-level `chainMemory` keyed `[goal, clauses]` (values never in the
   key, key never logged) — a done call deletes its entry, every other end
-  stores `{cursor, acts}`; this is why every chain test needs a unique
+  stores `{cursor, acts, ...}` (plus cursorActed/stuckTried/clicks/loginSeen/postAction/responsePage); this is why every chain test needs a unique
   goal text. The early rules run advance -> error+recover -> ready ->
   right_page -> action-none, and the whole-goal `done` Noul is NEVER read
   in chain mode. The `recover`/`ready` mechanical decisions
@@ -132,8 +124,8 @@
 - **Loop act/gate/policy call sites are pinned by grep** (§ 6 WP-B2):
   `grep -c "gateHeuristic(" src/core/loop.ts` = 2 (shadow + shared tail,
   both guarded `el ? gateHeuristic(…) : {hit:false}`), `evaluatePolicy(` =
-  2 (runCheck + the round line guarded `pickRound ?`), `driver.act(` = 2
-  (runTokenAction + the shared tail). A third call site of any of these is
+  2 (runCheck + the round line guarded `pickRound ?`), `driver.act(` = 3
+  (runTokenAction + the shared tail + that tail's r22 F-1 nav-shaped retry). A third call site of any of these is
   a fork of a pinned mechanism — extend the shared site instead.
 - **Chain mode's obscured check applies to EVERY commit, not just
   pick/entry rounds**: § 5.5.2 step 8 bullet 4 requires a committed element
@@ -296,7 +288,7 @@
 - **A `select` option's `value` and its `elementStateSignal` LABEL are two
   different strings — never compare one against the other.**
   `ElementRecord.options` is `Array<{value, label}>`; the decision/act
-  path (`decideVerbAndValue`, `resolveOption`) acts on the option's
+  path (`decideTarget`, `resolveOption`) acts on the option's
   `value` attribute, but `elementStateSignal('select', el)` reads back
   `el.state.selected`, which the driver reports as the option's raw LABEL
   text (`'selected: <raw option text>'`). On any
@@ -319,10 +311,8 @@
   MORE THAN ONE count expression (ambiguous) — no general number parsing.
   `hasRepeatCountEvidence` walks the trailing CONTIGUOUS run of history
   entries backward from the last act: same `stepKey`, click-family verb
-  (`CLICK_FAMILY_OPS`), `result === 'page changed'`, and the SAME target
-  (`path`, else `label`) as the last entry — any break ends the run, so an
-  intervening different act or target resets the count to zero, never
-  partial credit. Wired as an extra OR branch in chain mode's rule 3
+  (`CLICK_FAMILY_OPS`), `result === 'page changed'` or `'element gone'`, and the SAME target
+  (`path`, else `label`) as the last entry — an intervening signal-carrying different act or target resets the count (signal-less acts such as waits, and all scrolls, are skipped), never partial credit. Wired as an extra OR branch in chain mode's rule 3
   (`runChainEarly`, no threshold — the observed count IS the evidence) and
   as rule 3b in legacy/wingman_do's `decideEarly`, which needed two new
   parameters (`history`, `stepText`) since it is a SIBLING of
@@ -359,7 +349,7 @@
   no-progress guard): on a count-less step that already has bare-click
   evidence, a decision to click the SAME target again (`path`, else
   `label`) hands back `fallback`/`step-uncertain` with
-  `step_review.why: 'repeat'` — exempt on a recovered-this-round round.
+  `step_review.why: 'repeat'` — exempt on a recovered-this-round round (legacy only since r15).
   Scope: chain clause and legacy browse_step `step` only, never the
   wingman_do goal (same multi-clause reason as WP-count's rule 3b
   scoping). Telemetry: `PhaseRound.clickEvidence` (firing round only),
@@ -543,7 +533,7 @@
   `wingman_do` never does (C9), so it costs zero tokens there. The
   advance needs `noulOf('count_met') >= stepDoneWithEvidence` AND
   (`hasScrollEvidence` OR the fresh obs's `repeatedGroups` already meet
-  N) — the count N compare is the loop's own `groupsMeet`-shaped check,
+  N) — the count N compare is the loop's own inline `obs.repeatedGroups?.some((g) => g.count >= countFor)` check,
   never instruction text. `hasScrollEvidence`/`hasKeyEvidence` walk the
   last signal-carrying entry INCLUDING scrolls (unlike
   `lastEvidenceEntry`, which now skips scroll entries so they cannot
@@ -616,13 +606,11 @@
   === 'uploaded') return undefined;` (flip = restore the pre-fix void).
   Proven by instrumentation during the WP-2 fail-first: with the spec's
   literal body, `actFlip` came back undefined at the act site despite
-  the driver returning 'uploaded'. (The committed `.build-r19-spec.md`
-  D6 item 3 block still carries the inverted polarity, unmarked — do
-  not re-derive from the spec literal.)
+  the driver returning 'uploaded'. (`.build-r19-spec.md` carries an amendment note since 61df9bb; the shipped body matches it.)
 - **A hard-killed mutants runner leaves KB flags flipped in src** (the
   byte-identical restore lives in a `finally`, which a taskkill/reap
   does not run). Before AND after every mutants pass:
-  `grep -n 'const KB_\w* = true' src` must return nothing; restore `=
+  `grep -rnE '(const|var) KB_\w+ = true' src` must return nothing; restore `=
   false` immediately. The full pass runs DETACHED (`Start-Process python
   -u`, ~25+ min) — full runbook in the repo CLAUDE.md KB-mutant section.
 - **settle.ts's raced-poll shape punishes a naive fake clock** (r17c
@@ -661,21 +649,13 @@
 - **The captcha signal is scoped, not whole-page**: `computeSignals` keeps the
   CAPTCHA_RE text unchanged but (behind body-local `KB_CAPTCHA_SCOPED`, flip =
   restore the legacy any-substring match) requires the matcher to be visible,
-  ≥ `CHALLENGE_MIN_AREA` (16000 px²), and not carry `size=invisible` (the
+  ≥ `CHALLENGE_MIN_AREA` (16000 px²), and not carry `size=invisible` (iframe arm only) (the
   reCAPTCHA v3 badge); the id/class arm additionally skips
   script/style/template/noscript/link/meta and reads the rect only after the
   RE hits. The true/false fixtures are `captcha-challenge.html` /
   `captcha-decoys.html`; the FP pin is the flip tooth (proven: flag `= true`
   → exactly that pin red, TP pin stays green — pre-fix matches a superset).
-- **The 2026-09-21 "bbc/npr match /captcha/i" observation is time-varying**:
-  the 2026-10-04 pre-change baseline (`bench/cloud/captcha-recon.mjs` →
-  `.calib/captcha-baseline-r21.json`) found ZERO raw matches and
-  `signals.captcha === false` on all three news sites — real pages (titles,
-  element counts healthy), the vendor content simply moved. Never assume a
-  recorded live-site match persists; re-run the recon at every validation
-  round (D6 risk 2). The recon's raw dump is rule-independent and names the
-  arm a match came from; its `--fixtures` mode is the discriminating
-  self-check (TP fixture → true/1 match, FP fixture → false/4 matches dumped).
+- **The 2026-09-21 bbc/npr `/captcha/i` match was REPRODUCED 2026-10-04** (results branch r21, 4384f0e): the pre-fix rule returned true on bbc/npr/guardian; the scoped rule returns false (raw matches 1/6/1, all 0x0 or invisible). The earlier zero-match baseline (`.calib/captcha-baseline-r21.json`) was not reproduced (cause unproven; raw counts vary per load, npr 1 vs 6). Re-run the recon every validation round; its raw dump names the arm a match came from, and `--fixtures` mode is the discriminating self-check (TP fixture → true/1 match, FP fixture → false/4 matches).
 
 ## r21: cursor-pointer candidacy — REJECTED and REMOVED (P-5/D12)
 
@@ -697,7 +677,7 @@
   enumerate, page-side indistinguishable from inert styled divs. The
   fixture `fixtures/pages/pointer-interactive.html` (Save/Cancel menu items
   + two decoy divs) pins zero records for all four names in
-  `tests/pointer-enum.test.ts`, alongside the iframe/shadow boundary pins.
+  `tests/pointer-enum.test.ts` (the iframe/shadow boundary pins are in `tests/page-scripts.test.ts`).
 - **`elementCriterion` renders the ROLE, never the tag** (still true
   generally — explicit `role=` and `onclick` divs): stubs and pick regexes
   must match `button "Save"`, not `div "Save"`, or the stub finds no
@@ -708,8 +688,7 @@
 ## Gotchas from r22 (2026-10-04, the t9 recovery fixes)
 
 - **The act path has its own nav-shaped family now (F-1).**
-  `NAV_SHAPED_ACT_ERROR_RE` (`/scheduled navigations|evaluation timed out|
-  Execution context/i`) sits at the shared act tail: an element-targeted
+  `NAV_SHAPED_ACT_ERROR_RE` (`/scheduled navigations|evaluation timed out|Execution context|locator\.\w+: Timeout \d+ms exceeded/i`) sits at the shared act tail: an element-targeted
   click-family act that fails NAV-SHAPED is retried ONCE behind a
   `PRE_CLICK_SETTLE_MS` settle (`KB_ACT_NAV_RETRY`, D-11 polarity, flip =
   single send). The retry settle books into `bucket.settleMs`, both sends

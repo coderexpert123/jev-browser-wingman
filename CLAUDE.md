@@ -4,7 +4,7 @@ Build spec: `pa/plans/2026-09-19-jev-browser-wingman-SPEC.md` in the PA repo
 (dispatch authority; builders execute verbatim; the absolute host path is
 withheld — this file rides a public-bound repository). Gates:
 `node scripts/build.mjs`, `node scripts/run-tests.mjs [--dist <dir>] [basename ...]`,
-`scripts/gates/{import-boundary,notices,lazy-chrome,readme-bench}.mjs`.
+`scripts/gates/{import-boundary,notices,lazy-chrome,readme-bench,doc-safety,window-mode}.mjs`.
 Per-round build specs live in `.build-r*-spec.md` (untracked) with their
 execution notes; this file holds only durable knowledge. Loop/evidence
 internals: `src/core/CLAUDE.md`. Launch texts (thread, posts,
@@ -36,7 +36,7 @@ returns.
 
 - **The escalation bounce note is bounce-only by design**: bounces are exactly
   `fallback`/`step-uncertain` and `fallback`/`target-covered`; the per-goal
-  counter (module-level `Map` in loop.ts, keyed on goal text) counts only
+  counter (module-level `Map` in loop.ts, keyed on goal text; optional mode only — forced mode never touches it) counts only
   those; tiers 2/3 REPLACE the note, tier 1 appends. Never on post-action
   ends — not target refusals; tiers 1-3 steer back into repeating the action
   (the r20 post-action branch is FIRST in `finish()`'s § 3.17 else-arm,
@@ -68,11 +68,7 @@ returns.
   commit and `decideTarget` — before any value ask, after the retry decision
   — so a covered target costs one ask, zero acts, no self-retry. The
   two-stage test only covered non-entry rounds.
-- **`BUDGET_LIMITS` caps caller overrides only**: `loadConfig` seeds
-  `DEFAULT_BUDGETS` without validating against the limits — default
-  `max_steps: 24` with cap `[1, 8]` is coherent; a user value above 8 is
-  still REJECTED. `runDoRounds` takes `min(caller max_steps, config 24)`;
-  schema allows 1-24.
+- **`BUDGET_LIMITS` validates config `budgets.*` only** (`max_steps` [1, 24], dea43b5); caller overrides are checked inline in loop.ts: `wingman_do` 1-8, `browse_step` 1-24. `runDoRounds` takes `min(caller max_steps, config 24)`.
 - **Raising the step budget does NOT stop caller call fragmentation**: the
   bottleneck is the calling model's planning; wingman machinery is
   ~1 s/round, noise at wall scale.
@@ -85,16 +81,12 @@ returns.
   most executed high grades hit `CoveredTargetError` (overlay-class covers),
   and the question set has no "is it covered" probe (`blocked` asks only
   captcha/paywall/etc). Jev over-refused t9 form steps that execute
-  fine — the routing criterion needed recalibration, not the element table.
+  fine — the routing criterion needed recalibration (pre-pass since removed), not the element table.
   Re-asks are bimodal too: a sub-floor re-ask bouncing under the margin
   rule is correct, NOT a regression — validate grading-shape fixes by
   measured-map replay (`.calib/probe6b-replay.mjs` pattern), never one
   natural re-ask.
-- **`buildRoutingRequest`'s `elements` parameter is deliberately not
-  consumed**: the § 3.18 element table rides in the request's `state` object
-  (caller builds redacted `elementCriterion` strings); the builder passes
-  `state` through unchanged. Do not inject `elements` into the state — that
-  double-redacts and desyncs from § 3.19.
+- **The § 3.18 routing pre-pass and `buildRoutingRequest` are gone** (16081ef, 2026-09-21): browse_step entry is first-round-decides (§ 3.19).
 - **`observeTimed(pageId, history)` takes the round's history array** (the
   round-top call in runDoRounds passes it; runCheck passes nothing, so a
   wedge there still throws immediately). r21b gate: a SLOW first-observe
@@ -123,9 +115,9 @@ returns.
 ## Tool text, delegation & policy
 
 - **A tool description that leads with WHAT then lists prohibitions gets
-  skipped.** Fix (203cf67): first sentence = WHEN (one bounded goal), then a
+  skipped.** Fix (39bb27e): first sentence = WHEN (one bounded goal), then a
   prefer-over-driving line WITH the benefit, then a do-NOT-use line; example
-  verbs must cover the target task shapes. Schema friction ruled out.
+  verbs must cover the target task shapes. Schema friction ruled out. `wingman_do` has since moved to DESCRIPTION v3 (3b44106: '>3 clicks' DEFAULT opener, anti-interleave rule last); only the check text keeps this shape.
 - **Exact-string pins must inline the SPEC's text as the expected value** —
   a pin importing the same constant the code uses compares code to code and
   never sees spec drift. Add the spec-inline comparison, not a same-constant
@@ -135,8 +127,10 @@ returns.
   `WINGMAN_CHECK_DESCRIPTION`, `BROWSE_STEP_DESCRIPTION` in
   `src/surfaces/tool-text.ts`) — the server (`policy.mode`, re-read every
   call) is the sole enforcer; `loop.ts`'s `finish()` sets a fallback's
-  `note` to `SENSITIVE_LINE` for any `sensitive-*`/`unsupported-page`
-  reason, all three tools, bypassing `CONTINUE_LINE`, the browse_step note
+  `note` for any `sensitive-*`/`unsupported-page` reason to
+  `SENSITIVE_LINE`, or `FORCED_SENSITIVE_LINE` for browse_step/wingman_do
+  when `handoff.mode` is forced (loaded-config default; 3ac2c7f);
+  `wingman_check` always `SENSITIVE_LINE`; bypassing `CONTINUE_LINE`, the browse_step note
   table and the bounce counter — where the caller learns to hand a step
   back to its own browser tools. Descriptions are served once per session,
   so this is the only way a policy change reaches caller behaviour. The
@@ -152,9 +146,12 @@ returns.
 - **The caller's forward-vs-re-send recovery choice is not determined by the
   note branch**: one cell forwarded under the post-action note, another
   re-sent the full chain under the tier-1 note. FORCED_ENGAGEMENT_LINE's
-  "call it again with the same arguments" conflicts with
+  "call it again with the same arguments" conflicted with
   FORCED_POST_ACTION_LINE's "only the steps after this one"; the small
-  caller resolves that conflict unpredictably.
+  caller resolved that conflict unpredictably. r22 F-3 (5c13fa0) added the
+  post-action exception to FORCED_ENGAGEMENT_LINE (bench/run.ts);
+  BROWSE_STEP_DESCRIPTION's 'same arguments' sentence is unchanged; not
+  re-measured since.
 
 ## Test infrastructure & stubs
 
@@ -241,9 +238,8 @@ returns.
   an empty-`WINGMAN_HOME` dispatch test reaches the port probe and must
   assert chrome-cmd's `no-browser` JSON line (exit 1); unwired, `chrome
   show` exits 2 with usage — the 2-vs-1 delta is the test's teeth.
-  `chrome show` no-browser also fails when the shared bench Chrome is up
-  (port 9222, exit 0): stop the shared-profile Chrome first — not a
-  defect.
+  The test pins a free `port` in config (233e92a), so a live Chrome on 9222
+  cannot change it.
 - **A live headed Chrome in a unit test works off-screen**: direct-spawn
   with the anti-throttling flags plus `--window-position=-32000,-32000` on a
   `wingman-ephemeral-` temp profile; measure via the PowerShell
@@ -289,7 +285,7 @@ returns.
  . Fail-first proof:
   `tests/bench-browse.test.ts` ("both routes carry the task goal verbatim").
 - **`max_turns` is often the binding ceiling, not knowledge**: the 7-page t9
-  chain needs ~2 calls/page, so a low cap is hit first. Raise it or the wall measures the turn cap.
+  chain needs ~2 calls/page, so a low cap is hit first. Raise it or the wall measures the turn cap (config now 40; forced 30).
 - **`detached: true` on the win32 cmd spawn in `bench/claude-run.ts`
   swallowed ALL stream-json output** (A/B proven, 90ad51d). Never spawn
   through `cmd /c` detached.
@@ -364,7 +360,7 @@ returns.
   claim was FALSE (`tests/bench-browse.test.ts` pinned 2). Never trust a
   spec's verification note for this.
 - **`runBench` starts a real localhost fixture server whenever any selected
-  task is `local: true` (t15-t17)** — including fake-deps test invocations,
+  task is `local: true` (15 of 17 since r23; t10/t11 live)** — including fake-deps test invocations,
   which therefore bind an ephemeral 127.0.0.1 port. Two close sites,
   disjoint windows (the finally, plus a catch-rethrow over the
   prepare/wiring window) — do not merge them or move the start after
@@ -375,12 +371,6 @@ returns.
   `\.html`, contradicting its own D6/WP-B pins (extension-less task paths
   must serve). Trust D6, not the D1 literal. `/cookie` (extension-less) serving + Set-Cookie is NEW
   behavior (fail-first red pre-change).
-- **The parity recon's `failed` flag is dead code** —
-  `fixture-parity-recon.mjs` sets it on a local page-load failure but
-  never reads it; `/`,
-  `/dynamic_controls`, `/status_codes/404` and `/key_presses` carry no
-  required name and no count check, so a failed or empty dump on those four
-  exits 0 (other pages gate).
 - **Fixture-server hostile-path surface**: all `..` encodings,
   drive-letter, null-byte and depth-cap
   cases 404; the one quirk is win32 backslash aliasing — `/status_codes\404`
@@ -449,9 +439,9 @@ returns.
   are best-effort only.** Every `run-tests.mjs` invocation mints a unique
   `WINGMAN_RUN_TOKEN`, passes it to each spawned test's env, and — on every
   exit path (plus a sync `process.on('exit')` fallback) — kills any
-  chrome.exe whose command line carries `--wingman-run-token=<token>` (PID tree, logged `RUN-TESTS: chrome
+  chrome.exe whose command line carries `wingman-ephemeral-<token>` (the token rides the `--user-data-dir` profile name; PID tree, logged `RUN-TESTS: chrome
   sweep (...)`). `launchEphemeralChrome`
-  copies the token onto each chrome's command line; production and bench
+  puts the token in the profile dir name; production and bench
   (token unset) unchanged. A sync exit-registry backstop in
   `tests/helpers/chrome.ts` tree-kills any browser still registered.
   Proofs: `tests/runner-sweep.test.ts`; the leak fixture
@@ -471,7 +461,7 @@ returns.
   (memoized, every launch) kills tagged root chromes whose owner pid
   is dead and removes their profile dirs, aging untagged legacy dirs out
   after 24h (never kills a legacy chrome — untagged can't prove orphanhood).
-  Launch failures (e.g. the `DevToolsActivePort` 15s timeout) kill the tree
+  Launch failures (e.g. the `DevToolsActivePort` 30s timeout) kill the tree
   and remove the profile dir before rethrowing.
   `tests/ephemeral-sweep.test.ts` uses injected fakes only; any test
   launching a real Chrome runs alone in the foreground.
@@ -530,18 +520,15 @@ returns.
   (`Page.handleJavaScriptDialog` from a second session then answers `No
   dialog is showing`) but the renderer stays WEDGED forever: every later
   `Runtime.evaluate` on that tab times out, and dialog.html's `'dismissed'`
-  write NEVER lands. The E16 check
-  therefore passes only on a RESOLVED prompt (`#log === ''`); don't
-  "simplify" that back to `assert.equal(log, 'dismissed')` — unreachable
-  here.
+  write NEVER lands. The E16 check passes on `log === null` (unreadable page) or `'dismissed'`; a RESOLVED prompt (`#log === ''`) is the only failing shape (tests/chain-e2e.test.ts). Don't tighten it to `assert.equal(log, 'dismissed')` — unreachable here.
 
 ## Enumeration & page-scripts
 
 - **"Jev said `none`" is an enumeration-candidacy question first**:
   `isCandidate`/`isCandidateTag` (`src/core/page-scripts.ts`) are the single
   choke point — no matching attribute/tag/role means the target NEVER
-  enumerates, and no grader change can fix it (DataTables-style headers bind
-  via JS listeners, no inline `onclick`). Signature: the log's
+  enumerates, and no grader change can fix it (delegation-only divs bind
+  via JS listeners, no inline `onclick`; `th` enumerates since r19). Signature: the log's
   `target1: "none"` at high confidence. Check enumeration before grader
   text or thresholds.
 - **Cursor-pointer candidacy is a REJECTED, REMOVED heuristic (r21 P-5 ->
@@ -552,7 +539,7 @@ returns.
   default. `fixtures/pages/pointer-interactive.html` stays as the boundary
   fixture: delegation-only pointer-styled divs (framework menu items with
   no onclick/role/own listener) do NOT enumerate, pinned zero-records in
-  `tests/pointer-enum.test.ts` beside the iframe/shadow boundary pins.
+  `tests/pointer-enum.test.ts` (iframe/shadow boundary pins: `tests/page-scripts.test.ts`).
 - **`el.className` on an SVG element is an SVGAnimatedString object**
   stringifying to `'[object SVGAnimatedString]'`: any RE match over
   className silently misses every SVG-carried class. Read
@@ -564,8 +551,7 @@ returns.
 - **`CAPTCHA_RE` is scoped to real challenge widgets**: a match
   counts only on a visible, non-`size=invisible` element of area >= 16000
   px² (`CHALLENGE_MIN_AREA`); `KB_CAPTCHA_SCOPED` restores the old
-  whole-page substring match (it reportedly blocked bbc.com/npr.org; not
-  reproducible 2026-10-04, see `src/core/CLAUDE.md` r21).
+  whole-page substring match (it blocked bbc/npr/guardian — reproduced 2026-10-04, results branch r21 commit 4384f0e; the scoped rule clears all three).
 - **A label with `for` — or a wrapped control — is OWNED**: `siblingLabel`
   must skip owned labels or a hidden input adjacent to `label[for=x]`
   steals x's name.
@@ -603,14 +589,7 @@ returns.
   is `false`. Writing `if (KB_TABLE_HEADERS && tag === 'th')` ships pre-fix
   behaviour with every pin red at the gate — and the failure looks like
   "fix didn't work", not like an inversion. Ternary precedent:
-  `KB_X ? <old> : <new>` (`KB_HIDDEN_SIBLING`). **Two documented
-  spec-polarity failures**: (1) the r19 spec's D6 item 3 block carries the
-  inverted polarity (`.build-r19-spec.md` line 175 shows
-  `!KB_UPLOAD_EVIDENCE && ...` where the code ships `KB_UPLOAD_EVIDENCE &&
-  ...`; no amendment marker — re-deriving from the spec literal
-  reintroduces the bug); (2) its literal `checkFlipResult` body stripped the
-  evidence when the flag was FALSE, so flipping the mutant would ENACT the
-  fix instead of killing it. Lesson: derive polarity from the mutant
+  `KB_X ? <old> : <new>` (`KB_HIDDEN_SIBLING`). **One documented spec-polarity failure**: the r19 spec's draft `checkFlipResult` used `!KB_UPLOAD_EVIDENCE &&` (inverted — flipping the mutant would ENACT the fix); amended 2026-10-03 (61df9bb, spec lines 121-129). Lesson: derive polarity from the mutant
   convention FIRST, then check the spec literal.
 - **The mutants runner's anchor is `= false;` -> `= true`**; a source-shape
   tripwire (line replacement) needs the runner's optional 4th tuple
@@ -638,7 +617,7 @@ returns.
 - **A hard-killed mutants runner leaves KB flags flipped in src** (the
   byte-identical restore lives in a `finally`, which taskkill/reap skips;
   a pre-poisoned flag makes the anchor check and its flip vacuous). Before
-  AND after every mutants pass: `grep -n 'const KB_\w* = true' src` must
+  AND after every mutants pass: `grep -rnE '(const|var) KB_\w+ = true' src` must
   return nothing; restore `= false` immediately. The full pass is ~25+ min,
   past the 10-min foreground cap — run it DETACHED (`Start-Process python
   -u`, output redirected, PID saved) and poll the log; the reaper only
@@ -698,10 +677,7 @@ returns.
 - **`pa_claim` cannot reserve jev-browser-wingman paths** (they resolve
   against the PA repo); fall back to checking `pa_claims` for conflicts
   plus a clean `git diff HEAD` on the files.
-- **2026-10-03: the `pa` CLI is broken on this machine** (`Cannot find
-  module '../lib/routing-policy.js'` from the PA repo dist) — the
-  claim/release and `pa run commit` workflow is unavailable until the PA
-  repo is rebuilt.
+- **`pa` failed to load 2026-10-03 (`Cannot find module '../lib/routing-policy.js'`); dispatch works again 2026-10-06 (`pa help`, `pa bus whoami`) — re-probe `pa run commit` before relying on it.**
 - **`public_separation_check.py --mode contents` reads only COMMITTED
   trees** (uncommitted files print `SKIPPED CONTENT`): pre-commit, grep the
   owned files against `~/.pa/operator-identifiers.txt` directly;
@@ -710,7 +686,4 @@ returns.
 
 ## Known pre-existing failures
 
-- **One pre-existing, diff-unrelated scoped-gate failure (as of 2026-09-25)**:
-  `tests/cli.test.ts` "chrome show dispatches into chrome-cmd" fails with
-  exit 0 vs expected 1. Do not attribute a future red to a new diff without
-  checking. An adapter-cdp form.html-table red is real.
+- An adapter-cdp form.html-table red is real.
