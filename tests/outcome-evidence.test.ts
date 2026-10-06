@@ -16,7 +16,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
-import { runStep, runDo, parseRepeatCount, type LoopDeps } from '../src/core/loop.js';
+import { runStep, runDo, parseRepeatCount, redactionBackstopHits, type LoopDeps } from '../src/core/loop.js';
 import { FakeDriver } from './helpers/fake-driver.js';
 import { ConfirmTokenStore } from '../src/core/tokens.js';
 import { createMutex } from '../src/core/mutex.js';
@@ -355,6 +355,7 @@ test('redaction: a select result carrying a bound value is tokenized before it r
     });
   };
   const h = harness({ observations: { p1: [before, after] }, ask });
+  const hits0 = redactionBackstopHits();
   const r = await h.call({
     goal: 'outcome-evidence redaction goal',
     steps: ['select Canada'],
@@ -364,6 +365,9 @@ test('redaction: a select result carrying a bound value is tokenized before it r
   for (const req of seenRequests) {
     assertNoValues(JSON.stringify(req), { country: 'Canada' });
   }
+  // r24c recheck: the log's historyResult is redacted at its site, not repaired by the log backstop (a deleted site stayed green).
+  assert.equal(h.records[0].phases?.rounds.some((x) => x.historyResult === 'selected: <value:country>'), true, 'the select result is logged as its marker');
+  assert.equal(redactionBackstopHits(), hits0, 'a site, not the backstop, redacted the log field');
 });
 
 // ---- T-click-repeat: same button, url/title never change (WP-outcome-

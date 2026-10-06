@@ -5588,3 +5588,51 @@ test('T-r24c-pressfocus-keyclause: a press split onto the focused field never co
   assert.equal(h.driver.actCalls().filter((x) => x.op === 'press').length, 0, 'no press act');
   assert.equal(r24Rounds(h).filter((x) => x.pressFocusSum !== undefined).length, 0, 'no pressFocusSum round');
 });
+
+// r24c recheck: the cover named in target-covered evidence is the one value-bearing string of a RESULT that no
+// backstop covers (the request and log backstops stop at Jev and the log); a site-deletion run left the chain-commit
+// and pick sites green, so this pins both with a current-call value and a remembered one.
+test('T-r24c-coveredby: a cover named like a bound value is redacted in target-covered evidence (chain commit and pick)', async () => {
+  const SECRET = 'veil-oat-milk-91';
+  for (const mode of ['commit', 'commit-remembered', 'pick'] as const) {
+    const memory = new ValueMemory();
+    if (mode === 'commit-remembered') memory.bind({ item1: SECRET });
+    const h = harness({
+      observations: { p1: [observation({ elements: [el({ obscured: true, coveredBy: SECRET })] })] },
+      script: [CS()],
+      ...(mode === 'commit-remembered' ? { valueMemory: memory } : {}),
+    });
+    const hits0 = redactionBackstopHits();
+    const r = await h.call({
+      goal: `r24c-coveredby goal ${mode}`,
+      steps: ['click Details'],
+      ...(mode === 'commit-remembered' ? {} : { values: { item1: SECRET } }),
+      ...(mode === 'pick' ? { pick: { role: 'button', name: 'Details', action: 'click' } } : {}),
+    });
+    assert.equal(r.reason, 'target-covered', `${mode}: ${r.status}/${r.reason}`);
+    assertNoValues(JSON.stringify(r), { item1: SECRET });
+    assert.ok((r.step_review?.candidates ?? []).some((c) => c.label === '<value:item1>'), `${mode}: the cover is named by its marker`);
+    assert.equal(redactionBackstopHits(), hits0, `${mode}: a site, not the backstop, redacted it`);
+  }
+});
+
+// r24c recheck: the confirmed-token act labels its result's `last_action` from the element name; a site-deletion run
+// left that site (the one result string of the token path no backstop covers) green.
+test('T-r24c-token-label: a confirmed token act redacts a value-named element in last_action', async () => {
+  const SECRET = 'veil-oat-milk-91';
+  const placePage = observation({ elements: [el({ type: 'submit', name: 'Place ' + SECRET })] });
+  const h = harness({
+    observations: { p1: [placePage] },
+    script: [NONE(), NONE()],
+    config: { gate: { mode: 'confirm' } },
+  });
+  const goal = 'r24c-token-label goal';
+  const steps = ['place the order'];
+  const values = { item1: SECRET };
+  const r1 = await h.call({ goal, steps, values, pick: { role: 'button', name: 'Place ' + SECRET, action: 'click' } });
+  assert.equal(r1.status, 'needs_confirmation', `${r1.status}/${r1.reason}`);
+  const r2 = await h.call({ goal, steps, values, confirm_token: r1.confirm_token });
+  assert.equal(r2.last_action?.label, 'Place <value:item1>', `${r2.status}/${r2.reason} ${JSON.stringify(r2.last_action)}`);
+  assertNoValues(JSON.stringify(r1), values);
+  assertNoValues(JSON.stringify(r2), values);
+});

@@ -1053,3 +1053,17 @@ test('a continuation round with a within-2x element runner-up bounces target-unc
   assert.equal(r.step_review, undefined);
   assert.equal(h.driver.actCalls().length, 1, 'round 2 acts nothing');
 });
+
+// r24c recheck: the legacy entry's cover label (`chosen.coveredBy`) is a result string no backstop covers; a
+// site-deletion run left it green.
+test('r24c: an obscured entry target whose cover is named like a bound value is redacted in the evidence', async () => {
+  const SECRET = 'veil-oat-milk-91';
+  const h = harness({
+    observations: { p1: [observation({ elements: [el({ obscured: true, coveredBy: SECRET })] })] },
+    script: [S({ target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] })],
+  });
+  const r = await h.call({ goal: 'esc-covered-redact-goal', step: 'click the Details button', values: { email: SECRET } });
+  assert.equal(r.reason, 'target-covered');
+  assertNoValues(JSON.stringify(r), { email: SECRET });
+  assert.ok((r.step_review?.candidates ?? []).some((c) => c.label === '<value:email>'), 'the cover is named by its marker');
+});
