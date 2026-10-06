@@ -80,6 +80,23 @@ test('T-r24c-wh-pass: one pass, longest first, a marker is never re-matched', ()
   assert.equal(rs.redact(t), '<value:a> met <value:a>');
 });
 
+test('T-r24c-wh-teeth: longest value at one position, an existing marker is a fixed point, the first name keeps a shared value', () => {
+  // r24c recheck: deleting the length sort, the marker alternative of the matcher or the current-call dedupe each left
+  // every test green (single-guard deletions in a scratch build).
+  // (1) a value that is a prefix of another, listed FIRST: leftmost-longest must take the longer one whole.
+  const pre = compileRedaction({ short: 'ab12', long: 'ab12cd' });
+  assert.equal(pre.redact('x ab12cd y ab12 z'), 'x <value:long> y <value:short> z');
+  // (2) a marker already in the text is never matched again, even when a member value occurs inside the marker text.
+  const inner = compileRedaction({ name1: 'longvalue1', b: 'value' });
+  const once = inner.redact('x longvalue1 y');
+  assert.equal(once, 'x <value:name1> y');
+  assert.equal(inner.redact(once), once);
+  assert.equal(inner.redact('<value:name1> <value:name1 (earlier)>'), '<value:name1> <value:name1 (earlier)>');
+  // (3) two names holding one value in the current call: the first name in insertion order owns the marker.
+  assert.equal(compileRedaction({ a: 'shared val', b: 'shared val' }).redact('shared val'), '<value:a>');
+  assert.equal(compileRedaction({ a: 'Shared Val', b: 'shared val' }).size, 1);
+});
+
 test('T-r24c-wh-mem-markers: remembered values keep their name; a rebound name marks its old value (earlier)', () => {
   const m = new ValueMemory();
   m.bind({ item1: 'buy oat milk' });
