@@ -136,6 +136,8 @@ Auto-loads when working in `tests/`. Root `CLAUDE.md` still holds Machine traps 
   whose click target is scripted >= 0.7** (r24 WP2 ready skip): `CS({ ready: 0.2 })` with the default click e1 0.9
   now CLICKS. A not-ready scenario scripts a non-committing target (`e1: 0.6`) or an element act on the clause first.
 
+- **A test that replaces `process.stdout.write` globally can silently drop other tests' TAP lines** (the runner's TAP stream rides the same stdout). After such a test, check the TOTAL test count in the run summary, and make the replacement a pass-through filter (forward everything it does not intend to swallow) instead of a sink.
+
 ## § KB-mutant methodology
 
 - **A flag flip proves the feature, not its guards**: r24's flag mutants all
