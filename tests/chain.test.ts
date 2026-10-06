@@ -5706,6 +5706,20 @@ test('T-r24c-acterror: a thrown act error naming a bound or remembered value is 
   }
 });
 
+test('T-r24c-repeat-candidate: a value in the repeated element name is redacted in the repeat guard evidence', async () => {
+  // r24c recheck: the repeat guard's candidateOf argument was the last result-side call site that survived deletion.
+  const SECRET = 'veil-oat-milk-91';
+  const named = { ...retrieveEl, name: 'Retrieve ' + SECRET, fingerprint: { ...retrieveEl.fingerprint, name: 'Retrieve ' + SECRET } };
+  const formA = observation({ url: 'https://example.com/reset', title: 'Reset', elements: [named], text: 'reset form' });
+  const formB = observation({ url: 'https://example.com/reset', title: 'Error', elements: [named], text: 'Internal Server Error' });
+  const values = { item1: SECRET };
+  const h = harness({ observations: { p1: [formA, formB] }, script: [CS(), POST(), CS({ step_done: 0.1 })], config: FORCED });
+  const r = await h.call({ goal: 'r24c-repeat-candidate goal', steps: SUBMIT_STEPS, values });
+  assert.equal(r.step_review?.why, 'repeat', `${r.status}/${r.reason}`);
+  assertNoValues(JSON.stringify(r), values);
+  assert.ok((r.step_review?.candidates ?? []).some((c) => c.label.includes('<value:item1>')), 'the repeated element is named by its marker');
+});
+
 test('T-r24c-option: a value in an option label is redacted in the chunk requests and the final request of a native select', async () => {
   // r24c recheck: the local label match skips the option requests whenever the bound value equals a label, so no earlier
   // test reached buildOptionRequests / buildOptionFinalRequest with a value-bearing label (both call-site arguments survived deletion).
