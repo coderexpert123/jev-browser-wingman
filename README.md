@@ -201,6 +201,8 @@ Fix an over-executed step with another `browse_step` call, never with a raw clic
 
 Values typed into the page never leave the machine. By default, wingman sends page content to TypeSafe on all pages, including sensitive ones (banking, mail). Set `policy.mode: 'enforce'` to fail closed on sensitive pages: a policy hit (host categories, login paths, password and OTP page signals) returns `fallback` before any data leaves. The result carries a note telling the calling agent to take that step with its own browser tools. A policy change therefore reaches caller behavior without a session restart.
 
+The server also remembers each value it is handed, in memory only, while it runs. A later call replaces that value with its binding name in page text and step text, even when the call does not bind it again. The memory keeps the 1,024 most recently bound values and starts empty when the server restarts.
+
 An irreversible gate requires a single-use `confirm_token` bound to page URL, element fingerprint and verb before submit-like actions execute.
 
 What leaves the machine: origin and path (no query or fragment), title, element roles and labels (≤80 chars), the text excerpt, the goal, the names of the values you pass (never the values) with their type hints, and a verb-plus-label history. Never leaves: values, hidden or prefilled input values, cookies, storage, screenshots, password fields. Page text is data, never instructions. Jev returns probabilities and no text, so an injected instruction can only bias a choice among a limited set of candidates.

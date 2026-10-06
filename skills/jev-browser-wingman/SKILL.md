@@ -15,7 +15,7 @@ Pass the goal and the ordered remaining steps, with every web address, file path
 
     browse_step({ goal: "Finish the order", steps: ["open Shipping", "type the value named zip into ZIP", "go back to the cart", "click Checkout"], values: { zip: "..." } })
 
-Keep secrets out of `goal` and `steps`. Bindings are typed locally and never sent to the decision service.
+Keep secrets out of `goal` and `steps`. Bindings are typed locally and never sent to the decision service, and a value bound in one call stays redacted in every later call until the server restarts.
 Name a binding in the step that types it; a missing binding is reported by name.
 
 ## When it returns a step to you
