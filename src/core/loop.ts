@@ -287,6 +287,11 @@ const KB_PRESS_FOCUS_KEYGUARD = false;
  * type clause re-filled and the next call submitted item2 a second time). Flipping restores the pick on the cursor
  * clause. Never flip in shipped code. */
 const KB_PICK_VERB_ALIGN = false;
+/** r25 KB proof switch: a press clause right after a landed fill on the still-focused editable field presses the key
+ * mechanically — no Jev ask, no target decision (r24d t11: the press-half of a type+press chain bounced no-match twice,
+ * the press-split and landed-not-advanced hand-backs). Flipping restores the Jev ask for the press clause. Never flip in
+ * shipped code. */
+const KB_PRESS_AFTER_FILL = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24c F3: a clause that waits ("wait until the hidden text appears"). */
@@ -1027,6 +1032,36 @@ export function pickAlignsToNextClause(pick: { action: string; key?: string }, c
   if (!PICK_PRESS_VERB_RE.test(next)) return false;
   const named = parseKeyPress(next);
   return named === undefined || named === (pick.key ?? 'Enter');
+}
+
+/** r25: the key and element for a press clause right after a landed fill on the
+ * same field — the field is still present and editable (it does not need to be
+ * focused: after a fill the field is the natural press target, and the real t11
+ * page does not report `obs.focus`, which is why the r24 press-focus-sum rule
+ * never fired there). Returns undefined when any guard fails. */
+function pressAfterFill(
+  clauses: string[],
+  cursor: number,
+  history: HistoryEntry[],
+  obs: Observation,
+): { key: string; el: ElementRecord } | undefined {
+  const key = parseKeyPress(clauses[cursor]);
+  if (key === undefined) return undefined;
+  if (cursor === 0) return undefined;
+  const prev = clauses[cursor - 1];
+  // The previous clause must be a fill-only clause (not itself a press).
+  if (!PICK_FILL_VERB_RE.test(prev) || PICK_PRESS_VERB_RE.test(prev)) return undefined;
+  // The last history entry must be the fill that landed on the previous clause.
+  const last = history.length > 0 ? history[history.length - 1] : undefined;
+  if (last === undefined) return undefined;
+  if (last.stepKey !== `c${cursor - 1}`) return undefined;
+  if (last.verb !== 'fill') return undefined;
+  if (last.result !== 'filled') return undefined;
+  if (last.path === undefined) return undefined;
+  // The filled element must still be present and editable.
+  const filled = obs.elements.find((e) => e.path === last.path);
+  if (filled === undefined || filled.editable !== true) return undefined;
+  return { key, el: filled };
 }
 
 /** r17 (D4): the count a "scroll until at least N items" clause names —
@@ -1945,6 +1980,7 @@ async function runTool(
     verbCoerced?: true;    // r24 WP5: a check/uncheck on a link or button acted as click
     stuckSecond?: true;    // r24 WP7: the second stuck round of a clause
     readySkipped?: true;   // r24 WP2: readyP was under the bar and the committed-fresh-click skip let the round act
+    pressAfterFill?: true; // r25: the press-after-fill rule pressed the key mechanically (no Jev ask)
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -4171,6 +4207,22 @@ async function runTool(
         decision = id === 'back'
           ? { el: null, verb: 'back', gate: false, stuck: pend }
           : { el: null, verb: 'navigate', binding: id.slice(RECOVER_OPEN_PREFIX.length), gate: false, stuck: pend };
+      }
+
+      // r25: a press clause right after a landed fill on the same field presses
+      // the key mechanically — no Jev ask, no target decision. The filled element
+      // is the press target (the real t11 page does not report obs.focus, so the
+      // r24 press-focus-sum rule never fired; this rule uses the fill's path instead).
+      if (
+        decision === null &&
+        chain &&
+        !KB_PRESS_AFTER_FILL
+      ) {
+        const pf = pressAfterFill(chain.clauses, chain.cursor, history, obs);
+        if (pf !== undefined) {
+          decision = { el: pf.el, verb: 'press', optionValue: pf.key, gate: false };
+          if (cur) cur.pressAfterFill = true;
+        }
       }
 
       // ---- build the state, ask, and decide (§ 3.7 / § 5.5.2) ----

@@ -239,6 +239,8 @@ export interface WingmanLogRecord {
       hoverEvidence?: true;
       // r24: the press focus-sum commit (WP3) decided this round.
       pressFocusSum?: true;
+      // r25: the press-after-fill rule pressed the key mechanically (no Jev ask).
+      pressAfterFill?: true;
       // r24: a check/uncheck on a link or button acted as click (WP5).
       verbCoerced?: true;
       // r24: the second stuck round of a clause (WP7).

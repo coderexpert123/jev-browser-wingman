@@ -5930,3 +5930,203 @@ test('T-r24e-covered: a covered press target leaves the cursor on the type claus
   await h.call({ goal: 'chain-r24e-covered goal', steps: R24E_STEPS, values: TODO_VALUES });
   assert.equal(r24eCursors(h)[0], 0, 'the resume starts on the type clause, not past it');
 });
+
+// ---- r25: press-after-fill mechanical press ----
+
+const r25Input = (filled: boolean): ElementRecord =>
+  el({
+    id: 'e1',
+    path: '#new-todo',
+    tag: 'input',
+    role: 'textbox',
+    name: 'New Todo Input',
+    type: 'text',
+    editable: true,
+    state: { disabled: false, filled },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'New Todo Input', x: 0, y: 0 },
+  });
+
+/** The r25 ask: a type clause fills at step_done 0.3 (above the 0.25 stateAdvance
+ * bar so the cursor advances after the fill lands); every other clause reads
+ * done (step_done 0.95). A press clause that reaches Jev (the rule did NOT fire)
+ * gets no action and bounces no-match — proving the rule skipped the ask. */
+function r25Ask(): JevAsk {
+  return async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+      right_page: { type: 'noul', noul: 0.95 },
+      ready: { type: 'noul', noul: 0.95 },
+    };
+    if (/^type\b/.test(step)) {
+      answers.step_done = { type: 'noul', noul: 0.3 };
+      answers.action = choice('fill', { fill: 0.9, none: 0.05 });
+      answers.target = choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 });
+      answers.value = choice('item1', { item1: 0.9, none: 0.05 });
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.95 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+}
+
+const R25_VALUES = { item1: 'first entry' };
+const R25_STEPS = ['type the value named item1 into the new-todo field', 'press Enter'];
+
+test('T-r25-pressafterfill: a press clause right after a landed fill presses the key mechanically (no Jev ask)', async () => {
+  const obs0 = observation({ elements: [r25Input(false)], text: 'todos' });
+  const obs1 = observation({ elements: [r25Input(true)], text: 'todos' });
+  const obs2 = observation({ elements: [r25Input(true)], text: 'todos first entry added' });
+  // 4 observations: pre-fill, post-fill (advance), pre-press (same as post-fill), post-press (changed).
+  const h = harness({ observations: { p1: [obs0, obs1, obs1, obs2] }, script: [], ask: r25Ask() });
+  const r = await h.call({ goal: 'chain-r25-pressafterfill goal', steps: R25_STEPS, values: R25_VALUES });
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['fill', 'press'], `expected [fill, press], got ${JSON.stringify(ops)}`);
+  assert.equal(ops.filter((o) => o === 'press').length, 1, 'exactly one press (no duplicate)');
+  assert.equal(r.status, 'done', `got ${r.status}/${r.reason}`);
+  assert.deepEqual(r.progress, { step_index: 2, steps_done: 2, steps_total: 2 }, 'both caller steps done');
+});
+
+test('T-r25-pressafterfill-guards: each guard prevents the rule from firing when it should not', async () => {
+  const run = async (tag: string, opts: {
+    steps: string[];
+    values?: Record<string, string>;
+    obs?: Observation[];
+    ask?: JevAsk;
+  }) => {
+    const filled = observation({ elements: [r25Input(true)], text: 'todos' });
+    const defaultObs = [
+      observation({ elements: [r25Input(false)], text: 'todos' }),
+      filled, filled,
+      observation({ elements: [r25Input(true)], text: 'todos changed' }),
+    ];
+    const h = harness({ observations: { p1: opts.obs ?? defaultObs }, script: [], ask: opts.ask ?? r25Ask() });
+    await h.call({ goal: `chain-r25-guards ${tag} goal`, steps: opts.steps, values: opts.values ?? R25_VALUES });
+    return h;
+  };
+  // (a) the clause is not a press clause: no mechanical press.
+  const a = await run('a', { steps: ['type the value named item1 into the new-todo field', 'check the first checkbox'] });
+  assert.ok(!a.driver.actCalls().some((c) => c.op === 'press'), 'a non-press clause never mechanically presses');
+  // (b) cursor 0 (first clause is a press, no previous fill). Non-vacuous: the
+  // ask returns a press action with low step_done so the loop WOULD press if
+  // the rule fired. The assertion checks the rule's telemetry marker is absent
+  // (the rule didn't fire), not that no press happened — a Jev-decided press
+  // is fine. The cursor===0 guard is redundant with the prev-clause check
+  // (clauses[-1] is undefined, PICK_FILL_VERB_RE.test(undefined) is false),
+  // but kept as defensive belt-and-suspenders.
+  const bAsk: JevAsk = async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 }, blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 }, error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 }, right_page: { type: 'noul', noul: 0.95 },
+      ready: { type: 'noul', noul: 0.95 }, step_done: { type: 'noul', noul: 0.1 },
+      action: choice('press', { press: 0.9 }),
+      target: choice('e1', { e1: 0.9 }),
+    };
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const bObs = [
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+  ];
+  const b = await run('b', { steps: ['press Enter'], obs: bObs, ask: bAsk });
+  const bRounds = b.records[0]?.phases?.rounds ?? [];
+  assert.ok(!bRounds.some((r) => r.pressAfterFill === true), 'a first-clause press never fires the rule (telemetry)');
+  // (c) the previous clause is not a fill.
+  const c = await run('c', { steps: ['click the Go button', 'press Enter'], values: {} });
+  assert.ok(!c.driver.actCalls().some((c2) => c2.op === 'press'), 'a press after a click clause never fires the rule');
+  // (d) the previous clause is also a press.
+  const d = await run('d', { steps: ['press Tab', 'press Enter'] });
+  assert.ok(!d.driver.actCalls().some((c2) => c2.op === 'press'), 'a press after a press clause never fires the rule');
+  // (f) the last act was a click (not a fill) on the previous clause.
+  const fObs = [
+    observation({ elements: [r25Input(false), el({ id: 'e2', path: '#btn', name: 'Go', role: 'button', editable: false })], text: 'todos' }),
+    observation({ elements: [r25Input(true), el({ id: 'e2', path: '#btn', name: 'Go', role: 'button', editable: false })], text: 'todos' }),
+    observation({ elements: [r25Input(true), el({ id: 'e2', path: '#btn', name: 'Go', role: 'button', editable: false })], text: 'todos clicked' }),
+    observation({ elements: [r25Input(true), el({ id: 'e2', path: '#btn', name: 'Go', role: 'button', editable: false })], text: 'todos clicked' }),
+    observation({ elements: [r25Input(true), el({ id: 'e2', path: '#btn', name: 'Go', role: 'button', editable: false })], text: 'todos clicked done' }),
+  ];
+  const fAsk: JevAsk = async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 }, blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 }, error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 }, right_page: { type: 'noul', noul: 0.95 },
+      ready: { type: 'noul', noul: 0.95 },
+    };
+    if (/^type\b/.test(step)) {
+      answers.step_done = { type: 'noul', noul: 0.1 };
+      answers.action = choice('fill', { fill: 0.9 });
+      answers.target = choice('e1', { e1: 0.9 });
+      answers.value = choice('item1', { item1: 0.9 });
+    } else if (/^click\b/.test(step)) {
+      answers.step_done = { type: 'noul', noul: 0.1 };
+      answers.action = choice('click', { click: 0.9 });
+      answers.target = choice('e2', { e2: 0.9 });
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.95 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const f = await run('f', {
+    steps: ['type the value named item1 into the new-todo field', 'click the Go button', 'press Enter'],
+    obs: fObs, ask: fAsk,
+  });
+  assert.ok(!f.driver.actCalls().some((c2) => c2.op === 'press'), 'a press after a click (not a fill) never fires the rule');
+  // (g) the fill result is not 'filled' (field still empty).
+  const gObs = [
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+  ];
+  const g = await run('g', { steps: R25_STEPS, obs: gObs });
+  assert.ok(!g.driver.actCalls().some((c2) => c2.op === 'press'), 'a fill that did not land (result not filled) never fires the rule');
+  // (h) the filled element is gone from the page on the press round.
+  const hObs = [
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(true)], text: 'todos' }),
+    observation({ elements: [], text: 'todos gone' }),
+    observation({ elements: [], text: 'todos gone' }),
+  ];
+  const h2 = await run('h', { steps: R25_STEPS, obs: hObs });
+  assert.ok(!h2.driver.actCalls().some((c2) => c2.op === 'press'), 'a press after a fill whose element is gone never fires the rule');
+  // (i) the filled element is not editable on the press round.
+  const iObs = [
+    observation({ elements: [r25Input(false)], text: 'todos' }),
+    observation({ elements: [r25Input(true)], text: 'todos' }),
+    observation({ elements: [{ ...r25Input(true), editable: false }], text: 'todos' }),
+    observation({ elements: [{ ...r25Input(true), editable: false }], text: 'todos' }),
+  ];
+  const i = await run('i', { steps: R25_STEPS, obs: iObs });
+  assert.ok(!i.driver.actCalls().some((c2) => c2.op === 'press'), 'a press on a non-editable element never fires the rule');
+});
+
+test('T-r25-pressafterfill-gate-confirm: the mechanical press does not fire the gate under gate.mode confirm', async () => {
+  // The filled element is inside a <form> (form: 0); gateHeuristic's
+  // enter-in-form rule fires on ANY element-targeted press in a form
+  // (gate.ts line 28: op === 'press' && el.form >= 0). With gate: true the
+  // loop returns needs_confirmation — a hand-back. gate: false skips the
+  // gate block entirely; the press proceeds.
+  const formEl = (filled: boolean): ElementRecord => ({ ...r25Input(filled), form: 0 });
+  const obs0 = observation({ elements: [formEl(false)], text: 'todos', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
+  const obs1 = observation({ elements: [formEl(true)], text: 'todos', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
+  const obs2 = observation({ elements: [formEl(true)], text: 'todos first entry added', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
+  const h = harness({
+    observations: { p1: [obs0, obs1, obs1, obs2] },
+    script: [],
+    ask: r25Ask(),
+    config: { gate: { mode: 'confirm' as const } },
+  });
+  const r = await h.call({ goal: 'chain-r25-gate-confirm goal', steps: R25_STEPS, values: R25_VALUES });
+  const ops = h.driver.actCalls().map((a) => a.op);
+  assert.deepEqual(ops, ['fill', 'press'], `expected [fill, press] under gate confirm, got ${JSON.stringify(ops)}`);
+  assert.equal(r.status, 'done', `gate must not fire on the mechanical press; got ${r.status}/${r.reason}`);
+});
