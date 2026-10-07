@@ -2,10 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   typeHint, redactValues, redactDeep, assertNoValues, isPathLike,
-  compileRedaction, ValueMemory, backstopRequest, backstopLogRecord,
+  compileRedaction, ValueMemory, backstopRequest, backstopLogRecord, encodedVariants,
 } from '../src/core/withhold.js';
-import { PATH_VALUE_MAX } from '../src/contract/constants.js';
-import type { JevRequest, WingmanLogRecord } from '../src/contract/types.js';
+import path from 'node:path';
+import os from 'node:os';
+import { runDo, redactionBackstopHits, type LoopDeps } from '../src/core/loop.js';
+import { FakeDriver } from './helpers/fake-driver.js';
+import { ConfirmTokenStore } from '../src/core/tokens.js';
+import { createMutex } from '../src/core/mutex.js';
+import { PATH_VALUE_MAX, DEFAULT_BUDGETS } from '../src/contract/constants.js';
+import type { ElementRecord, JevAnswer, JevAsk, JevRequest, Observation, WingmanConfig, WingmanLogRecord, WingmanResult } from '../src/contract/types.js';
 
 test('typeHint classifies email, phone, number, date, url and text', () => {
   assert.equal(typeHint('ada@example.com'), 'email');
@@ -266,4 +272,146 @@ test('T-r24c-wh-scope-request: the request backstop never touches question types
   assert.equal(out.questions.action.type, 'choice');
   assert.equal(out.state.text, 'one <value:c> here');
   assert.deepEqual(hits.sort(), ['questions.action.criteria.none', 'questions.action.instructions', 'state.text']);
+});
+
+// ---- r24d: percent-encoded variants of bound values (intake item 2) ----
+
+function r24dEl(): ElementRecord {
+  return {
+    id: 'e1', path: '#e1', tag: 'button', role: 'button', name: 'Details', type: 'button', attrName: '', ariaLabel: '',
+    autocomplete: '', state: { disabled: false }, editable: false, inViewport: true, rect: { x: 0, y: 0, w: 10, h: 10 },
+    form: -1, fingerprint: { tag: 'button', role: 'button', name: 'Details', x: 0, y: 0 },
+  };
+}
+
+function r24dHarness(url: string): { requests: JevRequest[]; records: WingmanLogRecord[]; call: (input: unknown) => Promise<WingmanResult> } {
+  const observation: Observation = {
+    url, title: 'List', elements: [r24dEl()], forms: [],
+    signals: { password: false, currentPassword: false, newPassword: false, otpAutocomplete: false, ccAutocomplete: false, otpText: false, captcha: false },
+    text: 'plain page text', truncated: false,
+  };
+  const driver = new FakeDriver({ pages: [{ id: 'p1', url, title: 'List', visible: true }], observations: { p1: [observation] } });
+  const requests: JevRequest[] = [];
+  const records: WingmanLogRecord[] = [];
+  let n = 0;
+  const seq = [
+    { done: 0.05, blocked: 0.05, login: 0.05, irreversible: 0.05, action: ['click', { click: 0.9, none: 0.05 }], target: ['e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 }] },
+    { done: 0.9 },
+  ] as Array<Record<string, unknown>>;
+  const ask: JevAsk = async (request) => {
+    requests.push(request);
+    const step = seq[Math.min(n, seq.length - 1)];
+    n += 1;
+    const answers: Record<string, JevAnswer> = {};
+    for (const key of ['done', 'blocked', 'login', 'error', 'irreversible']) {
+      if (typeof step[key] === 'number') answers[key] = { type: 'noul', noul: step[key] as number };
+    }
+    for (const key of ['action', 'target']) {
+      const spec = step[key] as [string, Record<string, number>] | undefined;
+      if (spec) answers[key] = { type: 'choice', choice: spec[0], probabilities: spec[1], confidence: 0.9 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const config = {
+    mode: 'on', adapter: 'playwright', window: 'offscreen', profile_dir: path.join(os.tmpdir(), 'jevw-r24d-profile'), port: 9222,
+    chrome_path: null, secrets_file: null, plugin: null, sensitive_hosts: {}, budgets: { ...DEFAULT_BUDGETS }, policy: { mode: 'enforce' },
+  } as unknown as WingmanConfig;
+  const deps: LoopDeps = {
+    config, driverFactory: () => driver, resolveEndpoint: async () => 'http://127.0.0.1:9222', ask, mutex: createMutex(),
+    tokens: new ConfirmTokenStore(), writeLog: async (r) => { records.push(r); },
+  };
+  return { requests, records, call: (input: unknown) => runDo(input, deps) };
+}
+
+test('T-r24d-url-request: a bound value seen percent-encoded in state.url never reaches the Jev request, and the backstop stays at zero', async () => {
+  const hits0 = redactionBackstopHits();
+  const h = r24dHarness('https://example.com/list/write%20spec/jo%40ex.org');
+  const r = await h.call({ goal: 'g', values: { note: 'write spec', mail: 'jo@ex.org' } });
+  assert.equal(r.status, 'done');
+  assert.ok(h.requests.length >= 2);
+  for (const request of h.requests) {
+    const state = request.state as { url: string };
+    assert.equal(state.url, 'https://example.com/list/<value:note>/<value:mail>');
+    const ser = JSON.stringify(request).toLowerCase();
+    for (const leak of ['write%20spec', 'jo%40ex.org', 'write spec', 'jo@ex.org']) assert.equal(ser.includes(leak), false, `request leaked ${leak}`);
+  }
+  assert.equal(redactionBackstopHits(), hits0, 'a missed site would have been repaired by the backstop');
+});
+
+test('T-r24d-url-log: the log record per-round url carries the marker, never the encoded value', async () => {
+  const hits0 = redactionBackstopHits();
+  const h = r24dHarness('https://example.com/u/caf%C3%A9%20au%20lait');
+  const r = await h.call({ goal: 'g', values: { drink: 'café au lait' } });
+  assert.equal(r.status, 'done');
+  assert.equal(h.records.length, 1);
+  assert.equal(h.records[0].phases!.rounds[0].url, 'https://example.com/u/<value:drink>');
+  assert.equal(JSON.stringify(h.records[0]).toLowerCase().includes('%c3%a9'), false);
+  assert.equal(redactionBackstopHits(), hits0);
+});
+
+test('T-r24d-wh-forms: every percent-encoded spelling of a value takes that value own marker, in either hex case', () => {
+  const rs = compileRedaction({ note: 'write spec', mail: 'jo@ex.org', cafe: 'café au lait' });
+  const cases: Array<[string, string]> = [
+    ['/write%20spec', '/<value:note>'],
+    ['/write+spec', '/<value:note>'],
+    ['/write spec', '/<value:note>'],
+    ['/jo%40ex.org', '/<value:mail>'],
+    ['/jo%40EX.ORG', '/<value:mail>'],
+    ['/caf%C3%A9%20au%20lait', '/<value:cafe>'],
+    ['/caf%c3%a9%20au%20lait', '/<value:cafe>'],
+    ['/caf%C3%A9+au+lait', '/<value:cafe>'],
+  ];
+  for (const [input, want] of cases) assert.equal(rs.redact(input), want, input);
+  assert.equal(rs.size, 3, 'variants are not members');
+  assert.throws(() => rs.assertClean('x write%20spec y'), /value leak: note/);
+  assert.throws(() => rs.assertClean('x CAF%C3%A9%20AU%20LAIT y'), /value leak: cafe/);
+});
+
+test('T-r24d-wh-path-form: the URL pathname spelling (characters encodeURI would also encode stay literal) is covered', () => {
+  const rs = compileRedaction({ q: 'a b^c' });
+  assert.equal(new URL('https://h.test/a b^c').pathname, '/a%20b^c', 'precondition: the platform leaves ^ literal in a path');
+  assert.equal(rs.redact(new URL('https://h.test/a b^c').pathname), '/<value:q>');
+  assert.equal(rs.redact('/a%20b%5Ec'), '/<value:q>');
+});
+
+test('T-r24d-wh-order: the longest value wins over a shorter value, in every spelling', () => {
+  const rs = compileRedaction({ short: 'write spec', long: 'write spec notes' });
+  assert.equal(rs.redact('/write%20spec%20notes'), '/<value:long>');
+  assert.equal(rs.redact('/write%20spec'), '/<value:short>');
+  assert.equal(rs.redact('write spec notes and write%20spec'), '<value:long> and <value:short>');
+});
+
+test('T-r24d-wh-idempotent: redacting twice equals redacting once, over literal, encoded and marker text', () => {
+  const rs = compileRedaction({ note: 'write spec', mail: 'jo@ex.org' });
+  const text = 'a write spec b write%20spec c write+spec d jo%40ex.org e <value:note> f <value:mail> g';
+  const once = rs.redact(text);
+  assert.equal(once, 'a <value:note> b <value:note> c <value:note> d <value:mail> e <value:note> f <value:mail> g');
+  assert.equal(rs.redact(once), once);
+  assert.deepEqual(rs.redactDeep({ u: text }), { u: once });
+});
+
+test('T-r24d-wh-cap: variants never count toward the value cap or the set size', () => {
+  const mem = new ValueMemory(2);
+  mem.bind({ a: 'one two', b: 'three four', c: 'five six' });
+  assert.equal(mem.size(), 2);
+  const rs = compileRedaction({}, mem);
+  assert.equal(rs.size, 2);
+  assert.equal(rs.redact('/three%20four /five%20six /one%20two'), '/<value:b> /<value:c> /one%20two');
+});
+
+test('T-r24d-wh-plain: a value with no encodable character gets no variants and redacts exactly as before', () => {
+  assert.deepEqual(encodedVariants('plain-value_1.~x'), []);
+  assert.deepEqual(encodedVariants('abc'), []);
+  const rs = compileRedaction({ token: 'plain-value_1.~x' });
+  assert.equal(rs.size, 1);
+  assert.equal(rs.redact('/plain-value_1.~x/%70lain-value'), '/<value:token>/%70lain-value');
+  assert.deepEqual(encodedVariants('write spec'), ['write%20spec', 'write+spec']);
+  assert.doesNotThrow(() => encodedVariants('\ud800lone surrogate'));
+  assert.equal(compileRedaction({ s: '\ud800lone surrogate' }).size, 1, 'a lone surrogate does not throw');
+});
+
+test('T-r24d-wh-floor: a value under the floor gets no variants', () => {
+  const rs = compileRedaction({ s: 'a b' });
+  assert.equal(rs.size, 0);
+  assert.equal(rs.redact('a%20b'), 'a%20b');
 });

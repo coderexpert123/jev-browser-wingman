@@ -34,6 +34,38 @@ function escapeRegExp(s: string): string {
  * behaviour). Never flip in shipped code. */
 const KB_CROSS_CALL_REDACT = false;
 
+/** r24d KB proof switch: flip = the redaction set matches literal value text only (no percent-encoded variants,
+ * the pre-r24d behaviour). Never flip in shipped code. */
+const KB_ENCODED_VARIANTS = false;
+
+/** r24d: the percent-encoded spellings of a value that a page address (or a text copied from one) can carry:
+ * encodeURIComponent, encodeURI, both with `+` for each encoded space, and the WHATWG path form (what
+ * `new URL(...).pathname` yields, which leaves some characters encodeURI encodes). Lower-case percent-hex needs no
+ * entry of its own: every matcher is case-insensitive, so `%c3%a9` already matches `%C3%A9`. Forms equal to the
+ * value are omitted; a value that cannot be encoded (a lone surrogate) gets only the forms that can be built. */
+export function encodedVariants(value: string): string[] {
+  const out: string[] = [];
+  const add = (s: string): void => {
+    if (s !== value && !out.includes(s)) out.push(s);
+  };
+  try {
+    const comp = encodeURIComponent(value);
+    const uri = encodeURI(value);
+    add(comp);
+    add(uri);
+    add(comp.replace(/%20/g, '+'));
+    add(uri.replace(/%20/g, '+'));
+  } catch {
+    /* lone surrogate: no component/URI forms */
+  }
+  try {
+    add(new URL('http://h/' + value.replace(/[?#]/g, encodeURIComponent)).pathname.slice(1));
+  } catch {
+    /* unparseable: no path form */
+  }
+  return out;
+}
+
 /** r24c: the marker suffix of a remembered value whose binding name now holds a different value. */
 export const EARLIER_SUFFIX = ' (earlier)';
 
@@ -112,13 +144,29 @@ export function compileRedaction(current: Record<string, string>, memory?: Value
     members.push({ value, name, marker: `<value:${name}>` });
   }
   members.sort((a, b) => b.value.length - a.value.length);
+  // r24d: percent-encoded forms of each member ride the same marker. Variants are alternatives of a member, never
+  // members: they never move `size`, the memory cap or the floor. A variant equal (case-insensitively) to any member
+  // value or to an earlier variant is dropped, so a value with no encodable character compiles exactly as before.
+  const alternatives: Array<{ text: string; marker: string; name: string }> = members.map((m) => ({ text: m.value, marker: m.marker, name: m.name }));
+  if (!KB_ENCODED_VARIANTS) {
+    const taken = new Set<string>(members.map((m) => m.value.toLowerCase()));
+    for (const m of members) {
+      for (const v of encodedVariants(m.value)) {
+        const key = v.toLowerCase();
+        if (taken.has(key)) continue;
+        taken.add(key);
+        alternatives.push({ text: v, marker: m.marker, name: m.name });
+      }
+    }
+    alternatives.sort((a, b) => b.text.length - a.text.length);
+  }
   const byValue = new Map<string, string>();
-  for (const m of members) byValue.set(m.value.toLowerCase(), m.marker);
-  const matchers = members.map((m) => ({ re: new RegExp('^' + escapeRegExp(m.value) + '$', 'i'), marker: m.marker }));
-  const re = members.length === 0
+  for (const a of alternatives) byValue.set(a.text.toLowerCase(), a.marker);
+  const matchers = alternatives.map((a) => ({ re: new RegExp('^' + escapeRegExp(a.text) + '$', 'i'), marker: a.marker }));
+  const re = alternatives.length === 0
     ? null
     : new RegExp(
-      `(<value:[a-z][a-z0-9_]{0,39}(?: \\(earlier\\))?>)|(${members.map((m) => escapeRegExp(m.value)).join('|')})`,
+      `(<value:[a-z][a-z0-9_]{0,39}(?: \\(earlier\\))?>)|(${alternatives.map((a) => escapeRegExp(a.text)).join('|')})`,
       'gi',
     );
   const redact = (text: string): string => {
@@ -143,8 +191,8 @@ export function compileRedaction(current: Record<string, string>, memory?: Value
   };
   const assertClean = (serialized: string): void => {
     const lower = serialized.toLowerCase();
-    for (const m of members) {
-      if (lower.includes(m.value.toLowerCase())) throw new Error(`value leak: ${m.name}`);
+    for (const a of alternatives) {
+      if (lower.includes(a.text.toLowerCase())) throw new Error(`value leak: ${a.name}`);
     }
   };
   return { redact, redactDeep, assertClean, size: members.length };
