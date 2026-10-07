@@ -5806,3 +5806,98 @@ test('T-r24c-fuzz: no remembered value reaches a request, a record or a result (
   assert.equal(failures.length, 0, `${failures.length} leaks, first: ${failures.slice(0, 3).join(' || ')}`);
   assert.equal(redactionBackstopHits(), hits0, 'a site missed a value (backstop repaired it)');
 });
+
+// ===================================================================
+// r24e (spec .build-r24e-intake.md): a pick whose verb names the NEXT clause
+// (r24d t11 rep 1: pick press on cursor 0 = "type item2", whose fill landed
+// in the earlier call) must apply to that clause and advance past it, never
+// re-run the earlier clause's act. Flag KB_PICK_VERB_ALIGN.
+// ===================================================================
+
+const r24eInput = (): ElementRecord =>
+  el({
+    id: 'e1',
+    path: '#new-todo',
+    tag: 'input',
+    role: 'textbox',
+    name: 'New Todo Input',
+    type: 'text',
+    editable: true,
+    state: { disabled: false, filled: true },
+    fingerprint: { tag: 'input', role: 'textbox', name: 'New Todo Input', x: 0, y: 0 },
+  });
+const r24ePick = (over: Record<string, unknown> = {}) => ({ role: 'textbox', name: 'New Todo Input', action: 'press', key: 'Enter', ...over });
+const TYPE_ITEM2 = 'type the value named item2 into the new-todo field';
+const TODO_VALUES = { item2: 'second entry' };
+
+/** The r24d t11 caller: a type clause re-acts (fill at stepDone 0.1, the trace's 0.11-0.14) whenever it is the active
+ * clause; every other clause reads done. A clause run on the wrong cursor therefore shows as fills. */
+function r24eAsk(): JevAsk {
+  return async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 },
+      blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.05 },
+      error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 },
+      right_page: { type: 'noul', noul: 0.95 },
+      ready: { type: 'noul', noul: 0.95 },
+    };
+    if (/^type\b/.test(step)) {
+      answers.step_done = { type: 'noul', noul: 0.1 };
+      answers.action = choice('fill', { fill: 0.9, none: 0.05 });
+      answers.target = choice('e1', { e1: 0.9, none: 0.05, ambiguous: 0.05 });
+      answers.value = choice('item2', { item2: 0.9, none: 0.05 });
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.95 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+}
+const r24eOps = (h: Harness) => h.driver.actCalls().map((a) => a.op);
+const r24eCursors = (h: Harness) => h.records[h.records.length - 1].phases!.rounds.map((r) => r.cursor);
+
+test('T-r24e-align: a press pick on a type clause whose next clause presses applies to the press clause and advances past it', async () => {
+  const h = harness({ observations: { p1: [observation({ elements: [r24eInput()] })] }, script: [], ask: r24eAsk() });
+  const r = await h.call({
+    goal: 'chain-r24e-align goal',
+    steps: [`${TYPE_ITEM2} and press Enter`, "check the first todo item's complete checkbox"],
+    values: TODO_VALUES,
+    pick: r24ePick(),
+  });
+  assert.deepEqual(r24eOps(h), ['press'], 'exactly one submit of item2 and no re-run of the type clause');
+  assert.equal(h.driver.actCalls()[0].value, 'Enter');
+  assert.equal(r.status, 'done', `got ${r.status}/${r.reason}`);
+  assert.deepEqual(r.progress, { step_index: 2, steps_done: 2, steps_total: 2 }, 'both caller steps done');
+  const cursors = r24eCursors(h);
+  assert.equal(cursors[0], 1, 'the pick round ran on the press clause');
+  assert.ok(!cursors.includes(0), 'the type clause never ran');
+  assert.deepEqual(cursors, [1, 1, 2], 'the pick acted under the press clause, which advanced to the check clause (past the press clause)');
+});
+
+test('T-r24e-guards: a pick that fits the current clause, or fits neither clause, behaves as before', async () => {
+  const run = async (tag: string, steps: string[], pick: Record<string, unknown>, values: Record<string, string> = TODO_VALUES) => {
+    const h = harness({ observations: { p1: [observation({ elements: [r24eInput(), el({ id: 'e2', path: '#go', name: 'Go' })] })] }, script: [], ask: r24eAsk() });
+    await h.call({ goal: `chain-r24e-guards ${tag} goal`, steps, values, pick });
+    return h;
+  };
+  // (a) the pick fits the CURRENT clause (it names press): no skip, though the next clause presses too.
+  const a = await run('a', ['press Enter after you type the value named item2', 'press Enter again to confirm'], r24ePick());
+  assert.equal(r24eCursors(a)[0], 0, 'a press pick on a press clause stays on it');
+  // (b) neither clause fits a click pick: the pick runs on the current (type) clause.
+  const b = await run('b', [TYPE_ITEM2, 'press Enter'], r24ePick({ action: 'click', name: 'Go', role: 'button', key: undefined }));
+  assert.equal(r24eCursors(b)[0], 0, 'a click pick never aligns');
+  // (c) the next clause does not press: no skip.
+  const c = await run('c', [TYPE_ITEM2, "check the first todo item's complete checkbox"], r24ePick());
+  assert.equal(r24eCursors(c)[0], 0, 'a press pick whose next clause does not press stays on the type clause');
+  // (d) the current clause is not a type clause: no skip.
+  const d = await run('d', ['click the Go button', 'press Enter'], r24ePick());
+  assert.equal(r24eCursors(d)[0], 0, 'a press pick over a click clause stays on it');
+  // (e) the next clause names another key: no skip.
+  const e = await run('e', [TYPE_ITEM2, 'press Tab'], r24ePick());
+  assert.equal(r24eCursors(e)[0], 0, 'a press pick naming Enter never takes a press Tab clause');
+  // (f) a final type clause has no next clause.
+  const f = await run('f', [TYPE_ITEM2], r24ePick());
+  assert.equal(r24eCursors(f)[0], 0, 'no next clause, no skip');
+});

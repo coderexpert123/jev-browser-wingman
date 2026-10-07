@@ -279,6 +279,14 @@ const KB_STUCK_SECOND_BACK = false;
  * focused field never commits a targetless Enter. Flipping restores focus-sum
  * on any clause. Never flip in shipped code. */
 const KB_PRESS_FOCUS_KEYGUARD = false;
+/** r24e KB proof switch: a pick round's verb is aligned to the clause it names — a `press` pick whose current clause is a
+ * type/fill clause (it names no press) and whose NEXT clause names that press (and the same key, when it names one) runs
+ * on the next clause: the cursor moves to it before the act, so the evidence advance leaves it behind (r24d t11 rep 1:
+ * the caller trimmed its steps to the remaining ones and picked the press of "type item2 and press Enter" while
+ * cursor 0 was the type clause whose fill had landed earlier; the press acted under cursor 0, the cursor stayed, the
+ * type clause re-filled and the next call submitted item2 a second time). Flipping restores the pick on the cursor
+ * clause. Never flip in shipped code. */
+const KB_PICK_VERB_ALIGN = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24c F3: a clause that waits ("wait until the hidden text appears"). */
@@ -1002,6 +1010,23 @@ export function parseKeyPress(step: string): PressKey | undefined {
   if (matches.length !== 1) return undefined;
   const norm = matches[0][1].toLowerCase().replace(/\s*\+\s*/g, '+').replace(/\s+/g, ' ');
   return KEY_NAMES[norm];
+}
+
+/** r24e: a clause that presses a key ("press Enter", "hit Tab", "push Escape"). */
+const PICK_PRESS_VERB_RE = /\b(?:press|hit|push)\b/i;
+/** r24e: a clause that types into a field. `enter` counts only because a clause naming a press never reaches this test. */
+const PICK_FILL_VERB_RE = /\b(?:type|fill|input|write|enter)\b/i;
+
+/** r24e: does a chain pick's verb belong to the NEXT clause rather than the cursor clause? True only for a `press` pick
+ * whose cursor clause types without pressing and whose next clause presses (the same key, when that clause names one).
+ * Every other pick shape (the verb fits the cursor clause, fits neither, any non-press verb, a click clause, no next
+ * clause, another key) stays on the cursor clause exactly as before. */
+export function pickAlignsToNextClause(pick: { action: string; key?: string }, current: string, next: string | undefined): boolean {
+  if (pick.action !== 'press' || next === undefined) return false;
+  if (PICK_PRESS_VERB_RE.test(current) || !PICK_FILL_VERB_RE.test(current)) return false;
+  if (!PICK_PRESS_VERB_RE.test(next)) return false;
+  const named = parseKeyPress(next);
+  return named === undefined || named === (pick.key ?? 'Enter');
 }
 
 /** r17 (D4): the count a "scroll until at least N items" clause names —
@@ -4001,6 +4026,31 @@ async function runTool(
         // After the pick, legacy continues as a committed takeover (§ 5.6).
         entryPending = false;
         const pick = entry!.pick!;
+        // r24e: the pick's verb names the NEXT clause (the cursor clause already ran): move the cursor onto it BEFORE the
+        // act, with the in-call advance resets, so the act books under the press clause and the evidence advance leaves it.
+        if (
+          !KB_PICK_VERB_ALIGN &&
+          chain &&
+          pickAlignsToNextClause(pick, chain.clauses[chain.cursor], chain.clauses[chain.cursor + 1])
+        ) {
+          chain.cursor += 1;
+          chain.clauseRetried = false;
+          chain.wrongPageRounds = 0;
+          chain.notReadyRounds = 0;
+          chain.recoverActs = 0;
+          chain.cursorActed = false;
+          chain.stuckUsed = false;
+          chain.stuckSecondUsed = false;
+          chain.waitBegin = null;
+          chain.stuckPending = null;
+          chain.retryNone = false;
+          chain.priorClicks = [];
+          chain.loginSeen = false;
+          chain.responsePage = false;
+          activeStepText = chain.clauses[chain.cursor];
+          bucket.cursor = chain.cursor;
+          bucket.step_text = clauseText(chain.cursor);
+        }
         const pickTele: NonNullable<PhaseRound['pickArgs']> = {
           action: pick.action,
           ...(pick.role !== undefined ? { role: attr20(redaction.redact(pick.role)) } : {}),
