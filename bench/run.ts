@@ -90,6 +90,8 @@ export interface BenchRunRecord {
   };
   typesafe: { calls: number; input_tokens: number; output_tokens: number; usd: number };
   wingman: { calls: number; fallback: number; needs_confirmation: number };
+  // r24d: true when every wingman log record of this cell ended fallback/jev-error with zero Jev tokens (see jevDownCell).
+  jev_down?: true;
   // Phase breakdown (ms) read from the run's log records. Present only when
   // at least one wingman record carried phases. Round-level values are
   // medians across all rounds of the run; attach_ms is the invocation sum,
@@ -152,7 +154,7 @@ export interface BenchResultsFile {
   model: string;
   cap_usd: number;
   phase_cap_usd: number;
-  aborted: null | 'cap' | 'error';
+  aborted: null | 'cap' | 'error' | 'jev-down';
   total_usd: number;
   config?: BenchRunConfig; // r24b: the effective run config (spec .build-r24b-spec.md section 3)
   baseline?: { file: string; expect_diff: string[] }; // r24b: the baseline this run was compared to (--baseline / --expect-diff)
@@ -698,6 +700,36 @@ export function deriveRawCounts(counts: Record<string, number>, profile: Profile
   return { raw_acts, raw_script };
 }
 
+/** r24d: consecutive wingman-route cells that must read `jev_down` before the run stops. */
+export const JEV_DOWN_STREAK = 3;
+
+/**
+ * r24d detection rule (the smallest the run records can see): a cell is "decision service down" when its fresh log slice has
+ * at least one wingman record, EVERY record ended status `fallback` with reason `jev-error` (or `breaker-open`, the loop's
+ * name for repeated jev failures), and the records carry zero Jev tokens in total. A 402/401 reaches the log only as
+ * `jev-error` plus 0 tokens (the HTTP status is never logged), so that pair is the whole signal. One transient jev-error
+ * cannot trip it: a healthy call in the same cell carries tokens or a non-fallback end, and `runBench` stops only after
+ * JEV_DOWN_STREAK consecutive wingman-route cells (playwright cells neither count nor reset) read down.
+ */
+export function jevDownCell(freshLines: string[]): boolean {
+  let records = 0;
+  let tokens = 0;
+  for (const line of freshLines) {
+    if (!line.trim()) continue;
+    let rec: { status?: unknown; reason?: unknown; input_tokens?: unknown; output_tokens?: unknown };
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (typeof rec.status !== 'string') continue;
+    records += 1;
+    if (rec.status !== 'fallback' || (rec.reason !== 'jev-error' && rec.reason !== 'breaker-open')) return false;
+    tokens += (typeof rec.input_tokens === 'number' ? rec.input_tokens : 0) + (typeof rec.output_tokens === 'number' ? rec.output_tokens : 0);
+  }
+  return records > 0 && tokens === 0;
+}
+
 const START_BASE = 'https://the-internet.herokuapp.com';
 
 // r18: the start URL for a task. Three branches, in order: a local task with a
@@ -862,6 +894,7 @@ function defaultRunOne(ctx: RunContext, secretsFile: string | null): BenchDeps['
           : { calls: 0, fallback: 0, needs_confirmation: 0 },
       ...(route !== 'playwright' ? { wingman_phases: wingmanPhases } : {}),
       usd,
+      ...(route !== 'playwright' && jevDownCell(freshLines) ? { jev_down: true as const } : {}),
       handoff_records: handoffRecords,
       handoffs: handoffRecords.length,
       picks: handoffRecords.filter((r) => r.pick === true).length,
@@ -1289,8 +1322,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
   warnObserved(['chrome_version']);
 
   const runs: BenchRunRecord[] = [];
-  let aborted: null | 'cap' | 'error' = null;
+  let aborted: null | 'cap' | 'error' | 'jev-down' = null;
   let exitCode = 0;
+  let jevDownStreak = 0;
   let runIndex = 0;
   let postChecked = false;
   const listsWarnedRoutes = new Set<string>();
@@ -1349,6 +1383,19 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
             aborted = 'cap';
             exitCode = 3;
             break;
+          }
+          // r24d: the decision service is evidently dead (exit 5, distinct from cap 3 and baseline-model 4); spend so far is
+          // already in `runs`, so the results file and the phase ledger count it.
+          if (record.route !== 'playwright') {
+            jevDownStreak = record.jev_down === true ? jevDownStreak + 1 : 0;
+            if (jevDownStreak >= JEV_DOWN_STREAK) {
+              process.stdout.write(
+                `BENCH-ABORTED: decision service down after ${runIndex} runs (${jevDownStreak} consecutive wingman cells ended jev-error with zero Jev tokens)\n`,
+              );
+              aborted = 'jev-down';
+              exitCode = 5;
+              break;
+            }
           }
         }
         if (aborted) break;

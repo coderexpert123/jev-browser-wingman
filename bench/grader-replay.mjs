@@ -706,6 +706,20 @@ async function cmdCapture(opts) {
   process.stdout.write(
     `capture: ${outLines.length} rounds -> ${outPath} (${calls.length} calls, thresholds from ${baseline.source})\n`,
   );
+  // r24d: a capture over a dead decision service (HTTP 402/401/5xx, network) holds no probabilities and a later replay of it
+  // would read as an empty green run, so any non-ok Jev response (or a call that ended jev-error) fails the capture: exit 3
+  // (2 is usage). The file is still written above so the evidence survives.
+  const badAsks = asks.filter((a) => !a.response?.ok);
+  const jevErrorCalls = calls.filter((c) => c.reason === 'jev-error');
+  if (badAsks.length > 0 || jevErrorCalls.length > 0) {
+    const first = badAsks[0]?.response;
+    process.stderr.write(
+      `capture: FAILED - ${badAsks.length} of ${asks.length} Jev responses were not ok` +
+        (first ? ` (first: ${first.error ?? 'unknown'}${first.status ? ` status ${first.status}` : ''})` : '') +
+        `, ${jevErrorCalls.length} of ${calls.length} calls ended jev-error\n`,
+    );
+    process.exitCode = 3;
+  }
 }
 
 async function cmdReplay(opts) {

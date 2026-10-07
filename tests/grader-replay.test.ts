@@ -4,7 +4,7 @@
 // must be able to FAIL, proven against a corrupted capture).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -457,6 +457,62 @@ test('capture --call parses a url and a browse_step JSON object; bad JSON exits 
       assert.match(r.out, /--call needs a page url and a JSON object/, bad);
     }
   } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --- capture over a dead decision service (r24d) -------------------------------------------------------------------------
+// The harness runs as a child process, so the stub Jev must answer from THIS process's event loop: an async spawn, never
+// execFileSync (which would block the loop and deadlock the stub). The capture launches a real headless Chrome on a fixture.
+
+function nodeAsync(args: string[], env: NodeJS.ProcessEnv): Promise<{ status: number; out: string }> {
+  return new Promise((resolve) => {
+    execFile(process.execPath, [harnessPath, ...args], { encoding: 'utf8', windowsHide: true, cwd: harnessRepoRoot(), env, timeout: 150_000 }, (err, stdout, stderr) => {
+      const code = err ? (typeof (err as { code?: unknown }).code === 'number' ? ((err as { code: number }).code) : -1) : 0;
+      resolve({ status: code, out: `${stdout}${stderr}` });
+    });
+  });
+}
+
+test('capture exits nonzero when the decision service answers 402, and still writes its file', { timeout: 180_000 }, async () => {
+  const { startTypeSafeStub } = await import('./helpers/typesafe-stub.js');
+  const stub = await startTypeSafeStub(() => ({ status: 402, body: { error: 'payment required' } }));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grader-replay-402-'));
+  try {
+    const outPath = path.join(dir, 'cap.jsonl');
+    const run = await nodeAsync(['capture', '--out', outPath, '--task', 'form', 'fill the field'], {
+      ...process.env,
+      TYPESAFE_API_KEY: 'dummy-key',
+      TYPESAFE_BASE_URL: stub.url,
+    });
+    assert.ok(stub.requests.length >= 1, `the stub was reached: ${run.out}`);
+    assert.notEqual(run.status, 0, run.out);
+    assert.equal(run.status, 3, run.out);
+    assert.match(run.out, /capture: FAILED - \d+ of \d+ Jev responses were not ok \(first: http status 402\)/);
+    assert.ok(fs.existsSync(outPath), 'the evidence file is still written');
+  } finally {
+    await stub.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('capture still exits 0 against a healthy decision service (the failure above is not unconditional)', { timeout: 180_000 }, async () => {
+  const { startTypeSafeStub, fillDefaultAnswers } = await import('./helpers/typesafe-stub.js');
+  const stub = await startTypeSafeStub((body) => ({
+    status: 200,
+    body: { answers: fillDefaultAnswers((body.questions ?? {}) as Record<string, { type: string; criteria?: Record<string, unknown> }>, {}), usage: { input_tokens: 10, output_tokens: 2 } },
+  }));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'grader-replay-ok-'));
+  try {
+    const run = await nodeAsync(['capture', '--out', path.join(dir, 'cap.jsonl'), '--task', 'form', 'fill the field'], {
+      ...process.env,
+      TYPESAFE_API_KEY: 'dummy-key',
+      TYPESAFE_BASE_URL: stub.url,
+    });
+    assert.ok(stub.requests.length >= 1, `the stub was reached: ${run.out}`);
+    assert.equal(run.status, 0, run.out);
+  } finally {
+    await stub.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
