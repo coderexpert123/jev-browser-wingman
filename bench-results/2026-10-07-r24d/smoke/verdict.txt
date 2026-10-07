@@ -1,14 +1,15 @@
 a PASS
 b PASS
 c PASS
-N=6
+N=4
 g PASS
 i PASS
-run t4-add-elements ok=false wall_ms=18275
-run t11-todomvc-spa ok=false wall_ms=15640
-total_usd 0.419656 aborted null
-h titles=6 PASS
+run t4-add-elements ok=true wall_ms=29290 ts_in=7107 ts_out=1850 calls=1
+run t11-todomvc-spa ok=true wall_ms=26447 ts_in=31372 ts_out=8071 calls=3
+total_usd 0.379894 aborted null
+h titles=19 PASS
 d PASS
-e PASS (log_stance off/off=6, handoff_records sum 6)
-f PASS (with_url=6)
+e PASS (log_stance off/off=4, handoff_records sum 4)
+f PASS (with_url=19)
 j PASS (leaks=0 files=2 hits=0, exit=0)
+k PASS (pre-smoke probe exit 0 status 200; smoke has done/goal-met and step-uncertain records, no jev-error; Jev tokens non-zero)

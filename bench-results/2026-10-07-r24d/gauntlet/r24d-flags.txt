@@ -1,0 +1,1 @@
+r24c_flags stateEvidence=5 waitEvidence=2 stuckSecond=1 pressFocusSum=2
