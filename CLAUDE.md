@@ -182,6 +182,13 @@ probe if it returns.
   BROWSE_STEP_DESCRIPTION's 'same arguments' sentence is unchanged; not
   re-measured since.
 
+- **Redaction is session-scoped since r24c/r24d (0.3.1)**: every outbound string (Jev request, `log.jsonl`, pick
+  output; `wingman_check` included) is redacted with the current call's values PLUS a per-process value memory
+  (1024, least-recently-bound eviction, memory only), including percent-encoded spellings; request and log backstops
+  re-redact free-text fields only, results have none, and the Jev wire is never logged (proof: `redaction-e2e`, the
+  `grader-replay capture --call` probe, `bench/leak-scan.mjs`). Details: `src/core/CLAUDE.md` § r24c. Tool text,
+  README and SKILL.md promise exactly this scope; change them together.
+
 ## Chrome lifecycle & teardown
 
 - **The runner token sweep is the leak guarantee; per-test finally-blocks
@@ -386,6 +393,9 @@ probe if it returns.
   with bare spaces**: embed the quotes in the argument string or an
   unquoted `--user-data-dir=<path with spaces>` splits, Chrome starts on a
   bogus profile that `ensureChrome` refuses.
+- **`chain-e2e` passes its 20 tests then does not exit on this box** (observed r24 through r24e, base included):
+  run it as `timeout 330 node --test --test-reporter=tap dist/tests/chain-e2e.test.js` in Git Bash, read the 20 `ok`
+  lines, treat the trailing exit-124 `not ok` as the kill, and sweep `wingman-ephemeral-` Chromes after.
 - **An `Edit` whose `new_string` re-includes a block adjacent to the deleted one duplicates it** (the removed `visibility` read sat right AFTER the structurally similar `viewport` block, de78ea2; tsc catches it only when it is a redeclaration). Read the whole file after any edit that
   deletes a block next to a structurally identical one.
 
