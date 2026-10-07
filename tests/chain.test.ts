@@ -5901,3 +5901,32 @@ test('T-r24e-guards: a pick that fits the current clause, or fits neither clause
   const f = await run('f', [TYPE_ITEM2], r24ePick());
   assert.equal(r24eCursors(f)[0], 0, 'no next clause, no skip');
 });
+
+// r24e verifier: the alignment skips a type clause on the strength of the caller's press pick alone. It must (a) need
+// the press target to hold text (an empty field is no evidence the fill landed: the skip would end done with the value
+// never typed) and (b) move the cursor only when the pick actually acts (the cursor is stored in chain memory).
+const r24eInputAt = (filled: boolean, extra: Partial<ElementRecord> = {}): ElementRecord => ({ ...r24eInput(), state: { disabled: false, filled }, ...extra });
+const R24E_STEPS = [`${TYPE_ITEM2} and press Enter`, "check the first todo item's complete checkbox"];
+
+test('T-r24e-empty: a press pick on an EMPTY field does not skip the type clause (the fill still runs)', async () => {
+  const h = harness({ observations: { p1: [observation({ elements: [r24eInputAt(false)] })] }, script: [], ask: r24eAsk() });
+  await h.call({ goal: 'chain-r24e-empty goal', steps: R24E_STEPS, values: TODO_VALUES, pick: r24ePick() });
+  assert.equal(r24eCursors(h)[0], 0, 'the pick round stays on the type clause');
+  assert.ok(r24eOps(h).includes('fill'), `the value is typed, ops ${JSON.stringify(r24eOps(h))}`);
+});
+
+test('T-r24e-unresolved: a pick that does not act leaves the cursor on the type clause for the resume', async () => {
+  const h = harness({ observations: { p1: [observation({ elements: [r24eInputAt(true)] })] }, script: [], ask: r24eAsk() });
+  const r1 = await h.call({ goal: 'chain-r24e-unresolved goal', steps: R24E_STEPS, values: TODO_VALUES, pick: r24ePick({ name: 'No Such Box' }) });
+  assert.equal(r1.reason, 'target-uncertain');
+  await h.call({ goal: 'chain-r24e-unresolved goal', steps: R24E_STEPS, values: TODO_VALUES });
+  assert.equal(r24eCursors(h)[0], 0, 'the resume starts on the type clause, not past it');
+});
+
+test('T-r24e-covered: a covered press target leaves the cursor on the type clause for the resume', async () => {
+  const h = harness({ observations: { p1: [observation({ elements: [r24eInputAt(true, { obscured: true, coveredBy: 'div#overlay' })] })] }, script: [], ask: r24eAsk() });
+  const r1 = await h.call({ goal: 'chain-r24e-covered goal', steps: R24E_STEPS, values: TODO_VALUES, pick: r24ePick() });
+  assert.equal(r1.reason, 'target-covered');
+  await h.call({ goal: 'chain-r24e-covered goal', steps: R24E_STEPS, values: TODO_VALUES });
+  assert.equal(r24eCursors(h)[0], 0, 'the resume starts on the type clause, not past it');
+});

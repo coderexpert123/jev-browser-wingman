@@ -4026,31 +4026,6 @@ async function runTool(
         // After the pick, legacy continues as a committed takeover (§ 5.6).
         entryPending = false;
         const pick = entry!.pick!;
-        // r24e: the pick's verb names the NEXT clause (the cursor clause already ran): move the cursor onto it BEFORE the
-        // act, with the in-call advance resets, so the act books under the press clause and the evidence advance leaves it.
-        if (
-          !KB_PICK_VERB_ALIGN &&
-          chain &&
-          pickAlignsToNextClause(pick, chain.clauses[chain.cursor], chain.clauses[chain.cursor + 1])
-        ) {
-          chain.cursor += 1;
-          chain.clauseRetried = false;
-          chain.wrongPageRounds = 0;
-          chain.notReadyRounds = 0;
-          chain.recoverActs = 0;
-          chain.cursorActed = false;
-          chain.stuckUsed = false;
-          chain.stuckSecondUsed = false;
-          chain.waitBegin = null;
-          chain.stuckPending = null;
-          chain.retryNone = false;
-          chain.priorClicks = [];
-          chain.loginSeen = false;
-          chain.responsePage = false;
-          activeStepText = chain.clauses[chain.cursor];
-          bucket.cursor = chain.cursor;
-          bucket.step_text = clauseText(chain.cursor);
-        }
         const pickTele: NonNullable<PhaseRound['pickArgs']> = {
           action: pick.action,
           ...(pick.role !== undefined ? { role: attr20(redaction.redact(pick.role)) } : {}),
@@ -4116,6 +4091,37 @@ async function runTool(
             evidence.push({ label: capLabel(redaction.redact(pickEl.coveredBy)) });
           }
           return mk('fallback', 'target-covered', entryReview('target-covered', evidence));
+        }
+        // r24e: the pick's verb names the NEXT clause (the cursor clause already ran): move the cursor onto it BEFORE the
+        // act, with the in-call advance resets, so the act books under the press clause and the evidence advance leaves it.
+        // Runs only once the pick RESOLVED and is about to act (a pick that ends ambiguous/covered/unsupported moves nothing:
+        // the cursor is stored in chain memory), and only when the press target holds text (`state.filled`): an empty field
+        // is no evidence the skipped type clause's fill landed (r24e verifier: it would end done with the value never typed).
+        if (
+          !KB_PICK_VERB_ALIGN &&
+          chain &&
+          pickVerb === 'press' &&
+          pickEl !== null &&
+          pickEl.state.filled === true &&
+          pickAlignsToNextClause(pick, chain.clauses[chain.cursor], chain.clauses[chain.cursor + 1])
+        ) {
+          chain.cursor += 1;
+          chain.clauseRetried = false;
+          chain.wrongPageRounds = 0;
+          chain.notReadyRounds = 0;
+          chain.recoverActs = 0;
+          chain.cursorActed = false;
+          chain.stuckUsed = false;
+          chain.stuckSecondUsed = false;
+          chain.waitBegin = null;
+          chain.stuckPending = null;
+          chain.retryNone = false;
+          chain.priorClicks = [];
+          chain.loginSeen = false;
+          chain.responsePage = false;
+          activeStepText = chain.clauses[chain.cursor];
+          bucket.cursor = chain.cursor;
+          bucket.step_text = clauseText(chain.cursor);
         }
         // The pick uses the shared gate (heuristic only) and the shared act
         // site; participation is always execute (§ 5.6).
