@@ -1,0 +1,4 @@
+LEAK /tmp/r24b-known-bad/log-slice.jsonl t11-todomvc-spa.item1 hits=15
+LEAK /tmp/r24b-known-bad/log-slice.jsonl t11-todomvc-spa.item2 hits=2
+leaks=1 files=1 hits=17
+exit=1
