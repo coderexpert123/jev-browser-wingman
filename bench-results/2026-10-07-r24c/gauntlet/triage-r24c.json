@@ -1,0 +1,908 @@
+{
+  "offset": 0,
+  "handback_total": 40,
+  "classes": {
+    "target-uncertain": 1,
+    "press-split": 1,
+    "landed-not-advanced": 2,
+    "other": 36
+  },
+  "no_wingman_done_cells": [
+    "t6-dynamic-loading#2",
+    "t7-sort-table#2",
+    "t8-status-404#2",
+    "t9-long-chain#2",
+    "t10-saucedemo-checkout#2",
+    "t11-todomvc-spa#2",
+    "t12-js-confirm-dialog#2",
+    "t13-infinite-scroll#2",
+    "t14-key-press#2",
+    "t15-file-upload#2",
+    "t16-hover-reveal#2",
+    "t17-double-click#2"
+  ],
+  "byRoute": {
+    "playwright": {
+      "runs": 34,
+      "ok": 32,
+      "usd_total": 5.411069,
+      "usd_median": 0.176356,
+      "tool_calls_total": 187,
+      "tool_calls_median": 4,
+      "tool_calls_mean": 5.5,
+      "wall_median_ms": 11111.5
+    },
+    "forced": {
+      "runs": 34,
+      "ok": 23,
+      "usd_total": 4.342517,
+      "usd_median": 0.115113,
+      "tool_calls_total": 105,
+      "tool_calls_median": 2.5,
+      "tool_calls_mean": 3.088235,
+      "wall_median_ms": 12480.5
+    }
+  },
+  "handbacks": [
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "low-confidence",
+      "class": "target-uncertain"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 1,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "press-split"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "call": 2,
+      "end": "fallback/step-uncertain",
+      "why": "no-match",
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "call": 4,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "landed-not-advanced"
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "call": 1,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "call": 2,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "call": 3,
+      "end": "fallback/jev-error",
+      "why": null,
+      "class": "other"
+    }
+  ],
+  "flags": [
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 1,
+      "flag": "readySkipped",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "call": 1,
+      "round": 5,
+      "flag": "waitEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 1,
+      "round": 38,
+      "flag": "finalNavEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 2,
+      "round": 4,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "call": 2,
+      "round": 10,
+      "flag": "stuckSecond",
+      "suspect": true
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "call": 2,
+      "round": 4,
+      "flag": "sameDocEvidence",
+      "suspect": false
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "call": 1,
+      "round": 4,
+      "flag": "pressFocusSum",
+      "suspect": false
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "call": 1,
+      "round": 2,
+      "flag": "hoverEvidence",
+      "suspect": false
+    }
+  ],
+  "cells": [
+    {
+      "task": "t1-checkboxes",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161371
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162037
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162278
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.055026
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161799
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161678
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.161454
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 1,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.183074
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 1,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 4,
+      "usd": 0.214063
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 1,
+      "ok": true,
+      "calls": 2,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 3,
+      "usd": 0.196357
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 1,
+      "ok": true,
+      "calls": 3,
+      "handbacks": 2,
+      "wingman_done": true,
+      "tool_calls": 4,
+      "usd": 0.109647
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 4,
+      "usd": 0.201435
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.16223
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162073
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162746
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.162791
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 1,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.16163
+    },
+    {
+      "task": "t1-checkboxes",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054262
+    },
+    {
+      "task": "t2-dropdown",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054278
+    },
+    {
+      "task": "t3-dynamic-controls",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.055141
+    },
+    {
+      "task": "t4-add-elements",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.055101
+    },
+    {
+      "task": "t5-inputs",
+      "rep": 2,
+      "ok": true,
+      "calls": 1,
+      "handbacks": 0,
+      "wingman_done": true,
+      "tool_calls": 2,
+      "usd": 0.054687
+    },
+    {
+      "task": "t6-dynamic-loading",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.098126
+    },
+    {
+      "task": "t7-sort-table",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.098197
+    },
+    {
+      "task": "t8-status-404",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.097824
+    },
+    {
+      "task": "t9-long-chain",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.118419
+    },
+    {
+      "task": "t10-saucedemo-checkout",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.111806
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.104174
+    },
+    {
+      "task": "t12-js-confirm-dialog",
+      "rep": 2,
+      "ok": true,
+      "calls": 4,
+      "handbacks": 4,
+      "wingman_done": false,
+      "tool_calls": 9,
+      "usd": 0.205805
+    },
+    {
+      "task": "t13-infinite-scroll",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.098475
+    },
+    {
+      "task": "t14-key-press",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.097218
+    },
+    {
+      "task": "t15-file-upload",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.10199
+    },
+    {
+      "task": "t16-hover-reveal",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.098506
+    },
+    {
+      "task": "t17-double-click",
+      "rep": 2,
+      "ok": false,
+      "calls": 3,
+      "handbacks": 3,
+      "wingman_done": false,
+      "tool_calls": 4,
+      "usd": 0.096819
+    }
+  ],
+  "config": {
+    "config_version": 1,
+    "gate_mode": "off",
+    "policy_mode": "off",
+    "git_head": "2f8e460179f1c6c6c135df98013f3fa15271c685",
+    "git_dirty": false,
+    "routes": [
+      "playwright",
+      "forced"
+    ],
+    "repeats": 2,
+    "tasks": [
+      "t1-checkboxes",
+      "t2-dropdown",
+      "t3-dynamic-controls",
+      "t4-add-elements",
+      "t5-inputs",
+      "t6-dynamic-loading",
+      "t7-sort-table",
+      "t8-status-404",
+      "t9-long-chain",
+      "t10-saucedemo-checkout",
+      "t11-todomvc-spa",
+      "t12-js-confirm-dialog",
+      "t13-infinite-scroll",
+      "t14-key-press",
+      "t15-file-upload",
+      "t16-hover-reveal",
+      "t17-double-click"
+    ],
+    "model": "sonnet",
+    "log_labels": true,
+    "caller_cli_version": "2.1.292",
+    "adapter": "playwright",
+    "harness_version": 3,
+    "playwright_mcp": "@playwright/mcp@0.0.80",
+    "wingman_config_sha256": {
+      "playwright": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "wingman": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "browse": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "forced": "3735e56fd01871cc2bd3f077eeab00e90479a8607d2bee3506a64f6b7e0f076b"
+    },
+    "mcp_config_sha256": {
+      "playwright": "cb482cf816c0f1258cbc35fef82623a5c4728bf34e82cb7f8282f95a25da73cb",
+      "wingman": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "browse": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "forced": "b22a6bc6c776b6c57ee29e18f2223c80a1909a182c27a9b4a63189879ddfa44d"
+    },
+    "caller_argv_sha256": {
+      "playwright": "fb2553ff594cb24e32364e7f352d5f3442c41821d3a064c67944cb3d56269095",
+      "wingman": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "browse": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "forced": "d5106ff0065b9757d63a65894abc41508562f75bed6ff2fd630840cd7a6fe1cd"
+    },
+    "tool_text_sha256": "4ce7f785dfac0c4ec22e1441408486dd9ad56b05adb99b8a863a3b0750004513",
+    "tasks_sha256": "e2ff2f0737df21c50fa7ed06d65c7ca27a796eb2b35d4f1d8c060918b51478e4",
+    "prompts_sha256": "7c9dcc33b4a65dffd9439f100d065dd0f771429667b200276cf007b6de9b46f6",
+    "fixtures_sha256": "e0ae18e08fb69fa6b82567617cc49796bee284a0de6e75bd026471e2565ef8fd",
+    "profile_sha256": "ca39002d4236fc902643ef357bdea1be90ea174ec3fe1633935a724190f9b882",
+    "fixture_server": true,
+    "max_turns_by_route": {
+      "playwright": 40,
+      "wingman": 40,
+      "browse": 40,
+      "forced": 30
+    },
+    "per_run_timeout_ms": 600000,
+    "caller_model": "claude-sonnet-5-5"
+  },
+  "policy_ends": {
+    "total": 0,
+    "needs_confirmation": 0,
+    "sensitive": 0,
+    "unsupported_page": 0
+  },
+  "observed": {
+    "node_version": "v22.22.0",
+    "chrome_version": "Chrome/141.0.7390.37",
+    "caller_tools_sha256": {
+      "playwright": "eb118c362480aa65c7a91633b3418492a665483f32617faf1435bfcc67ee9161",
+      "forced": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2"
+    },
+    "caller_skills_sha256": {
+      "playwright": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+      "forced": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301"
+    },
+    "caller_plugins_sha256": {
+      "playwright": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+      "forced": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0"
+    },
+    "caller_agents_sha256": {
+      "playwright": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+      "forced": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d"
+    },
+    "caller_mcp_servers_sha256": {
+      "playwright": "9811ff690b4db4e77225c6059c9f336fa13495ca455d836a0f9da472b7ce20d6",
+      "forced": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728"
+    },
+    "caller_hooks_sha256": {
+      "playwright": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "forced": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "log_stance": {
+    "off/off": 65
+  },
+  "telemetry": {
+    "rounds": 193,
+    "with_url": 193
+  },
+  "suspect_lines": [
+    "suspect t9-long-chain#1/call2/r10/stuckSecond",
+    "  r1 ms=8/145/70/254 kind=act cursor=0 url=\"http://127.0.0.1:43999/dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open the link named Example 2: Element rendered after the fact\" action=click actionP=0.93 stepDoneP=0.1 readyP=0.45 rightPageP=0.71 doneP=0.03 cands=[{\"id\":\"e2\",\"p\":0.99,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 2: Element rendered after the fa\"},{\"id\":\"none\",\"p\":0.01},{\"id\":\"ambiguous\",\"p\":0}] act={\"verb\":\"click\",\"id\":\"e2\",\"role\":\"link\",\"tag\":\"a\",\"label\":\"Example 2: Element rendered after the fa\",\"ok\":true}",
+    "  r2 ms=9/139/0/0 kind=advance cursor=0 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=2 th=1ly9bf8 title=\"The Internet\" step=\"open the link named Example 2: Element rendered after the fact\" action=click actionP=0.61 stepDoneP=0.62 readyP=0.43 rightPageP=0.72 errorP=0.11 doneP=0.05 cands=[{\"id\":\"e1\",\"p\":0.9,\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\"},{\"id\":\"none\",\"p\":0.08},{\"id\":\"e2\",\"p\":0.01,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"}] historyResult=\"element gone\" leftPage=true flags=clickEvidence",
+    "  r3 ms=8/118/107/214 kind=act cursor=1 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=2 th=1ly9bf8 title=\"The Internet\" step=\"click the Start button\" action=click actionP=0.59 stepDoneP=0.18 readyP=0.36 rightPageP=0.74 errorP=0.15 doneP=0.06 cands=[{\"id\":\"e1\",\"p\":0.96,\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\"},{\"id\":\"none\",\"p\":0.04},{\"id\":\"e2\",\"p\":0,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"}] historyResult=\"element gone\" leftPage=true act={\"verb\":\"click\",\"id\":\"e1\",\"role\":\"button\",\"tag\":\"button\",\"label\":\"Start\",\"ok\":true}",
+    "  r4 ms=11/132/0/0 kind=advance cursor=1 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"click the Start button\" action=wait actionP=0.7 stepDoneP=0.42 readyP=0.31 rightPageP=0.73 errorP=0.08 doneP=0.06 cands=[{\"id\":\"none\",\"p\":0.91},{\"id\":\"ambiguous\",\"p\":0.06},{\"id\":\"e1\",\"p\":0.03,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"}] historyResult=\"element gone\" leftPage=false flags=sameDocEvidence,clickEvidence",
+    "  r5 ms=8/159/3007/215 kind=wait cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.56 stepDoneP=0.09 readyP=0.29 rightPageP=0.59 errorP=0.09 doneP=0.05 cands=[{\"id\":\"none\",\"p\":0.97},{\"id\":\"e1\",\"p\":0.02,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.01}] historyResult=\"element gone\" leftPage=false act={\"verb\":\"wait\",\"ok\":true}",
+    "  r6 ms=6/154/0/0 cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.4 stepDoneP=0.1 readyP=0.32 rightPageP=0.57 errorP=0.09 doneP=0.06 cands=[{\"id\":\"none\",\"p\":0.94},{\"id\":\"e1\",\"p\":0.04,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.02}] leftPage=false",
+    "  r7 ms=6/123/0/0 cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.54 stepDoneP=0.1 readyP=0.3 rightPageP=0.57 errorP=0.1 doneP=0.06 cands=[{\"id\":\"none\",\"p\":0.94},{\"id\":\"e1\",\"p\":0.04,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.02}] leftPage=false",
+    "  r8 ms=6/136/27/219 kind=act cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading/2\" els=1 th=1o89h8o title=\"The Internet\" step=\"open Status Codes\" leftPage=false act={\"verb\":\"back\",\"ok\":true} stuck=\"back\"",
+    "  r9 ms=7/145/0/0 cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.82 stepDoneP=0.09 readyP=0.49 rightPageP=0.67 errorP=0.09 doneP=0.07 cands=[{\"id\":\"none\",\"p\":0.97},{\"id\":\"e3\",\"p\":0.01,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Elemental Selenium\"},{\"id\":\"ambiguous\",\"p\":0.01}] historyResult=\"page changed\" leftPage=true",
+    "  r10 ms=7/0/20/216 kind=act cursor=2 url=\"http://127.0.0.1:43999/dynamic_loading\" els=3 th=1v37pu9 title=\"The Internet\" step=\"open Status Codes\" historyResult=\"page changed\" leftPage=true act={\"verb\":\"back\",\"ok\":true} stuck=\"back\" flags=stuckSecond",
+    "  r11 ms=8/153/0/218 kind=error cursor=2 url=\"http://127.0.0.1:43999/\" els=13 th=1lka8tc title=\"The Internet\" step=\"open Status Codes\" action=click actionP=0.95 stepDoneP=0.11 readyP=0.53 rightPageP=0.75 errorP=0.1 doneP=0.06 cands=[{\"id\":\"e11\",\"p\":1,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Status Codes\"},{\"id\":\"e6\",\"p\":0,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Forgot Password\"},{\"id\":\"e4\",\"p\":0,\"role\":\"link\",\"tag\":\"a\",\"label\":\"Dynamic Controls\"}] historyResult=\"page changed\" leftPage=true act={\"verb\":\"click\",\"id\":\"e11\",\"role\":\"link\",\"tag\":\"a\",\"label\":\"Status Codes\",\"navRetry\":true}"
+  ]
+}

@@ -1,0 +1,14 @@
+a PASS
+b PASS
+c PASS
+N=4
+g PASS
+i PASS
+run t4-add-elements ok=true wall_ms=27285 usd=0.165138
+run t11-todomvc-spa ok=true wall_ms=17705 usd=0.214488
+total_usd 0.379626
+h titles=19 PASS
+d PASS
+e PASS (log_stance off/off=4, handoff_records sum 4)
+f PASS (with_url=19)
+j PASS (leaks=0 files=2 hits=0, exit=0)

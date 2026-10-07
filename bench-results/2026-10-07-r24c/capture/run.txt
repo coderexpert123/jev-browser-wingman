@@ -1,0 +1,2 @@
+capture: 2 rounds -> /home/user/jev-browser-wingman/bench-results/2026-10-07-r24c/capture/xcall.jsonl (2 calls, thresholds from dist/src/contract/constants.js)
+exit=0
