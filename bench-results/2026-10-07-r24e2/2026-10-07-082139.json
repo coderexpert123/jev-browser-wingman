@@ -1,0 +1,612 @@
+{
+  "date": "2026-10-07-082139.json",
+  "purpose": "experiment",
+  "harness_version": 3,
+  "model": "sonnet",
+  "cap_usd": 1,
+  "phase_cap_usd": 130.714692,
+  "aborted": null,
+  "total_usd": 0.432318,
+  "config": {
+    "config_version": 1,
+    "gate_mode": "off",
+    "policy_mode": "off",
+    "git_head": "e0172ef6382e007133b88b2a70d33c18ee286573",
+    "git_dirty": false,
+    "routes": [
+      "forced"
+    ],
+    "repeats": 4,
+    "tasks": [
+      "t11-todomvc-spa"
+    ],
+    "model": "sonnet",
+    "log_labels": true,
+    "caller_cli_version": "2.1.292",
+    "adapter": "playwright",
+    "harness_version": 3,
+    "playwright_mcp": "@playwright/mcp@0.0.80",
+    "wingman_config_sha256": {
+      "playwright": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "wingman": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "browse": "7db8441a1a4845f474b65b2705cec45a9965362b8886255c9dfb7a2bcb5cfc09",
+      "forced": "3735e56fd01871cc2bd3f077eeab00e90479a8607d2bee3506a64f6b7e0f076b"
+    },
+    "mcp_config_sha256": {
+      "playwright": "cb482cf816c0f1258cbc35fef82623a5c4728bf34e82cb7f8282f95a25da73cb",
+      "wingman": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "browse": "eddf514350cbc4545142aa1d7f04bb33674285d2bdba66389ae7fe720efb3d33",
+      "forced": "b22a6bc6c776b6c57ee29e18f2223c80a1909a182c27a9b4a63189879ddfa44d"
+    },
+    "caller_argv_sha256": {
+      "playwright": "fb2553ff594cb24e32364e7f352d5f3442c41821d3a064c67944cb3d56269095",
+      "wingman": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "browse": "46ce0c33c213c3c255a087880ff2ec55792f947c935f6d114b1f697518c4138b",
+      "forced": "d5106ff0065b9757d63a65894abc41508562f75bed6ff2fd630840cd7a6fe1cd"
+    },
+    "tool_text_sha256": "4ce7f785dfac0c4ec22e1441408486dd9ad56b05adb99b8a863a3b0750004513",
+    "tasks_sha256": "e2ff2f0737df21c50fa7ed06d65c7ca27a796eb2b35d4f1d8c060918b51478e4",
+    "prompts_sha256": "7c9dcc33b4a65dffd9439f100d065dd0f771429667b200276cf007b6de9b46f6",
+    "fixtures_sha256": "e0ae18e08fb69fa6b82567617cc49796bee284a0de6e75bd026471e2565ef8fd",
+    "profile_sha256": "ca39002d4236fc902643ef357bdea1be90ea174ec3fe1633935a724190f9b882",
+    "fixture_server": false,
+    "max_turns_by_route": {
+      "playwright": 40,
+      "wingman": 40,
+      "browse": 40,
+      "forced": 30
+    },
+    "per_run_timeout_ms": 600000,
+    "caller_model": "claude-sonnet-5-5"
+  },
+  "baseline": {
+    "file": "r24b.json",
+    "expect_diff": [
+      "git_head",
+      "tool_text_sha256",
+      "caller_cli_version",
+      "tasks",
+      "routes",
+      "repeats",
+      "fixture_server"
+    ]
+  },
+  "observed": {
+    "node_version": "v22.22.0",
+    "chrome_version": "Chrome/141.0.7390.37",
+    "caller_tools_sha256": {
+      "forced": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2"
+    },
+    "caller_skills_sha256": {
+      "forced": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301"
+    },
+    "caller_plugins_sha256": {
+      "forced": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0"
+    },
+    "caller_agents_sha256": {
+      "forced": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d"
+    },
+    "caller_mcp_servers_sha256": {
+      "forced": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728"
+    },
+    "caller_hooks_sha256": {
+      "forced": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "observed_lists": {
+    "forced": {
+      "tools": {
+        "sha256": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2",
+        "count": 53
+      },
+      "skills": {
+        "sha256": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+        "count": 35
+      },
+      "plugins": {
+        "sha256": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+        "count": 3
+      },
+      "agents": {
+        "sha256": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+        "count": 6
+      },
+      "mcp_servers": {
+        "sha256": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728",
+        "count": 2
+      },
+      "hooks": {
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "count": 0
+      }
+    }
+  },
+  "runs": [
+    {
+      "task": "t11-todomvc-spa",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 22205,
+      "browser_tool_calls": 3,
+      "per_step_ms": 7402,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 959,
+        "cache_read_tokens": 280612,
+        "cache_write_tokens": 1795,
+        "usd": 0.10533,
+        "cli_reported_usd": 0.0729124
+      },
+      "typesafe": {
+        "calls": 3,
+        "input_tokens": 31364,
+        "output_tokens": 8069,
+        "usd": 0.001317
+      },
+      "wingman": {
+        "calls": 3,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 97,
+        "first_observe_ms": 21,
+        "observe_ms": 9,
+        "jev_ms": 132,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 15,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 133,
+        "observe_sum_ms": 151,
+        "jev_sum_ms": 1903,
+        "act_sum_ms": 299,
+        "settle_sum_ms": 1309,
+        "round_kinds": {
+          "act": 6,
+          "advance": 5,
+          "wait": 0,
+          "bounce": 4,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.106647,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 7,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 3,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3
+      },
+      "first_call_invalid": 0,
+      "caller": {
+        "claude_code_version": "2.1.292",
+        "model": "claude-sonnet-5-5",
+        "lists_sha256": {
+          "tools": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2",
+          "skills": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+          "plugins": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+          "agents": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+          "mcp_servers": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728",
+          "hooks": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 22311,
+      "browser_tool_calls": 3,
+      "per_step_ms": 7437,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 1101,
+        "cache_read_tokens": 280612,
+        "cache_write_tokens": 1867,
+        "usd": 0.10773,
+        "cli_reported_usd": 0.0746204
+      },
+      "typesafe": {
+        "calls": 3,
+        "input_tokens": 31508,
+        "output_tokens": 8143,
+        "usd": 0.001323
+      },
+      "wingman": {
+        "calls": 3,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 93,
+        "first_observe_ms": 11,
+        "observe_ms": 9,
+        "jev_ms": 135,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 15,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 135,
+        "observe_sum_ms": 135,
+        "jev_sum_ms": 1991,
+        "act_sum_ms": 261,
+        "settle_sum_ms": 1310,
+        "round_kinds": {
+          "act": 6,
+          "advance": 5,
+          "wait": 0,
+          "bounce": 4,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.109053,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 7,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 3,
+            "steps_done": 3,
+            "steps_total": 3
+          }
+        }
+      ],
+      "handoffs": 3,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3
+      },
+      "first_call_invalid": 0,
+      "caller": {
+        "claude_code_version": "2.1.292",
+        "model": "claude-sonnet-5-5",
+        "lists_sha256": {
+          "tools": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2",
+          "skills": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+          "plugins": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+          "agents": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+          "mcp_servers": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728",
+          "hooks": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 18027,
+      "browser_tool_calls": 3,
+      "per_step_ms": 6009,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 955,
+        "cache_read_tokens": 280606,
+        "cache_write_tokens": 1790,
+        "usd": 0.105249,
+        "cli_reported_usd": 0.0728512
+      },
+      "typesafe": {
+        "calls": 3,
+        "input_tokens": 31514,
+        "output_tokens": 8141,
+        "usd": 0.001324
+      },
+      "wingman": {
+        "calls": 3,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 95,
+        "first_observe_ms": 10,
+        "observe_ms": 9,
+        "jev_ms": 161,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 15,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 162,
+        "observe_sum_ms": 131,
+        "jev_sum_ms": 2304,
+        "act_sum_ms": 232,
+        "settle_sum_ms": 1308,
+        "round_kinds": {
+          "act": 6,
+          "advance": 5,
+          "wait": 0,
+          "bounce": 4,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.106573,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 7,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 2,
+            "steps_total": 2
+          }
+        }
+      ],
+      "handoffs": 3,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3
+      },
+      "first_call_invalid": 0,
+      "caller": {
+        "claude_code_version": "2.1.292",
+        "model": "claude-sonnet-5-5",
+        "lists_sha256": {
+          "tools": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2",
+          "skills": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+          "plugins": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+          "agents": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+          "mcp_servers": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728",
+          "hooks": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    },
+    {
+      "task": "t11-todomvc-spa",
+      "route": "forced",
+      "ok": true,
+      "wall_ms": 20080,
+      "browser_tool_calls": 3,
+      "per_step_ms": 6693,
+      "llm": {
+        "input_tokens": 10,
+        "output_tokens": 1161,
+        "cache_read_tokens": 280655,
+        "cache_write_tokens": 1888,
+        "usd": 0.108722,
+        "cli_reported_usd": 0.075313
+      },
+      "typesafe": {
+        "calls": 3,
+        "input_tokens": 31518,
+        "output_tokens": 8143,
+        "usd": 0.001324
+      },
+      "wingman": {
+        "calls": 3,
+        "fallback": 2,
+        "needs_confirmation": 0
+      },
+      "wingman_phases": {
+        "attach_ms": 91,
+        "first_observe_ms": 13,
+        "observe_ms": 10,
+        "jev_ms": 169,
+        "act_ms": 0,
+        "settle_ms": 0,
+        "rounds": 15,
+        "jev_first_ms": 0,
+        "jev_rest_ms": 170,
+        "observe_sum_ms": 164,
+        "jev_sum_ms": 2416,
+        "act_sum_ms": 237,
+        "settle_sum_ms": 1298,
+        "round_kinds": {
+          "act": 6,
+          "advance": 5,
+          "wait": 0,
+          "bounce": 4,
+          "done": 0,
+          "error": 0,
+          "other": 0
+        }
+      },
+      "usd": 0.110045,
+      "handoff_records": [
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 1,
+          "rounds": 4,
+          "progress": {
+            "step_index": 1,
+            "steps_done": 0,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "fallback",
+          "reason": "step-uncertain",
+          "steps": 3,
+          "rounds": 7,
+          "pick": true,
+          "progress": {
+            "step_index": 2,
+            "steps_done": 1,
+            "steps_total": 3
+          },
+          "why": "no-match",
+          "candidates": 3
+        },
+        {
+          "status": "done",
+          "reason": "goal-met",
+          "steps": 2,
+          "rounds": 4,
+          "pick": true,
+          "progress": {
+            "step_index": 3,
+            "steps_done": 3,
+            "steps_total": 3
+          }
+        }
+      ],
+      "handoffs": 3,
+      "picks": 2,
+      "wingman_acts": 6,
+      "nav_by_wingman": 0,
+      "raw_acts": 0,
+      "raw_script": 0,
+      "tool_use_counts": {
+        "ToolSearch": 1,
+        "mcp__jev-browser-wingman__browse_step": 3
+      },
+      "first_call_invalid": 0,
+      "caller": {
+        "claude_code_version": "2.1.292",
+        "model": "claude-sonnet-5-5",
+        "lists_sha256": {
+          "tools": "d72dfbbfcd596b3c814589988946a4ad1dc0da2dc56e3eaa6bc8949cf109ccc2",
+          "skills": "c63abdf381ba3b8ead3567e3b54964a16572719699461ce4ceecfc2f4dc58301",
+          "plugins": "1aa91757661dc31a707db2c2dfe082049b2bfea99bc6ef0c612ab4eb18bca9b0",
+          "agents": "eec7d3f094f7a5f7fdd06009b5ea638630466fcf58284553c431d2756e83031d",
+          "mcp_servers": "6f44a7ed62c2493bd71d43b8e17e493f66f71cf3756e0ea755271a0ca4da9728",
+          "hooks": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "forced": {
+      "success_rate": 1,
+      "median_wall_ms": 21142.5,
+      "median_usd": 0.10785,
+      "fallback_rate": 1,
+      "wall_min_ms": 18027,
+      "wall_max_ms": 22311
+    }
+  },
+  "task_pairs": {
+    "t11-todomvc-spa": {
+      "forced": {
+        "n": 4,
+        "ok": 4,
+        "wall_min_ms": 18027,
+        "wall_med_ms": 21142.5,
+        "wall_max_ms": 22311,
+        "median_usd": 0.10785
+      }
+    }
+  }
+}

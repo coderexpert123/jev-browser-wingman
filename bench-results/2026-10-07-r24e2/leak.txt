@@ -1,0 +1,2 @@
+leaks=0 files=3 hits=0
+exit=0
