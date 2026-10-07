@@ -1,0 +1,1278 @@
+TAP version 13
+# Subtest: T1: three clauses act once each and end done with progress {3,3,3}
+ok 1 - T1: three clauses act once each and end done with progress {3,3,3}
+  ---
+  duration_ms: 25.157242
+  type: 'test'
+  ...
+# Subtest: T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+ok 2 - T2: max_steps stops mid-chain with steps_done 2; the re-call resumes on clause 3
+  ---
+  duration_ms: 6.660586
+  type: 'test'
+  ...
+# Subtest: T3: the same goal with changed steps starts at clause 1
+ok 3 - T3: the same goal with changed steps starts at clause 1
+  ---
+  duration_ms: 2.626589
+  type: 'test'
+  ...
+# Subtest: T4: a fresh chain where every clause is already done ends already-done with zero acts
+ok 4 - T4: a fresh chain where every clause is already done ends already-done with zero acts
+  ---
+  duration_ms: 1.134746
+  type: 'test'
+  ...
+# Subtest: T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+ok 5 - T5: a legacy entry whose round-1 done fires twice with zero acts bounces already-done
+  ---
+  duration_ms: 1.853436
+  type: 'test'
+  ...
+# Subtest: T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+ok 6 - T6: a chain non-commit retries once, then bounces with the redacted clause and progress
+  ---
+  duration_ms: 6.382136
+  type: 'test'
+  ...
+# Subtest: T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+ok 7 - T6b: a non-pick chain commit onto an obscured element bounces target-covered with evidence
+  ---
+  duration_ms: 1.910516
+  type: 'test'
+  ...
+# Subtest: T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+ok 8 - T7: every § 5.5.5 forced-table row is exact under forced; optional keeps today’s strings; forced bounces never escalate
+  ---
+  duration_ms: 13.901515
+  type: 'test'
+  ...
+# Subtest: T8: a pick acts with zero asks, and the chain continues after it
+ok 9 - T8: a pick acts with zero asks, and the chain continues after it
+  ---
+  duration_ms: 1.34507
+  type: 'test'
+  ...
+# Subtest: T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+ok 10 - T8: a multi-match pick returns the unmatched line with both candidates and zero acts
+  ---
+  duration_ms: 1.036157
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto an obscured element returns target-covered
+ok 11 - T8: a pick onto an obscured element returns target-covered
+  ---
+  duration_ms: 0.783633
+  type: 'test'
+  ...
+# Subtest: T8: a pick onto a submit button under gate confirm returns needs_confirmation
+ok 12 - T8: a pick onto a submit button under gate confirm returns needs_confirmation
+  ---
+  duration_ms: 1.312886
+  type: 'test'
+  ...
+# Subtest: T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+ok 13 - T9: navigate acts only from a url-typed binding; other answers bounce no-value with zero navigate acts
+  ---
+  duration_ms: 6.921082
+  type: 'test'
+  ...
+# Subtest: T9: wingman_do action criteria never contain navigate or back
+ok 14 - T9: wingman_do action criteria never contain navigate or back
+  ---
+  duration_ms: 1.382118
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with a path binding converts to upload and acts with the path
+ok 15 - T10: a click on a file input with a path binding converts to upload and acts with the path
+  ---
+  duration_ms: 1.568279
+  type: 'test'
+  ...
+# Subtest: T10: a click on a file input with no path binding is no-value with zero acts
+ok 16 - T10: a click on a file input with no path binding is no-value with zero acts
+  ---
+  duration_ms: 0.986607
+  type: 'test'
+  ...
+# Subtest: T11: chain press acts with the key answer; none or low key bounces low-confidence
+ok 17 - T11: chain press acts with the key answer; none or low key bounces low-confidence
+  ---
+  duration_ms: 3.8222
+  type: 'test'
+  ...
+# Subtest: T11: wingman_do press falls back to Enter on a low key answer
+ok 18 - T11: wingman_do press falls back to Enter on a low key answer
+  ---
+  duration_ms: 0.916737
+  type: 'test'
+  ...
+# Subtest: T12: a chain scroll round with target none acts (null, scroll)
+ok 19 - T12: a chain scroll round with target none acts (null, scroll)
+  ---
+  duration_ms: 1.074854
+  type: 'test'
+  ...
+# Subtest: T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+ok 20 - T13: wait acts leave steps unchanged; the wait after the cap bounces no-match
+  ---
+  duration_ms: 2.606803
+  type: 'test'
+  ...
+# Subtest: T14: a mid-chain time budget ends budget-time with the correct progress
+ok 21 - T14: a mid-chain time budget ends budget-time with the correct progress
+  ---
+  duration_ms: 1.299117
+  type: 'test'
+  ...
+# Subtest: T15: a two-stage round with a targetless action choice skips request 2
+ok 22 - T15: a two-stage round with a targetless action choice skips request 2
+  ---
+  duration_ms: 3.197481
+  type: 'test'
+  ...
+# Subtest: T16: no binding value appears in the requests or results of chain traffic
+ok 23 - T16: no binding value appears in the requests or results of chain traffic
+  ---
+  duration_ms: 1.476718
+  type: 'test'
+  ...
+# Subtest: T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+ok 24 - T17: the chain log record carries only § 5.1 fields plus progress and acts_by_op
+  ---
+  duration_ms: 0.880584
+  type: 'test'
+  ...
+# Subtest: T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+ok 25 - T18: a legacy driver never sees a new verb offered; a pick hover is unsupported-op
+  ---
+  duration_ms: 1.170755
+  type: 'test'
+  ...
+# Subtest: T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+ok 26 - T19: the verbatim 549-char t9 goal with seven steps and numeric values validates
+  ---
+  duration_ms: 5.386849
+  type: 'test'
+  ...
+# Subtest: T20: every § 5.5.1 validation row reports its exact message
+ok 27 - T20: every § 5.5.1 validation row reports its exact message
+  ---
+  duration_ms: 2.283774
+  type: 'test'
+  ...
+# Subtest: T21: a reached target page ends done, not page-error (legacy and chain)
+ok 28 - T21: a reached target page ends done, not page-error (legacy and chain)
+  ---
+  duration_ms: 1.450401
+  type: 'test'
+  ...
+# Subtest: T22: oversized text is cut; a payload that cannot fit ends state-too-large
+ok 29 - T22: oversized text is cut; a payload that cannot fit ends state-too-large
+  ---
+  duration_ms: 4.883416
+  type: 'test'
+  ...
+# Subtest: T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+ok 30 - T22b: the fixed per-round question overhead alone never triggers state-too-large; state + longest question over the limit still does
+  ---
+  duration_ms: 1.535048
+  type: 'test'
+  ...
+# Subtest: T23: two consecutive low right_page rounds on one clause bounce wrong-page
+ok 31 - T23: two consecutive low right_page rounds on one clause bounce wrong-page
+  ---
+  duration_ms: 0.907499
+  type: 'test'
+  ...
+# Subtest: T23: right_page low then high does not bounce, and an advance resets the counter
+ok 32 - T23: right_page low then high does not bounce, and an advance resets the counter
+  ---
+  duration_ms: 2.607361
+  type: 'test'
+  ...
+# Subtest: T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+ok 33 - T24: a not-ready round waits without counting a step; three low rounds bounce not-ready
+  ---
+  duration_ms: 1.027531
+  type: 'test'
+  ...
+# Subtest: T24: ready low then high decides normally
+ok 34 - T24: ready low then high decides normally
+  ---
+  duration_ms: 1.057717
+  type: 'test'
+  ...
+# Subtest: T24: a driver without wait settles instead of acting on a not-ready round
+ok 35 - T24: a driver without wait settles instead of acting on a not-ready round
+  ---
+  duration_ms: 0.966142
+  type: 'test'
+  ...
+# Subtest: T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+ok 36 - T24: navigate is exempt from the ready gate — a low-ready round still commits the navigate, not a wait
+  ---
+  duration_ms: 1.106398
+  type: 'test'
+  ...
+# Subtest: T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+ok 37 - T25: recover back, reload, wait and continue act; give-up and a low answer end page-error
+  ---
+  duration_ms: 5.379685
+  type: 'test'
+  ...
+# Subtest: T25: continue falls through to the normal decision; the cap ends page-error
+ok 38 - T25: continue falls through to the normal decision; the cap ends page-error
+  ---
+  duration_ms: 1.761199
+  type: 'test'
+  ...
+# Subtest: T25: legacy browse_step recovers the same way; wingman_do never asks recover
+ok 39 - T25: legacy browse_step recovers the same way; wingman_do never asks recover
+  ---
+  duration_ms: 1.614604
+  type: 'test'
+  ...
+# Subtest: T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+ok 40 - T26: scroll_to acts on its committed target; a non-committing target scrolls down instead
+  ---
+  duration_ms: 1.828582
+  type: 'test'
+  ...
+# Subtest: T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+ok 41 - T27: a chain request offers scroll_to, never reload; the offered set intersects driver ops
+  ---
+  duration_ms: 1.39936
+  type: 'test'
+  ...
+# Subtest: T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+ok 42 - T28: a browse_step ask on a sensitive page under forced+enforce returns the forced sensitive line with zero asks
+  ---
+  duration_ms: 0.737894
+  type: 'test'
+  ...
+# Subtest: T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+ok 43 - T28: a pick acts on the sensitive page with zero asks; the next ask round is sensitive again
+  ---
+  duration_ms: 0.750087
+  type: 'test'
+  ...
+# Subtest: T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+ok 44 - T28: optional mode keeps SENSITIVE_LINE; forced wingman_do gets the forced line, optional the old one
+  ---
+  duration_ms: 0.8075
+  type: 'test'
+  ...
+# Subtest: splitCompoundClause: the r11 boundary table, verbatim
+ok 45 - splitCompoundClause: the r11 boundary table, verbatim
+  ---
+  duration_ms: 1.268172
+  type: 'test'
+  ...
+# Subtest: expandClauses: parents map back to the caller clause; over the cap returns null
+ok 46 - expandClauses: parents map back to the caller clause; over the cap returns null
+  ---
+  duration_ms: 0.71206
+  type: 'test'
+  ...
+# Subtest: T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+ok 47 - T-decompose-cap: 7 compound caller clauses (14 sub-clauses) decompose instead of running unsplit
+  ---
+  duration_ms: 2.361735
+  type: 'test'
+  ...
+# Subtest: T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+ok 48 - T-decompose-order: a compound clause executes sub-goals in order with parent-mapped progress
+  ---
+  duration_ms: 1.984635
+  type: 'test'
+  ...
+# Subtest: T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+ok 49 - T-decompose-progress: a mid-call result inside caller clause 2 carries parent-mapped progress
+  ---
+  duration_ms: 1.226338
+  type: 'test'
+  ...
+# Subtest: T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+ok 50 - T-decompose-resume: chain memory resumes mid-clause on the exact sub-clause
+  ---
+  duration_ms: 1.752395
+  type: 'test'
+  ...
+# Subtest: T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+ok 51 - T-decompose-twice: a "...twice" tail inside a compound clause lands exactly 2 clicks on its own sub-clause
+  ---
+  duration_ms: 1.815619
+  type: 'test'
+  ...
+# Subtest: T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+ok 52 - T-decompose-premature: a none answer on the operative sub-clause consumes the retry, then bounces no-match
+  ---
+  duration_ms: 1.226052
+  type: 'test'
+  ...
+# Subtest: T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+ok 53 - T-decompose-genuine-nomatch: a genuine none on an atomic clause still bounces step-uncertain/no-match
+  ---
+  duration_ms: 0.843737
+  type: 'test'
+  ...
+# Subtest: T-stuck-url: a confident none on a hub-miss clause asks the stuck recover and navigates to the url binding, then the clause lands
+ok 54 - T-stuck-url: a confident none on a hub-miss clause asks the stuck recover and navigates to the url binding, then the clause lands
+  ---
+  duration_ms: 2.200118
+  type: 'test'
+  ...
+# Subtest: T-stuck-back: with no url binding the stuck recover goes back, then the clause lands
+ok 55 - T-stuck-back: with no url binding the stuck recover goes back, then the clause lands
+  ---
+  duration_ms: 1.170046
+  type: 'test'
+  ...
+# Subtest: T-stuck-giveup: give-up and a sub-threshold answer both end in the deferred no-match bounce with zero acts
+ok 56 - T-stuck-giveup: give-up and a sub-threshold answer both end in the deferred no-match bounce with zero acts
+  ---
+  duration_ms: 2.076091
+  type: 'test'
+  ...
+# Subtest: T-stuck-d7: only caller url bindings are offered; an unoffered id never acts
+ok 57 - T-stuck-d7: only caller url bindings are offered; an unoffered id never acts
+  ---
+  duration_ms: 2.250901
+  type: 'test'
+  ...
+# Subtest: T-stuck-once: a second would-be bounce on the same clause bounces without another stuck ask
+ok 58 - T-stuck-once: a second would-be bounce on the same clause bounces without another stuck ask
+  ---
+  duration_ms: 2.681713
+  type: 'test'
+  ...
+# Subtest: T-stuck-verb: a none under a non-navigation verb (check) never triggers the stuck recover
+ok 59 - T-stuck-verb: a none under a non-navigation verb (check) never triggers the stuck recover
+  ---
+  duration_ms: 0.670271
+  type: 'test'
+  ...
+# Subtest: T-stuck-none-bar: none at 0.8 triggers the stuck ask, 0.79 does not
+ok 60 - T-stuck-none-bar: none at 0.8 triggers the stuck ask, 0.79 does not
+  ---
+  duration_ms: 1.350438
+  type: 'test'
+  ...
+# Subtest: T-stuck-not-fresh: a clause that already acted never takes the stuck recover
+ok 61 - T-stuck-not-fresh: a clause that already acted never takes the stuck recover
+  ---
+  duration_ms: 0.983904
+  type: 'test'
+  ...
+# Subtest: T-stuck-not-fresh-resume: a resumed clause that already acted stays ineligible (cursorActed rides chain memory)
+ok 62 - T-stuck-not-fresh-resume: a resumed clause that already acted stays ineligible (cursorActed rides chain memory)
+  ---
+  duration_ms: 1.307729
+  type: 'test'
+  ...
+# Subtest: T-stuck-wrong-page: a wrong-page would-be bounce takes the stuck recover and the clause lands after it
+ok 63 - T-stuck-wrong-page: a wrong-page would-be bounce takes the stuck recover and the clause lands after it
+  ---
+  duration_ms: 1.441014
+  type: 'test'
+  ...
+# Subtest: T-stuck-wrong-page-giveup: give-up on a wrong-page trigger returns the wrong-page bounce with its own note
+ok 64 - T-stuck-wrong-page-giveup: give-up on a wrong-page trigger returns the wrong-page bounce with its own note
+  ---
+  duration_ms: 0.782779
+  type: 'test'
+  ...
+# Subtest: T-stuck-evidence: a stuck navigate that the clause did not name is not step evidence
+ok 65 - T-stuck-evidence: a stuck navigate that the clause did not name is not step evidence
+  ---
+  duration_ms: 1.579976
+  type: 'test'
+  ...
+# Subtest: T-stuck-named-evidence: a stuck navigate to the binding the clause names IS its own act and counts as evidence
+ok 66 - T-stuck-named-evidence: a stuck navigate to the binding the clause names IS its own act and counts as evidence
+  ---
+  duration_ms: 1.466071
+  type: 'test'
+  ...
+# Subtest: T-stuck-same-url: the page we are already on is never offered as a destination
+ok 67 - T-stuck-same-url: the page we are already on is never offered as a destination
+  ---
+  duration_ms: 1.005404
+  type: 'test'
+  ...
+# Subtest: T-stuck-budget: the recover budget shared with error recovery is spent first, so no stuck ask follows
+ok 68 - T-stuck-budget: the recover budget shared with error recovery is spent first, so no stuck ask follows
+  ---
+  duration_ms: 1.545417
+  type: 'test'
+  ...
+# Subtest: T-stuck-offer: an offer-mode call (takeover:false) never takes the stuck recover
+ok 69 - T-stuck-offer: an offer-mode call (takeover:false) never takes the stuck recover
+  ---
+  duration_ms: 0.899579
+  type: 'test'
+  ...
+# Subtest: T-stuck-no-history: a stuck back with no history is the deferred no-match bounce, not error/act-failed
+ok 70 - T-stuck-no-history: a stuck back with no history is the deferred no-match bounce, not error/act-failed
+  ---
+  duration_ms: 1.126015
+  type: 'test'
+  ...
+# Subtest: T-stuck-steps-budget: a stuck recovery needs a step left; at max_steps the clause bounces no-match, not budget-steps
+ok 71 - T-stuck-steps-budget: a stuck recovery needs a step left; at max_steps the clause bounces no-match, not budget-steps
+  ---
+  duration_ms: 2.076717
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-stage: eligibility reads the merged two-stage answer map (action from request 1, none target from request 2)
+ok 72 - T-stuck-two-stage: eligibility reads the merged two-stage answer map (action from request 1, none target from request 2)
+  ---
+  duration_ms: 2.387979
+  type: 'test'
+  ...
+# Subtest: T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence trigger bounces low-confidence WITH the trigger-time candidates
+ok 73 - T-stuck-lowconf-bounce: a declined stuck recovery after a low-confidence trigger bounces low-confidence WITH the trigger-time candidates
+  ---
+  duration_ms: 1.170564
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-nones: a multi-match first look followed by a none is NOT two consecutive none looks, so it bounces without the stuck ask
+ok 74 - T-stuck-two-nones: a multi-match first look followed by a none is NOT two consecutive none looks, so it bounces without the stuck ask
+  ---
+  duration_ms: 0.82585
+  type: 'test'
+  ...
+# Subtest: T-stuck-two-bindings: with two url bindings the navigate goes to the one Jev chose, not the first offered
+ok 75 - T-stuck-two-bindings: with two url bindings the navigate goes to the one Jev chose, not the first offered
+  ---
+  duration_ms: 1.619297
+  type: 'test'
+  ...
+# Subtest: T-stuck-token-act: a confirmed token act is an element act on the clause, so the clause is no longer fresh
+ok 76 - T-stuck-token-act: a confirmed token act is an element act on the clause, so the clause is no longer fresh
+  ---
+  duration_ms: 1.704082
+  type: 'test'
+  ...
+# Subtest: T-stuck-noprogress-exempt: a stuck back right after an error-recover back that changed nothing is exempt from the no-progress guard
+ok 77 - T-stuck-noprogress-exempt: a stuck back right after an error-recover back that changed nothing is exempt from the no-progress guard
+  ---
+  duration_ms: 1.271982
+  type: 'test'
+  ...
+# Subtest: T-stuck-no-back-op: a driver without back still offers the url binding, and with neither there is no stuck ask
+ok 78 - T-stuck-no-back-op: a driver without back still offers the url binding, and with neither there is no stuck ask
+  ---
+  duration_ms: 2.168272
+  type: 'test'
+  ...
+# Subtest: T-stuck-telemetry-giveup: a declined stuck round records stuck give-up, an unanswered one records nothing
+ok 79 - T-stuck-telemetry-giveup: a declined stuck round records stuck give-up, an unanswered one records nothing
+  ---
+  duration_ms: 0.779028
+  type: 'test'
+  ...
+# Subtest: T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)
+ok 80 - T-stuck-memory-used: an identical re-call after a declined stuck recovery does not recover again (stuckTried rides chain memory)
+  ---
+  duration_ms: 1.253978
+  type: 'test'
+  ...
+# Subtest: T-stuck-reset-on-advance: the once-per-clause budget resets when the clause advances, so the next hub-miss clause recovers too
+ok 81 - T-stuck-reset-on-advance: the once-per-clause budget resets when the clause advances, so the next hub-miss clause recovers too
+  ---
+  duration_ms: 2.785138
+  type: 'test'
+  ...
+# Subtest: T-stuck-shares-recover-budget: a stuck act spends one of the clause recover acts, so error recovery gets only the other
+ok 82 - T-stuck-shares-recover-budget: a stuck act spends one of the clause recover acts, so error recovery gets only the other
+  ---
+  duration_ms: 1.278012
+  type: 'test'
+  ...
+# Subtest: T-stuck-query-hub: a url binding differing from the page by query is offered; a hash-only difference (href="\#") is still the same page
+ok 83 - T-stuck-query-hub: a url binding differing from the page by query is offered; a hash-only difference (href="\#") is still the same page
+  ---
+  duration_ms: 1.99496
+  type: 'test'
+  ...
+# Subtest: T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message
+ok 84 - T-act-error-sanitize: describeActError cuts HTML, redacts values, and never leaks a non-Wingman message
+  ---
+  duration_ms: 1.102287
+  type: 'test'
+  ...
+# Subtest: T-act-error-log: a thrown act error lands sanitized in the log record as act_error
+ok 85 - T-act-error-log: a thrown act error lands sanitized in the log record as act_error
+  ---
+  duration_ms: 1.358462
+  type: 'test'
+  ...
+# Subtest: T-nav-advance: an open clause whose own click landed on another document advances at stepDone 0.35, so the next sub-goal is not acted under it
+ok 86 - T-nav-advance: an open clause whose own click landed on another document advances at stepDone 0.35, so the next sub-goal is not acted under it
+  ---
+  duration_ms: 3.191713
+  type: 'test'
+  ...
+# Subtest: T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead as before, and at 0.6 the old evidence bar owns the advance
+ok 87 - T-nav-floor: the 0.25 floor is inclusive, below it the clause acts ahead as before, and at 0.6 the old evidence bar owns the advance
+  ---
+  duration_ms: 4.077886
+  type: 'test'
+  ...
+# Subtest: T-nav-same-url: a click that stays on the same document (or only changes the hash) never takes the navigation bar and acts ahead below the 0.3 same-document bar
+ok 88 - T-nav-same-url: a click that stays on the same document (or only changes the hash) never takes the navigation bar and acts ahead below the 0.3 same-document bar
+  ---
+  duration_ms: 2.755681
+  type: 'test'
+  ...
+# Subtest: T-nav-error: a landed click whose page reads as an error never advances on navigation evidence
+ok 89 - T-nav-error: a landed click whose page reads as an error never advances on navigation evidence
+  ---
+  duration_ms: 1.008653
+  type: 'test'
+  ...
+# Subtest: T-nav-not-own: another clause's landed click is not evidence for the current clause
+ok 90 - T-nav-not-own: another clause's landed click is not evidence for the current clause
+  ---
+  duration_ms: 2.018842
+  type: 'test'
+  ...
+# Subtest: T-nav-count: a clause with a count word advances only on its count, never on navigation evidence
+ok 91 - T-nav-count: a clause with a count word advances only on its count, never on navigation evidence
+  ---
+  duration_ms: 1.385981
+  type: 'test'
+  ...
+# Subtest: T-nav-two-bindings: a clause with two value bindings never advances on navigation evidence
+ok 92 - T-nav-two-bindings: a clause with two value bindings never advances on navigation evidence
+  ---
+  duration_ms: 1.513661
+  type: 'test'
+  ...
+# Subtest: T-nav-token: a confirmed token click records beforeUrl, so the next round advances on navigation evidence
+ok 93 - T-nav-token: a confirmed token click records beforeUrl, so the next round advances on navigation evidence
+  ---
+  duration_ms: 2.384251
+  type: 'test'
+  ...
+# Subtest: T-nav-final-clause: the r14 navigation evidence never advances the FINAL clause; r24 ends it done only through finalNavEvidence (>= 0.25, one click), below 0.25 it acts ahead
+ok 94 - T-nav-final-clause: the r14 navigation evidence never advances the FINAL clause; r24 ends it done only through finalNavEvidence (>= 0.25, one click), below 0.25 it acts ahead
+  ---
+  duration_ms: 1.919249
+  type: 'test'
+  ...
+# Subtest: T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing
+ok 95 - T-nav-expanded: the final-clause bar counts EXPANDED sub-clauses, so the open sub-clause of one caller clause still advances on its landing
+  ---
+  duration_ms: 1.260668
+  type: 'test'
+  ...
+# Subtest: T-nav-query: a landing that differs from the click page only by its query string is a left document
+ok 96 - T-nav-query: a landing that differs from the click page only by its query string is a left document
+  ---
+  duration_ms: 1.553008
+  type: 'test'
+  ...
+# Subtest: T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never carry leftPage or navEvidence
+ok 97 - T-nav-leftpage-chain-only: legacy browse_step and wingman_do rounds never carry leftPage or navEvidence
+  ---
+  duration_ms: 1.125362
+  type: 'test'
+  ...
+# Subtest: T-post-notready: not ready after the clause's own effective click ends post-action; a no-change click or a fill keeps not-ready
+ok 98 - T-post-notready: not ready after the clause's own effective click ends post-action; a no-change click or a fill keeps not-ready
+  ---
+  duration_ms: 3.17943
+  type: 'test'
+  ...
+# Subtest: T-opt-post-note: an optional-mode post-action step-uncertain end carries the non-repeat note, not the caller line
+ok 99 - T-opt-post-note: an optional-mode post-action step-uncertain end carries the non-repeat note, not the caller line
+  ---
+  duration_ms: 1.98626
+  type: 'test'
+  ...
+# Subtest: T-opt-post-note-no-escalate: an optional post-action end does not count toward the bounce escalation
+ok 100 - T-opt-post-note-no-escalate: an optional post-action end does not count toward the bounce escalation
+  ---
+  duration_ms: 1.611199
+  type: 'test'
+  ...
+# Subtest: T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry
+ok 101 - T-post-error: a page-error end after the clause's own effective click carries why post-action, its note and the recover telemetry
+  ---
+  duration_ms: 0.778532
+  type: 'test'
+  ...
+# Subtest: r22 F-2: a re-sent whole chain skips a post-action cursor clause and acts on the NEXT clause (round-0 marker)
+ok 102 - r22 F-2: a re-sent whole chain skips a post-action cursor clause and acts on the NEXT clause (round-0 marker)
+  ---
+  duration_ms: 2.030079
+  type: 'test'
+  ...
+# Subtest: r22 F-2: a cursor clause that ended for a NON-post-action reason is not skipped
+ok 103 - r22 F-2: a cursor clause that ended for a NON-post-action reason is not skipped
+  ---
+  duration_ms: 1.727568
+  type: 'test'
+  ...
+# Subtest: r22 F-2: a fresh chain (no memory) is unchanged and carries no marker
+ok 104 - r22 F-2: a fresh chain (no memory) is unchanged and carries no marker
+  ---
+  duration_ms: 0.923148
+  type: 'test'
+  ...
+# Subtest: r22 F-2b: a reload on the FIRST post-skip clause is refused like a clicked clause (zero re-submit)
+ok 105 - r22 F-2b: a reload on the FIRST post-skip clause is refused like a clicked clause (zero re-submit)
+  ---
+  duration_ms: 1.712828
+  type: 'test'
+  ...
+# Subtest: r22 F-2b: after the first post-skip clause advances, reload behaves as before (the hazard is gone)
+ok 106 - r22 F-2b: after the first post-skip clause advances, reload behaves as before (the hazard is gone)
+  ---
+  duration_ms: 1.926837
+  type: 'test'
+  ...
+# Subtest: r22 F-2b: a non-post-action cursor is not skipped and its reload is not refused (existing behavior)
+ok 107 - r22 F-2b: a non-post-action cursor is not skipped and its reload is not refused (existing behavior)
+  ---
+  duration_ms: 1.836258
+  type: 'test'
+  ...
+# Subtest: T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)
+ok 108 - T-post-reload: the recover path never reloads after the step's own effective click (chain and legacy browse_step)
+  ---
+  duration_ms: 3.527684
+  type: 'test'
+  ...
+# Subtest: T-error-gate: below the 0.85 bar no advance passes an error the page shows; at 0.85 the clause still advances (done before error)
+ok 109 - T-error-gate: below the 0.85 bar no advance passes an error the page shows; at 0.85 the clause still advances (done before error)
+  ---
+  duration_ms: 4.914889
+  type: 'test'
+  ...
+# Subtest: T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)
+ok 110 - T-repeat-resume: a resumed clause never re-clicks a target it already clicked with effect (chain memory carries the click)
+  ---
+  duration_ms: 4.417684
+  type: 'test'
+  ...
+# Subtest: T-repeat-after-wait: in one call a wait between two clicks on the same target no longer hides the first click
+ok 111 - T-repeat-after-wait: in one call a wait between two clicks on the same target no longer hides the first click
+  ---
+  duration_ms: 2.556544
+  type: 'test'
+  ...
+# Subtest: T-repeat-pick: an explicit pick of the clicked target is the caller's instruction and acts
+ok 112 - T-repeat-pick: an explicit pick of the clicked target is the caller's instruction and acts
+  ---
+  duration_ms: 1.626668
+  type: 'test'
+  ...
+# Subtest: T-repeat-dialog: a click that opened a dialog still reaches chain memory, so the resume never re-clicks it (shared act site and token act)
+ok 113 - T-repeat-dialog: a click that opened a dialog still reaches chain memory, so the resume never re-clicks it (shared act site and token act)
+  ---
+  duration_ms: 3.674484
+  type: 'test'
+  ...
+# Subtest: T-late-landing-notready: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)
+ok 114 - T-late-landing-notready: a click read as no visible change whose page changes a round later still counts as having landed (slow submit response)
+  ---
+  duration_ms: 1.588858
+  type: 'test'
+  ...
+# Subtest: T-late-landing-reload: the same late landing, then a recover reload is refused
+ok 115 - T-late-landing-reload: the same late landing, then a recover reload is refused
+  ---
+  duration_ms: 1.027426
+  type: 'test'
+  ...
+# Subtest: T-repeat-recovered: an error answered continue never lets the clause click its clicked target again
+ok 116 - T-repeat-recovered: an error answered continue never lets the clause click its clicked target again
+  ---
+  duration_ms: 0.826232
+  type: 'test'
+  ...
+# Subtest: T-post-back-wait: after the clause's own effective click the recover answers back and wait still act, and a re-click after the back bounces repeat
+ok 117 - T-post-back-wait: after the clause's own effective click the recover answers back and wait still act, and a re-click after the back bounces repeat
+  ---
+  duration_ms: 1.526574
+  type: 'test'
+  ...
+# Subtest: T-post-error-branches: every rule-4 page-error end after an effective click carries post-action (recover cap, unrecognized answer, undeclared op)
+ok 118 - T-post-error-branches: every rule-4 page-error end after an effective click carries post-action (recover cap, unrecognized answer, undeclared op)
+  ---
+  duration_ms: 2.328551
+  type: 'test'
+  ...
+# Subtest: T-press-none commits a targetless press
+ok 119 - T-press-none commits a targetless press
+  ---
+  duration_ms: 1.192044
+  type: 'test'
+  ...
+# Subtest: T-press-none carries the asked key
+ok 120 - T-press-none carries the asked key
+  ---
+  duration_ms: 0.806756
+  type: 'test'
+  ...
+# Subtest: T-press-none under the threshold does not commit
+ok 121 - T-press-none under the threshold does not commit
+  ---
+  duration_ms: 0.82604
+  type: 'test'
+  ...
+# Subtest: T-press-none is never margin-stolen
+ok 122 - T-press-none is never margin-stolen
+  ---
+  duration_ms: 0.749467
+  type: 'test'
+  ...
+# Subtest: T-press-none refuses on irreversible
+ok 123 - T-press-none refuses on irreversible
+  ---
+  duration_ms: 0.735672
+  type: 'test'
+  ...
+# Subtest: T-press-none is a browse_step pick
+ok 124 - T-press-none is a browse_step pick
+  ---
+  duration_ms: 0.711802
+  type: 'test'
+  ...
+# Subtest: T-key-advance on focus moved
+ok 125 - T-key-advance on focus moved
+  ---
+  duration_ms: 1.313815
+  type: 'test'
+  ...
+# Subtest: T-key-advance on page changed
+ok 126 - T-key-advance on page changed
+  ---
+  duration_ms: 1.213891
+  type: 'test'
+  ...
+# Subtest: T-press Tab onto a non-editable element is not evidence
+ok 127 - T-press Tab onto a non-editable element is not evidence
+  ---
+  duration_ms: 2.222192
+  type: 'test'
+  ...
+# Subtest: T-repeat press same key bounces no-progress
+ok 128 - T-repeat press same key bounces no-progress
+  ---
+  duration_ms: 0.956791
+  type: 'test'
+  ...
+# Subtest: T-check-flip advances on the act-returned flip
+ok 129 - T-check-flip advances on the act-returned flip
+  ---
+  duration_ms: 0.939519
+  type: 'test'
+  ...
+# Subtest: T-check without a flip result is still a no-progress bounce
+ok 130 - T-check without a flip result is still a no-progress bounce
+  ---
+  duration_ms: 0.677471
+  type: 'test'
+  ...
+# Subtest: T-upload evidence advances on the act-returned uploaded
+ok 131 - T-upload evidence advances on the act-returned uploaded
+  ---
+  duration_ms: 1.199639
+  type: 'test'
+  ...
+# Subtest: T-press different keys is not a repeat
+ok 132 - T-press different keys is not a repeat
+  ---
+  duration_ms: 1.037245
+  type: 'test'
+  ...
+# Subtest: T-scroll carries a signal and repeat scroll bounces
+ok 133 - T-scroll carries a signal and repeat scroll bounces
+  ---
+  duration_ms: 0.574229
+  type: 'test'
+  ...
+# Subtest: T-scroll shadow: click twice, scroll, click
+ok 134 - T-scroll shadow: click twice, scroll, click
+  ---
+  duration_ms: 1.009543
+  type: 'test'
+  ...
+# Subtest: T-count-met advances on scroll evidence
+ok 135 - T-count-met advances on scroll evidence
+  ---
+  duration_ms: 1.175498
+  type: 'test'
+  ...
+# Subtest: T-count-met advances with zero scrolls when the page already has them
+ok 136 - T-count-met advances with zero scrolls when the page already has them
+  ---
+  duration_ms: 0.720574
+  type: 'test'
+  ...
+# Subtest: T-count-met alone without scroll or groups does not advance
+ok 137 - T-count-met alone without scroll or groups does not advance
+  ---
+  duration_ms: 0.713121
+  type: 'test'
+  ...
+# Subtest: T-count question is never asked without a parsed count
+ok 138 - T-count question is never asked without a parsed count
+  ---
+  duration_ms: 0.533043
+  type: 'test'
+  ...
+# Subtest: T-scroll-y: a moved viewport is scroll evidence
+ok 139 - T-scroll-y: a moved viewport is scroll evidence
+  ---
+  duration_ms: 0.675686
+  type: 'test'
+  ...
+# Subtest: T-scroll-y feeds count evidence on a moved viewport
+ok 140 - T-scroll-y feeds count evidence on a moved viewport
+  ---
+  duration_ms: 0.846501
+  type: 'test'
+  ...
+# Subtest: T-scroll-y unchanged viewport still bounces
+ok 141 - T-scroll-y unchanged viewport still bounces
+  ---
+  duration_ms: 0.609261
+  type: 'test'
+  ...
+# Subtest: T-count question is never asked on wingman_do
+ok 142 - T-count question is never asked on wingman_do
+  ---
+  duration_ms: 0.73946
+  type: 'test'
+  ...
+# Subtest: T-dialog answered accept per the step
+ok 143 - T-dialog answered accept per the step
+  ---
+  duration_ms: 0.738408
+  type: 'test'
+  ...
+# Subtest: T-dialog answered dismiss
+ok 144 - T-dialog answered dismiss
+  ---
+  duration_ms: 0.629511
+  type: 'test'
+  ...
+# Subtest: T-alert is always accepted
+ok 145 - T-alert is always accepted
+  ---
+  duration_ms: 5.170045
+  type: 'test'
+  ...
+# Subtest: T-confirm without a dialog word stays blocked
+ok 146 - T-confirm without a dialog word stays blocked
+  ---
+  duration_ms: 0.506521
+  type: 'test'
+  ...
+# Subtest: T-prompt is never answered
+ok 147 - T-prompt is never answered
+  ---
+  duration_ms: 0.414173
+  type: 'test'
+  ...
+# Subtest: T-both words in the step stay blocked
+ok 148 - T-both words in the step stay blocked
+  ---
+  duration_ms: 0.585593
+  type: 'test'
+  ...
+# Subtest: T-second dialog in one act ends blocked
+ok 149 - T-second dialog in one act ends blocked
+  ---
+  duration_ms: 0.506864
+  type: 'test'
+  ...
+# Subtest: T-round-top dialog answered then round continues
+ok 150 - T-round-top dialog answered then round continues
+  ---
+  duration_ms: 0.624655
+  type: 'test'
+  ...
+# Subtest: T-answerDialog failure ends blocked
+ok 151 - T-answerDialog failure ends blocked
+  ---
+  duration_ms: 0.522149
+  type: 'test'
+  ...
+# Subtest: T-login suppressed by named bindings
+ok 152 - T-login suppressed by named bindings
+  ---
+  duration_ms: 1.110651
+  type: 'test'
+  ...
+# Subtest: T-login suppressed on progress
+ok 153 - T-login suppressed on progress
+  ---
+  duration_ms: 0.945371
+  type: 'test'
+  ...
+# Subtest: T-login suppressed on resume
+ok 154 - T-login suppressed on resume
+  ---
+  duration_ms: 0.661269
+  type: 'test'
+  ...
+# Subtest: T-login unsuppressed without bindings or progress
+ok 155 - T-login unsuppressed without bindings or progress
+  ---
+  duration_ms: 0.363864
+  type: 'test'
+  ...
+# Subtest: T-login suppressed on wingman_do via the goal
+ok 156 - T-login suppressed on wingman_do via the goal
+  ---
+  duration_ms: 0.543829
+  type: 'test'
+  ...
+# Subtest: T-advance resets loginSeen
+ok 157 - T-advance resets loginSeen
+  ---
+  duration_ms: 0.753184
+  type: 'test'
+  ...
+# Subtest: T-ready gate skipped for scroll
+ok 158 - T-ready gate skipped for scroll
+  ---
+  duration_ms: 0.574961
+  type: 'test'
+  ...
+# Subtest: T-ready gate still applies to press
+ok 159 - T-ready gate still applies to press
+  ---
+  duration_ms: 0.822989
+  type: 'test'
+  ...
+# Subtest: T-r24-samedoc: a same-document landed own click advances at step_done 0.3 with no page error
+ok 160 - T-r24-samedoc: a same-document landed own click advances at step_done 0.3 with no page error
+  ---
+  duration_ms: 0.884973
+  type: 'test'
+  ...
+# Subtest: T-r24-samedoc-guards: errorP 0.25, a second clause click, a named binding or step_done 0.29 keep the same-document bar shut
+ok 161 - T-r24-samedoc-guards: errorP 0.25, a second clause click, a named binding or step_done 0.29 keep the same-document bar shut
+  ---
+  duration_ms: 4.543644
+  type: 'test'
+  ...
+# Subtest: T-r24-finalnav: a final clause whose one landed own click left the document ends done at step_done 0.25
+ok 162 - T-r24-finalnav: a final clause whose one landed own click left the document ends done at step_done 0.25
+  ---
+  duration_ms: 0.580189
+  type: 'test'
+  ...
+# Subtest: T-r24-finalnav-second-click: a final-clause landing after a second click on the clause does not end done
+ok 163 - T-r24-finalnav-second-click: a final-clause landing after a second click on the clause does not end done
+  ---
+  duration_ms: 0.85608
+  type: 'test'
+  ...
+# Subtest: T-r24-hover: a hover clause whose hover changed the page advances at step_done 0.5
+ok 164 - T-r24-hover: a hover clause whose hover changed the page advances at step_done 0.5
+  ---
+  duration_ms: 0.722633
+  type: 'test'
+  ...
+# Subtest: T-r24-hover-gate: a hover act under a clause that does not name hover never advances on hover evidence
+ok 165 - T-r24-hover-gate: a hover act under a clause that does not name hover never advances on hover evidence
+  ---
+  duration_ms: 1.238625
+  type: 'test'
+  ...
+# Subtest: T-r24-pressfocus: a press split between none and the focused field commits targetless
+ok 166 - T-r24-pressfocus: a press split between none and the focused field commits targetless
+  ---
+  duration_ms: 1.301116
+  type: 'test'
+  ...
+# Subtest: T-r24-pressfocus-guards: no focus, a non-editable focus or a third-element choice keeps the press uncommitted
+ok 167 - T-r24-pressfocus-guards: no focus, a non-editable focus or a third-element choice keeps the press uncommitted
+  ---
+  duration_ms: 2.213079
+  type: 'test'
+  ...
+# Subtest: T-r24-coerce: a check decided on a committed link acts as click
+ok 168 - T-r24-coerce: a check decided on a committed link acts as click
+  ---
+  duration_ms: 0.577064
+  type: 'test'
+  ...
+# Subtest: T-r24-coerce-checkbox: a check on a checkbox stays a check
+ok 169 - T-r24-coerce-checkbox: a check on a checkbox stays a check
+  ---
+  duration_ms: 0.567005
+  type: 'test'
+  ...
+# Subtest: T-r24-coerce-guards: only check/uncheck on a link or button, with click offered, coerces
+ok 170 - T-r24-coerce-guards: only check/uncheck on a link or button, with click offered, coerces
+  ---
+  duration_ms: 2.202878
+  type: 'test'
+  ...
+# Subtest: T-r24-stuck2: a landed stuck back on a page that still lacks the target allows one more stuck back
+ok 171 - T-r24-stuck2: a landed stuck back on a page that still lacks the target allows one more stuck back
+  ---
+  duration_ms: 0.949118
+  type: 'test'
+  ...
+# Subtest: T-r24-stuck2-limits: an unchanged stuck back or a used second stuck bounces without another stuck ask
+ok 172 - T-r24-stuck2-limits: an unchanged stuck back or a used second stuck bounces without another stuck ask
+  ---
+  duration_ms: 1.347841
+  type: 'test'
+  ...
+# Subtest: T-r24-stuck2-reset: a clause that advanced gets its own second stuck round
+ok 173 - T-r24-stuck2-reset: a clause that advanced gets its own second stuck round
+  ---
+  duration_ms: 1.181369
+  type: 'test'
+  ...
+# Subtest: T-r24-readyskip: a fresh clause whose click target commits at the takeover threshold skips the ready gate
+ok 174 - T-r24-readyskip: a fresh clause whose click target commits at the takeover threshold skips the ready gate
+  ---
+  duration_ms: 0.646909
+  type: 'test'
+  ...
+# Subtest: T-r24-readyskip-guards: any element act on the clause or a margin-only commit keeps the ready gate
+ok 175 - T-r24-readyskip-guards: any element act on the clause or a margin-only commit keeps the ready gate
+  ---
+  duration_ms: 3.030129
+  type: 'test'
+  ...
+# Subtest: T-r24-dialog-split: a confirm accepted from the click clause leaves the dialog clause nothing to do (characterization, O2)
+ok 176 - T-r24-dialog-split: a confirm accepted from the click clause leaves the dialog clause nothing to do (characterization, O2)
+  ---
+  duration_ms: 0.913146
+  type: 'test'
+  ...
+# Subtest: T-r24-samedoc-guards2: a key clause, a count clause or a press act keeps the same-document bar shut
+ok 177 - T-r24-samedoc-guards2: a key clause, a count clause or a press act keeps the same-document bar shut
+  ---
+  duration_ms: 2.53095
+  type: 'test'
+  ...
+# Subtest: T-r24-finalnav-error: a final-clause landing on a page that shows an error does not end done
+ok 178 - T-r24-finalnav-error: a final-clause landing on a page that shows an error does not end done
+  ---
+  duration_ms: 0.59676
+  type: 'test'
+  ...
+# Subtest: T-r24-hover-guards: step_done 0.45, an error page, a counted or value-naming hover clause keep the hover bar shut
+ok 179 - T-r24-hover-guards: step_done 0.45, an error page, a counted or value-naming hover clause keep the hover bar shut
+  ---
+  duration_ms: 2.229707
+  type: 'test'
+  ...
+# Subtest: T-r24-pressfocus-verb: a click split between none and the focused field never commits targetless
+ok 180 - T-r24-pressfocus-verb: a click split between none and the focused field never commits targetless
+  ---
+  duration_ms: 0.591161
+  type: 'test'
+  ...
+# Subtest: T-r24-finalnav-count: a counted final clause does not end done after its first landed click
+ok 181 - T-r24-finalnav-count: a counted final clause does not end done after its first landed click
+  ---
+  duration_ms: 0.625961
+  type: 'test'
+  ...
+# Subtest: T-r24b-round-shape: records carry stance, caller steps, parents, and each round's cursor, url and executed act
+ok 182 - T-r24b-round-shape: records carry stance, caller steps, parents, and each round's cursor, url and executed act
+  ---
+  duration_ms: 1.76015
+  type: 'test'
+  ...
+# Subtest: T-r24b-cands: the top-3 target grades carry role and tag and agree with target1/target2
+ok 183 - T-r24b-cands: the top-3 target grades carry role and tag and agree with target1/target2
+  ---
+  duration_ms: 0.620628
+  type: 'test'
+  ...
+# Subtest: T-r24b-gate: a live gate records the rule and element; a Jev-only gate records jev; the token act is marked
+ok 184 - T-r24b-gate: a live gate records the rule and element; a Jev-only gate records jev; the token act is marked
+  ---
+  duration_ms: 1.705089
+  type: 'test'
+  ...
+# Subtest: T-r24b-policy: a policy end records its reason and the signals that fired
+ok 185 - T-r24b-policy: a policy end records its reason and the signals that fired
+  ---
+  duration_ms: 1.284939
+  type: 'test'
+  ...
+# Subtest: T-r24b-dialogs: dialogs are recorded by type and outcome, never by message
+ok 186 - T-r24b-dialogs: dialogs are recorded by type and outcome, never by message
+  ---
+  duration_ms: 0.868385
+  type: 'test'
+  ...
+# Subtest: T-r24b-pick: a pick round records the pick and whether it resolved
+ok 187 - T-r24b-pick: a pick round records the pick and whether it resolved
+  ---
+  duration_ms: 0.647899
+  type: 'test'
+  ...
+# Subtest: T-r24b-act-flip-fail: a flip lands in act.flip; a failed act has no ok and marks the nav retry
+ok 188 - T-r24b-act-flip-fail: a flip lands in act.flip; a failed act has no ok and marks the nav retry
+  ---
+  duration_ms: 2.141756
+  type: 'test'
+  ...
+# Subtest: T-r24b-bounds: every new string is redacted before it is cut and stays inside its cap
+ok 189 - T-r24b-bounds: every new string is redacted before it is cut and stays inside its cap
+  ---
+  duration_ms: 3.941312
+  type: 'test'
+  ...
+# Subtest: T-r24b-page-fingerprint: a click that adds an element changes els and text_h (the Add Element shape)
+ok 190 - T-r24b-page-fingerprint: a click that adds an element changes els and text_h (the Add Element shape)
+  ---
+  duration_ms: 0.558264
+  type: 'test'
+  ...
+# Subtest: T-r24b-labels: element labels and the page title reach the log only under deps.logLabels, redacted then cut
+ok 191 - T-r24b-labels: element labels and the page title reach the log only under deps.logLabels, redacted then cut
+  ---
+  duration_ms: 2.857739
+  type: 'test'
+  ...
+# Subtest: T-r24b-recheck-redaction: step texts and the gate and token-act labels are redacted, and the page address drops its query and fragment
+ok 192 - T-r24b-recheck-redaction: step texts and the gate and token-act labels are redacted, and the page address drops its query and fragment
+  ---
+  duration_ms: 1.707696
+  type: 'test'
+  ...
+# Subtest: T-r24c-xcall: a value bound in call 1 is redacted in call 2's check and in call 3's log and Jev requests, and in call 4's pick
+ok 193 - T-r24c-xcall: a value bound in call 1 is redacted in call 2's check and in call 3's log and Jev requests, and in call 4's pick
+  ---
+  duration_ms: 2.515307
+  type: 'test'
+  ...
+# Subtest: T-r24c-pickrole: a pick role that equals a remembered value is redacted at the site, never by the backstop
+ok 194 - T-r24c-pickrole: a pick role that equals a remembered value is redacted at the site, never by the backstop
+  ---
+  duration_ms: 0.411277
+  type: 'test'
+  ...
+# Subtest: T-r24c-state: a landed fill, a refill after an under-graded first fill, and a landed check advance at 0.25
+ok 195 - T-r24c-state: a landed fill, a refill after an under-graded first fill, and a landed check advance at 0.25
+  ---
+  duration_ms: 3.847393
+  type: 'test'
+  ...
+# Subtest: T-r24c-state-guards: an error, two bindings or a pre-filled field never take the 0.25 bar
+ok 196 - T-r24c-state-guards: an error, two bindings or a pre-filled field never take the 0.25 bar
+  ---
+  duration_ms: 5.075931
+  type: 'test'
+  ...
+# Subtest: T-r24c-wait: a wait clause advances once the page text changed and step_done reaches 0.35
+ok 197 - T-r24c-wait: a wait clause advances once the page text changed and step_done reaches 0.35
+  ---
+  duration_ms: 1.761431
+  type: 'test'
+  ...
+# Subtest: T-r24c-wait-bar: a read of 0.34 holds a wait clause and 0.36 advances it (the 0.35 bar, not 0.3 or 0.4)
+ok 198 - T-r24c-wait-bar: a read of 0.34 holds a wait clause and 0.36 advances it (the 0.35 bar, not 0.3 or 0.4)
+  ---
+  duration_ms: 2.923343
+  type: 'test'
+  ...
+# Subtest: T-r24c-wait-guards: unchanged page text, a read under 0.35 or an error never advance a wait clause
+ok 199 - T-r24c-wait-guards: unchanged page text, a read under 0.35 or an error never advance a wait clause
+  ---
+  duration_ms: 5.573791
+  type: 'test'
+  ...
+# Subtest: T-r24c-stuck2-auto: the second stuck round goes back even where Jev would answer give-up
+ok 200 - T-r24c-stuck2-auto: the second stuck round goes back even where Jev would answer give-up
+  ---
+  duration_ms: 0.898116
+  type: 'test'
+  ...
+# Subtest: T-r24c-pressfocus-keyclause: a press split onto the focused field never commits on a clause that names no key
+ok 201 - T-r24c-pressfocus-keyclause: a press split onto the focused field never commits on a clause that names no key
+  ---
+  duration_ms: 0.595587
+  type: 'test'
+  ...
+# Subtest: T-r24c-pressfocus-keyclause-legacy: the legacy single step and its takeover continuation never press on a clause that names no key
+ok 202 - T-r24c-pressfocus-keyclause-legacy: the legacy single step and its takeover continuation never press on a clause that names no key
+  ---
+  duration_ms: 3.254809
+  type: 'test'
+  ...
+# Subtest: T-r24c-coveredby: a cover named like a bound value is redacted in target-covered evidence (chain commit and pick)
+ok 203 - T-r24c-coveredby: a cover named like a bound value is redacted in target-covered evidence (chain commit and pick)
+  ---
+  duration_ms: 1.207053
+  type: 'test'
+  ...
+# Subtest: T-r24c-token-label: a confirmed token act redacts a value-named element in last_action
+ok 204 - T-r24c-token-label: a confirmed token act redacts a value-named element in last_action
+  ---
+  duration_ms: 1.081387
+  type: 'test'
+  ...
+# Subtest: T-r24c-candidates: a value in an element name is redacted in the candidates of pick and covered-target results
+ok 205 - T-r24c-candidates: a value in an element name is redacted in the candidates of pick and covered-target results
+  ---
+  duration_ms: 1.90405
+  type: 'test'
+  ...
+# Subtest: T-r24c-acterror: a thrown act error naming a bound or remembered value is redacted in the log record at its site
+ok 206 - T-r24c-acterror: a thrown act error naming a bound or remembered value is redacted in the log record at its site
+  ---
+  duration_ms: 1.389901
+  type: 'test'
+  ...
+# Subtest: T-r24c-repeat-candidate: a value in the repeated element name is redacted in the repeat guard evidence
+ok 207 - T-r24c-repeat-candidate: a value in the repeated element name is redacted in the repeat guard evidence
+  ---
+  duration_ms: 1.011167
+  type: 'test'
+  ...
+# Subtest: T-r24c-option: a value in an option label is redacted in the chunk requests and the final request of a native select
+ok 208 - T-r24c-option: a value in an option label is redacted in the chunk requests and the final request of a native select
+  ---
+  duration_ms: 2.363406
+  type: 'test'
+  ...
+# Subtest: T-r24c-fuzz: no remembered value reaches a request, a record or a result (250 random cross-call runs)
+ok 209 - T-r24c-fuzz: no remembered value reaches a request, a record or a result (250 random cross-call runs)
+  ---
+  duration_ms: 673.79031
+  type: 'test'
+  ...
+# Subtest: T-r24e-align: a press pick on a type clause whose next clause presses applies to the press clause and advances past it
+ok 210 - T-r24e-align: a press pick on a type clause whose next clause presses applies to the press clause and advances past it
+  ---
+  duration_ms: 1.689517
+  type: 'test'
+  ...
+# Subtest: T-r24e-guards: a pick that fits the current clause, or fits neither clause, behaves as before
+ok 211 - T-r24e-guards: a pick that fits the current clause, or fits neither clause, behaves as before
+  ---
+  duration_ms: 3.484851
+  type: 'test'
+  ...
+1..211
+# tests 211
+# suites 0
+# pass 211
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1283.027221
+RUN-TESTS: files=1 tests=211 pass=211 fail=0
+RUN-TESTS: chrome sweep (post-run): 0 matching chromes
