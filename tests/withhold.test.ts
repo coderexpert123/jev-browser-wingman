@@ -415,3 +415,30 @@ test('T-r24d-wh-floor: a value under the floor gets no variants', () => {
   assert.equal(rs.size, 0);
   assert.equal(rs.redact('a%20b'), 'a%20b');
 });
+
+test('T-r24d-wh-dotseg: a value holding a dot segment gets no path-form variant (the URL parser resolves it to a fragment or to nothing)', () => {
+  // `new URL('http://h/test/..').pathname` is '/', so the old path form was '' (an alternative that matches at every
+  // position) and `a/../b` yielded the one-letter 'b'.
+  for (const v of ['test/..', 'x/../../..', './././', 'a/../b', '../../etc/passwd', 'x%2e%2e/%2E%2e', 'a\..\b', 'ab/.\t./cd']) {
+    for (const variant of encodedVariants(v)) assert.ok(variant.length >= 4, `${JSON.stringify(v)} produced the short variant ${JSON.stringify(variant)}`);
+    const rs = compileRedaction({ p: v });
+    const text = 'Hello world, the cat sat. Banner b etc/passwd c';
+    const once = rs.redact(text);
+    assert.equal(once, text, `${JSON.stringify(v)} must not touch unrelated text`);
+    assert.equal(rs.redact(once), once, 'idempotent');
+    assert.equal(rs.redact(`/${v}`), '/<value:p>', 'the literal value is still redacted');
+  }
+  // the encoded spellings of such a value are still covered
+  assert.equal(compileRedaction({ p: 'test/..' }).redact('/list/test%2F..'), '/list/<value:p>');
+  // a lone dot or a dotted name is not a dot segment: the path form stays
+  assert.deepEqual(encodedVariants('a.b/c d'), ['a.b%2Fc%20d', 'a.b/c%20d', 'a.b%2Fc+d', 'a.b/c+d']);
+  assert.ok(encodedVariants('wait... ok^').includes('wait...%20ok^'));
+});
+
+test('T-r24d-wh-floor-variant: no variant of any value is shorter than the redaction floor', () => {
+  for (const v of ['ab\tc\nd', 'a\t\t\tb', '\t\t\t\tx']) {
+    for (const variant of encodedVariants(v)) assert.ok(variant.length >= 4, `${JSON.stringify(v)} -> ${JSON.stringify(variant)}`);
+  }
+  assert.equal(compileRedaction({ t: 'a\tb\nc' }).redact('abc and ab'), 'abc and ab', 'the tab-stripped 3-char form is under the floor');
+  assert.equal(compileRedaction({ t: 'ab\tc\nd' }).redact('/abcd'), '/<value:t>', 'a stripped form at the floor is still a spelling');
+});

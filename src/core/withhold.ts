@@ -38,6 +38,9 @@ const KB_CROSS_CALL_REDACT = false;
  * the pre-r24d behaviour). Never flip in shipped code. */
 const KB_ENCODED_VARIANTS = false;
 
+/** r24d recheck: a value path segment that is `.` or `..` (literal or `%2e`, after a slash or backslash or at either end; tab/CR/LF are stripped first, as the URL parser does). */
+const DOT_SEGMENT_RE = /(^|[/\\])(\.|%2e){1,2}($|[/\\?#])/i;
+
 /** r24d: the percent-encoded spellings of a value that a page address (or a text copied from one) can carry:
  * encodeURIComponent, encodeURI, both with `+` for each encoded space, and the WHATWG path form (what
  * `new URL(...).pathname` yields, which leaves some characters encodeURI encodes). Lower-case percent-hex needs no
@@ -58,12 +61,18 @@ export function encodedVariants(value: string): string[] {
   } catch {
     /* lone surrogate: no component/URI forms */
   }
-  try {
-    add(new URL('http://h/' + value.replace(/[?#]/g, encodeURIComponent)).pathname.slice(1));
-  } catch {
-    /* unparseable: no path form */
+  // r24d recheck: a URL parser RESOLVES dot segments (`test/..` -> ``, `a/../b` -> `b`), so the pathname of such a value is
+  // not a spelling of it: an empty alternative matches at every position and a one-letter one redacts every `b` on the
+  // page. The path form is skipped for any value holding a dot segment (literal or `%2e`), and no variant may fall under
+  // the floor (tab/newline stripping is the other way a path form shrinks).
+  if (!DOT_SEGMENT_RE.test(value.replace(/[\t\r\n]/g, ''))) {
+    try {
+      add(new URL('http://h/' + value.replace(/[?#]/g, encodeURIComponent)).pathname.slice(1));
+    } catch {
+      /* unparseable: no path form */
+    }
   }
-  return out;
+  return out.filter((v) => v.length >= REDACT_MIN_LEN);
 }
 
 /** r24c: the marker suffix of a remembered value whose binding name now holds a different value. */
