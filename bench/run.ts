@@ -1386,7 +1386,9 @@ export async function runBench(argv: string[], deps?: Partial<BenchDeps>): Promi
           }
           // r24d: the decision service is evidently dead (exit 5, distinct from cap 3 and baseline-model 4); spend so far is
           // already in `runs`, so the results file and the phase ledger count it.
-          if (record.route !== 'playwright') {
+          // A wingman-route cell whose caller never called wingman (calls 0: the optional routes let it ignore the tool) says
+          // nothing about the service, so it neither counts nor resets the streak, like a playwright cell.
+          if (record.route !== 'playwright' && record.wingman.calls > 0) {
             jevDownStreak = record.jev_down === true ? jevDownStreak + 1 : 0;
             if (jevDownStreak >= JEV_DOWN_STREAK) {
               process.stdout.write(

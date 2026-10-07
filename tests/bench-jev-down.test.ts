@@ -193,6 +193,27 @@ test('r24d: the abort fires on the third consecutive down cell, not before and n
   assert.equal(readResults(resDir).aborted, 'jev-down');
 });
 
+test('r24d recheck: a wingman-route cell whose caller never called wingman neither counts nor resets the streak', async () => {
+  const resDir = tmpDir('jevw-down-zero-');
+  const pricesPath = writePrices(tmpDir('jevw-down-prices-'));
+  // Real default interleave per task: playwright, forced (service dead: down), browse (caller ignored wingman: zero calls).
+  // Pre-fix the zero-call browse cell reset the streak after every down cell, so a dead service never aborted.
+  const runOne: BenchDeps['runOne'] = async (task, route) => {
+    const down = route === 'forced';
+    const rec = cell(task, route, down);
+    if (route === 'browse') {
+      return { record: { ...rec, typesafe: { calls: 0, input_tokens: 0, output_tokens: 0, usd: 0 }, wingman: { calls: 0, fallback: 0, needs_confirmation: 0 } }, usd: CELL_USD };
+    }
+    return { record: rec, usd: CELL_USD };
+  };
+  const { exit, out } = await capture(() =>
+    runBench(['--cap-usd', '5', '--phase-cap-usd', '10', '--purpose', 'experiment', '--routes', 'playwright,forced,browse'], baseDeps(resDir, pricesPath, runOne)),
+  );
+  assert.equal(exit, 5, out);
+  assert.match(out, /BENCH-ABORTED: decision service down after 8 runs/);
+  assert.equal(readResults(resDir).aborted, 'jev-down');
+});
+
 // ---- producer -> detector: a real wingman against a stub Jev -----------------------------------------------------------
 
 let chrome: Awaited<ReturnType<typeof launchTestChrome>>;
