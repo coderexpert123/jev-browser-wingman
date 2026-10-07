@@ -1,0 +1,2 @@
+ls: cannot access 'bench/.home/profiles': No such file or directory
+ls: cannot access 'bench/.home/profiles-auto': No such file or directory
