@@ -1,0 +1,6 @@
+EXPLAIN t8-status-404#3 ok=true calls=1 tool_calls=2 usd=0.056154
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "click the 404 status code link"
+  step_parents [0]
+  r1 ms=14/233/121/311 kind=act cursor=0 url="http://127.0.0.1:39323/status_codes" els=6 th=1rmuwlv title="The Internet" step="click the 404 status code link" action=click actionP=0.92 stepDoneP=0.11 readyP=0.63 rightPageP=0.67 doneP=0.07 cands=[{"id":"e4","p":0.9,"role":"link","tag":"a","label":"404"},{"id":"e1","p":0.08,"role":"link","tag":"a","label":"here"},{"id":"none","p":0.02}] act={"verb":"click","id":"e4","role":"link","tag":"a","label":"404","ok":true}
+  r2 ms=11/118/0/0 kind=advance cursor=0 url="http://127.0.0.1:39323/status_codes/404" els=2 th=1y7o9ww title="The Internet" step="click the 404 status code link" action=none actionP=0.4 stepDoneP=0.6 readyP=0.72 rightPageP=0.76 errorP=0.1 doneP=0.75 cands=[{"id":"none","p":0.73},{"id":"e1","p":0.25,"role":"link","tag":"a","label":"here"},{"id":"ambiguous","p":0.02}] historyResult="element gone" leftPage=true flags=clickEvidence
