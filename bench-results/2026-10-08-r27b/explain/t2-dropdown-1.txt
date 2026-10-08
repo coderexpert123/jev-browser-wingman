@@ -1,0 +1,6 @@
+EXPLAIN t2-dropdown#1 ok=true calls=1 tool_calls=2 usd=0.16979
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=3 stance=off/off
+  step1 "select Option 2 in the dropdown list"
+  step_parents [0]
+  r1 ms=11/350/60/223 kind=act cursor=0 url="http://127.0.0.1:46015/dropdown" els=2 th=1qpvre9 title="The Internet" step="select Option 2 in the dropdown list" action=select actionP=0.98 stepDoneP=0.08 readyP=0.68 rightPageP=0.81 doneP=0.06 cands=[{"id":"e1","p":0.9,"role":"combobox","tag":"select","label":""},{"id":"ambiguous","p":0.06},{"id":"none","p":0.04}] act={"verb":"select","id":"e1","role":"combobox","tag":"select","label":"","ok":true}
+  r2 ms=7/199/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/dropdown" els=2 th=1qpvre9 title="The Internet" step="select Option 2 in the dropdown list" action=select actionP=0.56 stepDoneP=0.95 readyP=0.78 rightPageP=0.84 errorP=0.03 doneP=0.96 cands=[{"id":"e1","p":0.68,"role":"combobox","tag":"select","label":""},{"id":"none","p":0.3},{"id":"ambiguous","p":0.01}] historyResult="selected: Option 2" leftPage=false

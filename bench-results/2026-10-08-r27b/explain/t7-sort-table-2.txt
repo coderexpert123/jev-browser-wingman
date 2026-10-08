@@ -1,0 +1,6 @@
+EXPLAIN t7-sort-table#2 ok=true calls=1 tool_calls=2 usd=0.056418
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "click the Last Name column header in the first table"
+  step_parents [0]
+  r1 ms=13/234/81/222 kind=act cursor=0 url="http://127.0.0.1:46015/tables" els=29 th=1ulx6jr title="The Internet" step="click the Last Name column header in the first table" action=click actionP=0.95 stepDoneP=0.26 readyP=0.65 rightPageP=0.71 doneP=0.15 cands=[{"id":"e1","p":0.85,"role":"columnheader","tag":"th","label":"Last Name"},{"id":"none","p":0.14},{"id":"ambiguous","p":0.01}] act={"verb":"click","id":"e1","role":"columnheader","tag":"th","label":"Last Name","ok":true}
+  r2 ms=9/127/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/tables" els=29 th=1m73ci1 title="The Internet" step="click the Last Name column header in the first table" action=click actionP=0.72 stepDoneP=0.72 readyP=0.69 rightPageP=0.81 errorP=0.03 doneP=0.35 cands=[{"id":"e1","p":0.72,"role":"columnheader","tag":"th","label":"Last Name"},{"id":"none","p":0.28},{"id":"e8","p":0,"role":"link","tag":"a","label":"delete"}] historyResult="page changed" leftPage=false flags=clickEvidence

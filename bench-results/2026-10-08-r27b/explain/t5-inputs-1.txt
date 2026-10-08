@@ -1,0 +1,6 @@
+EXPLAIN t5-inputs#1 ok=true calls=1 tool_calls=2 usd=0.170223
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "type the number named amount into the number field"
+  step_parents [0]
+  r1 ms=11/244/60/218 kind=act cursor=0 url="http://127.0.0.1:46015/inputs" els=2 th=ofpj5w title="The Internet" step="type the number named amount into the number field" action=fill actionP=0.7 stepDoneP=0.06 readyP=0.44 rightPageP=0.6 doneP=0.05 cands=[{"id":"e1","p":0.85,"role":"spinbutton","tag":"input","label":""},{"id":"none","p":0.09},{"id":"ambiguous","p":0.06}] act={"verb":"fill","id":"e1","role":"spinbutton","tag":"input","label":"","binding":"amount","ok":true}
+  r2 ms=9/164/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/inputs" els=2 th=ofpj5w title="The Internet" step="type the number named amount into the number field" action=fill actionP=0.76 stepDoneP=0.61 readyP=0.55 rightPageP=0.66 errorP=0.06 doneP=0.37 cands=[{"id":"e1","p":0.85,"role":"spinbutton","tag":"input","label":""},{"id":"none","p":0.1},{"id":"ambiguous","p":0.05}] historyResult="filled" leftPage=false

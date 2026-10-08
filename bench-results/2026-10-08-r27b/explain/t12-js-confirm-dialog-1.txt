@@ -1,0 +1,6 @@
+EXPLAIN t12-js-confirm-dialog#1 ok=true calls=1 tool_calls=4 usd=0.210483
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "click the Click for JS Confirm button"
+  step_parents [0]
+  r1 ms=13/216/79/221 kind=act cursor=0 url="http://127.0.0.1:46015/javascript_alerts" els=4 th=zx1n2h title="The Internet" step="click the Click for JS Confirm button" action=click actionP=1 stepDoneP=0.14 readyP=0.76 rightPageP=0.87 doneP=0.08 cands=[{"id":"e2","p":1,"role":"button","tag":"button","label":"Click for JS Confirm"},{"id":"e3","p":0,"role":"button","tag":"button","label":"Click for JS Prompt"},{"id":"none","p":0}] act={"verb":"click","id":"e2","role":"button","tag":"button","label":"Click for JS Confirm","ok":true} dialogs=[{"type":"confirm","outcome":"accept"}] dialog=accept
+  r2 ms=6/152/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/javascript_alerts" els=4 th=npr72p title="The Internet" step="click the Click for JS Confirm button" action=click actionP=0.48 stepDoneP=0.53 readyP=0.58 rightPageP=0.72 errorP=0.05 doneP=0.22 cands=[{"id":"e2","p":0.66,"role":"button","tag":"button","label":"Click for JS Confirm"},{"id":"none","p":0.33},{"id":"ambiguous","p":0.01}] historyResult="page changed" leftPage=false flags=clickEvidence

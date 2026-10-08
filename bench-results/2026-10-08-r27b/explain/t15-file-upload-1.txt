@@ -1,0 +1,6 @@
+EXPLAIN t15-file-upload#1 ok=true calls=1 tool_calls=2 usd=0.171171
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "attach the file named sample to the Resume upload file input"
+  step_parents [0]
+  r1 ms=14/252/74/225 kind=act cursor=0 url="http://127.0.0.1:46015/upload.html" els=1 th=6gseph title="Upload" step="attach the file named sample to the Resume upload file input" action=upload actionP=0.98 stepDoneP=0.05 readyP=0.68 rightPageP=0.83 doneP=0.04 cands=[{"id":"e1","p":0.85,"role":"button","tag":"input","label":"Resume upload"},{"id":"none","p":0.14},{"id":"ambiguous","p":0.01}] act={"verb":"upload","id":"e1","role":"button","tag":"input","label":"Resume upload","binding":"sample","ok":true,"flip":"uploaded"}
+  r2 ms=9/143/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/upload.html" els=1 th=q3iqz9 title="Upload" step="attach the file named sample to the Resume upload file input" action=upload actionP=0.89 stepDoneP=0.66 readyP=0.64 rightPageP=0.78 errorP=0.05 doneP=0.64 cands=[{"id":"e1","p":0.84,"role":"button","tag":"input","label":"Resume upload"},{"id":"none","p":0.15},{"id":"ambiguous","p":0.01}] historyResult="uploaded" leftPage=false

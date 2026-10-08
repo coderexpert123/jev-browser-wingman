@@ -1,0 +1,6 @@
+EXPLAIN t1-checkboxes#2 ok=true calls=1 tool_calls=2 usd=0.056318
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "check the first checkbox"
+  step_parents [0]
+  r1 ms=12/222/90/266 kind=act cursor=0 url="http://127.0.0.1:46015/checkboxes" els=3 th=7swb1y title="The Internet" step="check the first checkbox" action=check actionP=0.99 stepDoneP=0.11 readyP=0.72 rightPageP=0.84 doneP=0.08 cands=[{"id":"e1","p":0.87,"role":"checkbox","tag":"input","label":""},{"id":"ambiguous","p":0.11},{"id":"none","p":0.02}] act={"verb":"check","id":"e1","role":"checkbox","tag":"input","label":"","ok":true,"flip":"checked"}
+  r2 ms=7/154/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/checkboxes" els=3 th=7swb1y title="The Internet" step="check the first checkbox" action=check actionP=0.77 stepDoneP=0.87 readyP=0.74 rightPageP=0.84 errorP=0.03 doneP=0.33 cands=[{"id":"ambiguous","p":0.43},{"id":"e1","p":0.27,"role":"checkbox","tag":"input","label":""},{"id":"none","p":0.26}] historyResult="checked" leftPage=false

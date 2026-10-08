@@ -1,0 +1,8 @@
+BENCH-BASELINE: expected-diff git_head baseline="922617fd037d7d5a18f6a370d8392f312f8a1011" run="10ac0cb7a2a0c6605de6653b2aa64908818665aa"
+BENCH-BASELINE: expected-diff caller_cli_version baseline="2.1.291" run="2.1.294"
+BENCH-BASELINE: expected-diff tool_text_sha256 baseline="a24b17c43e2afd3cd51b2ccfdf9ae8b56448b19036560bf4dabf24f0d556c897" run="4ce7f785dfac0c4ec22e1441408486dd9ad56b05adb99b8a863a3b0750004513"
+BENCH-BASELINE: expected-diff prompts_sha256 baseline="7c9dcc33b4a65dffd9439f100d065dd0f771429667b200276cf007b6de9b46f6" run="027f31908de892a62378d8f48d351ec91f213cd69d1e3ec5fd1c98a3affeb0a2"
+BENCH-BASELINE: ok baseline=r24b.json keys=25 expected_diffs=git_head,tool_text_sha256,caller_cli_version,prompts_sha256
+BENCH-BASELINE-POST: ok baseline=r24b.json keys=1 expected_diffs=git_head,tool_text_sha256,caller_cli_version,prompts_sha256
+BENCH-OBSERVED: warnings=0 (warn-only; nothing was blocked)
+exit=0

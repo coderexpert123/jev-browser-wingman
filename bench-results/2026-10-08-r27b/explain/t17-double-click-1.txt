@@ -1,0 +1,6 @@
+EXPLAIN t17-double-click#1 ok=true calls=1 tool_calls=2 usd=0.169559
+call1 done/goal-met why=null steps=1 rounds=2 jev_calls=2 stance=off/off
+  step1 "double-click the Counters box"
+  step_parents [0]
+  r1 ms=9/263/90/218 kind=act cursor=0 url="http://127.0.0.1:46015/double-click.html" els=1 th=xflkuq title="Double click" step="double-click the Counters box" action=dblclick actionP=0.99 stepDoneP=0.19 readyP=0.7 rightPageP=0.84 doneP=0.19 cands=[{"id":"e1","p":0.87,"role":"button","tag":"div","label":"Counters box"},{"id":"none","p":0.12},{"id":"ambiguous","p":0.01}] act={"verb":"dblclick","id":"e1","role":"button","tag":"div","label":"Counters box","ok":true}
+  r2 ms=6/170/0/0 kind=advance cursor=0 url="http://127.0.0.1:46015/double-click.html" els=1 th=xflkur title="Double click" step="double-click the Counters box" action=dblclick actionP=0.58 stepDoneP=0.91 readyP=0.67 rightPageP=0.83 errorP=0.05 doneP=0.88 cands=[{"id":"e1","p":0.71,"role":"button","tag":"div","label":"Counters box"},{"id":"none","p":0.28},{"id":"ambiguous","p":0.01}] historyResult="page changed" leftPage=false flags=clickEvidence
