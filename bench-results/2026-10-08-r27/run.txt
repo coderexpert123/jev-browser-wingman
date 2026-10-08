@@ -1,0 +1,2 @@
+BENCH-REFUSED: --purpose must be cap-proof, measure or experiment
+exit=2
