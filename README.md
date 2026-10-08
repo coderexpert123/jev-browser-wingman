@@ -9,8 +9,8 @@ jev-browser-wingman (wingman for short) hands your AI agent's browser clicks and
 We ran 17 small browser tasks, such as ticking a checkbox or checking out in a demo shop. Each ran twice with wingman and twice with Playwright alone, in alternating order: 68 runs. "Playwright alone" means the same agent using the regular Playwright MCP browser tools directly. Playwright is a browser-automation library, and MCP (Model Context Protocol) is how agents talk to tool servers.
 
 - **Completion:** wingman completed all 34 runs. Playwright alone completed 32 of 34 (94%). Both misses were the file-upload task, which Playwright alone missed in both runs.
-- **Cost:** the median run cost $0.162 with wingman and $0.177 with Playwright alone, about 9% lower. Total spend over all 34 runs was $4.86 against $5.40, 10% lower. Wingman was cheaper on 13 of the 17 tasks. Costs are the agent's and wingman's token use at list prices, not billing.
-- **Speed:** the median run took 13.1 s with wingman and 11.7 s with Playwright alone, so wingman was 1.4 s slower on the median. Wingman was faster on 5 tasks, slower by 3.5 s or less on 7, and slower by 4 s or more on 5. The task table below shows where.
+- **Cost:** the median run cost $0.075 with wingman and $0.185 with Playwright alone, about 60% lower. Total spend over all 34 runs was $3.75 against $5.35, 30% lower. Wingman was cheaper on 16 of the 17 tasks. Costs are the agent's and wingman's token use at list prices, not billing.
+- **Speed:** the median run took 16.0 s with wingman and 15.5 s with Playwright alone, so wingman was 0.5 s slower on the median. Wingman was faster on 8 tasks, slower by 4 s or more on 3, and slower by less on the rest. The task table below shows where.
 
 With two runs per task, read the differences as indicative, not statistically established.
 
@@ -39,31 +39,31 @@ Set `"handoff": {"mode": "optional"}` and nothing is hidden. Set `"handoff": {"r
 
 ## Results by task
 
-Wingman was faster on file upload, infinite scroll, table sort, double-click and checkboxes. It was 0.3 to 1.8 s slower on adding elements, the dropdown, text input and enabling a field. It was 2.8 to 3.5 s slower on key press, the 404 page and hover.
+Wingman was faster on checkboxes, the todo app, file upload, start loading (wait for hidden text), the table sort, the 404 page, the endless scroll and adding elements. It was slower by up to 3.6 s on the dropdown, enabling a field, text input, key press, the confirm dialog, hover and double-click.
 
-It was 4 s or more slower on five tasks: the start-loading task (wait for hidden text), the seven-page task (a chain of pages described under Benchmark), the todo app, the confirm dialog and the demo-shop checkout. On the seven-page task the two wingman runs took 30.7 s and 70.1 s, a wide spread. That task is also where wingman saved the most money, 35%.
+It was 4 s or more slower on three tasks: the seven-page task (a chain of pages described under Benchmark, +12.7 s), the demo-shop checkout (+7.7 s) and the dropdown (+4.4 s). On the seven-page task the two wingman runs took 39.9 s and 51.8 s, a wide spread. That task is also where the calling agent did the most retrying.
 
-Wingman cost more on four tasks: start-loading (+48%), the confirm dialog (+17%), the todo app (+13%) and the 404 page (+2%). Times are median seconds per run and costs are median dollars per run, from two runs each.
+Wingman cost more on one task only: the confirm dialog (+2%). Its largest savings were on the todo app (-68%), start loading (-58%), the 404 page (-57%) and the demo-shop checkout (-52%). Times are median seconds per run and costs are median dollars per run, from two runs each.
 
 | Task | Wingman s | Playwright alone s | Wingman cost $ | Playwright alone cost $ |
 |---|---|---|---|---|
-| Tick a checkbox | 10.3 | 10.9 | 0.108 | 0.136 |
-| Choose from a dropdown | 10.6 | 9.2 | 0.109 | 0.124 |
-| Enable a field, then type in it | 15.3 | 13.5 | 0.131 | 0.158 |
-| Click "Add element" three times | 11.6 | 11.4 | 0.109 | 0.129 |
-| Type a number into a field | 10.4 | 8.9 | 0.108 | 0.124 |
-| Start loading, wait for hidden text | 41.9 | 20.5 | 0.201 | 0.136 |
-| Sort a table | 10.1 | 11.6 | 0.108 | 0.156 |
-| Open the 404 status page | 13.1 | 9.9 | 0.130 | 0.127 |
-| Seven-page multi-step task | 50.4 | 34.0 | 0.268 | 0.409 |
-| Demo-shop checkout (live site) | 23.6 | 19.6 | 0.168 | 0.180 |
-| Todo app (live site) | 25.5 | 16.5 | 0.223 | 0.196 |
-| Accept a confirm dialog | 15.1 | 11.0 | 0.169 | 0.144 |
-| Scroll an endless page | 15.1 | 17.6 | 0.109 | 0.128 |
-| Press the Escape key | 13.0 | 10.2 | 0.129 | 0.134 |
-| Upload a file | 9.8 | 13.1 | 0.109 | 0.149 |
-| Hover, then click the revealed button | 14.6 | 11.0 | 0.140 | 0.143 |
-| Double-click a box | 10.0 | 10.8 | 0.108 | 0.125 |
+| Tick a checkbox | 13.8 | 16.4 | 0.113 | 0.150 |
+| Choose from a dropdown | 16.2 | 11.8 | 0.113 | 0.130 |
+| Enable a field, then type in it | 18.7 | 17.1 | 0.114 | 0.162 |
+| Click "Add element" three times | 15.4 | 16.0 | 0.113 | 0.134 |
+| Type a number into a field | 16.5 | 13.4 | 0.114 | 0.133 |
+| Start loading, wait for hidden text | 16.8 | 22.1 | 0.057 | 0.136 |
+| Sort a table | 12.3 | 14.5 | 0.113 | 0.163 |
+| Open the 404 status page | 11.7 | 13.4 | 0.057 | 0.131 |
+| Seven-page multi-step task | 45.9 | 33.2 | 0.208 | 0.299 |
+| Demo-shop checkout (live site) | 29.3 | 21.6 | 0.092 | 0.193 |
+| Todo app (live site) | 15.6 | 18.8 | 0.059 | 0.187 |
+| Accept a confirm dialog | 16.4 | 13.6 | 0.154 | 0.151 |
+| Scroll an endless page | 18.7 | 19.3 | 0.114 | 0.136 |
+| Press the Escape key | 16.5 | 12.9 | 0.114 | 0.135 |
+| Upload a file | 14.5 | 16.5 | 0.115 | 0.155 |
+| Hover, then click the revealed button | 14.9 | 13.9 | 0.113 | 0.150 |
+| Double-click a box | 13.1 | 12.0 | 0.113 | 0.130 |
 
 ## Install
 
@@ -270,21 +270,21 @@ Two tasks run on live sites to check real-web behavior: the Sauce Demo shop chec
 
 The local seven-page chain reproduces the error banner the live site shows after the Retrieve password form is submitted. It therefore exercises recovery without a live site's flakiness. The local 404 page returns HTTP 200, so the check that scores that task reads the URL path.
 
-In 17 of the 34 wingman runs, at least one step was handed back to the agent. The agent then made no click, type or script calls of its own. Every wingman run of the start-loading task, the seven-page task and the todo app handed back a step, and those three show the widest time gaps. The data do not isolate the cause.
+In 1 of the 34 wingman runs, at least one step was handed back to the agent. That was one run of the seven-page task, which handed back two steps; the agent then made no click, type or script calls of its own beyond one page read. The other 33 wingman runs completed every step through wingman.
 
 The block below is generated from the results file. Times are seconds and costs are US dollars at list prices. The `forced` row is wingman in hand-off mode, and the `playwright` row is Playwright alone. The `fallback rate` column is the share of wingman runs where a step was handed back. 
 
 In the header line, `model=sonnet` is the alias described above, `harness=3` is the version of the benchmark script, and a "cell" is one run. The `scripts/gates/readme-bench.mjs` gate keeps the block in sync with the newest results file.
 
 <!-- bench:begin -->
-Benchmark: publish-merged-r23b.json · model=sonnet · harness=3 · 2026-10-05-060625.json · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.
+Benchmark: publish-r27b.json · model=sonnet · harness=3 · 2026-10-08-110201.json · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.
 
 | route | success | median wall-clock | wall spread (min-max) | median cost (USD) | fallback rate |
 |---|---|---|---|---|---|
-| playwright | 0.941176 | 11.7 | 8.7-36.8 | 0.176974 | 0 |
-| forced | 1 | 13.1 | 9.0-70.1 | 0.161893 | 0.5 |
+| playwright | 0.941176 | 15.5 | 11.4-37.4 | 0.185321 | 0 |
+| forced | 1 | 16.0 | 11.3-51.8 | 0.074557 | 0.029412 |
 
-Source: bench/results/publish-merged-r23b.json
+Source: bench/results/publish-r27b.json
 <!-- bench:end -->
 
 ## Design references

@@ -1,5 +1,5 @@
 export const PACKAGE_NAME = 'jev-browser-wingman';
-export const PACKAGE_VERSION = '0.3.1';
+export const PACKAGE_VERSION = '0.3.2';
 export const ENV = {
   HOME: 'WINGMAN_HOME', CDP_ENDPOINT: 'WINGMAN_CDP_ENDPOINT',
   PLAYWRIGHT_CDP: 'PLAYWRIGHT_MCP_CDP_ENDPOINT', // deleted by WP-R
