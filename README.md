@@ -268,7 +268,7 @@ Documented extension points for later adapters: Puppeteer; WebDriver BiDi via Se
 
 The benchmark has 17 small browser tasks, such as ticking a checkbox, sorting a table, accepting a confirm dialog, uploading a file or checking out in a demo shop. Fifteen run on local copies of a public practice site for browser automation. The copies mirror that site's pages byte for byte, so those runs are repeatable. The longest task is a chain of seven pages in a fixed order: checkboxes, dropdown, add and remove elements, inputs, forgot-password form, dynamic loading and status codes.
 
-Two tasks run on live sites to check real-web behavior: the Sauce Demo shop checkout and the TodoMVC app. Each task runs twice with wingman and twice with Playwright alone, interleaved. The calling agent is the same in both setups: a fast model served through a proxy and reached through Claude Code's `sonnet` alias. This is not a direct measurement of Anthropic's Sonnet model.
+Two tasks run on live sites to check real-web behavior: the Sauce Demo shop checkout and the TodoMVC app. Each task runs twice with wingman and twice with Playwright alone, interleaved. The calling agent is the same in both setups: Claude Sonnet 5.5 running in Claude Code. Costs are Claude Sonnet 5.5 list prices on the agent's tokens plus Jev's own cost.
 
 In the wingman setup the agent's prompt carries three extra sentences on using `browse_step`: what to pass and how to resume after a hand-back, to send only the later steps once a step's action already ran, and to skip a step that opens the page it is already on. Playwright alone gets no tool-specific guidance. The wingman setup's turn limit is 30 against 40 for Playwright alone; no run made more than 20 tool calls.
 
@@ -278,7 +278,7 @@ In 1 of the 34 wingman runs, at least one step was handed back to the agent. Tha
 
 The block below is generated from the results file. Times are seconds and costs are US dollars at list prices. The `forced` row is wingman in hand-off mode, and the `playwright` row is Playwright alone. The `fallback rate` column is the share of wingman runs where a step was handed back. The median cost column is the raw per-run median, which falls between the warm-cache and cold-cache clusters described under Results by task; the total and the cache-neutral figures there are the steadier comparison.
 
-In the header line, `model=sonnet` is the alias described above, `harness=3` is the version of the benchmark script, and a "cell" is one run. The `scripts/gates/readme-bench.mjs` gate keeps the block in sync with the newest results file.
+In the header line, `model=sonnet` is the Claude Code model name for the Claude Sonnet 5.5 agent described above, `harness=3` is the version of the benchmark script, and a "cell" is one run. The `scripts/gates/readme-bench.mjs` gate keeps the block in sync with the newest results file.
 
 <!-- bench:begin -->
 Benchmark: publish-r27b.json · model=sonnet · harness=3 · 2026-10-08-110201.json · medians over interleaved cells; cost is the normalized token index at bench/prices.json list prices, not billing.
