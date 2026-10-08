@@ -9,7 +9,7 @@ jev-browser-wingman (wingman for short) hands your AI agent's browser clicks and
 We ran 17 small browser tasks, such as ticking a checkbox or checking out in a demo shop. Each ran twice with wingman and twice with Playwright alone, in alternating order: 68 runs. "Playwright alone" means the same agent using the regular Playwright MCP browser tools directly. Playwright is a browser-automation library, and MCP (Model Context Protocol) is how agents talk to tool servers.
 
 - **Completion:** wingman completed all 34 runs. Playwright alone completed 32 of 34 (94%). Both misses were the file-upload task, which Playwright alone missed in both runs.
-- **Cost:** the median run cost $0.075 with wingman and $0.185 with Playwright alone, about 60% lower. Total spend over all 34 runs was $3.75 against $5.35, 30% lower. Wingman was cheaper on 16 of the 17 tasks. Costs are the agent's and wingman's token use at list prices, not billing.
+- **Cost:** total spend over all 34 runs was $3.75 with wingman and $5.35 with Playwright alone, 30% lower. Wingman was cheaper on 16 of the 17 tasks. Costs are the agent's and wingman's token use at list prices, not billing. Per-run costs cluster by whether the agent's prompt cache was already warm, so the total is the steadier figure (see Results by task).
 - **Speed:** the median run took 16.0 s with wingman and 15.5 s with Playwright alone, so wingman was 0.5 s slower on the median. Wingman was faster on 8 tasks, slower by 4 s or more on 3, and slower by less on the rest. The task table below shows where.
 
 With two runs per task, read the differences as indicative, not statistically established.
@@ -39,11 +39,13 @@ Set `"handoff": {"mode": "optional"}` and nothing is hidden. Set `"handoff": {"r
 
 ## Results by task
 
-Wingman was faster on checkboxes, the todo app, file upload, start loading (wait for hidden text), the table sort, the 404 page, the endless scroll and adding elements. It was slower by up to 3.6 s on the dropdown, enabling a field, text input, key press, the confirm dialog, hover and double-click.
+Wingman was faster on checkboxes, the todo app, file upload, start loading (wait for hidden text), the table sort, the 404 page, the endless scroll and adding elements. It was slower by up to 3.6 s on enabling a field, text input, key press, the confirm dialog, hover and double-click.
 
-It was 4 s or more slower on three tasks: the seven-page task (a chain of pages described under Benchmark, +12.7 s), the demo-shop checkout (+7.7 s) and the dropdown (+4.4 s). On the seven-page task the two wingman runs took 39.9 s and 51.8 s, a wide spread. That task is also where the calling agent did the most retrying.
+It was 4 s or more slower on three tasks: the seven-page task (a chain of pages described under Benchmark, +12.6 s), the demo-shop checkout (+7.7 s) and the dropdown (+4.4 s). On the seven-page task the two wingman runs took 39.9 s and 51.8 s, a wide spread.
 
-Wingman cost more on one task only: the confirm dialog (+2%). Its largest savings were on the todo app (-68%), start loading (-58%), the 404 page (-57%) and the demo-shop checkout (-52%). Times are median seconds per run and costs are median dollars per run, from two runs each.
+Wingman cost more on one task only: the confirm dialog (+2%). Times are median seconds per run and costs are median dollars per run, from two runs each.
+
+A run's cost depends heavily on whether the agent's prompt cache was already warm when it started. The first run of each task mostly started cold and the second always warm, but four first wingman runs happened to start warm. Playwright alone therefore started cold in 17 of its 34 runs and wingman in 13, so the four tasks where wingman never started cold (start loading, the 404 page, the checkout and the todo app) owe part of their gap to warm starts. Pricing every cache write at the cache-read rate removes that effect: wingman stays cheaper on 16 of 17 tasks and 31% cheaper in total, with per-task savings of 23% to 50%.
 
 | Task | Wingman s | Playwright alone s | Wingman cost $ | Playwright alone cost $ |
 |---|---|---|---|---|
@@ -268,11 +270,13 @@ The benchmark has 17 small browser tasks, such as ticking a checkbox, sorting a 
 
 Two tasks run on live sites to check real-web behavior: the Sauce Demo shop checkout and the TodoMVC app. Each task runs twice with wingman and twice with Playwright alone, interleaved. The calling agent is the same in both setups: a fast model served through a proxy and reached through Claude Code's `sonnet` alias. This is not a direct measurement of Anthropic's Sonnet model.
 
+In the wingman setup the agent's prompt carries three extra sentences on using `browse_step`: what to pass, how to resume after a hand-back, and to skip a step that opens the page it is already on. Playwright alone gets no tool-specific guidance. The wingman setup's turn limit is 30 against 40 for Playwright alone; no run made more than 20 tool calls.
+
 The local seven-page chain reproduces the error banner the live site shows after the Retrieve password form is submitted. It therefore exercises recovery without a live site's flakiness. The local 404 page returns HTTP 200, so the check that scores that task reads the URL path.
 
 In 1 of the 34 wingman runs, at least one step was handed back to the agent. That was one run of the seven-page task, which handed back two steps; the agent then made no click, type or script calls of its own beyond one page read. The other 33 wingman runs completed every step through wingman.
 
-The block below is generated from the results file. Times are seconds and costs are US dollars at list prices. The `forced` row is wingman in hand-off mode, and the `playwright` row is Playwright alone. The `fallback rate` column is the share of wingman runs where a step was handed back. 
+The block below is generated from the results file. Times are seconds and costs are US dollars at list prices. The `forced` row is wingman in hand-off mode, and the `playwright` row is Playwright alone. The `fallback rate` column is the share of wingman runs where a step was handed back. The median cost column is the raw per-run median, which falls between the warm-cache and cold-cache clusters described under Results by task; the total and the cache-neutral figures there are the steadier comparison.
 
 In the header line, `model=sonnet` is the alias described above, `harness=3` is the version of the benchmark script, and a "cell" is one run. The `scripts/gates/readme-bench.mjs` gate keeps the block in sync with the newest results file.
 

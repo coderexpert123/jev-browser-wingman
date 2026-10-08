@@ -6109,26 +6109,88 @@ test('T-r25-pressafterfill-guards: each guard prevents the rule from firing when
   assert.ok(!i.driver.actCalls().some((c2) => c2.op === 'press'), 'a press on a non-editable element never fires the rule');
 });
 
-test('T-r25-pressafterfill-gate-confirm: the mechanical press does not fire the gate under gate.mode confirm', async () => {
+test('T-r25-pressafterfill-gate-confirm: the mechanical press goes through the gate under confirm; gate off stays mechanical', async () => {
   // The filled element is inside a <form> (form: 0); gateHeuristic's
   // enter-in-form rule fires on ANY element-targeted press in a form
-  // (gate.ts line 28: op === 'press' && el.form >= 0). With gate: true the
-  // loop returns needs_confirmation — a hand-back. gate: false skips the
-  // gate block entirely; the press proceeds.
+  // (gate.ts: op === 'press' && el.form >= 0). The mechanical press must take
+  // the same gate path as a Jev-decided press: under gate.mode confirm it
+  // returns needs_confirmation BEFORE the press executes. Gate off (default):
+  // gate:true is a no-op, the press fires with zero Jev asks.
+  const forms = [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }];
   const formEl = (filled: boolean): ElementRecord => ({ ...r25Input(filled), form: 0 });
-  const obs0 = observation({ elements: [formEl(false)], text: 'todos', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
-  const obs1 = observation({ elements: [formEl(true)], text: 'todos', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
-  const obs2 = observation({ elements: [formEl(true)], text: 'todos first entry added', forms: [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }] });
+  const mkObs = () => [
+    observation({ elements: [formEl(false)], text: 'todos', forms }),
+    observation({ elements: [formEl(true)], text: 'todos', forms }),
+    observation({ elements: [formEl(true)], text: 'todos', forms }),
+    observation({ elements: [formEl(true)], text: 'todos first entry added', forms }),
+  ];
+  // (a) confirm: needs_confirmation, press NOT executed.
   const h = harness({
-    observations: { p1: [obs0, obs1, obs1, obs2] },
+    observations: { p1: mkObs() },
     script: [],
     ask: r25Ask(),
     config: { gate: { mode: 'confirm' as const } },
   });
   const r = await h.call({ goal: 'chain-r25-gate-confirm goal', steps: R25_STEPS, values: R25_VALUES });
   const ops = h.driver.actCalls().map((a) => a.op);
-  assert.deepEqual(ops, ['fill', 'press'], `expected [fill, press] under gate confirm, got ${JSON.stringify(ops)}`);
-  assert.equal(r.status, 'done', `gate must not fire on the mechanical press; got ${r.status}/${r.reason}`);
+  assert.deepEqual(ops, ['fill'], `press must not execute before confirmation, got ${JSON.stringify(ops)}`);
+  assert.equal(r.status, 'needs_confirmation', `enter-in-form must stop under confirm; got ${r.status}/${r.reason}`);
+  assert.equal(r.reason, 'irreversible-heuristic');
+  // (b) gate off: mechanical press fires, zero Jev asks on the press clause.
+  let pressAsks = 0;
+  const inner = r25Ask();
+  const counting: JevAsk = async (request, ...rest) => {
+    // Asks BEFORE the press act would be the decision ask; the post-press
+    // verification ask is legitimate.
+    const pressed = h2.driver.actCalls().some((a) => a.op === 'press');
+    if (!pressed && /^press\b/.test((request.state as { step?: string }).step ?? '')) pressAsks += 1;
+    return inner(request, ...rest);
+  };
+  const h2 = harness({
+    observations: { p1: mkObs() },
+    script: [],
+    ask: counting,
+  });
+  const r2 = await h2.call({ goal: 'chain-r25-gate-off goal', steps: R25_STEPS, values: R25_VALUES });
+  assert.deepEqual(h2.driver.actCalls().map((a) => a.op), ['fill', 'press']);
+  assert.equal(r2.status, 'done', `gate off must stay mechanical; got ${r2.status}/${r2.reason}`);
+  assert.equal(pressAsks, 0, 'the mechanical press asks Jev nothing before it fires');
+});
+
+test('T-r25-pressafterfill-gate-confirm-resume: confirming the gated mechanical press performs it exactly once', async () => {
+  // Call 1 (confirm mode) stops at needs_confirmation with the press unexecuted;
+  // call 2 carries the token: the token block presses once (runTokenAction books
+  // it under the press clause), the next round's keyAdvance sees the page change
+  // and the chain ends done. The pressAfterFill rule must NOT press a second time
+  // (history ends in a press, not a landed fill) and the press must not be lost.
+  const forms = [{ index: 0, id: 'todo-form', name: 'todo', actionPath: '/add', method: 'post' }];
+  const formEl = (filled: boolean): ElementRecord => ({ ...r25Input(filled), form: 0 });
+  const pre = (): Observation => observation({ elements: [formEl(true)], text: 'todos', forms });
+  const h = harness({
+    // call 1: pre-fill, post-fill (advance), pre-press (gated); call 2: pre-press (token), post-press (changed).
+    observations: {
+      p1: [
+        observation({ elements: [formEl(false)], text: 'todos', forms }),
+        pre(),
+        pre(),
+        pre(),
+        observation({ elements: [formEl(true)], text: 'todos first entry added', forms }),
+      ],
+    },
+    script: [],
+    ask: r25Ask(),
+    config: { gate: { mode: 'confirm' as const } },
+  });
+  const args = { goal: 'chain-r25-gate-resume goal', steps: R25_STEPS, values: R25_VALUES };
+  const r1 = await h.call(args);
+  assert.equal(r1.status, 'needs_confirmation', `${r1.status}/${r1.reason}`);
+  assert.equal(r1.reason, 'irreversible-heuristic');
+  assert.deepEqual(h.driver.actCalls().map((a) => a.op), ['fill'], 'press not executed before confirmation');
+  const r2 = await h.call({ ...args, confirm_token: r1.confirm_token });
+  const acts = h.driver.actCalls();
+  assert.deepEqual(acts.map((a) => a.op), ['fill', 'press'], `exactly one press after confirm, got ${JSON.stringify(acts.map((a) => a.op))}`);
+  assert.equal(r2.status, 'done', `${r2.status}/${r2.reason}`);
+  assert.deepEqual(r2.progress, { step_index: 2, steps_done: 2, steps_total: 2 });
 });
 
 // ---- r26: login-goal-memory + wait-already-satisfied ----
@@ -6239,4 +6301,85 @@ test('T-r26-wait-satisfied-guards: the wait-already-satisfied rule is guarded', 
   const r = await h.call({ goal: 'do something', steps: ['click the Go button'], values: {} });
   const clickActs = h.driver.actCalls().filter((c) => c.op === 'click');
   assert.ok(clickActs.length > 0, 'a non-wait clause must act (click), not advance silently');
+});
+
+function r26WaitRun(clause: string, text: string, tag: string) {
+  const el1 = el({ id: 'e1', path: '#btn', tag: 'button', role: 'button', name: 'Go', editable: false });
+  const mk = () => observation({ elements: [el1], text });
+  const waitAsk: JevAsk = async () => ({ ok: true, answers: { done: { type: 'noul', noul: 0.05 }, step_done: { type: 'noul', noul: 0.05 }, action: choice('wait', { wait: 0.9 }) }, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 });
+  const h = harness({ observations: { p1: [mk(), mk(), mk()] }, script: [], ask: waitAsk });
+  return h.call({ goal: `r26-wait ${tag} ${clause}`, steps: [clause], values: {} }).then((r) => ({
+    r,
+    satisfied: (h.records[0]?.phases?.rounds ?? []).some((x) => x.waitSatisfied === true),
+  }));
+}
+
+test('T-r26-wait-satisfied-absence: disappearance/finish/ended-state waits are never satisfied by the text being present', async () => {
+  const clauses = [
+    'wait until "Loading..." disappears',
+    'wait for "Loading..." to disappear',
+    'wait for "loading" to finish',
+    'wait until "Loading..." is gone',
+    'wait until "Loading..." is no longer visible',
+    'wait for "Loading..." to go away',
+    'wait until "Loading..." vanishes',
+    'wait until "Loading..." is hidden',
+    'wait for "Loading..." to complete',
+    // r26 recheck additions
+    'wait until "Loading..." is not visible',
+    "wait until \"Loading...\" isn't visible",
+    'wait until "Loading..." isn\u2019t visible',
+    'wait while "Loading..." is showing',
+    'wait until "Loading..." clears',
+    'wait until "Loading..." ends',
+    'wait until "Loading..." stops',
+    'wait until "Loading..." is closed',
+    'wait until "Loading..." is dismissed',
+    'wait until "Loading..." is shown then hidden',
+    'wait until "Loading..." is done',
+    'wait until "Loading..." is complete',
+    'wait for "Loading..." to end',
+    'wait until "Loading..." leaves',
+    'wait until "Loading..." goes',
+    'wait until "Loading..." finishes',
+    'wait until "Loading..." is replaced by "Saved"',
+    'wait until "Name" and "Loading..." appear',
+    // an apostrophe pair must not strip the absence word between them
+    "wait for \"Loading...\" (Bob's spinner is gone, Bob's page)",
+    "wait until \"Loading...\" appears (Bob's spinner is gone, Bob's page)",
+    // no presence cue at all: absence vocabulary the deny list does not know proves nothing
+    'wait until "Loading..." fades',
+    'wait until "Loading..." expires',
+    'wait until "Loading..." is out of view',
+    'wait until "Loading..." drops',
+    'wait until "Loading..." has loaded',
+    'wait for "Loading..."',
+    'wait 5 seconds for "Loading..."',
+  ];
+  for (const clause of clauses) {
+    const { r, satisfied } = await r26WaitRun(clause, 'page Name Loading... please wait', 'absent');
+    assert.ok(!satisfied, `${clause}: must not be marked waitSatisfied`);
+    assert.ok(!(r.status === 'done' && r.reason === 'goal-met' && r.progress?.steps_done === 1), `${clause}: must not end done by the shortcut`);
+  }
+});
+
+test('T-r26-wait-satisfied-presence: presence waits whose text is already shown still advance (the check can discriminate)', async () => {
+  const cases: Array<[string, string]> = [
+    ['wait until "Hello World" appears', 'page Hello World here'],
+    ['wait for "Hello World" to appear', 'page Hello World here'],
+    ["wait until 'Hello World' appears", 'page Hello World here'],
+    // t6: "hidden" before the noun is not an absence word
+    ['wait until the hidden text appears', 'page the hidden text here'],
+    // a quoted absence-looking word is the needle, not the wait's verb
+    ['wait until "Order complete" appears', 'page Order complete here'],
+    ['wait until "Item removed" appears', 'page Item removed here'],
+    ['wait until "Hello World" is visible', 'page Hello World here'],
+    ['wait until "Hello World" shows up', 'page Hello World here'],
+    ['wait for "Hello World" to be displayed', 'page Hello World here'],
+  ];
+  for (const [clause, text] of cases) {
+    const { r, satisfied } = await r26WaitRun(clause, text, 'present');
+    assert.ok(satisfied, `${clause}: presence wait with the text shown must be marked waitSatisfied`);
+    assert.equal(r.status, 'done', `${clause}: ${r.status}/${r.reason}`);
+  }
 });

@@ -1073,6 +1073,36 @@ function pressAfterFill(
   return { key, el: filled };
 }
 
+/** r26 guard: absence / completion vocabulary in a wait clause (quotes stripped
+ * first). Conservative by design: a false match only skips the shortcut (the
+ * normal wait runs); a miss would skip a wait the caller needs. Bare "complete"
+ * and "hidden" are NOT absence words ("until Order complete appears", "until the
+ * hidden text appears" stay presence waits). Open-ended by nature: the
+ * WAIT_PRESENCE_CUE_RE requirement below is the backstop for what this list misses. */
+const WAIT_ABSENCE_RE = new RegExp(
+  [
+    // gone / negated presence / ended-state vocabulary. "hidden" counts only after a copula so
+    // "wait until the hidden text appears" (t6) stays a presence wait.
+    String.raw`\b(?:disappear(?:s|ed|ing)?|vanish(?:es|ed)?|gone|goes|go\s+away|no\s+(?:longer|more)|not|invisible|hides|remov(?:e|es|ed)|(?:is|are|be|being|gets?|becomes?|stays?|remains?|then|and|or|to)\s+hidden|leaves|ends|ended|stops|stopped|ceases|clears|cleared|closes|closed|dismisses|dismissed|finish(?:es|ed)?|completes|completed|replac(?:es|ed)|chang(?:es|ed)|while|as\s+long\s+as)\b`,
+    // "to <end-verb>" and "<is|has> done/complete/ready..." (quoted subject, state predicate).
+    String.raw`\bto\s+(?:finish|complete|end|stop|close|clear|dismiss|hide|go|leave)\b`,
+    String.raw`\b(?:is|are|has|have|be)\s+(?:done|over|ready|enabled|stable|settled|idle|updated|complete)\b`,
+    String.raw`\bcomplete\s+loading\b`,
+    // "isn't", "doesn't", "aren't", ...
+    String.raw`n['\u2019]t\b`,
+  ].join('|'),
+  'i',
+);
+
+/** r26 recheck: a presence cue is REQUIRED (on the clause with quoted spans stripped) before a
+ * needle's presence may satisfy a wait. The absence list above is open-ended ("fades", "expires",
+ * "is out of view", "has loaded" ...); a wait that says nothing about the text APPEARING or being
+ * shown proves nothing when the text is on the page now. A miss here only runs the normal wait. */
+const WAIT_PRESENCE_CUE_RE = /\b(?:appear(?:s|ed|ing)?|visible|displayed|shown|shows?|showing|present|rendered|renders?|exists?|available)\b/i;
+
+/** Quoted spans of a wait clause: double-quoted, or single-quoted only at word edges. */
+const WAIT_QUOTED_SPAN_RE = /"[^"\n]{2,80}"|(?<![A-Za-z0-9])'[^'\n]{2,80}'(?![A-Za-z0-9])/g;
+
 /** r26: a wait clause whose expected text is already present in the page —
  * re-sent alone after a hand-back, the wait condition was already met on the
  * previous call. Wait clause extraction: quoted text first, then "wait until X
@@ -1080,6 +1110,19 @@ function pressAfterFill(
  * first round — a wait that already started uses `waitAdvance` (r24c F3). */
 function waitAlreadySatisfied(clause: string, obs: Observation): boolean {
   if (!WAIT_CLAUSE_RE.test(clause)) return false;
+  // Absence/completion waits ("until X disappears", "for X to finish") are met
+  // by the text being GONE, so its presence proves nothing: never satisfied here.
+  // Tested on the clause with quoted spans removed so a quoted "Order complete"
+  // is a presence needle, not an absence word.
+  // A single quote counts as a quote only at word edges (so "isn't ... don't" or "Bob's" never
+  // strips the words between two apostrophes). Two or more quoted spans ("A" and "B" appear;
+  // "Saving..." replaced by "Saved") name more than the one needle checked below: not satisfiable
+  // from one needle's presence.
+  const spans = clause.match(WAIT_QUOTED_SPAN_RE);
+  if (spans !== null && spans.length > 1) return false;
+  const bare = clause.replace(WAIT_QUOTED_SPAN_RE, ' ');
+  if (WAIT_ABSENCE_RE.test(bare)) return false;
+  if (!WAIT_PRESENCE_CUE_RE.test(bare)) return false;
   // Quoted content: "wait until \"Hello World\" appears" or "wait for \"loading\" to finish".
   const quoted = clause.match(/[""'']([^""''\n]{2,80})[""'']/);
   if (quoted) {
@@ -4263,7 +4306,10 @@ async function runTool(
       ) {
         const pf = pressAfterFill(chain.clauses, chain.cursor, history, obs);
         if (pf !== undefined) {
-          decision = { el: pf.el, verb: 'press', optionValue: pf.key, gate: false };
+          // gate: true — same gate path as a Jev-decided press: under gate.mode
+          // 'confirm' the enter-in-form heuristic stops it (decisionAnswers is
+          // {} here, so only the heuristic can hit); mode 'off' skips the block.
+          decision = { el: pf.el, verb: 'press', optionValue: pf.key, gate: true };
           if (cur) cur.pressAfterFill = true;
         }
       }
