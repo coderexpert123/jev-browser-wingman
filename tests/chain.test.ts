@@ -6130,3 +6130,113 @@ test('T-r25-pressafterfill-gate-confirm: the mechanical press does not fire the 
   assert.deepEqual(ops, ['fill', 'press'], `expected [fill, press] under gate confirm, got ${JSON.stringify(ops)}`);
   assert.equal(r.status, 'done', `gate must not fire on the mechanical press; got ${r.status}/${r.reason}`);
 });
+
+// ---- r26: login-goal-memory + wait-already-satisfied ----
+
+test('T-r26-login-goal-memory: loginSeen survives a step trim (same goal, different clauses)', async () => {
+  // The caller sends a chain whose login clause names a binding (login
+  // suppressed on that clause) followed by a non-binding clause that ends
+  // login (loginSeen=true stored in chain memory). Then re-sends a TRIMMED
+  // chain (subset of clauses) for the SAME goal — a different [goal, clauses]
+  // key. The goal-prefix search must carry loginSeen forward so the trimmed
+  // call suppresses the login read again.
+  const loginAsk: JevAsk = async (request) => {
+    const step = (request.state as { step?: string }).step ?? '';
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 }, blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.9 }, error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 }, right_page: { type: 'noul', noul: 0.9 },
+      ready: { type: 'noul', noul: 0.9 },
+      action: choice('fill', { fill: 0.9 }),
+      target: choice('e1', { e1: 0.9 }),
+    };
+    if (/^type\b/.test(step)) {
+      answers.step_done = { type: 'noul', noul: 0.5 }; // above the 0.25 stateAdvance bar
+    } else {
+      answers.step_done = { type: 'noul', noul: 0.05 };
+    }
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const el1 = el({ id: 'e1', path: '#username', tag: 'input', role: 'textbox', name: 'Username', editable: true, type: 'text', state: { disabled: false, filled: false } });
+  const el1f = el({ id: 'e1', path: '#username', tag: 'input', role: 'textbox', name: 'Username', editable: true, type: 'text', state: { disabled: false, filled: true } });
+  const obs0 = observation({ elements: [el1], text: 'login page' });
+  const obs0f = observation({ elements: [el1f], text: 'login page' });
+  // Call 1: fill user (login suppressed — binding arm) -> click Login
+  // (login ENDS — no binding, loginSeen=true stored). Binding name 'username'
+  // (not 'u') — 'u' is a substring of 'button', so bindingsInStep would
+  // suppress login on the click clause too (substring match, not value-named).
+  const h1 = harness({ observations: { p1: [obs0, obs0f, obs0f, obs0f, obs0f] }, script: [], ask: loginAsk });
+  const r1 = await h1.call({ goal: 'login then add item', steps: ['type the value named username into the username field', 'click the Login button'], values: { username: 'user' } });
+  assert.equal(r1.status, 'login', `first call must end login (loginSeen stored); got ${r1.status}/${r1.reason}`);
+  // Call 2: trimmed chain (just the click Login step) — same goal, different
+  // clauses key. loginSeen carried forward via goal-prefix.
+  const trimmedAsk: JevAsk = async (request) => {
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 }, blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.9 }, error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 }, right_page: { type: 'noul', noul: 0.9 },
+      ready: { type: 'noul', noul: 0.9 },
+      step_done: { type: 'noul', noul: 0.05 },
+      action: choice('click', { click: 0.9 }),
+      target: choice('e1', { e1: 0.9 }),
+    };
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const h2 = harness({ observations: { p1: [obs0, obs0, obs0] }, script: [], ask: trimmedAsk });
+  await h2.call({ goal: 'login then add item', steps: ['click the Login button'], values: {} });
+  const loginSuppressed = (h2.records[0]?.phases?.rounds ?? []).some((r) => r.loginSuppressed === true);
+  assert.ok(loginSuppressed, 'loginSeen should be carried forward from the goal-prefix memory match');
+});
+
+test('T-r26-login-goal-memory-guards: the goal-prefix search only copies loginSeen', async () => {
+  // (a) different goal -> no copy
+  const ask: JevAsk = async (request) => {
+    const answers: Record<string, JevAnswer> = {
+      done: { type: 'noul', noul: 0.05 }, blocked: { type: 'noul', noul: 0.05 },
+      login: { type: 'noul', noul: 0.9 }, error: { type: 'noul', noul: 0.05 },
+      irreversible: { type: 'noul', noul: 0.05 }, right_page: { type: 'noul', noul: 0.9 },
+      ready: { type: 'noul', noul: 0.9 },
+      step_done: { type: 'noul', noul: 0.05 },
+      action: choice('fill', { fill: 0.9 }),
+      target: choice('e1', { e1: 0.9 }),
+    };
+    return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
+  };
+  const el1 = el({ id: 'e1', path: '#username', tag: 'input', role: 'textbox', name: 'Username', editable: true, type: 'text', state: { disabled: false, filled: false } });
+  const obs0 = observation({ elements: [el1], text: 'login page' });
+  const h1 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask });
+  await h1.call({ goal: 'login then add item', steps: ['type the value named u into the username field'], values: { u: 'user' } });
+  // Different goal -> loginSeen NOT carried forward (no loginSuppressed).
+  const h2 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask });
+  const r2 = await h2.call({ goal: 'different goal entirely', steps: ['press Enter'], values: {} });
+  const loginSuppressed = (h2.records[0]?.phases?.rounds ?? []).some((r) => r.loginSuppressed === true);
+  assert.ok(!loginSuppressed, 'a different goal must not copy loginSeen');
+});
+
+test('T-r26-wait-satisfied: a wait clause whose expected text is already present advances without waiting', async () => {
+  // The wait clause "wait until Hello World appears" is re-sent after a
+  // hand-back. The page already contains "Hello World" — no wait act needed.
+  const el1 = el({ id: 'e1', path: '#btn', tag: 'button', role: 'button', name: 'Go', editable: false });
+  const obs0 = observation({ elements: [el1], text: 'page loaded Hello World is here' });
+  const obs1 = observation({ elements: [el1], text: 'page loaded Hello World is here' });
+  // Non-wait clause -> Jev is asked (the wait clause doesn't fire).
+  const h = harness({ observations: { p1: [obs0, obs1] }, script: [], ask: async () => ({ ok: true, answers: { done: { type: 'noul', noul: 0.05 }, step_done: { type: 'noul', noul: 0.05 }, action: choice('click', { click: 0.9 }), target: choice('e1', { e1: 0.9 }) }, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 }) });
+  const r = await h.call({ goal: 'do something', steps: ['wait until "Hello World" appears'], values: {} });
+  // The wait clause should have advanced without a wait act.
+  const waitActs = h.driver.actCalls().filter((c) => c.op === 'wait');
+  assert.equal(waitActs.length, 0, 'a satisfied wait should not wait act');
+  assert.equal(r.status, 'done', `expected done, got ${r.status}/${r.reason}`);
+  const waitSatisfied = (h.records[0]?.phases?.rounds ?? []).some((r) => r.waitSatisfied === true);
+  assert.ok(waitSatisfied, 'the waitSatisfied telemetry marker should be set');
+});
+
+test('T-r26-wait-satisfied-guards: the wait-already-satisfied rule is guarded', async () => {
+  // (a) non-wait clause -> no advance (Jev is asked instead).
+  const el1 = el({ id: 'e1', path: '#btn', tag: 'button', role: 'button', name: 'Go', editable: false });
+  const obs0 = observation({ elements: [el1], text: 'page loaded Hello World is here' });
+  const obs1 = observation({ elements: [el1], text: 'page loaded Hello World is here' });
+  const h = harness({ observations: { p1: [obs0, obs1] }, script: [], ask: async () => ({ ok: true, answers: { done: { type: 'noul', noul: 0.05 }, step_done: { type: 'noul', noul: 0.05 }, action: choice('click', { click: 0.9 }), target: choice('e1', { e1: 0.9 }) }, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 }) });
+  const r = await h.call({ goal: 'do something', steps: ['click the Go button'], values: {} });
+  const clickActs = h.driver.actCalls().filter((c) => c.op === 'click');
+  assert.ok(clickActs.length > 0, 'a non-wait clause must act (click), not advance silently');
+});

@@ -241,6 +241,8 @@ export interface WingmanLogRecord {
       pressFocusSum?: true;
       // r25: the press-after-fill rule pressed the key mechanically (no Jev ask).
       pressAfterFill?: true;
+      // r26: a wait clause whose expected text was already present advanced without waiting.
+      waitSatisfied?: true;
       // r24: a check/uncheck on a link or button acted as click (WP5).
       verbCoerced?: true;
       // r24: the second stuck round of a clause (WP7).

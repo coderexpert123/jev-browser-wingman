@@ -307,8 +307,12 @@ export const BROWSE_ENGAGEMENT_LINE =
 // with the same arguments" recovery never contradicts FORCED_POST_ACTION_LINE's
 // "only the steps after this one" recovery (the r22 diagnosis: a caller that
 // re-sent the whole chain against a post-action cursor burned two calls).
+// r26: the caller prompt tells the caller to skip an "open the X page" step
+// when the current page is already X (the r24d t8 diagnosis: "open the Status
+// Codes page" on /status_codes bounced low-confidence because Jev could not
+// pick a target for a page already open).
 export const FORCED_ENGAGEMENT_LINE =
-  'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments. If a result\'s note says the step\'s action already ran, send only the steps after that one instead.';
+  'For this browsing task, hand the page work to the wingman browse_step tool: pass the goal, the ordered list of remaining steps in steps, and every URL and text it needs in values; if it returns a step to you, call it again with pick naming the element by role and name, and when a call ends unfinished, call it again with the same arguments. If a result\'s note says the step\'s action already ran, send only the steps after that one instead. If the goal asks to open a page and the current page already matches, skip that step and send only the steps after it.';
 
 export function buildPrompt(task: BenchTask, route: BenchRoute): string {
   // Route-neutral for 'playwright' (WP-T3): base + goal + values + DONE, no

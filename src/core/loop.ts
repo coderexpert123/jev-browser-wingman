@@ -292,6 +292,15 @@ const KB_PICK_VERB_ALIGN = false;
  * the press-split and landed-not-advanced hand-backs). Flipping restores the Jev ask for the press clause. Never flip in
  * shipped code. */
 const KB_PRESS_AFTER_FILL = false;
+/** r26 KB proof switch: preserve `loginSeen` across step trims — the caller re-sends
+ * a subset of the chain after a hand-back, changing the [goal, clauses] key. Any
+ * prior entry for the SAME goal carries loginSeen forward. Flipping restores the
+ * per-clause loginSeen (lost on trim). Never flip in shipped code. */
+const KB_LOGIN_GOAL_MEMORY = false;
+/** r26 KB proof switch: a wait clause whose expected text is already present on the
+ * FIRST round marks itself satisfied — no wait act, cursor advances. Flipping restores
+ * the re-send-alone always-waits behavior. Never flip in shipped code. */
+const KB_WAIT_ALREADY_SATISFIED = false;
 /** r24 WP1: a clause that asks for a hover. */
 const HOVER_CLAUSE_RE = /\b(?:hover|mouse\s*over|mouseover)\b/i;
 /** r24c F3: a clause that waits ("wait until the hidden text appears"). */
@@ -1062,6 +1071,28 @@ function pressAfterFill(
   const filled = obs.elements.find((e) => e.path === last.path);
   if (filled === undefined || filled.editable !== true) return undefined;
   return { key, el: filled };
+}
+
+/** r26: a wait clause whose expected text is already present in the page —
+ * re-sent alone after a hand-back, the wait condition was already met on the
+ * previous call. Wait clause extraction: quoted text first, then "wait until X
+ * appears" (the t6 pattern). `waitBegin === null` guard: only on the clause's
+ * first round — a wait that already started uses `waitAdvance` (r24c F3). */
+function waitAlreadySatisfied(clause: string, obs: Observation): boolean {
+  if (!WAIT_CLAUSE_RE.test(clause)) return false;
+  // Quoted content: "wait until \"Hello World\" appears" or "wait for \"loading\" to finish".
+  const quoted = clause.match(/[""'']([^""''\n]{2,80})[""'']/);
+  if (quoted) {
+    const needle = quoted[1].trim();
+    if (needle.length >= 3 && obs.text.includes(needle)) return true;
+  }
+  // "wait until X appears" — X is everything between "until" and "appears".
+  const untilMatch = clause.match(/until\s+(.+?)\s+appears?/i);
+  if (untilMatch) {
+    const needle = untilMatch[1].replace(/[""''"]/g, '').trim();
+    if (needle.length >= 3 && obs.text.includes(needle)) return true;
+  }
+  return false;
 }
 
 /** r17 (D4): the count a "scroll until at least N items" clause names —
@@ -1981,6 +2012,7 @@ async function runTool(
     stuckSecond?: true;    // r24 WP7: the second stuck round of a clause
     readySkipped?: true;   // r24 WP2: readyP was under the bar and the committed-fresh-click skip let the round act
     pressAfterFill?: true; // r25: the press-after-fill rule pressed the key mechanically (no Jev ask)
+    waitSatisfied?: true;  // r26: a wait clause whose expected text was already present advanced without waiting
     leftPage?: boolean;    // r14: chain rounds whose last history entry has beforeUrl: did the page leave that document
     recover?: string;      // r15: browse_step rounds where the error rule fired: the validated recover answer
     countMetP?: number;        // r17: the count_met noul's probability, only when asked this round
@@ -3210,7 +3242,18 @@ async function runTool(
         stuckPending: null,
         retryNone: false,
         priorClicks: mem?.clicks ?? [],
-        loginSeen: mem?.loginSeen === true,
+        loginSeen: mem?.loginSeen === true ||
+          (!KB_LOGIN_GOAL_MEMORY &&
+            (() => {
+              for (const [k, v] of chainMemory) {
+                if (k === key || v.loginSeen !== true) continue;
+                try {
+                  const [g] = JSON.parse(k) as [string, string[]];
+                  if (g === stepInput.goal) return true;
+                } catch { /* key not the expected [goal, clauses] shape — skip */ }
+              }
+              return false;
+            })()),
         responsePage: mem?.responsePage === true,
       };
       // r22 F-2 (resume-cheap): chain memory whose cursor clause ended
@@ -4223,6 +4266,31 @@ async function runTool(
           decision = { el: pf.el, verb: 'press', optionValue: pf.key, gate: false };
           if (cur) cur.pressAfterFill = true;
         }
+      }
+
+      // r26: a wait clause re-sent alone after a hand-back whose expected text is
+      // already present marks itself satisfied — no wait act, cursor advances.
+      // Only on the clause's FIRST round (waitBegin === null); a wait that already
+      // started uses waitAdvance (r24c F3). Pre-ask placement after pressAfterFill.
+      // cursor === N handles end-of-chain the same as applyChainEarly's advance.
+      if (
+        decision === null &&
+        chain &&
+        !KB_WAIT_ALREADY_SATISFIED &&
+        chain.waitBegin === null &&
+        waitAlreadySatisfied(chain.clauses[chain.cursor], obs)
+      ) {
+        chain.cursor += 1;
+        chain.cursorActed = false;
+        chain.stuckUsed = false;
+        chain.stuckSecondUsed = false;
+        chain.waitBegin = null;
+        chain.stuckPending = null;
+        if (cur) cur.waitSatisfied = true;
+        if (chain.cursor === N) {
+          return mk('done', 'goal-met');
+        }
+        continue; // re-observe and re-evaluate on the next round
       }
 
       // ---- build the state, ask, and decide (§ 3.7 / § 5.5.2) ----
