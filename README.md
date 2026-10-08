@@ -41,7 +41,7 @@ Set `"handoff": {"mode": "optional"}` and nothing is hidden. Set `"handoff": {"r
 
 Wingman was faster on checkboxes, the todo app, file upload, start loading (wait for hidden text), the table sort, the 404 page, the endless scroll and adding elements. It was slower by up to 3.6 s on enabling a field, text input, key press, the confirm dialog, hover and double-click.
 
-It was 4 s or more slower on three tasks: the seven-page task (a chain of pages described under Benchmark, +12.6 s), the demo-shop checkout (+7.7 s) and the dropdown (+4.4 s). On the seven-page task the two wingman runs took 39.9 s and 51.8 s, a wide spread.
+It was 4 s or more slower on three tasks: the seven-page task (a chain of pages described under Benchmark, +12.7 s by the table's rounded medians), the demo-shop checkout (+7.7 s) and the dropdown (+4.4 s). On the seven-page task the two wingman runs took 39.9 s and 51.8 s, a wide spread.
 
 Wingman cost more on one task only: the confirm dialog (+2%). Times are median seconds per run and costs are median dollars per run, from two runs each.
 
@@ -270,11 +270,11 @@ The benchmark has 17 small browser tasks, such as ticking a checkbox, sorting a 
 
 Two tasks run on live sites to check real-web behavior: the Sauce Demo shop checkout and the TodoMVC app. Each task runs twice with wingman and twice with Playwright alone, interleaved. The calling agent is the same in both setups: a fast model served through a proxy and reached through Claude Code's `sonnet` alias. This is not a direct measurement of Anthropic's Sonnet model.
 
-In the wingman setup the agent's prompt carries three extra sentences on using `browse_step`: what to pass, how to resume after a hand-back, and to skip a step that opens the page it is already on. Playwright alone gets no tool-specific guidance. The wingman setup's turn limit is 30 against 40 for Playwright alone; no run made more than 20 tool calls.
+In the wingman setup the agent's prompt carries three extra sentences on using `browse_step`: what to pass and how to resume after a hand-back, to send only the later steps once a step's action already ran, and to skip a step that opens the page it is already on. Playwright alone gets no tool-specific guidance. The wingman setup's turn limit is 30 against 40 for Playwright alone; no run made more than 20 tool calls.
 
 The local seven-page chain reproduces the error banner the live site shows after the Retrieve password form is submitted. It therefore exercises recovery without a live site's flakiness. The local 404 page returns HTTP 200, so the check that scores that task reads the URL path.
 
-In 1 of the 34 wingman runs, at least one step was handed back to the agent. That was one run of the seven-page task, which handed back two steps; the agent then made no click, type or script calls of its own beyond one page read. The other 33 wingman runs completed every step through wingman.
+In 1 of the 34 wingman runs, at least one step was handed back to the agent. That was one run of the seven-page task, which handed back two steps; the agent then made no click, type or script calls of its own beyond one page read. No other wingman run handed a step back. Counting every return that was not a finished task, including sign-in pages and page errors, 4 of the 34 wingman runs had one. The agent answers browser dialogs itself by design, as in both confirm-dialog runs.
 
 The block below is generated from the results file. Times are seconds and costs are US dollars at list prices. The `forced` row is wingman in hand-off mode, and the `playwright` row is Playwright alone. The `fallback rate` column is the share of wingman runs where a step was handed back. The median cost column is the raw per-run median, which falls between the warm-cache and cold-cache clusters described under Results by task; the total and the cache-neutral figures there are the steadier comparison.
 
