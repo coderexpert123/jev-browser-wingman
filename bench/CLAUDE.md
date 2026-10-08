@@ -29,10 +29,13 @@ Auto-loads when working in `bench/`. Root `CLAUDE.md` still holds Machine traps 
   same shape attached fine minutes later).
   Before charging a zero-tool-call cell to a mechanism, re-probe the spawn
   flags with a trivial prompt.
-- **`claude --model sonnet` resolves through the local GLM proxy**
+- **On THIS box, `claude --model sonnet` resolves through the local GLM proxy**
   (`glm-5.3-flash[1m]`): `usd` prices tokens at Sonnet list rates;
   `cli_reported_usd` is the proxy's synthetic number (~1.7x higher);
-  route-vs-route stays valid. Run-level `usd` INCLUDES the Jev (typesafe) cost, `llm.usd`
+  route-vs-route stays valid. **The cloud validation runs (every publish run)
+  call REAL Claude Sonnet 5.5** — r27b `config.caller_model` and every
+  init event read `claude-sonnet-5-5`, and `cli_reported_usd` is ~0.7x `usd`,
+  not ~1.7x. Publish copy names Claude Sonnet 5.5; never "proxy-served". Run-level `usd` INCLUDES the Jev (typesafe) cost, `llm.usd`
   excludes it: totals use run-level `usd`.
 - **`phaseSpentFrom` sums ALL `bench/results/*.json` forever** against the
   hard `OPERATOR_CEILINGS.phaseUsd` — "cap USD X for this check" means
