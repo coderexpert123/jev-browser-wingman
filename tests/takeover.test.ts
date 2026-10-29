@@ -472,7 +472,7 @@ test('takeover pauses at a gate fire with needs_confirmation, a token and the pe
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [S()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({ goal: 'Order', step: 'click Place order' });
   assert.equal(r.status, 'needs_confirmation');
@@ -617,7 +617,7 @@ test('gate mode off lets a takeover act on a submit button without needs_confirm
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [S(), { done: 0.9 }],
-    config: { gate: { mode: 'off' } },
+    config: { policy: { mode: 'off' } },
   });
   const r = await h.call({ goal: 'Order', step: 'click Place order' });
   assert.equal(r.status, 'done');

@@ -355,7 +355,7 @@ test('wingman_do clicks Continue and returns done', async () => {
 });
 
 test('wingman_do on Remove item returns needs_confirmation and nothing happens', async () => {
-  const home = mkHome('on', { handoff: { mode: 'optional' }, gate: { mode: 'confirm' } });
+  const home = mkHome('on', { handoff: { mode: 'optional' }, policy: { mode: 'enforce' } });
   const stub = await startScriptedStub([{ targetName: 'Remove item' }]);
   stubUrl = stub.url;
   const s = await startServer(serverEnv(home));
@@ -381,7 +381,7 @@ test('wingman_do on Remove item returns needs_confirmation and nothing happens',
 });
 
 test('the confirm token executes the action and the dialog leaves it blocked dialog-open', async () => {
-  const home = mkHome('on', { handoff: { mode: 'optional' }, gate: { mode: 'confirm' } });
+  const home = mkHome('on', { handoff: { mode: 'optional' }, policy: { mode: 'enforce' } });
   const stub = await startScriptedStub([{ targetName: 'Remove item' }]);
   stubUrl = stub.url;
   const s = await startServer(serverEnv(home));

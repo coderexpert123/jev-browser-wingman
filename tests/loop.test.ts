@@ -618,7 +618,7 @@ test('done carries no continuation line; needs_confirmation keeps the token and 
   const h2 = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
     script: [S({ irreversible: 0.9 })],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const r2 = await h2.call({ goal: 'g' });
   assert.equal(r2.status, 'needs_confirmation');
@@ -1027,7 +1027,7 @@ test('gate off submits a gated button without a token', async () => {
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [S(), { done: 0.9 }],
-    config: { gate: { mode: 'off' } },
+    config: { policy: { mode: 'off' } },
   });
   const r = await h.call({ goal: 'Order' });
   assert.equal(r.status, 'done');
@@ -1042,7 +1042,7 @@ test('gate off with Jev p(irreversible) 0.9 still acts', async () => {
   const h = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Proceed' })] })] },
     script: [S({ irreversible: 0.9 }), { done: 0.9 }],
-    config: { gate: { mode: 'off' } },
+    config: { policy: { mode: 'off' } },
   });
   const r = await h.call({ goal: 'g' });
   assert.equal(r.status, 'done');
@@ -1216,7 +1216,27 @@ test('wingman_do press-none commits a targetless press (focused element)', async
   assert.equal(acts[0].value, 'Enter');
 });
 
-test('wingman_do press-none with irreversible refuses ambiguous no-action with zero acts', async () => {
+test('wingman_do press-none with irreversible under policy enforce refuses ambiguous no-action with zero acts', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [
+      S({
+        action: ['press', { press: 0.9, none: 0.05 }],
+        target: ['none', { none: 0.9, ambiguous: 0.05 }],
+        key: ['Enter', { Enter: 0.9, none: 0.05 }],
+        irreversible: 0.9,
+      }),
+    ],
+    config: { policy: { mode: 'enforce' } },
+  });
+  const r = await h.call({ goal: 'r17-do-press-none-irrev goal' });
+  assert.equal(r.status, 'ambiguous');
+  assert.equal(r.reason, 'no-action');
+  assert.equal(h.driver.actCalls().length, 0, 'an element-free irreversible press never acts');
+  assert.equal(r.confirm_token, undefined, 'no element identity, no confirm token');
+});
+
+test('wingman_do press-none with irreversible does not refuse no-action under the default policy off', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [
@@ -1229,9 +1249,7 @@ test('wingman_do press-none with irreversible refuses ambiguous no-action with z
     ],
   });
   const r = await h.call({ goal: 'r17-do-press-none-irrev goal' });
-  assert.equal(r.status, 'ambiguous');
-  assert.equal(r.reason, 'no-action');
-  assert.equal(h.driver.actCalls().length, 0, 'an element-free irreversible press never acts');
+  assert.notEqual(r.reason, 'no-action', `policy off still refused: ${r.status}/${r.reason}`);
   assert.equal(r.confirm_token, undefined, 'no element identity, no confirm token');
 });
 
@@ -1257,7 +1275,7 @@ test('wingman_do token act answers the page dialog per the goal text', async () 
   const h = harness({
     observations: { p1: [observation({ elements: [el({ name: 'Remove item' })] })] },
     script: [S({ irreversible: 0.9 }), { done: 0.9 }],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const minted = await h.call({ goal: 'r17-do-token-dialog setup goal' });
   assert.equal(minted.status, 'needs_confirmation');
@@ -1366,4 +1384,26 @@ test('a slow nav-shaped observe failure right after a click act is retried behin
     settleBudgets.includes(PRE_CLICK_SETTLE_MS),
     `the nav-shaped slow path never used the PRE_CLICK_SETTLE_MS settle (budgets: ${settleBudgets.join(',')})`,
   );
+});
+
+// ---- policy.mode governs the login early-end rules ----
+
+const LOGIN_PAGE_ROUND: SeqEntry = { done: 0.05, blocked: 0.05, login: 0.9, irreversible: 0.05 };
+
+test('login noul at threshold ends the call as login/login-page under policy.mode enforce', async () => {
+  const h = harness({
+    observations: { p1: [observation()] },
+    script: [LOGIN_PAGE_ROUND],
+    config: { policy: { mode: 'enforce' } },
+  });
+  const r = await h.call({ goal: 'Open the details' });
+  assert.equal(r.status, 'login');
+  assert.equal(r.reason, 'login-page');
+});
+
+test('the same login noul does not end the call as login under the default policy.mode off', async () => {
+  const h = harness({ observations: { p1: [observation()] }, script: [LOGIN_PAGE_ROUND] });
+  const r = await h.call({ goal: 'Open the details' });
+  assert.notEqual(r.status, 'login', `policy off still ended login: ${r.status}/${r.reason}`);
+  assert.notEqual(r.reason, 'login-page');
 });

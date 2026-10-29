@@ -179,7 +179,7 @@ All three tools return these statuses:
 | status | meaning |
 |---|---|
 | done | goal judged achieved (Jev's probability that the goal is done is at least 0.85, or at least 0.5 when Jev sees no action left to take) |
-| needs_confirmation | the optional irreversible-action gate (config `gate.mode` set to `"confirm"`) stopped the next action; nothing executed |
+| needs_confirmation | the optional irreversible-action gate (active when `policy.mode` is `"enforce"`) stopped the next action; nothing executed |
 | blocked | captcha, access denied, dialog open, or covered target |
 | login | page asks for sign-in; tool stops before any credential surface |
 | ambiguous | target probability below threshold; candidates returned |
@@ -225,8 +225,8 @@ Machine-local config at `<wingmanHome>/config.json` (default `~/.jev-browser-win
 | `plugin` | string or null | null | as `profile_dir`; path to a module exporting `wingmanPlugin` |
 | `sensitive_hosts` | object | `{}` | keys from `banking`, `payments`, `webmail`, `identity`, `government`, `tax`, `health`; values are arrays of host suffixes |
 | `budgets` | object | see rule | integer keys, each optional, defaults in parentheses: `max_steps` 1–24 (24), `max_ms` 5000–120000 (90000), `jev_timeout_ms` 1000–10000 (10000), `max_elements` 20–240 (240), `max_text_chars` 0–3000 (3000), `max_state_chars` 2000–24000 (24000) |
-| `gate` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"confirm"`; `confirm` turns on the irreversible-action gate |
-| `policy` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"enforce"`; `enforce` fails closed on sensitive pages |
+| `gate` | object | `{ mode: "off" }` | deprecated and ignored: accepted so old config files still load; the irreversible-action gate follows `policy.mode` |
+| `policy` | object | `{ mode: "off" }` | only key `mode`: `"off"` (default) or `"enforce"`; `enforce` is the single security flag: it fails closed on sensitive pages (host, login path, page signals), ends calls at sign-in pages with status `login`, and turns on the irreversible-action gate |
 | `takeover` | object | `{ threshold: 0.7, mode: "auto", retry: true }` | keys `threshold`: number 0.5–0.95, `mode`: `"auto"` (act on a lower-confidence choice itself) or `"offer"` (return an offer the caller accepts with `takeover: true`), `retry`: boolean; tunes `browse_step`, leave at the defaults unless you are tuning |
 | `handoff` | object | `{ mode: "forced" }` | keys `mode`: `"forced"` (default; hand-off mode) or `"optional"`; `tools`: `"browse-only"` or `"all"`; `retain`: array of capability class names kept with the caller |
 

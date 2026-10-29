@@ -20,7 +20,7 @@ export const BUDGET_LIMITS = {
   max_steps: [1, 24], max_ms: [5_000, 120_000], jev_timeout_ms: [1_000, 10_000],
   max_elements: [20, 240], max_text_chars: [0, 3_000], max_state_chars: [2_000, 24_000],
 } as const;
-export const GATE_MODES = ['confirm', 'off'] as const;   // § 3.8 config key gate.mode; default 'off' (0.3.0, Q6: confirm is opt-in)
+export const GATE_MODES = ['confirm', 'off'] as const;   // DEPRECATED config key gate.mode: accepted but ignored; gate follows policy.mode (gateModeOf)
 export type GateMode = (typeof GATE_MODES)[number];
 export const DEFAULT_GATE = { mode: 'off' } as const;
 export const POLICY_MODES = ['enforce', 'off'] as const; // § 3.8 config key policy.mode; default 'off' (amendment 2026-09-22, operator: opt-in)

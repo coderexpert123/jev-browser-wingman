@@ -594,7 +594,7 @@ test('T7: every § 5.5.5 forced-table row is exact under forced; optional keeps 
     cases.push({
       name: 'login',
       run: async () => {
-        const h = harness({ observations: { p1: [observation()] }, script: [CS({ login: 0.9 })], config: FORCED });
+        const h = harness({ observations: { p1: [observation()] }, script: [CS({ login: 0.9 })], config: { ...FORCED, policy: { mode: 'enforce' } } });
         return h.call({ goal: 'chain-t7 login goal', steps: ['l1'] });
       },
       forced: FORCED_LOGIN_LINE,
@@ -792,7 +792,7 @@ test('T8: a pick onto a submit button under gate confirm returns needs_confirmat
   const h = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({
     goal: 'chain-t8 gate goal',
@@ -2333,7 +2333,7 @@ test('T-stuck-token-act: a confirmed token act is an element act on the clause, 
   const h = harness({
     observations: { p1: [placePage] },
     script: [NONE(), NONE(), STUCK('back')],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const goal = 'chain-stuck-token goal';
   const steps = ['place the order'];
@@ -2704,7 +2704,7 @@ test('T-nav-token: a confirmed token click records beforeUrl, so the next round 
   const h = harness({
     observations: { p1: [placePage, placePage, formEmpty, formEmpty, formFilled] },
     script: [AHEAD(0.35), AHEAD(0.05), ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const goal = 'chain-nav-token goal';
   const steps = ['place the order', 'type the value named email into Email'];
@@ -3434,7 +3434,7 @@ test('T-repeat-dialog: a click that opened a dialog still reaches chain memory, 
   const ht = harness({
     observations: { p1: [placePage] },
     script: [CS({ step_done: 0.1 })],
-    config: { ...FORCED, gate: { mode: 'confirm' } },
+    config: { ...FORCED, policy: { mode: 'enforce' } },
   });
   const tArgs = { goal: 'chain-repeat-dialog token goal', steps: ['place the order', 'open the Next page'] };
   const t1 = await ht.call({ ...tArgs, pick: { role: 'button', name: 'Place order', action: 'click' } });
@@ -3665,6 +3665,7 @@ test('T-press-none refuses on irreversible', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [PRESS(0.9, 'Enter', { irreversible: 0.9 })],
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({ goal: 'r17-press-none-irrev goal', steps: ['press Enter to submit the payment'] });
   assert.equal(r.status, 'fallback');
@@ -4218,6 +4219,7 @@ test('T-login suppressed by named bindings', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [CS({ login: 0.9 }), ADV(), CS(), ADV()],
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({
     goal: 'r17-login-bindings goal',
@@ -4239,6 +4241,7 @@ test('T-login suppressed on progress', async () => {
       ADV(),
       ADV(),
     ],
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({
     goal: 'r17-login-progress goal',
@@ -4252,6 +4255,7 @@ test('T-login suppressed on resume', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [{ login: 0.9 }, CS({ login: 0.9 }), ADV()],
+    config: { policy: { mode: 'enforce' } },
   });
   const r1 = await h.call({ goal: 'r17-login-resume goal', steps: ['enter the credentials'] });
   assert.equal(r1.status, 'login', `got ${r1.status}/${r1.reason}`);
@@ -4264,6 +4268,7 @@ test('T-login unsuppressed without bindings or progress', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [{ login: 0.9 }],
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.call({ goal: 'r17-login-plain goal', steps: ['click the button'] });
   assert.equal(r.status, 'login');
@@ -4275,6 +4280,7 @@ test('T-login suppressed on wingman_do via the goal', async () => {
   const h = harness({
     observations: { p1: [observation()] },
     script: [CS({ login: 0.9 }), { done: 0.9 }],
+    config: { policy: { mode: 'enforce' } },
   });
   const r = await h.callDo({
     goal: 'r17-login-wingman goal: sign in with the values named user and pass',
@@ -4291,6 +4297,7 @@ test('T-advance resets loginSeen', async () => {
     // call 2: suppressed round 1, acts, advances (reset), then clause 2
     // reads login fresh and ends login — the flag is per-clause.
     script: [{ login: 0.9 }, CS({ login: 0.9 }), ADV(), { login: 0.9 }],
+    config: { policy: { mode: 'enforce' } },
   });
   await h.call({ goal: 'r17-login-reset goal', steps: ['enter the credentials', 'click the button'] });
   const r2 = await h.call({ goal: 'r17-login-reset goal', steps: ['enter the credentials', 'click the button'] });
@@ -4946,14 +4953,14 @@ test('T-r24b-gate: a live gate records the rule and element; a Jev-only gate rec
   const hA = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [CS(), ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const r1 = await hA.call({ goal, steps });
   assert.equal(r1.status, 'needs_confirmation');
   assert.equal(r1.reason, 'irreversible-heuristic');
   const rsA = r24bRounds(hA, 0);
   assert.deepEqual(rsA[rsA.length - 1].gate, { rule: 'type-submit', verb: 'click', id: 'e1', role: 'button', tag: 'button', type: 'submit', irreversibleP: 0.05 });
-  assert.deepEqual(hA.records[0].stance, { gate: 'confirm', policy: 'off' });
+  assert.deepEqual(hA.records[0].stance, { gate: 'confirm', policy: 'enforce' });
   // Leg C: the confirmed token act.
   await hA.call({ goal, steps, confirm_token: r1.confirm_token });
   assert.deepEqual(r24bRounds(hA, 1)[0].act, { verb: 'click', id: 'e1', role: 'button', tag: 'button', token: true, ok: true });
@@ -4961,7 +4968,7 @@ test('T-r24b-gate: a live gate records the rule and element; a Jev-only gate rec
   const hB = harness({
     observations: { p1: [observation()] },
     script: [CS({ irreversible: 0.9 }), ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const rB = await hB.call({ goal: 'r24b gate goal B', steps });
   assert.equal(rB.reason, 'irreversible-jev');
@@ -5158,7 +5165,7 @@ test('T-r24b-labels: element labels and the page title reach the log only under 
   const e = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'Place order' })] })] },
     script: [CS(), ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   e.deps.logLabels = true;
   const r1 = await e.call({ goal, steps });
@@ -5194,7 +5201,7 @@ test('T-r24b-recheck-redaction: step texts and the gate and token-act labels are
   const g = harness({
     observations: { p1: [observation({ elements: [el({ type: 'submit', name: 'x'.repeat(36) + 'SECRETVAL' })] })] },
     script: [CS(), ADV()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   g.deps.logLabels = true;
   const r1 = await g.call({ goal, steps, values });
@@ -5648,7 +5655,7 @@ test('T-r24c-token-label: a confirmed token act redacts a value-named element in
   const h = harness({
     observations: { p1: [placePage] },
     script: [NONE(), NONE()],
-    config: { gate: { mode: 'confirm' } },
+    config: { policy: { mode: 'enforce' } },
   });
   const goal = 'r24c-token-label goal';
   const steps = ['place the order'];
@@ -5778,7 +5785,7 @@ test('T-r24c-fuzz: no remembered value reaches a request, a record or a result (
       valueMemory: mem,
       logLabels: rnd() < 0.7,
       // a third of the runs force the two-stage path (max_elements 4 < the five elements), so group and target requests carry the value-named elements too
-      config: { ...(rnd() < 0.3 ? { gate: { mode: 'confirm' as const } } : {}), ...(rnd() < 0.35 ? { budgets: { ...DEFAULT_BUDGETS, max_elements: 4 } } : {}) },
+      config: { ...(rnd() < 0.3 ? { policy: { mode: 'enforce' as const } } : {}), ...(rnd() < 0.35 ? { budgets: { ...DEFAULT_BUDGETS, max_elements: 4 } } : {}) },
     });
     let nreq = 0;
     let nrec = 0;
@@ -6129,7 +6136,7 @@ test('T-r25-pressafterfill-gate-confirm: the mechanical press goes through the g
     observations: { p1: mkObs() },
     script: [],
     ask: r25Ask(),
-    config: { gate: { mode: 'confirm' as const } },
+    config: { policy: { mode: 'enforce' as const } },
   });
   const r = await h.call({ goal: 'chain-r25-gate-confirm goal', steps: R25_STEPS, values: R25_VALUES });
   const ops = h.driver.actCalls().map((a) => a.op);
@@ -6179,7 +6186,7 @@ test('T-r25-pressafterfill-gate-confirm-resume: confirming the gated mechanical 
     },
     script: [],
     ask: r25Ask(),
-    config: { gate: { mode: 'confirm' as const } },
+    config: { policy: { mode: 'enforce' as const } },
   });
   const args = { goal: 'chain-r25-gate-resume goal', steps: R25_STEPS, values: R25_VALUES };
   const r1 = await h.call(args);
@@ -6227,7 +6234,7 @@ test('T-r26-login-goal-memory: loginSeen survives a step trim (same goal, differ
   // (login ENDS — no binding, loginSeen=true stored). Binding name 'username'
   // (not 'u') — 'u' is a substring of 'button', so bindingsInStep would
   // suppress login on the click clause too (substring match, not value-named).
-  const h1 = harness({ observations: { p1: [obs0, obs0f, obs0f, obs0f, obs0f] }, script: [], ask: loginAsk });
+  const h1 = harness({ observations: { p1: [obs0, obs0f, obs0f, obs0f, obs0f] }, script: [], ask: loginAsk, config: { policy: { mode: 'enforce' } } });
   const r1 = await h1.call({ goal: 'login then add item', steps: ['type the value named username into the username field', 'click the Login button'], values: { username: 'user' } });
   assert.equal(r1.status, 'login', `first call must end login (loginSeen stored); got ${r1.status}/${r1.reason}`);
   // Call 2: trimmed chain (just the click Login step) — same goal, different
@@ -6244,7 +6251,7 @@ test('T-r26-login-goal-memory: loginSeen survives a step trim (same goal, differ
     };
     return { ok: true, answers, usage: { inputTokens: 10, outputTokens: 5 }, latencyMs: 1, status: 200, retries: 0 };
   };
-  const h2 = harness({ observations: { p1: [obs0, obs0, obs0] }, script: [], ask: trimmedAsk });
+  const h2 = harness({ observations: { p1: [obs0, obs0, obs0] }, script: [], ask: trimmedAsk, config: { policy: { mode: 'enforce' } } });
   await h2.call({ goal: 'login then add item', steps: ['click the Login button'], values: {} });
   const loginSuppressed = (h2.records[0]?.phases?.rounds ?? []).some((r) => r.loginSuppressed === true);
   assert.ok(loginSuppressed, 'loginSeen should be carried forward from the goal-prefix memory match');
@@ -6266,10 +6273,10 @@ test('T-r26-login-goal-memory-guards: the goal-prefix search only copies loginSe
   };
   const el1 = el({ id: 'e1', path: '#username', tag: 'input', role: 'textbox', name: 'Username', editable: true, type: 'text', state: { disabled: false, filled: false } });
   const obs0 = observation({ elements: [el1], text: 'login page' });
-  const h1 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask });
+  const h1 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask, config: { policy: { mode: 'enforce' } } });
   await h1.call({ goal: 'login then add item', steps: ['type the value named u into the username field'], values: { u: 'user' } });
   // Different goal -> loginSeen NOT carried forward (no loginSuppressed).
-  const h2 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask });
+  const h2 = harness({ observations: { p1: [obs0, obs0] }, script: [], ask, config: { policy: { mode: 'enforce' } } });
   const r2 = await h2.call({ goal: 'different goal entirely', steps: ['press Enter'], values: {} });
   const loginSuppressed = (h2.records[0]?.phases?.rounds ?? []).some((r) => r.loginSuppressed === true);
   assert.ok(!loginSuppressed, 'a different goal must not copy loginSeen');

@@ -46,12 +46,17 @@
 
 ## Config switches
 
-- **The irreversible gate is config-switchable** (Q6 flip 2026-09-26):
-  `config.json` `gate.mode` accepts `"off"` (default since 0.3.0) and
-  `"confirm"` (opt-in). Read it only through `gateModeOf()` — `'confirm'`
-  iff the config says so explicitly; a config without a `gate` key runs
-  off, and every test that wants a token writes `gate: { mode: 'confirm' }`
-  itself.
+- **ONE security flag: `policy.mode` (single-flag change 2026-10-22).** The
+  irreversible gate follows it: `gateModeOf()` is `'confirm'` iff
+  `policyModeOf()` is `'enforce'`, else `'off'`. The `gate` config key is
+  deprecated — still accepted by the validator so old files load, but
+  ignored. The `login` key (earlier uncommitted `login.mode`) is removed
+  and rejected as unknown. `policy.mode: 'enforce'` also arms the two login
+  early-end rules and the r17 D1 targetless-press irreversible refusal; with
+  policy off the wingman never ends a call at a sign-in page. Every test that
+  wants a token or a login stop writes `policy: { mode: 'enforce' }`
+  itself. Captcha/`blocked`/dialog handling is functional, not policy, and
+  is unaffected.
 - **The sensitive-surface policy is config-switchable, OFF by default**
   (flipped 2026-09-22 by operator decision): `policy.mode` accepts `"off"`
   (the shipped default — page content goes to TypeSafe on every page,
@@ -487,7 +492,7 @@
   error answer >= 0.5 now blocks every advance below 0.85. Known
   residuals (verifier wave, r15, not fixed): the gate precedes the
   repeat guard, and a confirm-token act never consults
-  `clauseClicks()`, so with `gate.mode: 'confirm'` a resumed clause
+  `clauseClicks()`, so with `policy.mode: 'enforce'` (gate confirm) a resumed clause
   asks the user to confirm the same irreversible click again; click
   identity is path + name, and a path without an id is an
   `nth-of-type` chain — an error banner inserted as a same-tag sibling
@@ -809,7 +814,7 @@
 
 - **Read `stance` and the round `gate` field for live gate decisions, never `gate_hits` or `mode`.** Every log record carries `stance: {gate, policy}` (`gateModeOf`/`policyModeOf` in `buildLogRecord`, so it is what the server loaded). `mode` is the wingman mode (`on`), and `gate_hits` counts SHADOW gate hits only (`acc.gateHits` is set in the shadow branch; the live gate never touches it — r24's 26 needs_confirmation records all read `gate_hits: 0`).
 - **Per-round adjudication fields, contract-safe set** (spec `.build-r24b-spec.md` § 5): `url` (origin+path, values redacted BEFORE the 160 cut), `cursor`, `els` (element count) and `text_h` (the `pageSignal` text fingerprint, never the text), `cands` (top-3 target ids + grades + role/tag cut to 20, NO labels; same sort as `target1`/`target2`), `pickArgs`, `dialogs` (type + outcome, never the message), `gate` (rule incl. `jev`, element id/role/tag/type, irreversibleP), `policy` (reason + true signal flags; page-level, no element), `act` (the EXECUTED verb/element/binding NAME/key, `ok` only after the driver returned, `flip`, `navRetry`, `token`); record-level `step_texts` (caller steps) and `step_parents`. Labels and page titles stay out of log.jsonl unless `deps.logLabels` (env `WINGMAN_LOG_LABELS=1`, set only by the bench): then `title` (80), `cands[].label`, `gate.label`, `act.label` (40), redacted before the cut. Telemetry reuses the verdicts already computed: the pinned `driver.act(`/`gateHeuristic(`/`evaluatePolicy(` counts stay 3/2/2.
-- **Under `gate.mode: 'confirm'` every plain-button click gates**: a `<button>` without a type attribute enumerates `type: 'submit'` (IDL default, page-scripts.ts `buildRecord`), so gateHeuristic's `type-submit` rule fires — t4 Add Element, t6 Start, t12 and t16 all ended needs_confirmation in r24.
+- **Under `policy.mode: 'enforce'` (gate confirm) every plain-button click gates**: a `<button>` without a type attribute enumerates `type: 'submit'` (IDL default, page-scripts.ts `buildRecord`), so gateHeuristic's `type-submit` rule fires — t4 Add Element, t6 Start, t12 and t16 all ended needs_confirmation in r24.
 - Test trap: chain `T17`'s top-level log-key allowlist includes `stance`, `step_texts`, `step_parents`; a new top-level log key must be added there by the same package.
 
 ## r24c: cross-call redaction (2026-10-06)

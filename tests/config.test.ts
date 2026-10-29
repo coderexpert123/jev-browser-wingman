@@ -427,14 +427,17 @@ test('(10) handoffOf returns optional whenever top-level mode is not on, whateve
 });
 
 // § 5.3a gate default OFF (Q6) (tests (11)-(12))
-test('(11) gateModeOf on a hand-built config: absent gate is off, explicit confirm is confirm', async () => {
+test('(11) gateModeOf on a hand-built config: follows policy.mode only', async () => {
   const { gateModeOf } = await import('../src/core/config.js');
 
   const noGate = {} as unknown as WingmanConfig;
   assert.equal(gateModeOf(noGate), 'off');
 
   const confirmGate = { gate: { mode: 'confirm' } } as unknown as WingmanConfig;
-  assert.equal(gateModeOf(confirmGate), 'confirm');
+  assert.equal(gateModeOf(confirmGate), 'off');
+
+  const enforcePolicy = { policy: { mode: 'enforce' } } as unknown as WingmanConfig;
+  assert.equal(gateModeOf(enforcePolicy), 'confirm');
 });
 
 test('(12) DEFAULT_GATE deep-equals { mode: off }', async () => {
@@ -463,4 +466,30 @@ test('resolveKey prefers env then secrets_file and never returns a key for an em
 
   const noneAtAll = resolveKey({}, null);
   assert.deepEqual(noneAtAll, { source: 'none' });
+});
+
+test('the login config key is rejected like any unknown key', async () => {
+  for (const cfg of [{ login: { mode: 'off' } }, { login: 5 }]) {
+    const home = mkHome();
+    writeConfig(home, cfg);
+    const result = await loadConfig(envFor(home));
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /login/);
+  }
+});
+
+test('gateModeOf follows policy.mode and ignores the deprecated gate key', async () => {
+  const { gateModeOf } = await import('../src/core/config.js');
+  const load = async (cfg: unknown): Promise<WingmanConfig> => {
+    const home = mkHome();
+    writeConfig(home, cfg);
+    const r = await loadConfig(envFor(home));
+    if (!r.ok) throw new Error(r.error);
+    return r.config;
+  };
+  assert.equal(gateModeOf(await load({ gate: { mode: 'confirm' } })), 'off');
+  assert.equal(gateModeOf(await load({ gate: { mode: 'confirm' }, policy: { mode: 'off' } })), 'off');
+  assert.equal(gateModeOf(await load({ policy: { mode: 'enforce' } })), 'confirm');
+  assert.equal(gateModeOf(await load({ gate: { mode: 'off' }, policy: { mode: 'enforce' } })), 'confirm');
+  assert.equal(gateModeOf(await load({})), 'off');
 });

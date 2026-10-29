@@ -318,12 +318,11 @@ export async function loadConfig(env: NodeJS.ProcessEnv = process.env): Promise<
   return { ok: true, config, source };
 }
 
-/** The gate mode in force for a config: `'confirm'` iff `gate.mode` is explicitly `'confirm'`,
- * the default ('off', Q6) otherwise (§ 3.8, § 5.3a). Read through this accessor everywhere;
- * the WingmanConfig type predates the key. */
+/** The gate mode in force for a config: `'confirm'` iff `policy.mode` is 'enforce', else 'off'.
+ * The `gate` config key is deprecated: still accepted by the validator but ignored — the single
+ * security flag is `policy.mode`. Read through this accessor everywhere. */
 export function gateModeOf(config: WingmanConfig): GateMode {
-  const gate = (config as WingmanConfig & { gate?: { mode?: unknown } }).gate;
-  return gate !== null && typeof gate === 'object' && gate.mode === 'confirm' ? 'confirm' : 'off';
+  return policyModeOf(config) === 'enforce' ? 'confirm' : 'off';
 }
 
 /** The policy mode in force for a config: `policy.mode` when the loaded config

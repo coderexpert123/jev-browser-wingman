@@ -2574,7 +2574,7 @@ async function runTool(
     // binding, the call's own step is making progress, or it already ended
     // login once. Suppression marks telemetry and falls through to rule 2;
     // it never ends the call and never sets loginEnded itself (C1).
-    if (noulOf('login') >= THRESHOLDS.login) {
+    if (policyModeOf(deps.config) === 'enforce' && noulOf('login') >= THRESHOLDS.login) {
       const suppress = loginSuppressedNow({
         text: stepText ?? goalText,
         values,
@@ -2901,7 +2901,7 @@ async function runTool(
     // a targetless submit keypress cannot mint a confirm token (no element
     // identity), so the call hands back for a pick instead of gating on
     // nothing. `irreversible` rides every round request, so no new ask.
-    if (!KB_PRESS_IRREV && el === null && verb === 'press') {
+    if (!KB_PRESS_IRREV && policyModeOf(deps.config) === 'enforce' && el === null && verb === 'press') {
       const irr = answers['irreversible'];
       const irrP = irr && irr.type === 'noul' ? irr.noul : 0;
       if (irrP >= THRESHOLDS.irreversible) {
@@ -3687,7 +3687,7 @@ async function runTool(
       // binding, the clause is making progress, or this cursor already ended
       // login once. Suppression marks telemetry and falls to rule 2; it never
       // ends the call and never sets loginSeen itself (C1).
-      if (noulOf('login') >= THRESHOLDS.login) {
+      if (policyModeOf(deps.config) === 'enforce' && noulOf('login') >= THRESHOLDS.login) {
         if (
           loginSuppressedNow({
             text: chain!.clauses[chain!.cursor],

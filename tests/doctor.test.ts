@@ -940,7 +940,7 @@ test('config-loaded ends with the off gate suffix by default (Q6)', async () => 
 test('config-loaded ends with the confirm gate suffix when gate.mode is confirm (Q6)', async () => {
   const report = await runDoctor(
     { json: false, offlineOnly: true },
-    baseDeps({ loadConfigFn: async () => forcedConfig({ gate: { mode: 'confirm' }, handoff: undefined }) }),
+    baseDeps({ loadConfigFn: async () => forcedConfig({ policy: { mode: 'enforce' }, handoff: undefined }) }),
   );
   const check = checkOf(report, 'config-loaded');
   assert.match(check.detail, /; gate: confirm$/);
