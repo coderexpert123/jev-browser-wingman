@@ -54,6 +54,22 @@ let result;
 let targetDir;
 let outLabel;
 
+// Keep PACKAGE_VERSION in sync on every build path. npm's prebuild lifecycle
+// only fires on `npm run build`; a direct `node scripts/build.mjs` (what the
+// repo docs prescribe) would otherwise compile a stale version constant.
+result = spawnSync(process.execPath, [path.join(__dirname, 'sync-version.js')], {
+  cwd: packageRoot,
+  stdio: 'inherit',
+  windowsHide: true,
+});
+if (result.error) {
+  console.error(String(result.error));
+  process.exit(1);
+}
+if (result.status !== 0) {
+  process.exit(result.status ?? 1);
+}
+
 if (outDir) {
   targetDir = path.resolve(process.cwd(), outDir);
   outLabel = outDir;
