@@ -148,12 +148,19 @@ function defineR28Suite(prefix: string, make: () => Promise<RichFillContext>): v
     try {
       // #cursed appends X on EVERY input event (deletes included): no fill
       // strategy can land the exact value, so the act must FAIL loudly.
-      const err = (await assert.rejects(ctx.fill('Cursed', VALUE_CURSED), ActFailedError)) as unknown as Error;
-      assert.equal(
-        String(err.message).includes(VALUE_CURSED),
-        false,
-        'the failure message must not carry the value',
-      );
+      // (r28 WP-B cross-package fix: assert.rejects fulfills with UNDEFINED on
+      // Node 22, so the captured-error form threw TypeError on every correct
+      // rejection; the validator form asserts the class AND the no-value-leak
+      // redaction pin in one place.)
+      await assert.rejects(ctx.fill('Cursed', VALUE_CURSED), (e: unknown) => {
+        assert.ok(e instanceof ActFailedError, `the act rejected with ${String(e)}`);
+        assert.equal(
+          String((e as Error).message).includes(VALUE_CURSED),
+          false,
+          'the failure message must not carry the value',
+        );
+        return true;
+      });
     } finally {
       await ctx.close();
     }

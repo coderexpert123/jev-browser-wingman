@@ -30,6 +30,8 @@ import { OPTIONAL_TARGET_OPS, PRESS_KEYS, TARGETLESS_OPS } from '../contract/typ
 import {
   buildControlStateExpression,
   buildEnumerateExpression,
+  buildFillKindExpression,
+  buildFillReadbackExpression,
   buildHitTestExpression,
   buildSettleProbeExpression,
   buildVerifyExpression,
@@ -112,6 +114,15 @@ const KB_PW_PRECLICK = false;
  * invisible to the wait act and the caller burns another round to see it).
  * Never flip in shipped code. */
 const KB_PW_WAIT_GROWTH = false;
+/** r28 KB proof switch: composes the fill kind probe off so a flipped build
+ * fills a rich (contenteditable) target with locator.fill's whole-string
+ * insertion (the pre-fix path that doubles text in Draft-like editors).
+ * Never flip in shipped code. */
+const KB_PW_RICH_TYPE = false;
+/** r28 KB proof switch: composes the post-fill read-back + retry off so a
+ * flipped build never verifies the landed text (pre-fix behaviour).
+ * Never flip in shipped code. */
+const KB_PW_FILL_READBACK = false;
 
 async function connectBounded(
   chromium: typeof import('playwright-core').chromium,
@@ -577,9 +588,47 @@ export function createPlaywrightDriver(opts?: { chromium?: typeof import('playwr
           case 'click':
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).click(clickTimeout));
             break;
-          case 'fill':
-            await raceAgainstDialog(rec, () => rec.page.locator(el.path).fill(value ?? '', timeout));
+          case 'fill': {
+            const text = value ?? '';
+            const kind = !KB_PW_RICH_TYPE
+              ? ((await evaluateOnPage(rec, buildFillKindExpression(el.path))) as string | null)
+              : 'field';
+            if (kind === null) {
+              throw new StaleElementError(`element ${elementId} is gone before fill`);
+            }
+            const typeByKeys = async (): Promise<void> => {
+              await raceAgainstDialog(rec, async () => {
+                await rec.page.locator(el.path).focus();
+                await rec.page.keyboard.press(PW_KEYS.SelectAll);
+                await rec.page.keyboard.press(PW_KEYS.Backspace);
+                const segments = text.split('\n');
+                for (let i = 0; i < segments.length; i++) {
+                  if (segments[i].length > 0) await rec.page.keyboard.type(segments[i]);
+                  if (i < segments.length - 1) await rec.page.keyboard.press('Enter');
+                }
+              });
+            };
+            if (kind === 'rich') {
+              await typeByKeys();
+            } else {
+              await raceAgainstDialog(rec, () => rec.page.locator(el.path).fill(text, timeout));
+            }
+            if (!KB_PW_FILL_READBACK && !rec.dialogOpen) {
+              let rb = (await evaluateOnPage(rec, buildFillReadbackExpression(el.path, text))) as {
+                ok: boolean;
+              };
+              if (!rb.ok) {
+                await typeByKeys();
+                rb = (await evaluateOnPage(rec, buildFillReadbackExpression(el.path, text))) as {
+                  ok: boolean;
+                };
+                if (!rb.ok) {
+                  throw new ActFailedError('fill read-back mismatch after key-event retry');
+                }
+              }
+            }
             break;
+          }
           case 'select':
             await raceAgainstDialog(rec, () => rec.page.locator(el.path).selectOption({ value: value ?? '' }, timeout));
             break;

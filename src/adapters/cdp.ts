@@ -46,6 +46,8 @@ import { killTree } from '../browser/process-list.js';
 import {
   buildControlStateExpression,
   buildEnumerateExpression,
+  buildFillKindExpression,
+  buildFillReadbackExpression,
   buildHitTestExpression,
   buildSettleProbeExpression,
   buildVerifyExpression,
@@ -83,6 +85,15 @@ const KB_CDP_PRECLICK = false;
  * invisible to the wait act and the caller burns another round to see it).
  * Never flip in shipped code. */
 const KB_CDP_WAIT_GROWTH = false;
+/** r28 KB proof switch: composes the fill kind probe off so a flipped build
+ * fills a rich (contenteditable) target with the select + whole-string
+ * Input.insertText (the pre-fix path that doubles text in Draft-like editors).
+ * Never flip in shipped code. */
+const KB_CDP_RICH_TYPE = false;
+/** r28 KB proof switch: composes the post-fill read-back + retry off so a
+ * flipped build never verifies the landed text (pre-fix behaviour).
+ * Never flip in shipped code. */
+const KB_CDP_FILL_READBACK = false;
 
 // r21 (P-1b, D2): the click-family ops the pre-click readiness guard covers.
 const CLICK_NAV_OPS: ReadonlySet<string> = new Set(['click', 'dblclick', 'check', 'uncheck']);
@@ -434,6 +445,31 @@ class CdpDriver implements Driver {
     );
   }
 
+  // r28: type a value by key events — SelectAll + Backspace to clear, then ONE
+  // Input.insertText per code point ('\n' as a real Enter down/up pair: block
+  // splitting in Draft-like editors is key handling, and insertText('\n') does
+  // not split a block). One code point per event can never trip the
+  // whole-string corruption class the richtext-doubling fixture models.
+  // Used by BOTH the rich first attempt and the read-back retry.
+  private async typeValue(sessionId: string, value: string): Promise<void> {
+    const conn = this.requireConn();
+    for (const ev of cdpKeyEvents('SelectAll')) {
+      await conn.send('Input.dispatchKeyEvent', ev, sessionId);
+    }
+    for (const ev of cdpKeyEvents('Backspace')) {
+      await conn.send('Input.dispatchKeyEvent', ev, sessionId);
+    }
+    for (const ch of value) {
+      if (ch === '\n') {
+        for (const ev of cdpKeyEvents('Enter')) {
+          await conn.send('Input.dispatchKeyEvent', ev, sessionId);
+        }
+      } else {
+        await conn.send('Input.insertText', { text: ch }, sessionId);
+      }
+    }
+  }
+
   private async performOp(
     pageId: string,
     el: ElementRecord | null,
@@ -552,14 +588,38 @@ class CdpDriver implements Driver {
           throw new ActFailedError('fill requires a value');
         }
         await this.mouseClick(sessionId, point as { x: number; y: number });
-        // P9 fix: select the element's text when it can (inputs, textareas),
-        // else select its whole content when it is contenteditable — the
-        // browser then replaces on insert instead of appending.
-        await this.evalIsolated(
-          pageId,
-          `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.focus(); if (typeof el.select === 'function') el.select(); else if (el.isContentEditable) { const s = window.getSelection(); if (s) s.selectAllChildren(el); } return true; })()`,
-        );
-        await conn.send('Input.insertText', { text: value }, sessionId);
+        const kind = !KB_CDP_RICH_TYPE
+          ? ((await this.evalIsolated(pageId, buildFillKindExpression(el.path))) as string | null)
+          : 'field';
+        if (kind === null) {
+          // performOp has no elementId in scope (only el, whose .id equals it).
+          throw new StaleElementError(`element ${el.id} is gone before fill`);
+        }
+        if (kind === 'rich') {
+          await this.typeValue(sessionId, value);
+        } else {
+          // P9 fix (unchanged): select text on inputs/textareas, whole content
+          // on contenteditable, so the browser replaces instead of appending.
+          await this.evalIsolated(
+            pageId,
+            `(() => { const el = document.querySelector(${JSON.stringify(el.path)}); if (!el) return false; el.focus(); if (typeof el.select === 'function') el.select(); else if (el.isContentEditable) { const s = window.getSelection(); if (s) s.selectAllChildren(el); } return true; })()`,
+          );
+          await conn.send('Input.insertText', { text: value }, sessionId);
+        }
+        if (!KB_CDP_FILL_READBACK && !this.dialogOpenOn(pageId)) {
+          let rb = (await this.evalIsolated(pageId, buildFillReadbackExpression(el.path, value))) as {
+            ok: boolean;
+          };
+          if (!rb.ok) {
+            await this.typeValue(sessionId, value);
+            rb = (await this.evalIsolated(pageId, buildFillReadbackExpression(el.path, value))) as {
+              ok: boolean;
+            };
+            if (!rb.ok) {
+              throw new ActFailedError('fill read-back mismatch after key-event retry');
+            }
+          }
+        }
         return;
       }
       case 'select': {

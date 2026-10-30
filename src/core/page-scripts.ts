@@ -731,3 +731,43 @@ function settleProbe(): unknown {
 export function buildVisibilityExpression(): string {
   return 'document.visibilityState';
 }
+
+// r28: fill hardening — the kind probe (rich = contenteditable) and the
+// post-fill read-back. The comparator runs IN THE PAGE and returns only
+// {ok, reason}: the field text never returns to Node (redaction, r24c scope).
+
+export function buildFillKindExpression(path: string): string {
+  return `(${fillKind.toString()})(${JSON.stringify(path)})`;
+}
+
+function fillKind(path: string): unknown {
+  var el = document.querySelector(path);
+  if (!el) return null;
+  return (el as HTMLElement).isContentEditable ? 'rich' : 'field';
+}
+
+export function buildFillReadbackExpression(path: string, expected: string): string {
+  return `(${fillReadback.toString()})(${JSON.stringify(path)}, ${JSON.stringify(expected)})`;
+}
+
+async function fillReadback(path: string, expected: string): Promise<unknown> {
+  // r28 amendment (2026-10-30, orchestrator-approved): one 0-delay timer tick
+  // before reading. The corruption classes this fix targets (Draft.js and the
+  // richtext-doubling fixture model) apply asynchronously via setTimeout(0),
+  // and an immediate read races them, compares the pristine text and
+  // self-certifies. The tick flushes exactly the already-scheduled timers —
+  // deterministic, no wall-clock constant. Both adapters evaluate with
+  // awaitPromise, so the promise resolves in place.
+  await new Promise(function (r) {
+    setTimeout(r, 0);
+  });
+  var el = document.querySelector(path);
+  if (!el) return { ok: false, reason: 'gone' };
+  function norm(s: string | null | undefined): string {
+    return String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  }
+  var cur = (el as HTMLElement).isContentEditable
+    ? (el as HTMLElement).innerText
+    : (el as HTMLInputElement).value;
+  return norm(cur) === norm(expected) ? { ok: true } : { ok: false, reason: 'mismatch' };
+}
