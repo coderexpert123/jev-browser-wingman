@@ -3,7 +3,9 @@
 // pages(), observe, act, settle and detach then operate only on default-context
 // page targets. Evaluation runs in a `wingman` isolated world created per
 // evaluation; dialogs are reported through Page.javascriptDialogOpening and
-// never answered (no Page.handleJavaScriptDialog anywhere). Detach detaches
+// answered only via answerDialog (r17 C5: Page.handleJavaScriptDialog, accept/
+// dismiss per the loop's step-text decision — prompt and beforeunload are never
+// answered). Detach detaches
 // each session and closes the socket; only a Chrome this driver launched via
 // ensureChrome is killed. Never calls Target.closeTarget, Browser.close or
 // Target.createBrowserContext.
