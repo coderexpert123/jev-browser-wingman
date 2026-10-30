@@ -297,6 +297,23 @@ probe if it returns.
   switch sets mirror 1:1 except `KB_PW_NOWAIT` (suppresses Playwright's own
   post-click wait; raw CDP has none by construction);
   `tests/conformance-ops.test.ts` proves every declared op on each adapter.
+- **Rich-text (contenteditable) fill types by key events in BOTH adapters
+  (r28), plus a post-fill read-back.** Synthetic whole-string insertion
+  (PW `locator.fill`, CDP single `Input.insertText`) doubles text in
+  Draft.js-class editors (observed live on x.com's composer); key events and
+  per-char `Input.insertText` (one code point per event) never trip it. After
+  ANY fill, a read-back eval (whitespace-normalized, comparator runs IN THE
+  PAGE — field text never returns to Node) checks the landed value;
+  mismatch -> clear by keys + key-event retype ONCE, then
+  `ActFailedError('fill read-back mismatch after key-event retry')`. Read-back
+  is SKIPPED while a dialog is open (a dialog-during-fill keeps resolving to
+  the dialog machinery, not an error). Flags
+  `KB_{PW,CDP}_{RICH_TYPE,FILL_READBACK}` (flip = pre-fix behaviour; a flip
+  under the retry self-heals, so only the `window.__r28Events` mechanism pin
+  in `tests/richtext-fill.test.ts` kills `KB_*_RICH_TYPE`). Plain
+  input/textarea keep the fast fill (`#nokeys` pin — it swallows character
+  keydowns and only the fast path can fill it). Fixture:
+  `fixtures/pages/richtext-doubling.html`.
 
 ## Enumeration & page-scripts
 
