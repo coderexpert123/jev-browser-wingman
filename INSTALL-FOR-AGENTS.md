@@ -2,7 +2,7 @@
 
 ## Audience
 
-Any installing agent or human, on any client, beside whatever browser tooling the user already has. Read this whole file before running anything. Run only `npm install -g jev-browser-wingman`, `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
+Any installing agent or human, on any client. Wingman is standalone: with no other browser tool installed, wingman alone is the complete browser tooling — nothing else is needed. Beside whatever browser tooling the user already has, this file's coexistence steps apply. Read this whole file before running anything. Run only `npm install -g jev-browser-wingman`, `jev-browser-wingman` commands and the client's own `mcp` command. Stop and ask whenever a step would modify existing browser-tool config.
 
 After installing the command (below), start with `jev-browser-wingman doctor --plan`: it prints, per outcome, the exact steps this setup still needs. Finish with `jev-browser-wingman doctor`: green means done.
 
@@ -23,7 +23,7 @@ These must not be broken under any circumstance:
 
 - One browser process per profile dir.
 - Never close or relaunch a browser it did not start.
-- The existing browser tool stays registered and owns tabs, reading, dialogs and screen-position clicks; page actions and navigation go through wingman in forced mode.
+- When the user has an existing browser tool, it stays registered and owns tabs, reading, dialogs and screen-position clicks; page actions and navigation go through wingman in forced mode. With none, wingman alone is the complete browser tooling; do not install another tool to satisfy this invariant.
 - The TypeSafe key goes in the client's secret or env store, never in committed or synced config, and is never echoed.
 - No absolute machine paths in config that is synced across machines.
 - Show a diff and get the user's approval before editing any existing MCP or client config.
