@@ -4,6 +4,8 @@ Agents installing this package: read [INSTALL-FOR-AGENTS.md](INSTALL-FOR-AGENTS.
 
 jev-browser-wingman (wingman for short) hands your AI agent's browser clicks and typing to TypeSafe's Jev. Jev chooses which element each step acts on, handing the step back when unsure, and wingman carries out the action. The agent keeps planning and sends its page work to one tool. It attaches to a real, logged-in Chromium-family browser (Chrome, Edge, Brave and similar).
 
+Wingman is standalone. One MCP server bundles its own driving layer and browser management: playwright-core ships inside the package, and a raw-CDP adapter needs nothing beyond Node. Wingman does not require, wrap or assume any other browser-use tool. The only inputs are a Chromium-family browser on the machine and a TypeSafe Jev API key.
+
 ## Headline numbers
 
 We ran 17 small browser tasks, such as ticking a checkbox or checking out in a demo shop. Each ran twice with wingman and twice with Playwright alone, in alternating order: 68 runs. "Playwright alone" means the same agent using the regular Playwright MCP browser tools directly. Playwright is a browser-automation library, and MCP (Model Context Protocol) is how agents talk to tool servers.
@@ -16,22 +18,26 @@ With two runs per task, read the differences as indicative, not statistically es
 
 ## How it works
 
-Wingman sits in front of your existing browser tool, which is an MCP server such as Playwright MCP. It hides that tool's page-action tools from the agent and keeps its reading, tab, dialog and a few other tools. The agent sends wingman its goal and its steps through one tool, `browse_step`.
+On its own, wingman is a complete browser-use tool. The agent sends one tool, `browse_step`, a goal and its steps; wingman observes the page, asks Jev which element to act on, acts, and checks the result. Its driving layer is bundled: the default adapter uses the packaged playwright-core, and a raw-CDP adapter speaks the browser protocol directly. Wingman does not need any other browser-use tool.
+
+Wingman can also sit in front of an existing browser tool, which is an MCP server such as Playwright MCP. It hides that tool's page-action tools from the agent and keeps its reading, tab, dialog and a few other tools. This `with-browser` mode is optional; skip it unless you want to keep another browsing server.
 
 For each step that needs an element, wingman looks at the page and asks Jev which one to act on. Jev grades how well each element on the page fits the step. Wingman then acts, checks the result and returns. If it is unsure, it hands that step back to the agent.
 
 ```
 agent -> MCP client
-           |-- [jev-browser-wingman with-browser -- <your browsing MCP server>]
-           |      hides click / type / select / key / hover / upload / navigate / back / scroll / script
-           |      keeps tabs, read, dialogs, screen-position clicks, drag, wait, session
-           |-- [jev-browser-wingman mcp]  ->  browse_step
+           |-- [jev-browser-wingman mcp]  ->  browse_step   (standalone; all you need)
                               |
                               v
           one shared, debuggable Chromium-family browser
+
+  optional: front an existing browsing server instead
+           |-- [jev-browser-wingman with-browser -- <your browsing MCP server>]
+                  hides click / type / select / key / hover / upload / navigate / back / scroll / script
+                  keeps tabs, read, dialogs, screen-position clicks, drag, wait, session
 ```
 
-This is hand-off mode: wingman hides the agent's own click, type and other page-action tools, so those actions go through wingman. Dragging and clicks at screen positions stay with the agent. Hand-off mode is the default. In the config it is the `handoff.mode` setting with the value `"forced"`. It applies only while the top-level `mode` setting is `on` (see Install).
+This is hand-off mode: in the `with-browser` lane, wingman hides the wrapped server's click, type and other page-action tools, so those actions go through wingman. Dragging and clicks at screen positions stay with the agent. Hand-off is the default when a browsing server is wrapped. In the config it is the `handoff.mode` setting with the value `"forced"`. It applies only while the top-level `mode` setting is `on` (see Install).
 
 The `with-browser` command reads a profile for your browsing server. The profile sorts each of the server's tools into a category, called a capability class. These classes always stay with the agent: `pointer-xy`, `drag`, `tabs`, `dialog`, `read`, `wait` and `session`. In hand-off mode the other classes are hidden, including the agent's own `script` tool.
 
