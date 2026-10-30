@@ -1,0 +1,30 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Rich text doubling</title></head><body>
+<h1>Rich text doubling</h1>
+<div id="editor" contenteditable="true" role="textbox" aria-label="Post text"></div>
+<label for="selfheal">Self heal</label><input id="selfheal" type="text">
+<label for="nokeys">No keys</label><input id="nokeys" type="text">
+<div id="cursed" contenteditable="true" role="textbox" aria-label="Cursed"></div>
+<script>
+(function () {
+  function cps(s) { return s ? [...s].length : 0; }
+  window.__r28Events = [];
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    var data = typeof e.data === 'string' ? e.data : '';
+    window.__r28Events.push({ id: t.id, type: e.inputType || 'input', cps: cps(data), trusted: e.isTrusted });
+    if (t.id === 'editor' && cps(data) > 1) {
+      setTimeout(function () { t.textContent = t.textContent + data; }, 0);
+    }
+    if (t.id === 'selfheal' && (!e.isTrusted || cps(data) > 1)) {
+      setTimeout(function () { t.value = 'CORRUPTED'; }, 0);
+    }
+    if (t.id === 'cursed') {
+      setTimeout(function () { t.textContent = t.textContent + 'X'; }, 0);
+    }
+  });
+  document.getElementById('nokeys').addEventListener('keydown', function (e) {
+    if (e.key.length === 1) e.preventDefault();
+  });
+})();
+</script>
+</body></html>
