@@ -288,6 +288,15 @@ probe if it returns.
   predicate, check the predicate fires in the failure mode the retry exists
   for (`onlyUrlsChanged` was false on a nulls-vs-values pair, so the retry
   never fired).
+- **Both adapters answer dialogs; cdp is at full feature parity — treat
+  conformance-ops as the authority, not header comments.** `answerDialog` is a
+  required `Driver` contract method (r17 C5) implemented in BOTH adapters
+  (`Page.handleJavaScriptDialog` in cdp.ts; prompt/beforeunload never answered).
+  The cdp.ts header carried a stale "never answered" claim until 2026-10-30
+  (7428306) and misdirected adapter-selection reasoning the same day. The KB
+  switch sets mirror 1:1 except `KB_PW_NOWAIT` (suppresses Playwright's own
+  post-click wait; raw CDP has none by construction);
+  `tests/conformance-ops.test.ts` proves every declared op on each adapter.
 
 ## Enumeration & page-scripts
 

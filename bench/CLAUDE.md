@@ -235,9 +235,11 @@ Auto-loads when working in `bench/`. Root `CLAUDE.md` still holds Machine traps 
   shipped `createDriver` through `attach/pages/observe/act/detach` only
   (act ids by accessible name). The known-bad injections the Driver contract
   cannot express (`Target.closeTarget`, `Emulation.setDeviceMetricsOverride`,
-  main-world eval, `Target.createBrowserContext`, dialog answering) ride a
+  main-world eval, `Target.createBrowserContext`) ride a
   harness-held raw side connection; P7's cookie read uses `Network.getCookies`
-  from that client. Gate I-11 PROVEN (867edab): side-channel injections
+  from that client. Dialog answering left the inexpressible list in r17
+  (`Driver.answerDialog`, both adapters) but stays harness-held here: the spike
+  drives only the attach/pages/observe/act/detach lifecycle. Gate I-11 PROVEN (867edab): side-channel injections
   discriminate identically. Fixture mapping: `driver.pages()` is the page-id
   source; `count(selector)` becomes an observation filter.
 - **The spike's result JSON is deterministic** — a re-run reproducing wave-0
